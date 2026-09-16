@@ -1,0 +1,368 @@
+{
+  "codeCommit": "ea25a58dc64a451b2184033da65685a16b99a350",
+  "baselineCommit": "d5fc3977e934c231031fbabfb616ca92d3a4872d",
+  "status": "PARTIAL_FIX; multi-speaker accuracy remains OPEN",
+  "change": "Require owned-output query evidence before enrolling an additional final speaker identity; preserve first identity and known matching",
+  "hostEvidenceCanonical": false,
+  "capExperiment": {
+    "before": {
+      "systemSpeakerCount": 4,
+      "speakerConfusionSeconds": 19.23,
+      "unknownTurnSeconds": 60.41,
+      "classicDer250msNoOverlap": 0.468378
+    },
+    "cap6": {
+      "systemSpeakerCount": 6,
+      "speakerConfusionSeconds": 25.26,
+      "unknownTurnSeconds": 54.38,
+      "classicDer250msNoOverlap": 0.468378
+    },
+    "decision": "REJECT: UNKNOWN reduction became added confusion"
+  },
+  "annotatedCases": [
+    {
+      "case": "S_R003S01C01",
+      "before": {
+        "systemSpeakerCount": 2,
+        "speakerConfusionSeconds": 4.13,
+        "unknownTurnSeconds": 1.47,
+        "classicDer250msNoOverlap": 0.037902
+      },
+      "after": {
+        "systemSpeakerCount": 2,
+        "speakerConfusionSeconds": 4.13,
+        "unknownTurnSeconds": 1.47,
+        "classicDer250msNoOverlap": 0.037902
+      }
+    },
+    {
+      "case": "M_R003S02C01",
+      "before": {
+        "systemSpeakerCount": 3,
+        "speakerConfusionSeconds": 0.9,
+        "unknownTurnSeconds": 4.98,
+        "classicDer250msNoOverlap": 0.022177
+      },
+      "after": {
+        "systemSpeakerCount": 3,
+        "speakerConfusionSeconds": 0.9,
+        "unknownTurnSeconds": 4.98,
+        "classicDer250msNoOverlap": 0.022177
+      }
+    },
+    {
+      "case": "L_R003S01C02",
+      "before": {
+        "systemSpeakerCount": 4,
+        "speakerConfusionSeconds": 19.23,
+        "unknownTurnSeconds": 60.41,
+        "classicDer250msNoOverlap": 0.468378
+      },
+      "after": {
+        "systemSpeakerCount": 4,
+        "speakerConfusionSeconds": 19.23,
+        "unknownTurnSeconds": 60.41,
+        "classicDer250msNoOverlap": 0.468378
+      }
+    },
+    {
+      "case": "meeting-180s-ch0",
+      "before": {
+        "systemSpeakerCount": 4,
+        "speakerConfusionSeconds": 9.54,
+        "unknownTurnSeconds": 33.02,
+        "classicDer250msNoOverlap": 0.251658
+      },
+      "after": {
+        "systemSpeakerCount": 4,
+        "speakerConfusionSeconds": 9.54,
+        "unknownTurnSeconds": 33.02,
+        "classicDer250msNoOverlap": 0.251658
+      }
+    },
+    {
+      "case": "M_R003S01C01",
+      "before": {
+        "systemSpeakerCount": 3,
+        "speakerConfusionSeconds": 4.19,
+        "unknownTurnSeconds": 4.21,
+        "classicDer250msNoOverlap": 0.073465
+      },
+      "after": {
+        "systemSpeakerCount": 2,
+        "speakerConfusionSeconds": 0.0,
+        "unknownTurnSeconds": 5.9,
+        "classicDer250msNoOverlap": 0.058547
+      }
+    },
+    {
+      "case": "S_R004S01C01",
+      "before": {
+        "systemSpeakerCount": 3,
+        "speakerConfusionSeconds": 0.0,
+        "unknownTurnSeconds": 12.09,
+        "classicDer250msNoOverlap": 0.085022
+      },
+      "after": {
+        "systemSpeakerCount": 3,
+        "speakerConfusionSeconds": 0.0,
+        "unknownTurnSeconds": 12.09,
+        "classicDer250msNoOverlap": 0.085022
+      }
+    },
+    {
+      "case": "S_R004S03C01",
+      "before": {
+        "systemSpeakerCount": 2,
+        "speakerConfusionSeconds": 0.0,
+        "unknownTurnSeconds": 0.0,
+        "classicDer250msNoOverlap": 0.009351
+      },
+      "after": {
+        "systemSpeakerCount": 2,
+        "speakerConfusionSeconds": 0.0,
+        "unknownTurnSeconds": 0.0,
+        "classicDer250msNoOverlap": 0.009351
+      }
+    }
+  ],
+  "singletonCases": [
+    {
+      "durationSeconds": 69.56,
+      "finalKnownSpeakerCount": 1,
+      "unknownSeconds": 1.432
+    },
+    {
+      "durationSeconds": 47.26,
+      "finalKnownSpeakerCount": 1,
+      "unknownSeconds": 0
+    }
+  ],
+  "customer86Seconds": "opening and confirmed 38-second utterance retain the same identity",
+  "tests": {
+    "Harmony": 43,
+    "AndroidSdk": 59,
+    "AndroidDingqiao": 107,
+    "newRegressionRedOnBothPlatforms": true
+  },
+  "tradeoff": "M_R003S01C01 confusion 4.19 -> 0; UNKNOWN 4.21 -> 5.90. Other evaluated cases unchanged. Short actual newcomers can remain UNKNOWN.",
+  "fourSpeakerStatus": "L_R003S01C02 confusion19.23s, UNKNOWN60.41s, DER46.84%; no improvement from this narrow fix",
+  "freezeVerification": {
+    "canonical": false,
+    "commit": "ea25a58dc64a451b2184033da65685a16b99a350",
+    "productionSourceSha256": "cc8420cfd7b69552bee2b878411f5544f59f6c739d06c95544eadf24b763a6f2",
+    "cases": [
+      {
+        "case": "S_R003S01C01",
+        "matchesTestedPrototype": true,
+        "resultSha256": "84cab46f721487046a7fd2987b36c66450b088e8e4e50ea4e7773ca6d9927877",
+        "nativeWindowsSha256": "1826f5f33054b1768ab78848c77731e767ccaf8c6ae036e412dc334f3ec153cb",
+        "boundariesSha256": "04433ea38c5a380f999f8a932293646e9335ab37c0bb352d35f47dfcd3139bfa"
+      },
+      {
+        "case": "M_R003S02C01",
+        "matchesTestedPrototype": true,
+        "resultSha256": "d63fb5e623959dd9cfa332fbabf42a5efbe6d347918385698cb8f20611fc9adc",
+        "nativeWindowsSha256": "b027e01cf4b7eaaac6cd826fdc70494c25f32e9e49edbedf7665142c500063aa",
+        "boundariesSha256": "8b25d2374df44f042dfe411b0eb2b7a9b9522bb1a38cc726a0654419a4d582df"
+      },
+      {
+        "case": "L_R003S01C02",
+        "matchesTestedPrototype": true,
+        "resultSha256": "8cdc14bd5dd25a4c0f6125708744f480efed2cb32b5bb8e5ab5e2388a01d8ba4",
+        "nativeWindowsSha256": "883502cd82133d207070bfe37b95ad487947eb5874420f48aac96c7297bfa149",
+        "boundariesSha256": "5ac66cebae23c93f67314392ab77fd2c9cb364a69fd48569c0d97a84639a2c2e"
+      },
+      {
+        "case": "new-single",
+        "matchesTestedPrototype": true,
+        "resultSha256": "d29b50062d8be1287d9a115edb52f143b223ed4f8771949c0571c62dcac19716",
+        "nativeWindowsSha256": "939bd0e902ad1b0a6183914082181ce6f9c0273980807ef0006b689f75eb64da",
+        "boundariesSha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      },
+      {
+        "case": "old-single",
+        "matchesTestedPrototype": true,
+        "resultSha256": "fff8c3cd96383b6961aaf65d3f84fd01e15088dd6b4da838bebf0986a1c2b669",
+        "nativeWindowsSha256": "8448efdb64606c03c6c256dcd40fb987cc14befc1ea918dfbf1dbf5fc2e16c6e",
+        "boundariesSha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
+      },
+      {
+        "case": "customer-86s",
+        "matchesTestedPrototype": true,
+        "resultSha256": "5484f68d468dd9cc84e2ca3da588b6ed3bf955c79a07a6ff7fb7c4ce2b46b4af",
+        "nativeWindowsSha256": "046c601fb301602d99e94d67fc452392e634ea35df2ebcac2d20649e0ba23f84",
+        "boundariesSha256": "1044d72fff36609681b2a987bedc47c99408ce3b9adb1d0fa1fac2290f5b8074"
+      },
+      {
+        "case": "meeting-180s-ch0",
+        "matchesTestedPrototype": true,
+        "resultSha256": "d9b459db9285d6268d965778f676c3ad8041f13f4122ac5d168fc4a3bde5cc0f",
+        "nativeWindowsSha256": "d67e40ffc2d060c57b8c94ed30637b547b84f7028494bbddd051f84ddd003943",
+        "boundariesSha256": "44c53d652834655f1ec3fab8e97ab5d82dcdf0ced7cb9e326b15e0111762970e"
+      },
+      {
+        "case": "M_R003S01C01",
+        "matchesTestedPrototype": true,
+        "resultSha256": "e931d862e5c04936f693303bed9f5ddf29312ddf4c4c3e53341f306b179aa3dc",
+        "nativeWindowsSha256": "9f80c32cd056e53d196ab5a224db496f8e1dec87be496844ace6b2bc701b8441",
+        "boundariesSha256": "17992d70bd88382af1e7299e250ec0ecc1b195b3337192433d008182d001a0ca"
+      },
+      {
+        "case": "S_R004S01C01",
+        "matchesTestedPrototype": true,
+        "resultSha256": "6f7246f069292dd822aebe415ebc486aed3960a82c71d084ded834966d1ecbf8",
+        "nativeWindowsSha256": "0261b4aeac723ef6e311ac36f6533e610c0f64d9ee0b57751ad0fa9b804c8a2c",
+        "boundariesSha256": "33a4a69c37175a6962edd067871621647c3d65585a38b2440cc3b5b38ba3e36c"
+      },
+      {
+        "case": "S_R004S03C01",
+        "matchesTestedPrototype": true,
+        "resultSha256": "b1ec0a1b51e69591d0b4ae29e1b3552450c30a9ab58ee841e11becb01dcbef8e",
+        "nativeWindowsSha256": "fc93e14219787285e26b3e9bc4bdd7f06efb0a594e291482a19ef53faa96affa",
+        "boundariesSha256": "19a302a6aca22c496d6345d8acb8437ae03c797d21df60702cc7f4cf9144d160"
+      }
+    ]
+  },
+  "deviceValidation": {
+    "codeCommit": "ea25a58dc64a451b2184033da65685a16b99a350",
+    "deviceIdSha256": "2257b2bbf3e2c2859bb0d8327fbaaabd3bdc73046118167e818aabd5668062c3",
+    "hapSha256": "c66129d5fa0c5a55475fa9331338744cacbfa63bc8b8653668903fd24a0b801f",
+    "sourceFingerprintSha256": "b43081a19b38b60b15b0ab2194952780f2c5b5794f0b1d8db52e8725362cd67a",
+    "reportSha256": "ba3049970576d2caa1635afce75ef3db935f7ee4ee7115c4c039959dbb5e0b61",
+    "rawHarnessStatus": "PASS",
+    "rawFailures": [],
+    "memory": {
+      "status": "PASS",
+      "sample_count": 288,
+      "observation_seconds": 377.905,
+      "warmup_samples_excluded": 57,
+      "head_rss_mb": 694.676,
+      "tail_rss_mb": 734.188,
+      "rss_growth_mb": 39.512,
+      "rss_slope_mb_per_minute": 1.77,
+      "rss_third_medians_mb": [
+        704.195,
+        706.746,
+        729.012
+      ],
+      "peak_rss_mb": 781.488,
+      "peak_hwm_mb": 781.488,
+      "head_vm_data_mb": 1566.473,
+      "tail_vm_data_mb": 1662.254,
+      "vm_data_growth_mb": 95.781,
+      "peak_swap_mb": 0.066,
+      "head_threads": 67,
+      "tail_threads": 67,
+      "thread_growth": 0,
+      "max_rss_growth_mb": 64.0,
+      "max_thread_growth": 2
+    },
+    "cases": [
+      {
+        "name": "M_R003S01C01",
+        "inputSha256": "a51afcb1f4d9d1dce20ab69e746d4fa56e8590041f8536decfe8398322353671",
+        "checks": {
+          "startOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noError": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "frozenTimelineMatchesDevice": true,
+          "noAddedConfusion": true,
+          "noWorseDer": true
+        },
+        "status": "PASS",
+        "rawCycleStatus": "PASS",
+        "finishToCompleteMs": "3984",
+        "windowCount": 2,
+        "knownSpeakerIds": [
+          0,
+          1
+        ],
+        "unknownTextChars": 14,
+        "textChars": 557,
+        "metrics": {
+          "baseline": {
+            "systemSpeakerCount": 3,
+            "speakerConfusionSeconds": 4.19,
+            "unknownTurnSeconds": 4.21,
+            "classicDer250msNoOverlap": 0.073465
+          },
+          "candidate": {
+            "systemSpeakerCount": 2,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 5.9,
+            "classicDer250msNoOverlap": 0.058547
+          },
+          "device": {
+            "systemSpeakerCount": 2,
+            "speakerConfusionSeconds": 0.0,
+            "unknownTurnSeconds": 5.9,
+            "classicDer250msNoOverlap": 0.058547
+          }
+        }
+      },
+      {
+        "name": "L_R003S01C02",
+        "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+        "checks": {
+          "startOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noError": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "frozenTimelineMatchesDevice": true,
+          "noAddedConfusion": true,
+          "noWorseDer": true
+        },
+        "status": "PASS",
+        "rawCycleStatus": "PASS",
+        "finishToCompleteMs": "5031",
+        "windowCount": 2,
+        "knownSpeakerIds": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "unknownTextChars": 217,
+        "textChars": 483,
+        "metrics": {
+          "baseline": {
+            "systemSpeakerCount": 4,
+            "speakerConfusionSeconds": 19.23,
+            "unknownTurnSeconds": 60.41,
+            "classicDer250msNoOverlap": 0.468378
+          },
+          "candidate": {
+            "systemSpeakerCount": 4,
+            "speakerConfusionSeconds": 19.23,
+            "unknownTurnSeconds": 60.41,
+            "classicDer250msNoOverlap": 0.468378
+          },
+          "device": {
+            "systemSpeakerCount": 4,
+            "speakerConfusionSeconds": 19.23,
+            "unknownTurnSeconds": 60.41,
+            "classicDer250msNoOverlap": 0.468378
+          }
+        }
+      }
+    ],
+    "limits": [
+      "Only two labeled files rerun on phone; 10 fixed-acoustic cases cover broader regression",
+      "Ambiguous short new speakers can remain UNKNOWN",
+      "No full release, long-session, Android-device or network-observation acceptance"
+    ]
+  },
+  "phoneRestored": "MIC, meeting-minutes, diarization ON, vadEnd800ms, other enhancements OFF; idle"
+}
