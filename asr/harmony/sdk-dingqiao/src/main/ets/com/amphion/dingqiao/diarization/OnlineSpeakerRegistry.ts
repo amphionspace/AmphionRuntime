@@ -75,13 +75,14 @@ export class OnlineSpeakerRegistry {
     rawEmbedding: Float32Array | undefined,
     speechDurationMs: number,
     atMs: number,
+    allowAdditionalSpeaker: boolean = true,
   ): SpeakerAssignment {
-    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs)[0];
+    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs, [allowAdditionalSpeaker])[0];
   }
 
   /** Assigns one window jointly so an existing centroid and observation must be mutual top-1. */
   assignBatch(rawEmbeddings: (Float32Array | undefined)[], speechDurationsMs: number[],
-    atMs: number): SpeakerAssignment[] {
+    atMs: number, allowAdditionalSpeaker?: boolean[]): SpeakerAssignment[] {
     if (rawEmbeddings.length !== speechDurationsMs.length) {
       throw new Error('embedding and duration counts must match');
     }
@@ -133,7 +134,8 @@ export class OnlineSpeakerRegistry {
       // Distinct current channels still compete for different identities.
       const novel = best === undefined || !mutual ||
         best.score < Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD);
-      if (this.entries.length < this.maxSpeakers && novel) {
+      if (this.entries.length < this.maxSpeakers && novel &&
+        (this.entries.length === 0 || (allowAdditionalSpeaker?.[observation] ?? true))) {
         const entry: MutableSpeakerEntry = {
           speakerId: `S${this.entries.length + 1}`,
           centroid: embedding,

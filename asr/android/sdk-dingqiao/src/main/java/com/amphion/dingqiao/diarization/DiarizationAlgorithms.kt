@@ -98,6 +98,7 @@ internal class OnlineSpeakerRegistry(
         rawEmbeddings: List<FloatArray?>,
         speechDurationsMs: List<Int>,
         atMs: Int,
+        allowAdditionalSpeaker: List<Boolean>? = null,
     ): List<SpeakerAssignment> {
         require(rawEmbeddings.size == speechDurationsMs.size)
         val embeddings = rawEmbeddings.mapIndexed { index, value ->
@@ -133,7 +134,8 @@ internal class OnlineSpeakerRegistry(
                     best.second.coerceIn(0f, 1f),
                     false,
                 )
-            } else if (entries.size < maxSpeakers && (best == null || !mutual ||
+            } else if (entries.size < maxSpeakers && (entries.isEmpty() || (allowAdditionalSpeaker?.get(observation) ?: true)) &&
+                (best == null || !mutual ||
                 best.second < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD))) {
                 // An uncertain known speaker is not evidence of a new person.
                 val entry = MutableSpeakerEntry(
