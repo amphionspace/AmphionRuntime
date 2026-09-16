@@ -24,15 +24,18 @@
     <string name="scenario_form">填单</string>
     <string name="scenario_meeting_minutes">会议纪要</string>
     <string name="diarization_speaker">说话人 %1$d</string>
-    <string name="diarization_speaker_unknown">说话人待定</string>
+    <string name="diarization_speaker_unknown">未能区分说话人</string>
+    <string name="diarization_intermediate">（中间结果）</string>
+    <string name="diarization_final">（最终结果）</string>
+    <string name="diarization_phase_hint">角色的中间结果可能调整；窗口结束后标为最终结果。</string>
     <string name="diarization_overlap">重叠说话</string>
     <string name="diarization_degraded">说话人分离已降级：%1$s</string>
     <string name="audio_source_mic">MIC（原始）</string>
     <string name="audio_source_recognition">VOICE_RECOGNITION</string>
     <string name="audio_source_communication">VOICE_COMMUNICATION</string>
     <string name="scenario_voiceprint_disabled">该场景按客户参数不注入声纹字段</string>
-    <string name="partial_title">中间结果</string>
-    <string name="final_title">最终结果</string>
+    <string name="partial_title">转写中间结果</string>
+    <string name="final_title">转写结果</string>
     <string name="final_placeholder_generic">识别结果将累积显示在这里。</string>
 
     <string name="sdk_pcm_title">SDK 实际输入 PCM</string>

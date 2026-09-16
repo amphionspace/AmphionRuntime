@@ -103,6 +103,18 @@ class CorpusPreconditionsTest(unittest.TestCase):
                 with self.assertRaisesRegex(MODULE.StressFailure, "1000"):
                     MODULE.select_preconditioned_sources([source], "voiceprint-vad-begin", 0)
 
+    def test_diarization_pause_override_is_explicit_and_meeting_only(self):
+        for value in [400, 600, 800]:
+            with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows",
+                                                "--diarization-vad-end-ms", str(value)]):
+                self.assertEqual(value, MODULE.parse_args().diarization_vad_end_ms)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows"]):
+            self.assertIsNone(MODULE.parse_args().diarization_vad_end_ms)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst",
+                                            "--diarization-vad-end-ms", "400"]):
+            with self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:
             short = self.source(directory, "short.wav", 55 * 320)
