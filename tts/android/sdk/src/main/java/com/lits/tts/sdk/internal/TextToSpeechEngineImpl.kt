@@ -45,8 +45,9 @@ internal class TextToSpeechEngineImpl(
     @Volatile
     private var destroyed = false
 
-    @Volatile
-    private var released = false
+    private val released = AtomicBoolean(false)
+    // Includes cancelled/preempted workers until their native calls have returned.
+    private var activeWorkers = 0
 
     private var current: SynthesisTask? = null
 
@@ -135,8 +136,10 @@ internal class TextToSpeechEngineImpl(
             stoppedTasks.forEach { notifyStop(callback, it) }
         }
         player.stop()
-        executor.shutdownNow()
-        releaseOnce()
+        // Interrupting Java does not stop an in-flight ORT call. Workers own
+        // their native resources until finally; shutdown itself stays nonblocking.
+        executor.shutdown()
+        if (synchronized(lock) { activeWorkers == 0 }) releaseOnce()
     }
 
     private fun validateSpeak(text: String, params: SpeakParams): Pair<Int, String>? {
@@ -198,7 +201,10 @@ internal class TextToSpeechEngineImpl(
             current?.let { add(it) }
             addAll(queue)
         }
-        tasks.forEach { it.cancelled.set(true) }
+        tasks.forEach {
+            it.stopRequested.set(true)
+            it.cancelled.set(true)
+        }
         queue.clear()
         current = null
         return tasks
@@ -208,6 +214,7 @@ internal class TextToSpeechEngineImpl(
         if (current != null || queue.isEmpty() || destroyed) return
         val task = queue.removeFirst()
         current = task
+        activeWorkers += 1
         executor.execute { runTask(task) }
     }
 
@@ -317,6 +324,7 @@ internal class TextToSpeechEngineImpl(
                         }
                     },
                 )
+                if (task.stopRequested.get() || destroyed) return
                 synthesized ?: throw IllegalStateException("streaming playback produced no synthesized audio")
             } else {
                 synthesizer.synthesize(task.text, task.params, engineParams)
@@ -348,12 +356,22 @@ internal class TextToSpeechEngineImpl(
             if (callback != null) notifyStop(callback, task)
         } catch (error: RuntimeException) {
             val (code, message) = parseRuntimeError(error)
-            if (callback != null) notifyError(callback, task.params.requestId, code, message)
+            if (callback != null) {
+                dispatchListener {
+                    // Recheck at dispatch: stop may race with a native failure.
+                    if (!task.stopRequested.get() && !destroyed) {
+                        callback.onError(task.params.requestId, code, message)
+                    }
+                }
+            }
         } finally {
-            synchronized(lock) {
+            val shouldRelease = synchronized(lock) {
+                activeWorkers -= 1
                 if (current === task) current = null
                 startNextLocked()
+                destroyed && activeWorkers == 0
             }
+            if (shouldRelease) releaseOnce()
         }
     }
 
@@ -514,8 +532,7 @@ internal class TextToSpeechEngineImpl(
         engineName?.let { "$message (engineName=$it)" } ?: message
 
     private fun releaseOnce() {
-        if (!released) {
-            released = true
+        if (released.compareAndSet(false, true)) {
             player.stop()
             val noActiveEngines = onRelease()
             synthesizer.close(releaseSharedResources = noActiveEngines)
@@ -536,6 +553,7 @@ internal class TextToSpeechEngineImpl(
         val text: String,
         val params: SpeakParams,
         val cancelled: AtomicBoolean = AtomicBoolean(false),
+        val stopRequested: AtomicBoolean = AtomicBoolean(false),
         val stopNotified: AtomicBoolean = AtomicBoolean(false),
         val playbackStartMs: AtomicLong = AtomicLong(-1L),
         @Volatile var startedAtMs: Long = -1L,
