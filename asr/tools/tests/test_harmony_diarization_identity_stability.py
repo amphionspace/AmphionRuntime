@@ -87,10 +87,10 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
 
     def test_repeated_short_context_cannot_enroll_a_new_speaker(self):
         run_session("""
-          function run(embedding, speechMs, seedMs=6000) {
+          function run(embedding, speechMs, seedMs=6000, speechSamples=speechMs*16) {
             const s=session(); s.totalSamples=224000;
             const windows=[{start:0,end:seedMs,embedding:[1,0]}];
-            for(let i=0;i<4;i++) windows.push({start:7000,end:7000+speechMs,embedding});
+            for(let i=0;i<4;i++) windows.push({start:7000,end:7000+speechSamples/16,embedding});
             for(let i=0;i<windows.length;i++) {
               const w=windows[i];
               s.onWindow({jobId:`w${i}`,windowStartSample:0,contentStartInWindowSample:0,
@@ -108,6 +108,8 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
           assert.deepEqual(first.provisional,['S1']);
           assert.equal(first.result.speakerCount,1,'do not delay the first speaker of a short session');
           assert.equal(run([0,1],2999).result.speakerCount,1,'new identity waits for sufficient evidence');
+          assert.equal(run([0,1],3000,6000,47999).result.speakerCount,1,
+            'rounding milliseconds must not enroll a voice one sample below three seconds');
           const short=run([.53,Math.sqrt(1-.53**2)],1200);
           assert.deepEqual(short.provisional,['S1'],
             'one short uncertain fragment must not create a provisional extra person');
