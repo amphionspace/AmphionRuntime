@@ -396,11 +396,12 @@ export class SpeakerDiarizationTranscriptState {
   private splitByTokenSpeaker(utterance: StoredUtterance,
     textBoundaries: number[]): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
+    const unanimous = this.unanimousSpeakerTurn(utterance);
     let groupStart = 0;
-    let active = this.turnAt(utterance.tokenTimesMs[0]);
+    let active = this.turnAt(utterance.tokenTimesMs[0]) ?? unanimous;
     for (let index = 1; index <= utterance.tokens.length; index++) {
       const next = index < utterance.tokens.length ?
-        this.turnAt(utterance.tokenTimesMs[index]) : undefined;
+        (this.turnAt(utterance.tokenTimesMs[index]) ?? unanimous) : undefined;
       const same = index < utterance.tokens.length &&
         (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER) &&
         sameStrings(next?.secondarySpeakerIds ?? [], active?.secondarySpeakerIds ?? []);
@@ -426,6 +427,18 @@ export class SpeakerDiarizationTranscriptState {
       active = next;
     }
     return result;
+  }
+
+  private unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn | undefined {
+    let candidate: SpeakerTimelineTurn | undefined;
+    for (const turn of this.turns) {
+      if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue;
+      // Missing acoustic coverage is distinct from an explicitly uncertain or overlapping turn.
+      if (turn.speakerId === UNKNOWN_SPEAKER || turn.overlap || turn.secondarySpeakerIds.length > 0 ||
+        (candidate !== undefined && candidate.speakerId !== turn.speakerId)) return undefined;
+      candidate = turn;
+    }
+    return candidate;
   }
 
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {

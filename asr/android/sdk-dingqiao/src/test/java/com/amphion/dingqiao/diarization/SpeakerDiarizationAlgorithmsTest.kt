@@ -15,6 +15,26 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun unanimousSpeakerCoversGapsWithoutOverridingExplicitUncertainty() {
+        fun split(turns: List<SpeakerTimelineTurn>): List<String> {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙", "甲乙丙。", listOf("甲", "乙", "丙"),
+                listOf(100, 600, 1100), 0, 1200)
+            state.applySpeakerTurns(turns)
+            return state.finalUtterances().map { it.speakerId }
+        }
+        val first = SpeakerTimelineTurn(0, 500, "S1", emptyList())
+        val second = SpeakerTimelineTurn(700, 1000, "S1", emptyList())
+        assertEquals(listOf("S1"), split(listOf(first, second)))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first,
+            SpeakerTimelineTurn(500, 1200, "UNKNOWN", emptyList()))))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first, second.copy(speakerId = "S2"))))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first.copy(overlap = true,
+            secondarySpeakerIds = listOf("S2")))))
+        assertEquals(listOf("UNKNOWN"), split(emptyList()))
+    }
+
+    @Test
     fun bbpeAlignmentKeepsTheFirstByteTimestampAndWholeCharacters() {
         val state = DiarizationTranscriptState()
         state.addUtterance("你好啊", "你好，啊。", listOf("▁Ƌ", "ţŅƌŋţ", "▁ƌĸī"),
