@@ -1,6 +1,6 @@
 # Amphion Android SDK 交付指南（给我们自己看）
 
-适用 SDK 版本：0.3.4
+适用 SDK 版本：0.3.5
 
 > 本文是「我们怎么把 SDK 交付给业务方」的内部 SOP。业务方只需要看 [INTEGRATION.md](INTEGRATION.md) 和 [PRIVACY.md](PRIVACY.md)。
 
