@@ -8,10 +8,12 @@ internal data class SpeakerTimelineTurn(
     val endTime: Int,
     var speakerId: String,
     var secondarySpeakerIds: List<String>,
-    val confidence: Float = 0f,
+    var confidence: Float = 0f,
     val overlap: Boolean = false,
     val evidenceKey: String? = null,
     val secondaryEvidenceKeys: List<String> = emptyList(),
+    // Keep one ID per acoustic channel, independently of deduplicated display IDs.
+    var secondaryEvidenceSpeakerIds: List<String> = secondarySpeakerIds,
 )
 
 internal data class DiarizationTranscriptUpdate(
@@ -66,9 +68,11 @@ internal class DiarizationTranscriptState {
         audioEndTime: Int = endTime,
     ): String {
         val id = "u${nextUtteranceId++}"
+        val decoded = decodedTranscriptTokens(rawText, tokens, tokenTimesMs)
         val assignment = assignmentFor(beginTime, endTime)
         utterances += StoredUtterance(
-            audioEndTime, id, rawText, text, tokens.toList(), tokenTimesMs.toList(), beginTime, endTime,
+            audioEndTime, id, rawText, text, decoded?.first ?: tokens.toList(),
+            decoded?.second ?: tokenTimesMs.toList(), beginTime, endTime,
             0, assignment.speakerId, assignment.secondarySpeakerIds,
         )
         return id
@@ -82,18 +86,26 @@ internal class DiarizationTranscriptState {
 
     fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>): List<DiarizationTranscriptUpdate> {
         if (newTurns.isEmpty()) return emptyList()
-        turns += newTurns.map { it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList()) }
+        turns += newTurns.map { it.copy(
+            secondarySpeakerIds = it.secondaryEvidenceSpeakerIds.filter { id -> id != it.speakerId }.distinct(),
+            secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
+            secondaryEvidenceSpeakerIds = it.secondaryEvidenceSpeakerIds.toList()) }
         return refreshUtterances { utterance ->
             newTurns.any { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
         }
     }
 
-    fun applyEvidenceRemap(remap: Map<String, String>, fromTime: Int = 0): List<DiarizationTranscriptUpdate> {
+    fun applyEvidenceRemap(remap: Map<String, String>, fromTime: Int = 0,
+        confidences: Map<String, Float> = emptyMap()): List<DiarizationTranscriptUpdate> {
         turns.filter { it.endTime >= fromTime }.forEach { turn ->
-            turn.evidenceKey?.let { turn.speakerId = remap[it] ?: turn.speakerId }
-            turn.secondarySpeakerIds = turn.secondarySpeakerIds.mapIndexed { index, speakerId ->
+            turn.evidenceKey?.let {
+                turn.speakerId = remap[it] ?: turn.speakerId
+                turn.confidence = confidences[it] ?: turn.confidence
+            }
+            turn.secondaryEvidenceSpeakerIds = turn.secondaryEvidenceSpeakerIds.mapIndexed { index, speakerId ->
                 remap[turn.secondaryEvidenceKeys.getOrNull(index)] ?: speakerId
-            }.filter { it != turn.speakerId }.distinct()
+            }
+            turn.secondarySpeakerIds = turn.secondaryEvidenceSpeakerIds.filter { it != turn.speakerId }.distinct()
         }
         return refreshUtterances { it.endTime >= fromTime }
     }
@@ -101,21 +113,20 @@ internal class DiarizationTranscriptState {
     fun applySpeakerRemap(remap: Map<String, String>, fromTime: Int = 0): List<DiarizationTranscriptUpdate> {
         turns.filter { it.endTime >= fromTime }.forEach { turn ->
             turn.speakerId = remap[turn.speakerId] ?: turn.speakerId
-            turn.secondarySpeakerIds = turn.secondarySpeakerIds.map { remap[it] ?: it }
-                .filter { it != turn.speakerId }.distinct()
+            turn.secondaryEvidenceSpeakerIds = turn.secondaryEvidenceSpeakerIds.map { remap[it] ?: it }
+            turn.secondarySpeakerIds = turn.secondaryEvidenceSpeakerIds.filter { it != turn.speakerId }.distinct()
         }
         return refreshUtterances { it.endTime >= fromTime }
     }
 
     fun finalUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> = utterances.filter { it.audioEndTime <= throughTime }.flatMap { utterance ->
-        if (
-            utterance.tokens.isEmpty() ||
-            utterance.tokens.size != utterance.tokenTimesMs.size ||
-            utterance.tokens.joinToString("") != utterance.text
-        ) {
+        val boundaries = if (utterance.tokens.isNotEmpty() &&
+            utterance.tokens.size == utterance.tokenTimesMs.size
+        ) tokenTextBoundaries(utterance.tokens, utterance.text) else null
+        if (boundaries == null) {
             listOf(unsplit(utterance))
         } else {
-            val split = splitByTokenSpeaker(utterance)
+            val split = splitByTokenSpeaker(utterance, boundaries)
             if (split.joinToString("") { it.text } == utterance.text) split else listOf(unsplit(utterance))
         }
     }
@@ -133,7 +144,9 @@ internal class DiarizationTranscriptState {
     }
 
     fun allTurns(): List<SpeakerTimelineTurn> = turns.map {
-        it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList())
+        it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList(),
+            secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
+            secondaryEvidenceSpeakerIds = it.secondaryEvidenceSpeakerIds.toList())
     }
 
     private data class Assignment(
@@ -193,12 +206,77 @@ internal class DiarizationTranscriptState {
         timeMs >= it.beginTime && timeMs < it.endTime
     }
 
-    private fun splitByTokenSpeaker(utterance: StoredUtterance): List<DiarizedTranscriptUtterance> {
+
+    // Mirrors sherpa's BBPE alphabet/spacing; require byte-exact agreement with rawText.
+    private fun decodedTranscriptTokens(rawText: String, tokens: List<String>,
+        times: List<Int>): Pair<List<String>, List<Int>>? {
+        if (tokens.size != times.size || tokens.joinToString("") == rawText) return null
+        val alphabet = "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğ !\"#\$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľŁłŃńŅņŇňŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžƀƁƂƃƄƅƆƇƈƉƊƋƌƍƎƏƐƑƒƓƔƕƖƗƘƙƚƛƜƝƞƟƠơƢƣƤƥƦ"
+        val bytes = mutableListOf<Int>()
+        val owners = mutableListOf<Int>()
+        tokens.forEachIndexed { index, token ->
+            for (character in token) {
+                if (character == '▁') {
+                    if ((bytes.lastOrNull() ?: -1) in 33..126) {
+                        bytes += 32
+                        owners += times[index]
+                    }
+                    continue
+                }
+                val value = if (character == '⁇') 32 else alphabet.indexOf(character)
+                if (value < 0) return null
+                bytes += value
+                owners += times[index]
+            }
+        }
+        val decoded = mutableListOf<String>()
+        val decodedTimes = mutableListOf<Int>()
+        var byteOffset = 0
+        var index = 0
+        while (index < rawText.length) {
+            val point = rawText.codePointAt(index)
+            if (point in 0xD800..0xDFFF) return null
+            val width = Character.charCount(point)
+            val character = rawText.substring(index, index + width)
+            val encoded = character.toByteArray(Charsets.UTF_8)
+            encoded.forEachIndexed { part, value ->
+                if (bytes.getOrNull(byteOffset + part) != (value.toInt() and 255)) return null
+            }
+            decoded += character
+            decodedTimes += owners[byteOffset]
+            byteOffset += encoded.size
+            index += width
+        }
+        return if (byteOffset == bytes.size) decoded to decodedTimes else null
+    }
+
+    // Only punctuation/spacing insertions are alignable; do not guess ITN boundaries.
+    private fun tokenTextBoundaries(tokens: List<String>, text: String): List<Int>? {
+        val inserted = " ,.!?，。！？、;；:：\t\r\n"
+        val boundaries = mutableListOf(0)
+        var cursor = 0
+        for ((index, token) in tokens.withIndex()) {
+            if (token.isEmpty()) return null
+            for ((character, value) in token.withIndex()) {
+                while (cursor < text.length && text[cursor] != value && text[cursor] in inserted) cursor++
+                if (cursor >= text.length || text[cursor] != value) return null
+                if (index > 0 && character == 0) boundaries += cursor
+                cursor++
+            }
+        }
+        while (cursor < text.length && text[cursor] in inserted) cursor++
+        if (cursor != text.length) return null
+        boundaries += cursor
+        return boundaries
+    }
+
+    private fun splitByTokenSpeaker(utterance: StoredUtterance, textBoundaries: List<Int>): List<DiarizedTranscriptUtterance> {
         val result = mutableListOf<DiarizedTranscriptUtterance>()
+        val unanimous = unanimousSpeakerTurn(utterance)
         var groupStart = 0
-        var active = turnAt(utterance.tokenTimesMs[0])
+        var active = turnAt(utterance.tokenTimesMs[0]) ?: unanimous
         for (index in 1..utterance.tokens.size) {
-            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) else null
+            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) ?: unanimous else null
             val same = index < utterance.tokens.size &&
                 (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN") &&
                 (next?.secondarySpeakerIds ?: emptyList<String>()) ==
@@ -212,7 +290,7 @@ internal class DiarizationTranscriptState {
                 utteranceId = if (result.isEmpty()) utterance.utteranceId else "${utterance.utteranceId}.${result.size + 1}",
                 sourceUtteranceId = utterance.utteranceId,
                 rawText = text,
-                text = text,
+                text = utterance.text.substring(textBoundaries[groupStart], textBoundaries[index]),
                 beginTime = begin,
                 endTime = end,
                 speakerId = active?.speakerId ?: "UNKNOWN",
@@ -224,6 +302,18 @@ internal class DiarizationTranscriptState {
             active = next
         }
         return result
+    }
+
+    private fun unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn? {
+        var candidate: SpeakerTimelineTurn? = null
+        for (turn in turns) {
+            if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue
+            // No acoustic coverage is not the same as explicit uncertainty or overlap.
+            if (turn.speakerId == "UNKNOWN" || turn.overlap || turn.secondarySpeakerIds.isNotEmpty() ||
+                (candidate != null && candidate.speakerId != turn.speakerId)) return null
+            candidate = turn
+        }
+        return candidate
     }
 
     private fun unsplit(utterance: StoredUtterance): DiarizedTranscriptUtterance {

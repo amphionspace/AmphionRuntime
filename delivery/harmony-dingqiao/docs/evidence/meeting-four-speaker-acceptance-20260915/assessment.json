@@ -1,0 +1,837 @@
+{
+  "scope": "Fresh 2/3/4-speaker continuous 180-second clips; source whole recordings have 5/6/6 speakers. No whole-recording <=4 acceptance claimed.",
+  "groundTruthPolicy": "Only annotation-backed clips with every actual reference speaker counted, including brief/overlapping speech. Unlabeled customer recordings excluded from accuracy verdict.",
+  "selectionFrozenBeforeInference": true,
+  "rawHarnessStatus": "FAIL",
+  "rawHarnessFailures": [
+    "RSS/thread growth exceeded threshold"
+  ],
+  "identityStabilityStatus": "FAIL",
+  "lifecycleStatus": "PASS",
+  "currentHostMatchesDevice": true,
+  "reportPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/report.json",
+  "reportSha256": "2156dabf0ea0bfd26b77c66c91a30a4f3a318b73689e00ef354d120788fea144",
+  "buildIdentity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "f26c41fb6242c5ff724eb5553b483f7d2203ff0d9064d514557e3bb9429cb9ba",
+        "size_bytes": 219610266
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "b903c5a45aba780837f03fd184dbbd196e4486786cf17e5e6116ae92ee2ddbf2",
+        "size_bytes": 380772225
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "f623f515cdcdc5b14c6b016770d020861f27fe08d7dcf39c16e8b1a67840b27e",
+        "size_bytes": 42350034
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "b297210a60a70f87375b82cadc9286e4c4fe61d1cd820279f6bd5425e361c081",
+        "size_bytes": 30201887
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "a6c9d53856cfcdc41317d978d2913a3fb77824a6a3007f4432272172814b18bb",
+        "size_bytes": 6950514
+      }
+    },
+    "build_mode": "diagnostics",
+    "created_at": "2026-09-15T10:20:44.559840+00:00",
+    "git_commit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+    "model_manifest_sha256": "3d68ca19e5ab97706b6f691df29a4ea6908c1dc49281d67dadae737c39321d90",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    "optional_models": {
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "source_fingerprint_sha256": "684892e1f191a21e34fc5d4059b879adfb50207df2c1019cac789527fed85d68",
+    "zh_en_only": true
+  },
+  "sourceEquivalence": {
+    "currentCommit": "c769c031eed0185f44c84322a016f03e45436748",
+    "differentFields": [
+      "git_commit"
+    ]
+  },
+  "installedPackageIdentity": {
+    "source": "installed_package",
+    "bundle_name": "com.amphion.asr.harmony.demo",
+    "version_name": "0.3.14",
+    "version_code": 314,
+    "fingerprint": "D6CE6F943F7D8AF4C0121C1842BB46F9225F1AF6657D1B088734B0B10A97250D",
+    "compile_sdk_version": "6.1.0.105",
+    "api_target_version": 50000012,
+    "cpu_abi": "arm64-v8a",
+    "debug": true
+  },
+  "device": "6CT9K26130017501",
+  "memory": {
+    "status": "FAIL",
+    "sample_count": 432,
+    "observation_seconds": 568.978,
+    "warmup_samples_excluded": 86,
+    "head_rss_mb": 666.115,
+    "tail_rss_mb": 774.812,
+    "rss_growth_mb": 108.697,
+    "rss_slope_mb_per_minute": 13.905,
+    "rss_third_medians_mb": [
+      677.699,
+      727.838,
+      771.344
+    ],
+    "peak_rss_mb": 868.859,
+    "peak_hwm_mb": 868.859,
+    "head_vm_data_mb": 1541.469,
+    "tail_vm_data_mb": 1735.297,
+    "vm_data_growth_mb": 193.828,
+    "peak_swap_mb": 0.066,
+    "head_threads": 68.0,
+    "tail_threads": 67.0,
+    "thread_growth": -1.0,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "cases": [
+    {
+      "meeting": "S_R003S01C01",
+      "inputSpeakerCount": 2,
+      "sourceWholeMeetingSpeakerCount": 5,
+      "sourceStartSeconds": 540,
+      "durationSeconds": 180,
+      "canonicalDeviceEvidence": true,
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "diarization-windows-contract",
+      "lifecycleChecks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullCoverage": true
+      },
+      "lifecycleStatus": "PASS",
+      "identityStabilityChecks": {
+        "noSamePersonNamedSwitches": false,
+        "noPersonSplitAcrossNamedIds": false,
+        "eachReferencePersonHasNamedCoverage": true,
+        "differentPeopleHaveDistinctDominantIds": true
+      },
+      "identityStabilityStatus": "FAIL",
+      "currentHostMatchesDevice": true,
+      "hostMaxConfidenceDelta": 1.7327461010463452e-07,
+      "queryDoesNotChangeProfiles": true,
+      "metrics": {
+        "device": {
+          "classicDer250msNoOverlap": 0.040484,
+          "speakerConfusionSeconds": 5.1,
+          "unknownTurnSeconds": 0.5,
+          "missedSpeechSeconds": 9.71,
+          "falseAlarmSeconds": 3.67,
+          "referenceOverlapSeconds": 3.01,
+          "referenceSpeakerCount": 2,
+          "systemSpeakerCount": 3,
+          "perSpeakerRecall": {
+            "001-M": 0.960884,
+            "005-M": 0.852901
+          },
+          "sameSpeakerIdSwitchCount": 9,
+          "splitReferenceSpeakers": [
+            "001-M",
+            "005-M"
+          ]
+        },
+        "original": {
+          "classicDer250msNoOverlap": 0.205203,
+          "speakerConfusionSeconds": 14.61,
+          "unknownTurnSeconds": 18.0,
+          "missedSpeechSeconds": 26.55,
+          "falseAlarmSeconds": 4.79,
+          "referenceOverlapSeconds": 3.01,
+          "referenceSpeakerCount": 2,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "001-M": 0.743497,
+            "005-M": 0.790553
+          },
+          "sameSpeakerIdSwitchCount": 16,
+          "splitReferenceSpeakers": [
+            "001-M",
+            "005-M"
+          ]
+        },
+        "pre-gap": {
+          "classicDer250msNoOverlap": 0.040484,
+          "speakerConfusionSeconds": 5.1,
+          "unknownTurnSeconds": 0.5,
+          "missedSpeechSeconds": 9.71,
+          "falseAlarmSeconds": 3.67,
+          "referenceOverlapSeconds": 3.01,
+          "referenceSpeakerCount": 2,
+          "systemSpeakerCount": 3,
+          "perSpeakerRecall": {
+            "001-M": 0.960884,
+            "005-M": 0.852901
+          },
+          "sameSpeakerIdSwitchCount": 9,
+          "splitReferenceSpeakers": [
+            "001-M",
+            "005-M"
+          ]
+        },
+        "current": {
+          "classicDer250msNoOverlap": 0.040484,
+          "speakerConfusionSeconds": 5.1,
+          "unknownTurnSeconds": 0.5,
+          "missedSpeechSeconds": 9.71,
+          "falseAlarmSeconds": 3.67,
+          "referenceOverlapSeconds": 3.01,
+          "referenceSpeakerCount": 2,
+          "systemSpeakerCount": 3,
+          "perSpeakerRecall": {
+            "001-M": 0.960884,
+            "005-M": 0.852901
+          },
+          "sameSpeakerIdSwitchCount": 9,
+          "splitReferenceSpeakers": [
+            "001-M",
+            "005-M"
+          ]
+        }
+      },
+      "comparisons": {
+        "original": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.205203,
+              "currentDevice": 0.040484
+            },
+            "speakerConfusionSeconds": {
+              "before": 14.61,
+              "currentDevice": 5.1
+            },
+            "unknownTurnSeconds": {
+              "before": 18.0,
+              "currentDevice": 0.5
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 16,
+              "currentDevice": 9
+            }
+          },
+          "regressions": [],
+          "status": "NO_REGRESSION"
+        },
+        "pre-gap": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.040484,
+              "currentDevice": 0.040484
+            },
+            "speakerConfusionSeconds": {
+              "before": 5.1,
+              "currentDevice": 5.1
+            },
+            "unknownTurnSeconds": {
+              "before": 0.5,
+              "currentDevice": 0.5
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 9,
+              "currentDevice": 9
+            }
+          },
+          "regressions": [],
+          "status": "NO_REGRESSION"
+        }
+      },
+      "deviceIdentityDetails": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "001-M": {
+            "1": 1.68,
+            "0": 81.42,
+            "missing": 0.37,
+            "2": 0.88
+          },
+          "005-M": {
+            "1": 59.84,
+            "missing": 1.94,
+            "0": 0.62,
+            "unknown": 0.44,
+            "multiple": 0.03
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "001-M",
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 9,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 35.745,
+            "atSeconds": 36.325
+          },
+          {
+            "referenceSpeaker": "001-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 37.925,
+            "atSeconds": 37.935
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 36.705,
+            "atSeconds": 89.575
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 123.875,
+            "atSeconds": 123.885
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 124.035,
+            "atSeconds": 124.045
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 124.935,
+            "atSeconds": 125.525
+          },
+          {
+            "referenceSpeaker": "001-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 87.215,
+            "atSeconds": 126.215
+          },
+          {
+            "referenceSpeaker": "001-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 127.615,
+            "atSeconds": 127.625
+          },
+          {
+            "referenceSpeaker": "001-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 128.495,
+            "atSeconds": 128.505
+          }
+        ]
+      },
+      "windows": [
+        {
+          "begin": 0,
+          "end": 170520,
+          "utterances": 2,
+          "unknownUtterances": 0
+        },
+        {
+          "begin": 170520,
+          "end": 180000,
+          "utterances": 2,
+          "unknownUtterances": 0
+        }
+      ],
+      "rtf": 0.47699444444444444,
+      "finishToCompleteMs": 3068,
+      "inputSha256": "4dd123d601b2e7f97eaafdd823074208f0e8b71006f40c76d0e7ff0c550a8083",
+      "rttmSha256": "95c05470f001274f0d91dafda2793f5539a4ce16dc7f9015723611a015f61ac3"
+    },
+    {
+      "meeting": "M_R003S02C01",
+      "inputSpeakerCount": 3,
+      "sourceWholeMeetingSpeakerCount": 6,
+      "sourceStartSeconds": 360,
+      "durationSeconds": 180,
+      "canonicalDeviceEvidence": true,
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "diarization-windows-contract",
+      "lifecycleChecks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullCoverage": true
+      },
+      "lifecycleStatus": "PASS",
+      "identityStabilityChecks": {
+        "noSamePersonNamedSwitches": false,
+        "noPersonSplitAcrossNamedIds": false,
+        "eachReferencePersonHasNamedCoverage": false,
+        "differentPeopleHaveDistinctDominantIds": true
+      },
+      "identityStabilityStatus": "FAIL",
+      "currentHostMatchesDevice": true,
+      "hostMaxConfidenceDelta": 2.3514478697528318e-07,
+      "queryDoesNotChangeProfiles": true,
+      "metrics": {
+        "device": {
+          "classicDer250msNoOverlap": 0.023452,
+          "speakerConfusionSeconds": 0.9,
+          "unknownTurnSeconds": 10.37,
+          "missedSpeechSeconds": 25.93,
+          "falseAlarmSeconds": 1.7,
+          "referenceOverlapSeconds": 15.14,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 2,
+          "perSpeakerRecall": {
+            "001-M": 0.805958,
+            "005-F": 0.0,
+            "006-F": 0.951778
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "006-F"
+          ]
+        },
+        "original": {
+          "classicDer250msNoOverlap": 0.246635,
+          "speakerConfusionSeconds": 4.02,
+          "unknownTurnSeconds": 50.69,
+          "missedSpeechSeconds": 65.76,
+          "falseAlarmSeconds": 1.08,
+          "referenceOverlapSeconds": 15.14,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "001-M": 0.134461,
+            "005-F": 0.0,
+            "006-F": 0.818963
+          },
+          "sameSpeakerIdSwitchCount": 3,
+          "splitReferenceSpeakers": [
+            "006-F"
+          ]
+        },
+        "pre-gap": {
+          "classicDer250msNoOverlap": 0.023452,
+          "speakerConfusionSeconds": 0.9,
+          "unknownTurnSeconds": 10.37,
+          "missedSpeechSeconds": 25.93,
+          "falseAlarmSeconds": 1.7,
+          "referenceOverlapSeconds": 15.14,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 2,
+          "perSpeakerRecall": {
+            "001-M": 0.805958,
+            "005-F": 0.0,
+            "006-F": 0.951778
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "006-F"
+          ]
+        },
+        "current": {
+          "classicDer250msNoOverlap": 0.023452,
+          "speakerConfusionSeconds": 0.9,
+          "unknownTurnSeconds": 10.37,
+          "missedSpeechSeconds": 25.93,
+          "falseAlarmSeconds": 1.7,
+          "referenceOverlapSeconds": 15.14,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 2,
+          "perSpeakerRecall": {
+            "001-M": 0.805958,
+            "005-F": 0.0,
+            "006-F": 0.951778
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "006-F"
+          ]
+        }
+      },
+      "comparisons": {
+        "original": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.246635,
+              "currentDevice": 0.023452
+            },
+            "speakerConfusionSeconds": {
+              "before": 4.02,
+              "currentDevice": 0.9
+            },
+            "unknownTurnSeconds": {
+              "before": 50.69,
+              "currentDevice": 10.37
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 3,
+              "currentDevice": 1
+            }
+          },
+          "regressions": [],
+          "status": "NO_REGRESSION"
+        },
+        "pre-gap": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.023452,
+              "currentDevice": 0.023452
+            },
+            "speakerConfusionSeconds": {
+              "before": 0.9,
+              "currentDevice": 0.9
+            },
+            "unknownTurnSeconds": {
+              "before": 10.37,
+              "currentDevice": 10.37
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 1,
+              "currentDevice": 1
+            }
+          },
+          "regressions": [],
+          "status": "NO_REGRESSION"
+        }
+      },
+      "deviceIdentityDetails": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "001-M": {
+            "1": 20.19,
+            "missing": 0.25
+          },
+          "005-F": {
+            "unknown": 1.1
+          },
+          "006-F": {
+            "0": 117.64,
+            "missing": 1.58,
+            "1": 0.38
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "006-F"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "006-F",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 157.425,
+            "atSeconds": 168.015
+          }
+        ]
+      },
+      "windows": [
+        {
+          "begin": 0,
+          "end": 130100,
+          "utterances": 14,
+          "unknownUtterances": 0
+        },
+        {
+          "begin": 130100,
+          "end": 180000,
+          "utterances": 6,
+          "unknownUtterances": 2
+        }
+      ],
+      "rtf": 0.6013611111111111,
+      "finishToCompleteMs": 5498,
+      "inputSha256": "89e8fa17087c50546afb9db74f1e1e5e585536ff52a1316bf23dcf9faf54b2fd",
+      "rttmSha256": "a46f07dd09b9e1062a3f366e8194fb37699acbad0e7728613bfe5527acc773bc"
+    },
+    {
+      "meeting": "L_R003S01C02",
+      "inputSpeakerCount": 4,
+      "sourceWholeMeetingSpeakerCount": 6,
+      "sourceStartSeconds": 690,
+      "durationSeconds": 180,
+      "canonicalDeviceEvidence": true,
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "diarization-windows-contract",
+      "lifecycleChecks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullCoverage": true
+      },
+      "lifecycleStatus": "PASS",
+      "identityStabilityChecks": {
+        "noSamePersonNamedSwitches": false,
+        "noPersonSplitAcrossNamedIds": false,
+        "eachReferencePersonHasNamedCoverage": true,
+        "differentPeopleHaveDistinctDominantIds": true
+      },
+      "identityStabilityStatus": "FAIL",
+      "currentHostMatchesDevice": true,
+      "hostMaxConfidenceDelta": 2.3886871458600467e-07,
+      "queryDoesNotChangeProfiles": true,
+      "metrics": {
+        "device": {
+          "classicDer250msNoOverlap": 0.46361,
+          "speakerConfusionSeconds": 23.96,
+          "unknownTurnSeconds": 53.84,
+          "missedSpeechSeconds": 84.66,
+          "falseAlarmSeconds": 1.43,
+          "referenceOverlapSeconds": 20.03,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "002-F": 0.277297,
+            "003-F": 0.773504,
+            "004-M": 0.110067,
+            "005-M": 0.473435
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "005-M"
+          ]
+        },
+        "original": {
+          "classicDer250msNoOverlap": 0.830447,
+          "speakerConfusionSeconds": 5.99,
+          "unknownTurnSeconds": 124.46,
+          "missedSpeechSeconds": 157.02,
+          "falseAlarmSeconds": 0.56,
+          "referenceOverlapSeconds": 20.03,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "002-F": 0.277297,
+            "003-F": 0.773504,
+            "004-M": 0.0,
+            "005-M": 0.060101
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "005-M"
+          ]
+        },
+        "pre-gap": {
+          "classicDer250msNoOverlap": 0.46361,
+          "speakerConfusionSeconds": 23.96,
+          "unknownTurnSeconds": 53.84,
+          "missedSpeechSeconds": 84.66,
+          "falseAlarmSeconds": 1.43,
+          "referenceOverlapSeconds": 20.03,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "002-F": 0.277297,
+            "003-F": 0.773504,
+            "004-M": 0.110067,
+            "005-M": 0.473435
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "005-M"
+          ]
+        },
+        "current": {
+          "classicDer250msNoOverlap": 0.46361,
+          "speakerConfusionSeconds": 23.96,
+          "unknownTurnSeconds": 53.84,
+          "missedSpeechSeconds": 84.66,
+          "falseAlarmSeconds": 1.43,
+          "referenceOverlapSeconds": 20.03,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "perSpeakerRecall": {
+            "002-F": 0.277297,
+            "003-F": 0.773504,
+            "004-M": 0.110067,
+            "005-M": 0.473435
+          },
+          "sameSpeakerIdSwitchCount": 1,
+          "splitReferenceSpeakers": [
+            "005-M"
+          ]
+        }
+      },
+      "comparisons": {
+        "original": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.830447,
+              "currentDevice": 0.46361
+            },
+            "speakerConfusionSeconds": {
+              "before": 5.99,
+              "currentDevice": 23.96
+            },
+            "unknownTurnSeconds": {
+              "before": 124.46,
+              "currentDevice": 53.84
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 1,
+              "currentDevice": 1
+            }
+          },
+          "regressions": [
+            "speakerConfusionSeconds"
+          ],
+          "status": "REGRESSION"
+        },
+        "pre-gap": {
+          "metrics": {
+            "classicDer250msNoOverlap": {
+              "before": 0.46361,
+              "currentDevice": 0.46361
+            },
+            "speakerConfusionSeconds": {
+              "before": 23.96,
+              "currentDevice": 23.96
+            },
+            "unknownTurnSeconds": {
+              "before": 53.84,
+              "currentDevice": 53.84
+            },
+            "sameSpeakerIdSwitchCount": {
+              "before": 1,
+              "currentDevice": 1
+            }
+          },
+          "regressions": [],
+          "status": "NO_REGRESSION"
+        }
+      },
+      "deviceIdentityDetails": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 0.6,
+            "missing": 0.25,
+            "2": 6.16
+          },
+          "003-F": {
+            "3": 8.4,
+            "missing": 0.19,
+            "unknown": 0.26
+          },
+          "004-M": {
+            "unknown": 15.88,
+            "missing": 0.06,
+            "1": 0.6
+          },
+          "005-M": {
+            "0": 52.36,
+            "unknown": 16.34,
+            "missing": 7.0,
+            "1": 17.76
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 91.625,
+            "atSeconds": 101.005
+          }
+        ]
+      },
+      "windows": [
+        {
+          "begin": 0,
+          "end": 125400,
+          "utterances": 18,
+          "unknownUtterances": 4
+        },
+        {
+          "begin": 125400,
+          "end": 180000,
+          "utterances": 6,
+          "unknownUtterances": 6
+        }
+      ],
+      "rtf": 0.8047333333333333,
+      "finishToCompleteMs": 8064,
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "rttmSha256": "93511cf38f65684174405cb4ee517404e95d19ea56e41c6fdb7be7fd096e385f"
+    }
+  ],
+  "resourceLimitation": "Three short meetings do not establish a resource budget or leak verdict for a full long meeting. Raw 64MiB check is preserved.",
+  "evidence": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/report.json",
+      "bytes": 468693,
+      "sha256": "2156dabf0ea0bfd26b77c66c91a30a4f3a318b73689e00ef354d120788fea144"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/result.txt",
+      "bytes": 463283,
+      "sha256": "6d1911fcd7e4864c40ff11c07a55f566f904830f7358a4dee18731f4529e6058"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/hilog.txt",
+      "bytes": 1815047,
+      "sha256": "9f615f2a2a1d9b2783e04c199bf0b7070a8bb31d3e6661887ea9fc5b5c2926ea"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/memory.csv",
+      "bytes": 27310,
+      "sha256": "4222bb3789fc52bdebb96a12e0840d5e7936bbe6cbd813e92c6ed62b9527e8b2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/inventory.json",
+      "bytes": 202,
+      "sha256": "bd12fe1bce41009287df9b8ed3598d1368242db56c41c1f4b53020012f854bb4"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/payload/corpus.json",
+      "bytes": 1104,
+      "sha256": "99b7164cec9b79e62b7fc14e5b599df09d92fa25248f5742024e898274390f4a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/payload/manifest.txt",
+      "bytes": 327,
+      "sha256": "bdc1f5b6e387fbab30c536135b9e42b09cfe4dc740714fe8ffde012bc2615b64"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/usb/20260915-184728-diarization-windows-e82e9d12/installed-bundle.json",
+      "bytes": 13871,
+      "sha256": "f59838c062cf74d40d2da58794a576873cededa2ae63f498dafce8618da802fe"
+    }
+  ]
+}

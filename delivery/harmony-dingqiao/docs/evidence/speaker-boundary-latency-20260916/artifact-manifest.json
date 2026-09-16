@@ -1,0 +1,155 @@
+{
+  "privateArtifactRoot": "~/.cache/amphion-runtime/diagnostics/speaker-boundary-phone-20260916-i66zfg2_",
+  "entries": [
+    {
+      "path": "regression-before.txt",
+      "bytes": 6191,
+      "sha256": "b919813edc09d0da7e578b92383a0289a80c8093a3e92ac5e3eb4e1457f77173"
+    },
+    {
+      "path": "regression-after.txt",
+      "bytes": 842,
+      "sha256": "fabbb0ae97b4e95242cbc49013ac9307f487a91e697a4257531b3bf80c94e0a3"
+    },
+    {
+      "path": "bbpe-before.txt",
+      "bytes": 4220,
+      "sha256": "7aaec60dd6bf27e44e6e16ffed6962fde0e21bee7cab2a3d897e283f21da7e9e"
+    },
+    {
+      "path": "bbpe-after.txt",
+      "bytes": 673,
+      "sha256": "f56baee132a13b795f68f5947d8368914a0c64654e5da6e30b51efc20724f005"
+    },
+    {
+      "path": "gap-before.txt",
+      "bytes": 3989,
+      "sha256": "98c65c958bb5bebda8b8098b24ced4242f55a2471b35ed0366b6446b0ec116a7"
+    },
+    {
+      "path": "gap-after.txt",
+      "bytes": 688,
+      "sha256": "0e55c83d9b2b906f2a3151d7d860a51cc79acd047a4efe4710a00d8057cd9e90"
+    },
+    {
+      "path": "native-token-probe.log",
+      "bytes": 83,
+      "sha256": "3c89f858a1291f4990c40262a3c18c54a6e72bb61b806196adfa0e65be84e317"
+    },
+    {
+      "path": "native-alignment-check.json",
+      "bytes": 180,
+      "sha256": "1218e61f0fa692128bfe12fad480c931972115dd15be4d9f56f8a0fd950075b0"
+    },
+    {
+      "path": "gap-state-tests.txt",
+      "bytes": 17285,
+      "sha256": "263f226d8ce6d508337b38022820ef078f0470dca94f3f637d7b414e4bc64726"
+    },
+    {
+      "path": "gap-android-tests.txt",
+      "bytes": 3123,
+      "sha256": "3fffa2282261cb61b157eca8984f38905a08d366ed14e69d8f0f726a65efb1cb"
+    },
+    {
+      "path": "vad-comparison.json",
+      "bytes": 3469,
+      "sha256": "67dd47677b58ba1713f81e243dc3fdae81b7b662ecf818905989246bbcca87bf"
+    },
+    {
+      "path": "gap-build-identity.json",
+      "bytes": 2351,
+      "sha256": "a23e49e1e974b4fec04905e5b639e40c1bc57926c1f696dd454a92912d646704"
+    },
+    {
+      "path": "assessment.json",
+      "bytes": 9974,
+      "sha256": "c8f0abb6264025bec78e37d10b846688c67303cec8af23e03dc772c832812393"
+    },
+    {
+      "path": "final-assessment.json",
+      "bytes": 8986,
+      "sha256": "9bc67563843a55c340ff3262a890225f2bcacd0a6514787a1d78c569cd07cc09"
+    },
+    {
+      "path": "gap-assessment.json",
+      "bytes": 5195,
+      "sha256": "f4964e536a63a733a3cb4e244b913715bc72772c71df780a8c3625b0b209270f"
+    },
+    {
+      "path": "gap-state-replay.json",
+      "bytes": 647,
+      "sha256": "cd53f536d35226dff8747be99d92f17f60396d444df76f99e762b707ce1b813a"
+    },
+    {
+      "path": "gap-freeze.json",
+      "bytes": 857,
+      "sha256": "a88b6d8571516f089be9b4399338221ba0de11adcf3575bc176de9e308652598"
+    },
+    {
+      "path": "phone-ready-check.json",
+      "bytes": 321,
+      "sha256": "481e094fcd6c922b5fdc40d305f6eb9827de156f51669494fceaf370be56f47d"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/report.json",
+      "bytes": 34003,
+      "sha256": "4432adc1597d6519c80ac1fb76cf157c95556b5e1e1149e9336a4b81d9231cf8"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/result.txt",
+      "bytes": 27360,
+      "sha256": "414403d2c62b21f5bea45d4851e89c3d49e383b7944d6a80360540e03bfce8e1"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/hilog.txt",
+      "bytes": 755755,
+      "sha256": "6642e0e7a900700d44a604a6e374966a24e288393fa99fb432bb58e93f0400e5"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/memory.csv",
+      "bytes": 2721,
+      "sha256": "81214d22dbb66429c594208e2d6b99c44cd8ac8a3ffd4ede635824dc7c2e1e45"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/payload/corpus.json",
+      "bytes": 373,
+      "sha256": "d66471c59362aab312a35f5d76baa281f1524e15cbfe8d55ef1ef38b5a562b71"
+    },
+    {
+      "path": "gap-usb/20260916-124617-customer-meeting-minutes-69e448f4/inventory.json",
+      "bytes": 202,
+      "sha256": "05a3aa7f9c444d0714f24bf69394b59bc1f86079ded61e82e85ab007394edf73"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/report.json",
+      "bytes": 411081,
+      "sha256": "9670d8c8fbc09cb08c3d872c44a04c10e29b289486af5c236868ee2238f06119"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/result.txt",
+      "bytes": 403565,
+      "sha256": "455d7c8c59bfd2c2505080e7c0f23196e8fab6a83196d233e3167e218cc57fc9"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/hilog.txt",
+      "bytes": 1104478,
+      "sha256": "b55eb27918eaddc94805fb830c44ef7f8d691791d8cfc6b19f5c6202e4de2dbb"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/memory.csv",
+      "bytes": 20582,
+      "sha256": "e3b81d2f27badc5863ffd983e7fd2a2e42bc6f186207fe1f40fd643b48ac3930"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/payload/corpus.json",
+      "bytes": 1115,
+      "sha256": "e4540492a2530533910b189dab27348fbdfedda4ed2ccb667b8e62982f9c0b81"
+    },
+    {
+      "path": "final-usb/20260916-123209-diarization-windows-ad29b031/inventory.json",
+      "bytes": 204,
+      "sha256": "11b35941938a41252fba232bf8345b3f01f844b1908b09311780f21c582afe99"
+    }
+  ]
+}

@@ -17,6 +17,8 @@ export interface SpeakerTimelineTurn {
   overlap?: boolean;
   evidenceKey?: string;
   secondaryEvidenceKeys?: string[];
+  // One ID per acoustic channel, even when display IDs currently collapse.
+  secondaryEvidenceSpeakerIds?: string[];
 }
 
 export interface DiarizationTranscriptUpdate extends SpeakerTimelineTurn {
@@ -54,20 +56,103 @@ function sameStrings(left: string[], right: string[]): boolean {
   return true;
 }
 
+function visibleSecondaryIds(ids: string[], primary: string): string[] {
+  return ids.filter((id: string, index: number, all: string[]): boolean =>
+    id !== primary && all.indexOf(id) === index);
+}
+
+// Align only inserted punctuation/spacing. Lexical rewrites (including ITN) must
+// keep the original paragraph until the postprocessor supplies a timed mapping.
+function tokenTextBoundaries(tokens: string[], text: string): number[] | undefined {
+  const inserted = ' ,.!?，。！？、;；:：\t\r\n';
+  const boundaries: number[] = [0];
+  let cursor = 0;
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.length === 0) return undefined;
+    for (let character = 0; character < token.length; character++) {
+      while (cursor < text.length && text[cursor] !== token[character] &&
+        inserted.indexOf(text[cursor]) >= 0) cursor++;
+      if (cursor >= text.length || text[cursor] !== token[character]) return undefined;
+      // Keep inserted sentence punctuation with the preceding token.
+      if (index > 0 && character === 0) boundaries.push(cursor);
+      cursor++;
+    }
+  }
+  while (cursor < text.length && inserted.indexOf(text[cursor]) >= 0) cursor++;
+  if (cursor !== text.length) return undefined;
+  boundaries.push(cursor);
+  return boundaries;
+}
+
+interface TimedTranscriptTokens {
+  tokens: string[];
+  times: number[];
+}
+
+// Byte alphabet and separator semantics match sherpa-onnx/csrc/{bbpe,symbol-table}.cc.
+// A UTF-8 character may span tokens; its first byte owns its timestamp.
+function decodedTranscriptTokens(rawText: string, tokens: string[],
+  times: number[]): TimedTranscriptTokens | undefined {
+  if (tokens.length !== times.length || tokens.join('') === rawText) return undefined;
+  const alphabet = "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľŁłŃńŅņŇňŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžƀƁƂƃƄƅƆƇƈƉƊƋƌƍƎƏƐƑƒƓƔƕƖƗƘƙƚƛƜƝƞƟƠơƢƣƤƥƦ";
+  const bytes: number[] = [];
+  const owners: number[] = [];
+  for (let index = 0; index < tokens.length; index++) {
+    for (let offset = 0; offset < tokens[index].length; offset++) {
+      const character = tokens[index][offset];
+      if (character === '▁') {
+        const last = bytes.length > 0 ? bytes[bytes.length - 1] : -1;
+        if (last > 32 && last <= 126) {
+          bytes.push(32);
+          owners.push(times[index]);
+        }
+        continue;
+      }
+      const value = character === '⁇' ? 32 : alphabet.indexOf(character);
+      if (value < 0) return undefined;
+      bytes.push(value);
+      owners.push(times[index]);
+    }
+  }
+  const decoded: string[] = [];
+  const decodedTimes: number[] = [];
+  let byteOffset = 0;
+  for (let index = 0; index < rawText.length;) {
+    const point = rawText.codePointAt(index) ?? 0;
+    if (point >= 0xD800 && point <= 0xDFFF) return undefined;
+    const width = point > 0xFFFF ? 2 : 1;
+    const encoded: number[] = point < 0x80 ? [point] : point < 0x800 ?
+      [0xC0 | (point >> 6), 0x80 | (point & 63)] : point < 0x10000 ?
+      [0xE0 | (point >> 12), 0x80 | ((point >> 6) & 63), 0x80 | (point & 63)] :
+      [0xF0 | (point >> 18), 0x80 | ((point >> 12) & 63),
+        0x80 | ((point >> 6) & 63), 0x80 | (point & 63)];
+    for (let part = 0; part < encoded.length; part++) {
+      if (bytes[byteOffset + part] !== encoded[part]) return undefined;
+    }
+    decoded.push(rawText.slice(index, index + width));
+    decodedTimes.push(owners[byteOffset]);
+    byteOffset += encoded.length;
+    index += width;
+  }
+  return byteOffset === bytes.length ? { tokens: decoded, times: decodedTimes } : undefined;
+}
+
 export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
   private nextUtteranceId: number = 1;
   private readonly turns: SpeakerTimelineTurn[] = [];
 
   addUtterance(input: DiarizationTranscriptInput): string {
+    const decoded = decodedTranscriptTokens(input.rawText, input.tokens, input.tokenTimesMs);
     const utteranceId = `u${this.nextUtteranceId++}`;
     const assignment = this.assignmentFor(input.beginTime, input.endTime);
     this.utterances.push({
       utteranceId,
       rawText: input.rawText,
       text: input.text,
-      tokens: input.tokens.slice(),
-      tokenTimesMs: input.tokenTimesMs.slice(),
+      tokens: decoded?.tokens ?? input.tokens.slice(),
+      tokenTimesMs: decoded?.times ?? input.tokenTimesMs.slice(),
       beginTime: input.beginTime,
       endTime: input.endTime,
       audioEndTime: input.audioEndTime,
@@ -96,15 +181,17 @@ export class SpeakerDiarizationTranscriptState {
   applySpeakerTurns(newTurns: SpeakerTimelineTurn[]): DiarizationTranscriptUpdate[] {
     if (newTurns.length === 0) return [];
     for (let i = 0; i < newTurns.length; i++) {
+      const evidenceIds = newTurns[i].secondaryEvidenceSpeakerIds ?? newTurns[i].secondarySpeakerIds;
       this.turns.push({
         beginTime: newTurns[i].beginTime,
         endTime: newTurns[i].endTime,
         speakerId: newTurns[i].speakerId,
-        secondarySpeakerIds: newTurns[i].secondarySpeakerIds.slice(),
+        secondarySpeakerIds: visibleSecondaryIds(evidenceIds, newTurns[i].speakerId),
         confidence: newTurns[i].confidence,
         overlap: newTurns[i].overlap,
         evidenceKey: newTurns[i].evidenceKey,
         secondaryEvidenceKeys: newTurns[i].secondaryEvidenceKeys?.slice(),
+        secondaryEvidenceSpeakerIds: evidenceIds.slice(),
       });
     }
 
@@ -136,13 +223,14 @@ export class SpeakerDiarizationTranscriptState {
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
       if ((utterance.audioEndTime ?? utterance.endTime) > throughTime) continue;
-      if (utterance.tokens.length === 0 ||
-        utterance.tokens.length !== utterance.tokenTimesMs.length ||
-        utterance.tokens.join('') !== utterance.text) {
+      const boundaries = utterance.tokens.length > 0 &&
+        utterance.tokens.length === utterance.tokenTimesMs.length ?
+        tokenTextBoundaries(utterance.tokens, utterance.text) : undefined;
+      if (boundaries === undefined) {
         result.push(this.unsplitUtterance(utterance));
         continue;
       }
-      const split = this.splitByTokenSpeaker(utterance);
+      const split = this.splitByTokenSpeaker(utterance, boundaries);
       if (split.map((item: DiarizedTranscriptUtterance): string => item.text).join('') !==
         utterance.text) {
         result.push(this.unsplitUtterance(utterance));
@@ -180,17 +268,18 @@ export class SpeakerDiarizationTranscriptState {
       overlap: turn.overlap,
       evidenceKey: turn.evidenceKey,
       secondaryEvidenceKeys: turn.secondaryEvidenceKeys?.slice(),
+      secondaryEvidenceSpeakerIds: turn.secondaryEvidenceSpeakerIds?.slice(),
     }));
   }
 
   applySpeakerRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
     for (let i = 0; i < this.turns.length; i++) {
       if (this.turns[i].endTime < fromTime) continue;
-      this.turns[i].speakerId = remap[this.turns[i].speakerId] ?? this.turns[i].speakerId;
-      this.turns[i].secondarySpeakerIds = this.turns[i].secondarySpeakerIds
-        .map((speakerId: string): string => remap[speakerId] ?? speakerId)
-        .filter((speakerId: string, index: number, all: string[]): boolean =>
-          speakerId !== this.turns[i].speakerId && all.indexOf(speakerId) === index);
+      const turn = this.turns[i];
+      turn.speakerId = remap[turn.speakerId] ?? turn.speakerId;
+      turn.secondaryEvidenceSpeakerIds = (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds)
+        .map((speakerId: string): string => remap[speakerId] ?? speakerId);
+      turn.secondarySpeakerIds = visibleSecondaryIds(turn.secondaryEvidenceSpeakerIds, turn.speakerId);
     }
     const updates: DiarizationTranscriptUpdate[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
@@ -215,19 +304,20 @@ export class SpeakerDiarizationTranscriptState {
     return updates;
   }
 
-  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0): DiarizationTranscriptUpdate[] {
+  applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0,
+    confidences: Record<string, number> = {}): DiarizationTranscriptUpdate[] {
     for (let index = 0; index < this.turns.length; index++) {
       const turn = this.turns[index];
       if (turn.endTime < fromTime) continue;
       if (turn.evidenceKey !== undefined) {
         turn.speakerId = remap[turn.evidenceKey] ?? turn.speakerId;
+        turn.confidence = confidences[turn.evidenceKey] ?? turn.confidence;
       }
       const evidenceKeys = turn.secondaryEvidenceKeys ?? [];
-      turn.secondarySpeakerIds = turn.secondarySpeakerIds
+      turn.secondaryEvidenceSpeakerIds = (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds)
         .map((speakerId: string, secondaryIndex: number): string =>
-          remap[evidenceKeys[secondaryIndex]] ?? speakerId)
-        .filter((speakerId: string, secondaryIndex: number, all: string[]): boolean =>
-          speakerId !== turn.speakerId && all.indexOf(speakerId) === secondaryIndex);
+          remap[evidenceKeys[secondaryIndex]] ?? speakerId);
+      turn.secondarySpeakerIds = visibleSecondaryIds(turn.secondaryEvidenceSpeakerIds, turn.speakerId);
     }
     const updates: DiarizationTranscriptUpdate[] = [];
     for (let index = 0; index < this.utterances.length; index++) {
@@ -303,13 +393,15 @@ export class SpeakerDiarizationTranscriptState {
     return undefined;
   }
 
-  private splitByTokenSpeaker(utterance: StoredUtterance): DiarizedTranscriptUtterance[] {
+  private splitByTokenSpeaker(utterance: StoredUtterance,
+    textBoundaries: number[]): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
+    const unanimous = this.unanimousSpeakerTurn(utterance);
     let groupStart = 0;
-    let active = this.turnAt(utterance.tokenTimesMs[0]);
+    let active = this.turnAt(utterance.tokenTimesMs[0]) ?? unanimous;
     for (let index = 1; index <= utterance.tokens.length; index++) {
       const next = index < utterance.tokens.length ?
-        this.turnAt(utterance.tokenTimesMs[index]) : undefined;
+        (this.turnAt(utterance.tokenTimesMs[index]) ?? unanimous) : undefined;
       const same = index < utterance.tokens.length &&
         (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER) &&
         sameStrings(next?.secondarySpeakerIds ?? [], active?.secondarySpeakerIds ?? []);
@@ -323,7 +415,7 @@ export class SpeakerDiarizationTranscriptState {
           `${utterance.utteranceId}.${result.length + 1}`,
         sourceUtteranceId: utterance.utteranceId,
         rawText: utterance.tokens.slice(groupStart, index).join(''),
-        text: utterance.tokens.slice(groupStart, index).join(''),
+        text: utterance.text.slice(textBoundaries[groupStart], textBoundaries[index]),
         beginTime,
         endTime,
         speakerId: active?.speakerId ?? UNKNOWN_SPEAKER,
@@ -335,6 +427,18 @@ export class SpeakerDiarizationTranscriptState {
       active = next;
     }
     return result;
+  }
+
+  private unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn | undefined {
+    let candidate: SpeakerTimelineTurn | undefined;
+    for (const turn of this.turns) {
+      if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue;
+      // Missing acoustic coverage is distinct from an explicitly uncertain or overlapping turn.
+      if (turn.speakerId === UNKNOWN_SPEAKER || turn.overlap || turn.secondarySpeakerIds.length > 0 ||
+        (candidate !== undefined && candidate.speakerId !== turn.speakerId)) return undefined;
+      candidate = turn;
+    }
+    return candidate;
   }
 
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
