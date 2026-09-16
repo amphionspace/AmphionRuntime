@@ -74,7 +74,7 @@ class StreamingStudentDeviceTest {
                             playType = PlayType.SYNTHESIZE_ONLY))
                         assertTrue("timeout", done.await(180, TimeUnit.SECONDS))
                         assertNull(error)
-                        assertTrue(model, model.contains("student_0010000_streaming"))
+                        assertTrue(model, model.contains(args.getString("expectedModel") ?: "student_0010000_streaming"))
                         assertTrue("streaming start required", streaming)
                         assertTrue("streaming callbacks required", callbacksStreaming)
                         assertTrue("nonempty audio", pcm.size() > 0)
