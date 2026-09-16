@@ -302,7 +302,10 @@ internal class SpeakerDiarizationSession(
                 anchor
             } else {
                 // Repeated overlapping context is not additional independent PCM.
-                val canEnroll = cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs }
+                // Context can mix earlier speakers. A new role must also have
+                // evidence from an owned output slice before becoming a query target.
+                val canEnroll = cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs } &&
+                    cluster.indexes.any { observations[it].queryEmbedding != null }
                 committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs),
                     endTime, listOf(canEnroll))[0].speakerId
             }

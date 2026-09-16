@@ -14,6 +14,46 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun contextWithoutOutputQueryCannotEnrollOrRedirectAnotherSpeaker() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-query-enrollment-test").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val observer = object : SpeakerDiarizationSessionObserver {
+                override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+            }
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4, observer)
+            try {
+                session.append(ByteArray(640000))
+                val committed = session.javaClass.getDeclaredField("committedRegistry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                committed.assignBatch(listOf(floatArrayOf(1f, 0f, 0f)), listOf(6000), 0)
+                val voice = floatArrayOf(0f, 1f, 0f)
+                val query = floatArrayOf(kotlin.math.sqrt(1f - .57f * .57f - .636f * .636f), .57f, .636f)
+                fun window(id: String, begin: Int, end: Int, contextBegin: Int,
+                           embedding: FloatArray, outputQuery: FloatArray?) {
+                    session.onWindow(DiarizationLocalWindowResult(id, 0, 0, 320000,
+                        begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
+                            listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, embedding,
+                                outputQuery)), 0)))
+                }
+                window("supported", 6000, 10000, 6000, voice, voice)
+                window("query", 10000, 12000, 8000, voice, query)
+                window("mixed-context", 12000, 12673, 9163, floatArrayOf(0f, 0f, 1f), null)
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
+                    AsrResult("", isLast = true))
+                session.onDrained()
+                assertEquals(listOf(1, 1, -1), results.single().speakerTurns.map { it.speakerIndex })
+                assertEquals(2, results.single().speakerCount)
+            } finally {
+                session.cancel()
+                directory.deleteRecursively()
+            }
+        }
+    }
+
     @Test fun repeatedShortContextCannotEnrollButCanRecognizeAnExistingSpeaker() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             fun run(embedding: FloatArray, speechMs: Int, seedMs: Int = 6000): Pair<List<String>, SpeakerDiarizationResult> {
@@ -34,7 +74,8 @@ class DiarizationWindowFinalizationTest {
                             if (index < 2) 0 else 176000, 224000, false,
                             DiarizationWindowInferenceResult(listOf(
                                 SpeakerSegmentationSegment(start * 16, (start + duration) * 16, 0, 1)),
-                                listOf(DiarizationEmbedding(0, duration * 16, vector)), 0)))
+                                listOf(DiarizationEmbedding(0, duration * 16, vector,
+                                    if (index < 2) vector else null)), 0)))
                     }
                     val registry = session.javaClass.getDeclaredField("registry")
                         .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
@@ -90,18 +131,20 @@ class DiarizationWindowFinalizationTest {
                     .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
                 fun vector(index: Int) = FloatArray(6) { if (it == index) 1f else 0f }
                 registry.assignBatch((0..3).map { vector(it) }, List(4) { 2000 }, 0)
-                session.append(ByteArray(102400))
-                session.onWindow(DiarizationLocalWindowResult("overlap", 0, 0, 51200, 0,
-                    51200, true, DiarizationWindowInferenceResult(
-                        listOf(SpeakerSegmentationSegment(0, 51200, 0, 3)),
-                        listOf(DiarizationEmbedding(0, 51200, vector(4)),
-                            DiarizationEmbedding(1, 51200, vector(5))), 0)))
+                session.append(ByteArray(307200))
+                session.onWindow(DiarizationLocalWindowResult("overlap", 0, 0, 153600, 0,
+                    153600, true, DiarizationWindowInferenceResult(
+                        listOf(SpeakerSegmentationSegment(0, 51200, 0, 1),
+                            SpeakerSegmentationSegment(51200, 102400, 1, 2),
+                            SpeakerSegmentationSegment(102400, 153600, 0, 3)),
+                        listOf(DiarizationEmbedding(0, 51200, vector(4), vector(4)),
+                            DiarizationEmbedding(1, 51200, vector(5), vector(5))), 0)))
                 session.finish()
                 session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
                     AsrResult("", isLast = true))
                 session.onDrained()
-                assertEquals(0, results.single().speakerTurns.single().speakerIndex)
-                assertEquals(listOf(1), results.single().speakerTurns.single().secondarySpeakerIndexes)
+                assertEquals(0, results.single().speakerTurns.last().speakerIndex)
+                assertEquals(listOf(1), results.single().speakerTurns.last().secondarySpeakerIndexes)
             } finally {
                 session.cancel()
                 directory.deleteRecursively()
@@ -340,6 +383,7 @@ class DiarizationWindowFinalizationTest {
             sampleEnd, maxOf(0, sampleEnd - 40_000 - 24_000), maxOf(0, sampleEnd - 24_000), false,
             DiarizationWindowInferenceResult(
                 listOf(SpeakerSegmentationSegment(padding, 160_000, 0, 1)),
-                listOf(DiarizationEmbedding(0, minOf(realCount, 96_000), embedding)), 1))
+                listOf(DiarizationEmbedding(0, minOf(realCount, 96_000), embedding,
+                    if (realCount >= 40_000) embedding else null)), 1))
     }
 }
