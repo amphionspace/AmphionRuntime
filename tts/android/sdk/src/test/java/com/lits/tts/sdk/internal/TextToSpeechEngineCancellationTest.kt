@@ -15,9 +15,91 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Test
 
 class TextToSpeechEngineCancellationTest {
+    @Test
+    fun shutdownDefersCloseUntilInFlightNativeWorkReturns() {
+        val entered = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val closed = CountDownLatch(1)
+        val synth = object : PcmSynthesizer {
+            override fun preload() = Unit
+            override fun supportsInternalPlayback() = false
+            override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
+                entered.countDown()
+                // JNI inference does not return just because Java interrupts its thread.
+                while (finish.count > 0) {
+                    try { finish.await() } catch (_: InterruptedException) { }
+                }
+                return SynthesizedAudio(ByteArray(0), 24000)
+            }
+            override fun close(releaseSharedResources: Boolean) { closed.countDown() }
+        }
+        val engine = testEngine(synth)
+        engine.setListener(StartLatchListener("unused"))
+        try {
+            engine.speak("关闭时还在推理。", SpeakParams("active", playType = PlayType.SYNTHESIZE_ONLY))
+            assertTrue(entered.await(2, TimeUnit.SECONDS))
+            engine.shutdown()
+            assertFalse("native resources must remain alive", closed.await(100, TimeUnit.MILLISECONDS))
+        } finally {
+            finish.countDown()
+        }
+        assertTrue("release after worker exits", closed.await(2, TimeUnit.SECONDS))
+    }
+
+    @Test
+    fun cancelledWorkerErrorDoesNotFollowStopButRealErrorStillReports() {
+        val entered = CountDownLatch(1)
+        val finish = CountDownLatch(1)
+        val events = CopyOnWriteArrayList<String>()
+        val genuineError = CountDownLatch(1)
+        val synth = object : PcmSynthesizer {
+            override fun preload() = Unit
+            override fun supportsInternalPlayback() = false
+            override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio {
+                if (params.requestId == "cancelled") {
+                    entered.countDown()
+                    finish.await()
+                }
+                throw IllegalStateException("test synthesis failure")
+            }
+        }
+        val engine = testEngine(synth)
+        engine.setListener(object : SpeakListener {
+            override fun onStart(requestId: String, response: StartResponse) = Unit
+            override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) { events += "data:$requestId" }
+            override fun onComplete(requestId: String, response: CompleteResponse) { events += "complete:$requestId" }
+            override fun onStop(requestId: String, response: StopResponse) { events += "stop:$requestId" }
+            override fun onError(requestId: String, errorCode: Int, errorMessage: String) {
+                events += "error:$requestId"
+                if (requestId == "genuine") genuineError.countDown()
+            }
+        })
+        try {
+            engine.speak("取消。", SpeakParams("cancelled", playType = PlayType.SYNTHESIZE_ONLY))
+            assertTrue(entered.await(2, TimeUnit.SECONDS))
+            engine.stop()
+            finish.countDown()
+            // A queued task creates a callback barrier after the old worker unwinds.
+            Thread.sleep(100)
+            engine.speak("实际错误。", SpeakParams("genuine", playType = PlayType.SYNTHESIZE_ONLY))
+            assertTrue(genuineError.await(2, TimeUnit.SECONDS))
+            assertEquals(listOf("stop:cancelled", "error:genuine"), events.toList())
+        } finally {
+            finish.countDown()
+            engine.shutdown()
+        }
+    }
+
+    private fun testEngine(synthesizer: PcmSynthesizer) = TextToSpeechEngineImpl(
+        CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-01"),
+        VoiceInfo("zh-en", "lits-female-01", "female"), null, null, { true }, synthesizer,
+    )
+
     @Test
     fun stopLetsNextPreemptRequestStartWithoutWaitingForLongStreamingSynthesis() {
         val synthesizer = SlowStreamingSynthesizer(checkCancellation = true)

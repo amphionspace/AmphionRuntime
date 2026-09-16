@@ -149,24 +149,30 @@ internal class AndroidPcmPlayer {
             }
         } finally {
             audioQueue.offer(END_OF_STREAM)
-            if (producerThread.isAlive) {
-                producerThread.interrupt()
-                if (!cancelled.get()) {
-                    producerThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
-                }
-            }
-            if (playbackThread.isAlive) {
-                playbackThread.interrupt()
-                if (!cancelled.get()) {
-                    playbackThread.join(PLAYBACK_THREAD_JOIN_TIMEOUT_MS)
-                }
-            }
+            producerThread.interrupt()
+            playbackThread.interrupt()
             if (cancelled.get()) {
                 releaseImmediately(localTrack)
             } else {
                 releaseAfterDrain(localTrack)
             }
+            // The producer can still be inside JNI after interruption. Do not
+            // let engine shutdown release its sessions until both threads exit.
+            joinUninterruptibly(producerThread)
+            joinUninterruptibly(playbackThread)
         }
+    }
+
+    private fun joinUninterruptibly(thread: Thread) {
+        var interrupted = false
+        while (thread.isAlive) {
+            try {
+                thread.join()
+            } catch (_: InterruptedException) {
+                interrupted = true
+            }
+        }
+        if (interrupted) Thread.currentThread().interrupt()
     }
 
     private fun joinUntilFinishedOrCancelled(thread: Thread, cancelled: AtomicBoolean) {
@@ -279,7 +285,6 @@ internal class AndroidPcmPlayer {
     private companion object {
         const val BYTES_PER_FRAME = 2
         const val POST_DRAIN_GRACE_MS = 24L
-        const val PLAYBACK_THREAD_JOIN_TIMEOUT_MS = 200L
         const val STREAMING_THREAD_JOIN_POLL_MS = 20L
         const val DEFAULT_STREAMING_QUEUE_CAPACITY = 32
         const val MAX_STREAMING_QUEUE_CAPACITY = 256
