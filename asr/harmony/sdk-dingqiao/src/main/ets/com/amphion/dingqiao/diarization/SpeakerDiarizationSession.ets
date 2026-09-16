@@ -231,10 +231,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         if (localSpeaker === segment.speaker ||
           (segment.speakerMask & (1 << localSpeaker)) === 0) continue;
         const id = channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY';
-        if (id !== primary && secondary.indexOf(id) < 0) {
-          secondary.push(id);
-          secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
-        }
+        secondary.push(id);
+        secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
       }
       turns.push({
         beginTime: Math.round(globalStart * 1000 / SAMPLE_RATE),
@@ -348,7 +346,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue;
       const primary = turn.evidenceKey === undefined ? turn.speakerId : remap[turn.evidenceKey] ?? turn.speakerId;
       if (primary.startsWith('S')) ids.add(primary);
-      turn.secondarySpeakerIds.forEach((id: string, index: number): void => {
+      (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds).forEach((id: string, index: number): void => {
         const key = turn.secondaryEvidenceKeys?.[index];
         const secondary = key === undefined ? id : remap[key] ?? id;
         if (secondary.startsWith('S')) ids.add(secondary);

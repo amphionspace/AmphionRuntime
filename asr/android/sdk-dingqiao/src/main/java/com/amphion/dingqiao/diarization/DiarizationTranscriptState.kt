@@ -12,6 +12,8 @@ internal data class SpeakerTimelineTurn(
     val overlap: Boolean = false,
     val evidenceKey: String? = null,
     val secondaryEvidenceKeys: List<String> = emptyList(),
+    // Keep one ID per acoustic channel, independently of deduplicated display IDs.
+    var secondaryEvidenceSpeakerIds: List<String> = secondarySpeakerIds,
 )
 
 internal data class DiarizationTranscriptUpdate(
@@ -82,7 +84,10 @@ internal class DiarizationTranscriptState {
 
     fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>): List<DiarizationTranscriptUpdate> {
         if (newTurns.isEmpty()) return emptyList()
-        turns += newTurns.map { it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList()) }
+        turns += newTurns.map { it.copy(
+            secondarySpeakerIds = it.secondaryEvidenceSpeakerIds.filter { id -> id != it.speakerId }.distinct(),
+            secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
+            secondaryEvidenceSpeakerIds = it.secondaryEvidenceSpeakerIds.toList()) }
         return refreshUtterances { utterance ->
             newTurns.any { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
         }
@@ -95,9 +100,10 @@ internal class DiarizationTranscriptState {
                 turn.speakerId = remap[it] ?: turn.speakerId
                 turn.confidence = confidences[it] ?: turn.confidence
             }
-            turn.secondarySpeakerIds = turn.secondarySpeakerIds.mapIndexed { index, speakerId ->
+            turn.secondaryEvidenceSpeakerIds = turn.secondaryEvidenceSpeakerIds.mapIndexed { index, speakerId ->
                 remap[turn.secondaryEvidenceKeys.getOrNull(index)] ?: speakerId
-            }.filter { it != turn.speakerId }.distinct()
+            }
+            turn.secondarySpeakerIds = turn.secondaryEvidenceSpeakerIds.filter { it != turn.speakerId }.distinct()
         }
         return refreshUtterances { it.endTime >= fromTime }
     }
@@ -105,8 +111,8 @@ internal class DiarizationTranscriptState {
     fun applySpeakerRemap(remap: Map<String, String>, fromTime: Int = 0): List<DiarizationTranscriptUpdate> {
         turns.filter { it.endTime >= fromTime }.forEach { turn ->
             turn.speakerId = remap[turn.speakerId] ?: turn.speakerId
-            turn.secondarySpeakerIds = turn.secondarySpeakerIds.map { remap[it] ?: it }
-                .filter { it != turn.speakerId }.distinct()
+            turn.secondaryEvidenceSpeakerIds = turn.secondaryEvidenceSpeakerIds.map { remap[it] ?: it }
+            turn.secondarySpeakerIds = turn.secondaryEvidenceSpeakerIds.filter { it != turn.speakerId }.distinct()
         }
         return refreshUtterances { it.endTime >= fromTime }
     }
@@ -137,7 +143,9 @@ internal class DiarizationTranscriptState {
     }
 
     fun allTurns(): List<SpeakerTimelineTurn> = turns.map {
-        it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList())
+        it.copy(secondarySpeakerIds = it.secondarySpeakerIds.toList(),
+            secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
+            secondaryEvidenceSpeakerIds = it.secondaryEvidenceSpeakerIds.toList())
     }
 
     private data class Assignment(

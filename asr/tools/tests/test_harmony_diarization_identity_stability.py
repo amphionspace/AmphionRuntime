@@ -78,3 +78,34 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
           assert.equal(registry.assign(new Float32Array([.9,0,Math.sqrt(.19)]),2000,8000).speakerId,'S1');
         """)
 
+    def test_final_overlap_does_not_depend_on_provisional_unknown_collisions(self):
+        run_session("""
+          function run(provisional) {
+            const s=session(); s.totalSamples=32000;
+            s.registry.assignBatch=()=>provisional.map(speakerId=>({speakerId,confidence:1,created:false}));
+            s.onWindow({jobId:'same-audio',windowStartSample:0,contentStartInWindowSample:0,
+              realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
+              result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:3}],
+                embeddings:[{localSpeaker:0,speechSamples:32000,embedding:[1,0]},
+                  {localSpeaker:1,speechSamples:32000,embedding:[0,1]}]}});
+            return s.commitWindow(2000,2000,true);
+          }
+          const known=run(['S1','S2']); const unknown=run(['UNKNOWN','UNKNOWN']);
+          assert.deepEqual(unknown.speakerTurns,known.speakerTurns,
+            'final acoustic attribution must retain both channels regardless of provisional IDs');
+          assert.deepEqual(unknown.speakerTurns[0].secondarySpeakerIndexes,[1]);
+        """)
+
+    def test_remapping_a_hidden_secondary_preserves_its_evidence_binding(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const state=new SpeakerDiarizationTranscriptState();
+          state.applySpeakerTurns([{{beginTime:0,endTime:2000,speakerId:'S1',
+            secondarySpeakerIds:['S2','S3'],evidenceKey:'a',secondaryEvidenceKeys:['b','c']}}]);
+          state.applyEvidenceRemap({{a:'S1',b:'S1',c:'S3'}});
+          assert.deepEqual(state.allTurns()[0].secondarySpeakerIds,['S3']);
+          state.applyEvidenceRemap({{b:'S2'}});
+          assert.deepEqual(state.allTurns()[0].secondarySpeakerIds,['S2','S3'],
+            'remapping b must neither consume nor replace the identity belonging to c');
+        """)

@@ -218,10 +218,8 @@ internal class SpeakerDiarizationSession(
                     segment.speakerMask and (1 shl localSpeaker) == 0
                 ) continue
                 val id = channelIds[localSpeaker] ?: "UNKNOWN_SECONDARY"
-                if (id != primary && id !in secondary) {
-                    secondary += id
-                    secondaryEvidence += "${window.jobId}:$localSpeaker"
-                }
+                secondary += id
+                secondaryEvidence += "${window.jobId}:$localSpeaker"
             }
             SpeakerTimelineTurn(
                 beginTime = (globalStart * 1000 / SAMPLE_RATE).toInt(),
@@ -325,7 +323,7 @@ internal class SpeakerDiarizationSession(
             if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue
             val primary = remap[turn.evidenceKey] ?: turn.speakerId
             if (primary.startsWith("S")) ids += primary
-            turn.secondarySpeakerIds.forEachIndexed { index, id ->
+            turn.secondaryEvidenceSpeakerIds.forEachIndexed { index, id ->
                 val secondary = remap[turn.secondaryEvidenceKeys.getOrNull(index)] ?: id
                 if (secondary.startsWith("S")) ids += secondary
             }

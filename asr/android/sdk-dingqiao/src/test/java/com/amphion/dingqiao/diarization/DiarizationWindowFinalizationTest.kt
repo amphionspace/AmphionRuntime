@@ -14,6 +14,50 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun hiddenSecondaryKeepsItsEvidenceBindingAcrossPartialRemaps() {
+        val transcript = DiarizationTranscriptState()
+        transcript.applySpeakerTurns(listOf(SpeakerTimelineTurn(0, 2000, "S1", listOf("S2", "S3"),
+            evidenceKey = "a", secondaryEvidenceKeys = listOf("b", "c"))))
+        transcript.applyEvidenceRemap(mapOf("a" to "S1", "b" to "S1", "c" to "S3"))
+        assertEquals(listOf("S3"), transcript.allTurns().single().secondarySpeakerIds)
+        transcript.applyEvidenceRemap(mapOf("b" to "S2"))
+        assertEquals(listOf("S2", "S3"), transcript.allTurns().single().secondarySpeakerIds)
+    }
+
+    @Test fun provisionalUnknownCollisionCannotEraseFinalOverlap() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-overlap-evidence-test").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val observer = object : SpeakerDiarizationSessionObserver {
+                override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                override fun onWindowResult(result: SpeakerDiarizationResult) = Unit
+                override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+            }
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4, observer)
+            try {
+                val registry = session.javaClass.getDeclaredField("registry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                fun vector(index: Int) = FloatArray(6) { if (it == index) 1f else 0f }
+                registry.assignBatch((0..3).map { vector(it) }, List(4) { 2000 }, 0)
+                session.append(ByteArray(64000))
+                session.onWindow(DiarizationLocalWindowResult("overlap", 0, 0, 32000, 0,
+                    32000, true, DiarizationWindowInferenceResult(
+                        listOf(SpeakerSegmentationSegment(0, 32000, 0, 3)),
+                        listOf(DiarizationEmbedding(0, 32000, vector(4)),
+                            DiarizationEmbedding(1, 32000, vector(5))), 0)))
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
+                    AsrResult("", isLast = true))
+                session.onDrained()
+                assertEquals(0, results.single().speakerTurns.single().speakerIndex)
+                assertEquals(listOf(1), results.single().speakerTurns.single().secondarySpeakerIndexes)
+            } finally {
+                session.cancel()
+                directory.deleteRecursively()
+            }
+        }
+    }
+
     @Test fun historicalContextCannotCompeteWithCurrentSpeech() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-owned-speech-test").toFile()
