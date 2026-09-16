@@ -61,6 +61,20 @@ VAD 停顿来自 native 的已处理 sample 与 speech-end sample 差值，不�
 - Harmony 场景与真机驱动 69 项单测、ZH_EN HAP 编译安装通过。
 - 原始证据目录：`$HOME/.cache/amphion-runtime/diagnostics/android-demo-vadend-20260916-r78tplev`，包含输入映射、构建身份与哈希、每轮回调、hilog、内存采样、修复前失败记录和单测报告。原始 PCM 不提交 Git。
 
+### PR #211 合入复核
+
+运行代码冻结在 `0492de542a82eaced93d9fbcb4c4d2c036dd511b`，之后只补本文和脱敏证据。SDK、模型、授权和签名配置保持原值；仅构建中英 diagnostics HAP。
+
+- 当前提交的 Android AAR、全部 Android 示例及设备测试编译、Harmony 生命周期契约、静态契约和仓库检查均通过。
+- 当前 HAP 的 18 个约定生命周期模式、65 轮全部通过，含超过 60 秒的实时输入、纯静音、声纹回退、取消、时长上限、回调内重入、启动时同步写入、卸载重载和旧 session 操作。
+- 最终 Android APK 重新验证两项真实页面用例：稀疏 SDK 编号及最终标签冻结、180 秒多人文件输入从中间结果到最终结果。需显式停顿参数的 benchmark 在本次 UI 调用中跳过；原有六组双端 SDK 对照继续作为独立证据复用。
+- Review 后的运行改动仅是 Android 页面取消重新编号；`AsrResult` 只补充字段注释。因此 SDK 单测和精度对照可复用，页面测试已针对最终 APK 重跑。
+- 全量 review threads 已核对，没有未处理评论。Copilot 因额度耗尽未产生实质审查，不计作自动 review 通过。
+
+最终 APK SHA-256：`70c442e4fc60247fcd78aaaf6b73715e257171260046fda55ce39cc328b03317`；HAP SHA-256：`6091b196b24c8f95ac6713cf1962b81b0c9390348b3398c864610b75c00a75c8`。两台设备已恢复普通 Demo 待机入口。
+
+[脱敏验收结果](evidence/android-diarization-parity-20260916/assessment.json)和[原始证据哈希清单](evidence/android-diarization-parity-20260916/artifact-manifest.json)绑定上述提交及产物。补充真机、编号红灯/绿灯和 review 记录位于私有目录 `android-parity-merge-20260916-epkru88l`。短时资源指标中的 INCONCLUSIVE 不等于长会议无泄漏，本次不生成客户交付包或更新发布账本。
+
 ## 安卓文件输入入口
 
 将 16kHz、单声道、PCM16、时长对齐 20ms 的 WAV 放到应用工作目录，显式启用文件测试，再点击开始。此入口走正常识别和角色窗口回调，不使用旧的转写对比回放入口。
