@@ -15,6 +15,29 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun bbpeAlignmentKeepsTheFirstByteTimestampAndWholeCharacters() {
+        val state = DiarizationTranscriptState()
+        state.addUtterance("你好啊", "你好，啊。", listOf("▁Ƌ", "ţŅƌŋţ", "▁ƌĸī"),
+            listOf(100, 300, 1200), 0, 2000)
+        state.applySpeakerTurns(listOf(
+            SpeakerTimelineTurn(0, 200, "S1", emptyList()),
+            SpeakerTimelineTurn(200, 1000, "S2", emptyList()),
+            SpeakerTimelineTurn(1000, 2000, "S3", emptyList()),
+        ))
+        val split = state.finalUtterances()
+        assertEquals(listOf("你", "好", "啊"), split.map { it.rawText })
+        assertEquals(listOf("你", "好，", "啊。"), split.map { it.text })
+        assertEquals(listOf("S1", "S2", "S3"), split.map { it.speakerId })
+        val english = DiarizationTranscriptState()
+        english.addUtterance("HELLO WORLD", "HELLO, WORLD.", listOf("▁HELLO", "▁WORLD"),
+            listOf(100, 1100), 0, 2000)
+        english.applySpeakerTurns(listOf(SpeakerTimelineTurn(0, 1000, "S1", emptyList()),
+            SpeakerTimelineTurn(1000, 2000, "S2", emptyList())))
+        assertEquals("HELLO, WORLD.", english.finalUtterances().joinToString("") { it.text })
+        assertEquals(listOf("S1", "S2"), english.finalUtterances().map { it.speakerId })
+    }
+
+    @Test
     fun punctuationPreservesTimedSpeakersAndUnknownWithoutRewritingText() {
         for (text in listOf("甲乙丙丁", "甲乙，丙丁。", " 甲乙！丙丁？")) {
             val state = DiarizationTranscriptState()

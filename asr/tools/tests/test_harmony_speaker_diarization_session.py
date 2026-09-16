@@ -521,6 +521,34 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_bbpe_alignment_keeps_multibyte_characters_whole(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const state = new SpeakerDiarizationTranscriptState();
+          state.addUtterance({{rawText:'你好啊',text:'你好，啊。',
+            tokens:['▁Ƌ','ţŅƌŋţ','▁ƌĸī'],tokenTimesMs:[100,300,1200],beginTime:0,endTime:2000}});
+          state.applySpeakerTurns([
+            {{beginTime:0,endTime:200,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:200,endTime:1000,speakerId:'S2',secondarySpeakerIds:[]}},
+            {{beginTime:1000,endTime:2000,speakerId:'S3',secondarySpeakerIds:[]}}
+          ]);
+          const split=state.finalUtterances();
+          assert.deepEqual(split.map(x=>x.rawText),['你','好','啊']);
+          assert.deepEqual(split.map(x=>x.text),['你','好，','啊。']);
+          assert.deepEqual(split.map(x=>x.speakerId),['S1','S2','S3']);
+          // Native BBPE separators insert spaces after printable ASCII only.
+          const english = new SpeakerDiarizationTranscriptState();
+          english.addUtterance({{rawText:'HELLO WORLD',text:'HELLO, WORLD.',
+            tokens:['▁HELLO','▁WORLD'],tokenTimesMs:[100,1100],beginTime:0,endTime:2000}});
+          english.applySpeakerTurns([
+            {{beginTime:0,endTime:1000,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:1000,endTime:2000,speakerId:'S2',secondarySpeakerIds:[]}}
+          ]);
+          assert.equal(english.finalUtterances().map(x=>x.text).join(''),'HELLO, WORLD.');
+          assert.deepEqual(english.finalUtterances().map(x=>x.speakerId),['S1','S2']);
+        """)
+
     def test_punctuation_does_not_disable_timed_speaker_splitting(self) -> None:
         run_node(f"""
           import assert from 'node:assert/strict';

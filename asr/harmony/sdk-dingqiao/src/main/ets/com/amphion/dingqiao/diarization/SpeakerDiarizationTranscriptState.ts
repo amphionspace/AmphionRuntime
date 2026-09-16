@@ -85,20 +85,74 @@ function tokenTextBoundaries(tokens: string[], text: string): number[] | undefin
   return boundaries;
 }
 
+interface TimedTranscriptTokens {
+  tokens: string[];
+  times: number[];
+}
+
+// Byte alphabet and separator semantics match sherpa-onnx/csrc/{bbpe,symbol-table}.cc.
+// A UTF-8 character may span tokens; its first byte owns its timestamp.
+function decodedTranscriptTokens(rawText: string, tokens: string[],
+  times: number[]): TimedTranscriptTokens | undefined {
+  if (tokens.length !== times.length || tokens.join('') === rawText) return undefined;
+  const alphabet = "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğ !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľŁłŃńŅņŇňŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžƀƁƂƃƄƅƆƇƈƉƊƋƌƍƎƏƐƑƒƓƔƕƖƗƘƙƚƛƜƝƞƟƠơƢƣƤƥƦ";
+  const bytes: number[] = [];
+  const owners: number[] = [];
+  for (let index = 0; index < tokens.length; index++) {
+    for (let offset = 0; offset < tokens[index].length; offset++) {
+      const character = tokens[index][offset];
+      if (character === '▁') {
+        const last = bytes.length > 0 ? bytes[bytes.length - 1] : -1;
+        if (last > 32 && last <= 126) {
+          bytes.push(32);
+          owners.push(times[index]);
+        }
+        continue;
+      }
+      const value = character === '⁇' ? 32 : alphabet.indexOf(character);
+      if (value < 0) return undefined;
+      bytes.push(value);
+      owners.push(times[index]);
+    }
+  }
+  const decoded: string[] = [];
+  const decodedTimes: number[] = [];
+  let byteOffset = 0;
+  for (let index = 0; index < rawText.length;) {
+    const point = rawText.codePointAt(index) ?? 0;
+    if (point >= 0xD800 && point <= 0xDFFF) return undefined;
+    const width = point > 0xFFFF ? 2 : 1;
+    const encoded: number[] = point < 0x80 ? [point] : point < 0x800 ?
+      [0xC0 | (point >> 6), 0x80 | (point & 63)] : point < 0x10000 ?
+      [0xE0 | (point >> 12), 0x80 | ((point >> 6) & 63), 0x80 | (point & 63)] :
+      [0xF0 | (point >> 18), 0x80 | ((point >> 12) & 63),
+        0x80 | ((point >> 6) & 63), 0x80 | (point & 63)];
+    for (let part = 0; part < encoded.length; part++) {
+      if (bytes[byteOffset + part] !== encoded[part]) return undefined;
+    }
+    decoded.push(rawText.slice(index, index + width));
+    decodedTimes.push(owners[byteOffset]);
+    byteOffset += encoded.length;
+    index += width;
+  }
+  return byteOffset === bytes.length ? { tokens: decoded, times: decodedTimes } : undefined;
+}
+
 export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
   private nextUtteranceId: number = 1;
   private readonly turns: SpeakerTimelineTurn[] = [];
 
   addUtterance(input: DiarizationTranscriptInput): string {
+    const decoded = decodedTranscriptTokens(input.rawText, input.tokens, input.tokenTimesMs);
     const utteranceId = `u${this.nextUtteranceId++}`;
     const assignment = this.assignmentFor(input.beginTime, input.endTime);
     this.utterances.push({
       utteranceId,
       rawText: input.rawText,
       text: input.text,
-      tokens: input.tokens.slice(),
-      tokenTimesMs: input.tokenTimesMs.slice(),
+      tokens: decoded?.tokens ?? input.tokens.slice(),
+      tokenTimesMs: decoded?.times ?? input.tokenTimesMs.slice(),
       beginTime: input.beginTime,
       endTime: input.endTime,
       audioEndTime: input.audioEndTime,
