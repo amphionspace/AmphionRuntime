@@ -169,19 +169,32 @@ internal class SpeakerDiarizationSession(
         inferenceEndMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt()
         val channelIds = mutableMapOf<Int, String>()
         val channelConfidences = mutableMapOf<Int, Float>()
+        val ownedStart = window.commitStartSample - window.windowStartSample + window.contentStartInWindowSample
+        val ownedEnd = min(window.realEndSample, window.stableEndSample) -
+            window.windowStartSample + window.contentStartInWindowSample
+        // Only current output channels compete for online identities. Retain all
+        // contextual embeddings below for window-final clustering.
+        val activeEmbeddings = window.result.embeddings.filter { embedding ->
+            window.result.segments.any { segment ->
+                segment.speakerMask and (1 shl embedding.localSpeaker) != 0 &&
+                    max(ownedStart, segment.startSample.toLong()) < min(ownedEnd, segment.endSample.toLong())
+            }
+        }
         val assignments = registry.assignBatch(
-            window.result.embeddings.map { it.embedding },
-            window.result.embeddings.map { it.speechSamples * 1000 / SAMPLE_RATE },
+            activeEmbeddings.map { it.embedding },
+            activeEmbeddings.map { it.speechSamples * 1000 / SAMPLE_RATE },
             (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
         )
-        window.result.embeddings.forEachIndexed { index, embedding ->
-            val assignment = assignments[index]
-            channelIds[embedding.localSpeaker] = assignment.speakerId
-            channelConfidences[embedding.localSpeaker] = assignment.confidence
+        window.result.embeddings.forEach { embedding ->
+            val assignment = assignments.getOrNull(activeEmbeddings.indexOf(embedding))
+            if (assignment != null) {
+                channelIds[embedding.localSpeaker] = assignment.speakerId
+                channelConfidences[embedding.localSpeaker] = assignment.confidence
+            }
             val observation = SpeakerEmbeddingObservation(
                 embedding = embedding.embedding.copyOf(),
                 durationMs = embedding.speechSamples * 1000 / SAMPLE_RATE,
-                onlineSpeakerId = assignment.speakerId,
+                onlineSpeakerId = assignment?.speakerId ?: "UNKNOWN",
                 endTimeMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
                 evidenceKey = "${window.jobId}:${embedding.localSpeaker}",
                 queryEmbedding = embedding.queryEmbedding?.copyOf(),
