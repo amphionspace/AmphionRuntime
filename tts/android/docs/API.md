@@ -95,7 +95,7 @@ interface SpeakListener {
 | `requestId` | `String` | 必填 | 同一 engine 内不可重复 |
 | `speed` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
 | `volume` | `Float` | `1.0` | 范围 `[0.0, 2.0]` |
-| `pitch` | `Float` | `1.0` | 范围 `[0.5, 2.0]` |
+| `pitch` | `Float` | `1.0` | 接受范围 `[0.5, 2.0]`，但当前双重重采样未实现有效升降调；见 [API 实测报告](../reports/api-audit-20260916/README.md) |
 | `languageContext` | `String` | `zh-CN` | 支持 `zh-CN` / `en-US`，兼容旧值 `zh-en`；内部会把 `zh-CN` 归一到中英前端路径 |
 | `audioType` | `String` | `pcm` | 当前仅支持 `pcm` |
 | `playType` | `PlayType` | `SYNTHESIZE_AND_PLAY` | 合成模式 |

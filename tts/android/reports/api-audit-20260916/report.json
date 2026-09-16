@@ -1,0 +1,405 @@
+{
+  "baseCommit": "fcacb07c",
+  "device": "TECNO KI8 / Android 13",
+  "model": "student matched50 FP32, temperature=0, speaker=1",
+  "unit": {
+    "tests": 129,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 4
+  },
+  "skippedTests": [
+    "com.lits.tts.sdk.internal.PronunciationRound15FrontendCorrectnessTest.currentFrontendMatchesRound15GoldenPinyin",
+    "com.lits.tts.sdk.internal.AndroidFrontendGoldenParityTest.androidFrontendMatchesGoldenTokensAfterHostTn",
+    "com.lits.tts.sdk.internal.LitsTtsFrontendTest.localFrontendBadcaseSetsMatchPythonGoldenTokensAfterTn",
+    "com.lits.tts.sdk.internal.CompactLexiconTest.packagedDictionariesMatchPreviousEagerLoaderEntryForEntry"
+  ],
+  "deviceTests": {
+    "passed": 6,
+    "failed": 0,
+    "log": "api-audit-device-fixed.log"
+  },
+  "unresolved": [
+    "Pitch 1.2 does not produce the intended pitch increase",
+    "Activity recreation test did not complete while device was locked; cause not fully isolated"
+  ],
+  "audio": {
+    "baseline": {
+      "seconds": 5.6,
+      "rms": 0.061360522975865285,
+      "median_voiced_f0_hz": 191.43371755306833
+    },
+    "slow": {
+      "seconds": 6.72,
+      "rms": 0.06271652399025739
+    },
+    "fast": {
+      "seconds": 4.656,
+      "rms": 0.060801067304866896
+    },
+    "half-volume": {
+      "seconds": 5.6,
+      "rms": 0.03068025762375628
+    },
+    "mute": {
+      "seconds": 5.6,
+      "rms": 0.0
+    },
+    "pitch-up": {
+      "seconds": 5.6,
+      "rms": 0.06050142157603644,
+      "median_voiced_f0_hz": 192.54268179725335
+    },
+    "pitch_comparison": {
+      "voiced_frame_count": 393,
+      "median_f0_ratio": 1.0,
+      "waveform_correlation": 0.9935981248075804
+    }
+  },
+  "requests": [
+    {
+      "id": "baseline",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 268800,
+      "chunkCount": 6,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 5600,
+      "synthesisMs": 1894,
+      "firstPacketMs": 471
+    },
+    {
+      "id": "destroyed",
+      "events": [
+        "error"
+      ],
+      "error": "engine has been destroyed",
+      "pcmBytes": 0,
+      "chunkCount": 0
+    },
+    {
+      "id": "empty",
+      "events": [
+        "error"
+      ],
+      "error": "text length must be 1..10000",
+      "pcmBytes": 0,
+      "chunkCount": 0
+    },
+    {
+      "id": "english-recovery",
+      "events": [
+        "error"
+      ],
+      "error": "requestId duplicated",
+      "pcmBytes": 0,
+      "chunkCount": 0
+    },
+    {
+      "id": "english-recovery",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 158976,
+      "chunkCount": 4,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 3312,
+      "synthesisMs": 1025,
+      "firstPacketMs": 383
+    },
+    {
+      "id": "fast",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 223488,
+      "chunkCount": 5,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 4656,
+      "synthesisMs": 1318,
+      "firstPacketMs": 281
+    },
+    {
+      "id": "format",
+      "events": [
+        "error"
+      ],
+      "error": "only pcm audioType is supported",
+      "pcmBytes": 0,
+      "chunkCount": 0
+    },
+    {
+      "id": "half-volume",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 268800,
+      "chunkCount": 6,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 5600,
+      "synthesisMs": 1583,
+      "firstPacketMs": 293
+    },
+    {
+      "id": "mute",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 268800,
+      "chunkCount": 6,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 5600,
+      "synthesisMs": 1579,
+      "firstPacketMs": 297
+    },
+    {
+      "id": "pitch-up",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 268800,
+      "chunkCount": 6,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 5600,
+      "synthesisMs": 1594,
+      "firstPacketMs": 298
+    },
+    {
+      "id": "play-queue-1",
+      "events": [
+        "start",
+        "playback-start",
+        "complete:SYNTHESIS_COMPLETE",
+        "complete:PLAYBACK_COMPLETE"
+      ],
+      "pcmBytes": 0,
+      "chunkCount": 0,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_playback",
+      "pcmQueueCapacity": 1,
+      "audioDurationMs": 2944,
+      "synthesisMs": 844,
+      "firstPacketMs": 440
+    },
+    {
+      "id": "play-queue-32",
+      "events": [
+        "start",
+        "playback-start",
+        "complete:SYNTHESIS_COMPLETE",
+        "complete:PLAYBACK_COMPLETE"
+      ],
+      "pcmBytes": 0,
+      "chunkCount": 0,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_playback",
+      "pcmQueueCapacity": 32,
+      "audioDurationMs": 2944,
+      "synthesisMs": 735,
+      "firstPacketMs": 373
+    },
+    {
+      "id": "preempt-new",
+      "events": [
+        "start",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 67584,
+      "chunkCount": 1,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 1408,
+      "synthesisMs": 365,
+      "firstPacketMs": 365
+    },
+    {
+      "id": "preempt-old",
+      "events": [
+        "start",
+        "data",
+        "stop"
+      ],
+      "pcmBytes": 26112,
+      "chunkCount": 1,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1
+    },
+    {
+      "id": "queue-a",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 268800,
+      "chunkCount": 6,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 5600,
+      "synthesisMs": 1690,
+      "firstPacketMs": 376
+    },
+    {
+      "id": "queue-b",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 98304,
+      "chunkCount": 2,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 2048,
+      "synthesisMs": 576,
+      "firstPacketMs": 278
+    },
+    {
+      "id": "slow",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 322560,
+      "chunkCount": 7,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 6720,
+      "synthesisMs": 1908,
+      "firstPacketMs": 313
+    },
+    {
+      "id": "stop-active",
+      "events": [
+        "start",
+        "data",
+        "stop"
+      ],
+      "pcmBytes": 26112,
+      "chunkCount": 1,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1
+    },
+    {
+      "id": "stop-queued",
+      "events": [
+        "stop"
+      ],
+      "pcmBytes": 0,
+      "chunkCount": 0
+    },
+    {
+      "id": "stop-recovery",
+      "events": [
+        "start",
+        "data",
+        "data",
+        "complete:SYNTHESIS_COMPLETE"
+      ],
+      "pcmBytes": 111360,
+      "chunkCount": 2,
+      "sampleRate": 24000,
+      "isStreaming": true,
+      "dataPath": "model_stream_callback",
+      "pcmQueueCapacity": -1,
+      "audioDurationMs": 2320,
+      "synthesisMs": 611,
+      "firstPacketMs": 278
+    },
+    {
+      "id": "volume-invalid",
+      "events": [
+        "error"
+      ],
+      "error": "volume out of range",
+      "pcmBytes": 0,
+      "chunkCount": 0
+    }
+  ]
+}
