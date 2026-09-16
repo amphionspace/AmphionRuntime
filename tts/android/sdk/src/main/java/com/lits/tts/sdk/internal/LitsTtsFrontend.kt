@@ -1950,12 +1950,7 @@ internal object LitsTtsFrontend {
     private fun mergeEnglishLexicon(
         cmudict: Map<String, List<String>>,
         supplement: Map<String, List<String>>,
-    ): Map<String, List<String>> = buildMap(cmudict.size + supplement.size) {
-        putAll(cmudict)
-        supplement.forEach { (word, phones) ->
-            putIfAbsent(word, phones)
-        }
-    }
+    ): Map<String, List<String>> = OverlayLexicon(cmudict, supplement)
 
     private fun loadSupplementLexicon(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> {
         if (!layout.supplementLexicon.isFile) return emptyMap()
@@ -1987,11 +1982,7 @@ internal object LitsTtsFrontend {
         } else {
             loadWordPinyinText(layout)
         }
-        return buildMap {
-            putAll(base)
-            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
-            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
-        }
+        return OverlayLexicon(loadWordPinyinOverrides(layout), base)
     }
 
     private fun loadWordPinyinOverrides(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
@@ -2014,14 +2005,7 @@ internal object LitsTtsFrontend {
     }
 
     private fun loadWordPinyinText(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
-        buildMap {
-            layout.chineseLexicon.forEachLine(Charsets.UTF_8) { line ->
-                val parts = line.trim().split('\t')
-                if (parts.size == 2) {
-                    put(parts[0], parts[1])
-                }
-            }
-        }
+        CompactLexicon.pinyin(layout.chineseLexicon)
 
     private fun loadCmudict(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
         if (layout.cmudictBin.isFile) {
@@ -2035,20 +2019,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadCmudictText(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
-        buildMap {
-            layout.cmudict.forEachLine(Charsets.UTF_8) { line ->
-                val trimmed = line.trim()
-                if (trimmed.isEmpty()) return@forEachLine
-                val parts = trimmed.split('\t', limit = 2)
-                if (parts.size != 2) return@forEachLine
-                val key = parts[0].substringBefore('(').uppercase()
-                if (containsKey(key)) return@forEachLine
-                val phones = parts[1].trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-                if (phones.isNotEmpty()) {
-                    put(key, phones)
-                }
-            }
-        }
+        CompactLexicon.english(layout.cmudict)
 
     private fun cachedWordPinyinBin(file: File): Map<String, String> =
         wordPinyinBinByPath.getOrPut(file.absolutePath) { loadWordPinyinBin(file) }

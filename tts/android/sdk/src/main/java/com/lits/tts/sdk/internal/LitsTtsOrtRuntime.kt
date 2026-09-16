@@ -592,6 +592,10 @@ internal class LitsTtsOrtRuntime(
                 setInterOpNumThreads(1)
                 setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
                 setOptimizationLevel(optimizationLevel)
+                // Streaming shapes vary by sentence and tail chunk. Keeping a
+                // separate high-water arena for every graph retains large buffers.
+                setCPUArenaAllocator(false)
+                setMemoryPatternOptimization(false)
             }
         }
 
@@ -762,7 +766,9 @@ internal class LitsTtsOrtRuntime(
         val file = java.io.File(modelPath)
         Log.i(ORT_LOG_TAG, "createSession start label=$label path=$modelPath bytes=${file.length()} exists=${file.isFile}")
         return try {
-            val session = environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads))
+            val session = createSessionOptions(intraOpThreads = intraOpThreads).use { options ->
+                environment.createSession(modelPath, options)
+            }
             ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt)).also {
                 Log.i(ORT_LOG_TAG, "createSession complete label=$label elapsedMs=${it.elapsedMs}")
             }
