@@ -1429,7 +1429,7 @@ struct Index {
           }
           .width('100%')
           .fontSize(16)
-        }, (item: FinalSegment, index: number) => `${index}-${item.text}`)
+        }, (item: FinalSegment, index: number) => `${index}-${JSON.stringify(item)}`)
       }
       .width('100%')
       .backgroundColor('#f5f5f5')
