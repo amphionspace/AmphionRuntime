@@ -38,6 +38,32 @@ def run_node(script: str) -> None:
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_diarization_profile_shortens_pause_without_changing_other_limits(self) -> None:
+        profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
+        script = f"""
+            import assert from 'node:assert/strict';
+            class StartParams {{ extraParams = {{}}; }}
+            class AudioInfo {{}}
+            class SpeakerDiarizationConfig {{}}
+            {profile}
+            for (const name of ['ptt','tap-vad','transcription','form','meeting-minutes']) {{
+              const baseline = customerProfileStartParams('s',name,false);
+              const enabled = customerProfileStartParams('s',name,true);
+              assert.equal(enabled.extraParams.vadEnd,800);
+              assert.equal(baseline.extraParams.vadEnd,customerScenarioProfile(name).vadEnd);
+              for (const key of ['vadBegin','maxAudioDuration','endpointMaxUtteranceMs','recognizerMode']) {{
+                assert.equal(enabled.extraParams[key],baseline.extraParams[key]);
+              }}
+              assert.equal(enabled.speakerDiarization.maxSpeakers,4);
+            }}
+            assert.equal(customerProfileStartParams('s','meeting-minutes').extraParams.vadEnd,800);
+            assert.equal(customerProfileStartParams('s','ptt').extraParams.vadEnd,1600);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "diarization-pause.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
+
     def test_window_stress_budget_admits_five_hours_without_changing_customer_profiles(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
         carrier = CARRIER.read_text(encoding="utf-8")
