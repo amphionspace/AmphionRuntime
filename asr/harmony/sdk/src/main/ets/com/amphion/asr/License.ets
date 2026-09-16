@@ -3,6 +3,7 @@ import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { evaluateLicenseIdentity, LicenseIdentityFailure } from './RuntimeIdentity';
+import { applicationMatches } from './RuntimePackagePolicy';
 
 // Offline-license trust set (comma-separated X.509 SubjectPublicKeyInfo DER base64 values).
 // The original delivery key remains trusted while the AWS KMS Enterprise key signs newly issued licenses.
@@ -45,7 +46,7 @@ export class AmphionLicenseStatus {
 
 export class HarmonyLicenseVerifier {
   /**
-   * License 字段与 Android 对齐；applicationId / bundleName 仅作记录，正式授权边界由设备 SN 白名单决定。
+   * License 字段与 Android 对齐；只有显式 allowlist/bound 策略才限制应用包，旧 license 继续仅记录。
    * 当前实现只解析占位字段，真正签名验签由交付期注入公钥后补齐。
    */
   static verify(
@@ -93,9 +94,20 @@ export class HarmonyLicenseVerifier {
     status.features = HarmonyLicenseVerifier.stringArray(claims, 'features');
     status.authorizedDeviceCount = HarmonyLicenseVerifier.stringArray(claims, 'authorizedDeviceHashes').length;
 
+    if (!applicationMatches(
+      HarmonyLicenseVerifier.stringValue(claims, 'applicationBindingMode'),
+      HarmonyLicenseVerifier.stringValue(claims, 'bundleName'),
+      HarmonyLicenseVerifier.stringArray(claims, 'bundleNames'),
+      bundleName ?? '')) {
+      status.state = AmphionLicenseState.INVALID;
+      status.errorCode = AsrErrorCode.LICENSE_APP_MISMATCH;
+      status.message = 'license application policy rejected host bundle';
+      return status;
+    }
+
     const boundCert = HarmonyLicenseVerifier.normalizeHex(HarmonyLicenseVerifier.stringValue(claims, 'signingCertDigest'));
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
-    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+    if (boundCert.length > 0 && boundCert !== hostCert) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_CERT_MISMATCH;
       status.message = 'license signingCertDigest mismatch';
@@ -224,9 +236,17 @@ export class HarmonyLicenseVerifier {
     status.authorizedDeviceCount = deviceHashes.length;
 
     // ---- 结构校验(顺序/错误码/消息与 verify() 逐条对齐) ----
+    if (!applicationMatches(
+      HarmonyLicenseVerifier.stringValue(claims, 'applicationBindingMode'),
+      HarmonyLicenseVerifier.stringValue(claims, 'bundleName'),
+      HarmonyLicenseVerifier.stringArray(claims, 'bundleNames'),
+      bundleName ?? '')) {
+      return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_APP_MISMATCH,
+        'license application policy rejected host bundle');
+    }
     const boundCert = HarmonyLicenseVerifier.normalizeHex(status.signingCertDigest ?? '');
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
-    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+    if (boundCert.length > 0 && boundCert !== hostCert) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_CERT_MISMATCH, 'license signingCertDigest mismatch');
     }
     const normalizedFeatures = status.features.map((feature: string): string => feature.trim().toUpperCase());
