@@ -53,5 +53,35 @@ cover 16, 49, 50, 51, 99, 100, 101, 350, 431, 2050 and 2101 frames with independ
 state for each of the two flow steps; all outputs are finite. These are numerical
 checks, not proof of equal perceived audio quality. CPU execution providers can
 promote operators/weights back to FP32, so disk savings do not establish RSS
-savings. Target-device installation was cancelled; native FP16 speed/memory
-validation remains pending. The verified FP32 build remains the current app.
+savings.
+
+### FP16 device result
+
+Installed and verified the candidate APK and model graph/JSON hashes on EC521S.
+Runtime callbacks confirm the `_fp16` model, speaker 1 and 50-frame streaming.
+The same 50-segment prose completed with 188 PCM chunks and 166.704 seconds of
+output, without an error callback. This is functional validation, not a listening
+quality verdict.
+
+| Measurement | Optimized FP32 | Mixed FP16 |
+| --- | ---: | ---: |
+| After model load + warmup | 395.7 MiB | 441.5 MiB |
+| Process RSS peak | 465.0 MiB | 631.3 MiB |
+| Three seconds after synthesis | 438.0 MiB | 444.0 MiB |
+| First audio callback | 402 ms | 661 ms |
+| Synthesis wall time | 48.454 s | 52.128 s |
+
+One run per variant; FP16 did not improve memory or speed on this CPU/runtime.
+It remains installed for evaluation, with FP32 retained as a rollback artifact.
+The 200 MB target remains unmet. Evidence: `work/logs/memory-fp16-active/`.
+
+Deployment caveat: external-resource discovery sorts valid model directories
+by path rather than preferring the compiled model ID. With both variants in the
+active resource root, it selected FP32. That preliminary run was stopped and is
+not FP16 evidence. The FP32 directory was moved outside the discovery root to
+`files/tts-model-backup/`; callbacks then confirmed the FP16 model. No discovery
+policy code was changed in this experiment. Deploy one active model package.
+
+Removed the obsolete `com.amphion.lits.tts.demo` application and the sample
+instrumentation package `com.lits.tts.studentdemo.test`; retained the current
+sample and ASR applications. The temporary model transfer archive was removed.
