@@ -65,9 +65,10 @@ class CacheLayout:
 class HiddenEncoder(torch.nn.Module):
     """Training uses whole-utterance mu encoding before chunked decoding."""
 
-    def __init__(self, model):
+    def __init__(self, model, mu_streaming=False):
         super().__init__()
         self.model = model
+        self.mu_streaming = mu_streaming
 
     def forward(self, token_ids, token_lengths, speaker_id, length_scale):
         hidden = self.model.get_hidden_mel(
@@ -76,8 +77,10 @@ class HiddenEncoder(torch.nn.Module):
             spks=speaker_id,
             length_scale=length_scale.reshape(()),
         )
-        encoded = self.model.decoder.encode_mu(
-            hidden["mu_y"], hidden["y_mask"], finalize=True, streaming=False
+        # Stateless full-sequence encoding uses the training attention mask.
+        # encode_mu(streaming=True) is a different, stateful inference API.
+        encoded = self.model.decoder.encoder(
+            hidden["mu_y"], hidden["y_mask"], streaming=self.mu_streaming
         )
         length = hidden["y_max_length"]
         return (
@@ -205,7 +208,19 @@ def validate_chunks(
 
     reports = []
     generator = torch.Generator().manual_seed(20260915)
-    for frames in (16, 99, 100, 101, 199, 200, 201, 350, 431):
+    for frames in sorted(
+        {
+            16,
+            chunk_size - 1,
+            chunk_size,
+            chunk_size + 1,
+            2 * chunk_size - 1,
+            2 * chunk_size,
+            2 * chunk_size + 1,
+            350,
+            431,
+        }
+    ):
         mean = torch.randn(1, 100, frames, generator=generator)
         mask = torch.ones(1, 1, frames)
         speaker = model.spk_emb(torch.tensor([frames % 2]))
@@ -265,17 +280,30 @@ def main():
     )
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
     config = checkpoint["distill_args"]
-    if not config.get("kv_cache_distill") or config.get("mu_streaming"):
-        raise ValueError(
-            "Expected KV-cache distillation with whole-utterance mu encoding"
-        )
+    matched = config.get("teacher_matched_streaming", False)
+    mu_streaming = bool(config.get("mu_streaming", False))
     chunk_size = int(config["distill_chunk_size"])
     left_frames = int(config["decoder_left_frames"])
     lookahead = int(config["pre_lookahead_len"])
-    if (chunk_size, left_frames, lookahead) != (100, 20, 3):
-        raise ValueError(
-            "This deployment contract requires chunk=100, left=20, lookahead=3"
-        )
+    if matched:
+        if config.get("kv_cache_distill") or not mu_streaming:
+            raise ValueError(
+                "Expected teacher-matched training without KV-cache distillation"
+            )
+        expected_chunk = 50
+    else:
+        if not config.get("kv_cache_distill") or mu_streaming:
+            raise ValueError(
+                "Expected KV-cache distillation with whole-utterance mu encoding"
+            )
+        expected_chunk = 100
+    if (chunk_size, left_frames, lookahead) != (expected_chunk, 20, 3):
+        raise ValueError(f"Expected chunk={expected_chunk}, left=20, lookahead=3")
+    model_id = (
+        "dingqiao_intmeanflow_student_0010000_streaming_matched50_vocos24k"
+        if matched
+        else MODEL_ID
+    )
     torch.set_num_threads(args.threads)
     model = common.load_student(checkpoint, model_type, estimator_type, streaming=True)
     from meanflow_distill.kv_cache_distill import configure_decoder_streaming_context
@@ -290,7 +318,7 @@ def main():
         output = Path(temporary) / "bundle"
         output.mkdir()
         common.copy_resources(args.frontend_assets, args.vocos, output)
-        hidden = HiddenEncoder(model).eval()
+        hidden = HiddenEncoder(model, mu_streaming=mu_streaming).eval()
         inputs = common.encode_example("ni3 hao3 shi4 jie4 .", 1, text_to_sequence) + (
             torch.tensor([1.0]),
         )
@@ -350,7 +378,7 @@ def main():
             ):
                 del manifest[key]
         manifest.update(
-            model_id=MODEL_ID,
+            model_id=model_id,
             model_type="lits_intmeanflow_streaming",
             supports_streaming=True,
             frontend_paradigm="rhyme_body_tone_173",
@@ -382,7 +410,11 @@ def main():
             "checkpoint_sha256": common.sha256(args.checkpoint),
             "source_fingerprint_sha256": common.source_fingerprint(args.distill_source),
             "temperature": args.temperature,
-            "training_mu_streaming": False,
+            "training_mu_streaming": mu_streaming,
+            "teacher_matched_streaming": matched,
+            "training_kv_cache_distill": bool(config.get("kv_cache_distill")),
+            "inference_path": "causal_kv",
+            "chunk_size": chunk_size,
             "training_pre_lookahead_len": lookahead,
             "decoder_left_frames": left_frames,
             "hidden_validation": hidden_reports,
@@ -413,7 +445,8 @@ def main():
         )
         manifest.pop("num_decoding_left_chunks", None)
         manifest["notes"] = (
-            "IntMeanFlow cached decoder; whole-utterance mu encoding; 100-frame chunks and 20-frame KV history."
+            f"IntMeanFlow cached decoder; condition streaming mask={mu_streaming}; "
+            f"{chunk_size}-frame chunks and 20-frame KV history."
         )
         manifest["files"] = [
             {"name": p.relative_to(output).as_posix(), "size_bytes": p.stat().st_size}

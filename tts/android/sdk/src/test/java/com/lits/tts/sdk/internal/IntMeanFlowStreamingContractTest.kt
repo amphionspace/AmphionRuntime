@@ -17,6 +17,23 @@ class IntMeanFlowStreamingContractTest {
             "init.onnx", "step.onnx", listOf("cache_att_0"), IntMeanFlowStreamingContract.CACHE_MODE, 100),
     )
 
+    @Test fun fiftyFrameModelUsesItsOwnFixedGeometry() {
+        val fifty = manifest().copy(streamingChunkSize = 50,
+            streamDecoderCacheInfo = manifest().streamDecoderCacheInfo!!.copy(requiresFixedChunkSize = 50))
+        IntMeanFlowStreamingContract.validate(fifty, 50, 2, 0, 50, 50, 50, 1, 50)
+        assertThrows(IllegalArgumentException::class.java) {
+            IntMeanFlowStreamingContract.validate(fifty, 100, null, null, null, null, null, null, null)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            IntMeanFlowStreamingContract.validate(fifty.copy(streamDecoderCacheInfo = manifest().streamDecoderCacheInfo),
+                null, null, null, null, null, null, null, null)
+        }
+        for ((frames, expected) in listOf(49 to listOf(0), 99 to listOf(0),
+            100 to listOf(0, 50), 101 to listOf(0, 50), 151 to listOf(0, 50, 100))) {
+            assertEquals(expected, LitsTtsOrtRuntime.buildStreamingChunkSlices(frames, 50, 50).map { it.startIdx })
+        }
+    }
+
     @Test fun selectedModelManifestIsReadable() {
         val selected = LitsTtsAssetInstaller.parseAndValidateManifest(TtsTestAssets.root().resolve("manifest.json"))
         if (IntMeanFlowStreamingContract.requiresCache(selected)) {
