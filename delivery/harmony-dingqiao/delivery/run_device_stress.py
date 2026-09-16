@@ -157,6 +157,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--diarization-vad-end-ms", type=int, choices=[400, 600, 800],
+                        help="Meeting-only pause experiment; SDK clamps 400 to 500ms. Omitted keeps the Demo default.")
     parser.add_argument("--speech-end-ms", type=int, default=0,
                         help="Native VAD speech-end sample time for speech-end-latency fixture (ms).")
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
@@ -204,6 +206,8 @@ def parse_args() -> argparse.Namespace:
         except ValueError:
             parser.error("--asr-cpu-ids requires unique integer IDs in [0, 127]")
         args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
+    if args.diarization_vad_end_ms is not None and args.mode not in {"customer-meeting-minutes", "diarization-windows"}:
+        parser.error("--diarization-vad-end-ms requires a meeting diarization mode")
     if args.mode == "speech-end-latency" and (args.speech_end_ms <= 0 or args.pace_ms != 20):
         parser.error("speech-end-latency requires --speech-end-ms and --pace-ms 20")
     if args.cycles <= 0:
@@ -1157,6 +1161,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
+        "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1328,6 +1333,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             "settle_ms": args.settle_ms,
             "pace_ms": args.pace_ms,
             "speech_end_ms": args.speech_end_ms,
+            "diarization_vad_end_ms": args.diarization_vad_end_ms,
+            "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
+                                               if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
