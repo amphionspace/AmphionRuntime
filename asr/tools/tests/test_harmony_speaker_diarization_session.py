@@ -521,6 +521,30 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_unanimous_speaker_fills_acoustic_gaps_but_not_explicit_unknown(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          function split(turns) {{
+            const state=new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙',text:'甲乙丙。',tokens:['甲','乙','丙'],
+              tokenTimesMs:[100,600,1100],beginTime:0,endTime:1200}});
+            state.applySpeakerTurns(turns);
+            return state.finalUtterances();
+          }}
+          const first={{beginTime:0,endTime:500,speakerId:'S1',secondarySpeakerIds:[]}};
+          const second={{beginTime:700,endTime:1000,speakerId:'S1',secondarySpeakerIds:[]}};
+          assert.deepEqual(split([first,second]).map(x=>x.speakerId),['S1']);
+          const unknown={{beginTime:500,endTime:1200,speakerId:'UNKNOWN',secondarySpeakerIds:[]}};
+          assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1','UNKNOWN']);
+          assert.deepEqual(split([first,{{...second,speakerId:'S2'}}]).map(x=>x.speakerId),
+            ['S1','UNKNOWN']);
+          // Overlap does not establish a unanimous single speaker for uncovered tokens.
+          assert.deepEqual(split([{{...first,overlap:true,secondarySpeakerIds:['S2']}}])
+            .map(x=>x.speakerId),['S1','UNKNOWN']);
+          assert.deepEqual(split([]).map(x=>x.speakerId),['UNKNOWN']);
+        """)
+
     def test_bbpe_alignment_keeps_multibyte_characters_whole(self) -> None:
         run_node(f"""
           import assert from 'node:assert/strict';

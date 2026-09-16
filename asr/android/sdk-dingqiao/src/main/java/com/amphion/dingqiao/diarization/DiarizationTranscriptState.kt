@@ -272,10 +272,11 @@ internal class DiarizationTranscriptState {
 
     private fun splitByTokenSpeaker(utterance: StoredUtterance, textBoundaries: List<Int>): List<DiarizedTranscriptUtterance> {
         val result = mutableListOf<DiarizedTranscriptUtterance>()
+        val unanimous = unanimousSpeakerTurn(utterance)
         var groupStart = 0
-        var active = turnAt(utterance.tokenTimesMs[0])
+        var active = turnAt(utterance.tokenTimesMs[0]) ?: unanimous
         for (index in 1..utterance.tokens.size) {
-            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) else null
+            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) ?: unanimous else null
             val same = index < utterance.tokens.size &&
                 (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN") &&
                 (next?.secondarySpeakerIds ?: emptyList<String>()) ==
@@ -301,6 +302,18 @@ internal class DiarizationTranscriptState {
             active = next
         }
         return result
+    }
+
+    private fun unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn? {
+        var candidate: SpeakerTimelineTurn? = null
+        for (turn in turns) {
+            if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue
+            // No acoustic coverage is not the same as explicit uncertainty or overlap.
+            if (turn.speakerId == "UNKNOWN" || turn.overlap || turn.secondarySpeakerIds.isNotEmpty() ||
+                (candidate != null && candidate.speakerId != turn.speakerId)) return null
+            candidate = turn
+        }
+        return candidate
     }
 
     private fun unsplit(utterance: StoredUtterance): DiarizedTranscriptUtterance {
