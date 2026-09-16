@@ -69,6 +69,8 @@ export default class EntryAbility extends UIAbility {
     // Headless SDK contract self-test: `aa start ... --ps selftest true`. Runs every public API and
     // logs a PASS/FAIL matrix under tag SdkSelfTest, without loading the UI.
     const params = want.parameters;
+    // USB 文件验收仍使用正常 Demo 页面和 SDK 回调；文件固定放在应用 workPath 下。
+    AppStorage.setOrCreate<boolean>('demoFileInput', params !== undefined && params['demoFileInput'] === 'true');
     this.selfTest = params !== undefined && params['selftest'] === 'true';
     this.stressTest = params !== undefined && params['stress'] === 'true';
     this.loadBench = params !== undefined && params['loadbench'] === 'true';

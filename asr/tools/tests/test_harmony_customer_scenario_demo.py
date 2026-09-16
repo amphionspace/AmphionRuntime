@@ -126,6 +126,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         )[0]
         rows = source.split("ForEach(this.finalSegments,", 1)[1].split("\n      }", 1)[0]
         key = rows.rsplit("}, ", 1)[1].rstrip().removesuffix(")")
+        label = rows.split("Span(", 1)[1].split("\n", 1)[0].rstrip().removesuffix(")")
+        label = label.replace("this.speakerLabel", "page.speakerLabel")
         script = f"""
             import assert from 'node:assert/strict';
             class FinalSegment {{{segment}
@@ -149,38 +151,94 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
               return page.finalSegments.map((item, index) => {{
                 const key = keyOf(item, index);
                 if (!cache.has(key)) cache.set(key,
-                  item.speakerDiarization && (item.speakerIndex >= 0 || item.speakerAssignmentFinal)
-                    ? page.speakerLabel(item.displaySpeakerIndex) : '');
+                  item.speakerDiarization ? ({label}).trim() : '');
                 return cache.get(key);
               }});
             }}
-            assert.deepEqual(render(), ['说话人 1', '说话人 2', '']);
+            assert.deepEqual(render(), ['说话人 1（中间结果）', '说话人 2（中间结果）',
+              '未能区分说话人（中间结果）']);
             const utterances = page.finalSegments.map((item, index) => ({{
               text: item.text, sourceUtteranceId: item.utteranceId,
               utteranceId: item.utteranceId + '-final', endTime: item.endTime,
               speakerIndex: index === 2 ? -1 : 0,
             }}));
             page.handleSpeakerDiarizationResult('live', {{
-              windowIndex: 0, utterances, isSessionFinal: true, degraded: false,
+              windowIndex: 0, utterances, isSessionFinal: false, degraded: false,
             }});
             assert.deepEqual(page.finalSegments.map(item => item.speakerIndex), [0, 0, -1]);
-            assert.deepEqual(render(), ['说话人 1', '说话人 1', '未能区分说话人'],
-              'final callback must refresh labels even when the text does not change');
+            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
+              '未能区分说话人（最终结果）'],
+              'a committed window must refresh phase and identity before the session ends');
             // Late provisional updates cannot overwrite published assignments.
             page.handleSpeakerDiarizationUpdate('live', {{
               utteranceId: 'u2-final', revision: 99, speakerIndex: 1,
             }});
-            assert.deepEqual(render(), ['说话人 1', '说话人 1', '未能区分说话人']);
+            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
+              '未能区分说话人（最终结果）']);
             // A real second speaker must remain distinct.
             page.handleSpeakerDiarizationResult('live', {{
               windowIndex: 1, isSessionFinal: true, degraded: false,
               utterances: [{{sourceUtteranceId:'u4', utteranceId:'u4-final',
                 text:'丁句', endTime:15000, speakerIndex:1}}],
             }});
-            assert.equal(render().at(-1), '说话人 2');
+            assert.equal(render().at(-1), '说话人 2（最终结果）');
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / "speaker-display.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
+
+    def test_demo_file_input_stops_at_eof_or_session_change(self) -> None:
+        source = INDEX.read_text(encoding="utf-8")
+        start = source.index("  private async feedDemoFile(")
+        end = source.index("  // ---- Runtime", start)
+        method = source[start:end]
+        script = f"""
+            import assert from 'node:assert/strict';
+            const SDK_FRAME_BYTES = 640, FRAME_AUDIO_MS = 20;
+            const bytes = Uint8Array.from({{length: 1920}}, (_, i) => i % 251);
+            const WavIo = {{ readPcmBytes: () => bytes.buffer }};
+            const timers = [];
+            const setTimeout = (callback, delay) => {{
+              assert.equal(delay, 20); timers.push(callback);
+            }};
+            class Page {{
+              active = true; listening = true; stoppingListening = false;
+              sessionId = 'a'; workPath = '/work'; frames = []; finishes = 0;
+              feedFrameLive(frame) {{ this.frames.push(new Uint8Array(frame)); }}
+              async stopListening() {{ this.finishes++; this.listening = false; }}
+              handleStopFailure(sid, error) {{ throw error; }}
+              {method}
+            }}
+            async function tick() {{ timers.shift()(); await Promise.resolve(); }}
+            const complete = new Page();
+            const done = complete.feedDemoFile('a');
+            for (let i = 0; i < 3; i++) await tick();
+            await done;
+            assert.deepEqual(complete.frames.flatMap(frame => [...frame]), [...bytes]);
+            assert.equal(complete.finishes, 1);
+            for (const change of [
+              page => page.stoppingListening = true,
+              page => page.listening = false,
+              page => page.active = false,
+              page => page.sessionId = 'b',
+            ]) {{
+              const page = new Page();
+              const run = page.feedDemoFile('a');
+              change(page);
+              await tick(); await run;
+              assert.equal(page.frames.length, 1, 'no frame after stop or into another session');
+              assert.equal(page.finishes, 0, 'old producer cannot finish another session');
+            }}
+            const lastFrame = new Page();
+            const lastRun = lastFrame.feedDemoFile('a');
+            await tick(); await tick();
+            lastFrame.sessionId = 'b';
+            await tick(); await lastRun;
+            assert.equal(lastFrame.finishes, 0, 'EOF cannot finish a replacement session');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "demo-file-input.mts"
             harness.write_text(textwrap.dedent(script), encoding="utf-8")
             subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
 
@@ -299,7 +357,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("`说话人 ${speakerIndex + 1}`", source)
         self.assertNotIn("return speakerIndex < 0 ? '说话人'", source)
         self.assertIn("return speakerIndex < 0 ? '未能区分说话人'", source)
-        self.assertIn("item.speakerIndex >= 0 || item.speakerAssignmentFinal", source)
+        self.assertIn("if (item.speakerDiarization)", source)
+        self.assertIn("item.speakerAssignmentFinal ? '最终结果' : '中间结果'", source)
         self.assertIn("next[i].endTime, true, next[i].speakerAssignmentFinal", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)
