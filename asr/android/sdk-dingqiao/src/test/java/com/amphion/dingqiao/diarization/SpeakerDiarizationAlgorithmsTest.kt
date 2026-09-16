@@ -15,6 +15,34 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun punctuationPreservesTimedSpeakersAndUnknownWithoutRewritingText() {
+        for (text in listOf("甲乙丙丁", "甲乙，丙丁。", " 甲乙！丙丁？")) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙丁", text, listOf("甲", "乙", "丙", "丁"),
+                listOf(100, 500, 1000, 1500), 0, 2000)
+            state.applySpeakerTurns(listOf(
+                SpeakerTimelineTurn(0, 900, "S1", emptyList()),
+                SpeakerTimelineTurn(900, 2000, "UNKNOWN", listOf("S2"), overlap = true),
+            ))
+            val split = state.commitThrough(2000)
+            assertEquals(listOf("S1", "UNKNOWN"), split.map { it.speakerId })
+            assertEquals(text, split.joinToString("") { it.text })
+            assertEquals("甲乙丙丁", split.joinToString("") { it.rawText })
+            assertEquals(listOf(0 to 1000, 1000 to 2000), split.map { it.beginTime to it.endTime })
+            assertEquals(listOf("u1", "u1"), split.map { it.sourceUtteranceId })
+            assertTrue(split.last().overlap)
+            assertTrue(state.finalUtterances().isEmpty())
+            if (text == "甲乙，丙丁。") assertEquals(listOf("甲乙，", "丙丁。"), split.map { it.text })
+        }
+        for (text in listOf("23。", "甲戊，丙丁。")) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙丁", text, listOf("甲", "乙", "丙", "丁"),
+                listOf(100, 500, 1000, 1500), 0, 2000)
+            assertEquals(listOf(text), state.finalUtterances().map { it.text })
+        }
+    }
+
+    @Test
     fun schedulerMatchesHarmonyWindowHopAndFinalFlush() {
         val scheduler = DiarizationWindowScheduler(16_000)
         val first = scheduler.acceptSamples(40_000).single()

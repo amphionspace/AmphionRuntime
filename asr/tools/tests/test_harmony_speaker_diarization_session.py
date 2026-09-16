@@ -521,6 +521,38 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_punctuation_does_not_disable_timed_speaker_splitting(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          for (const text of ['甲乙丙丁', '甲乙，丙丁。', ' 甲乙！丙丁？']) {{
+            const state = new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙丁', text,
+              tokens:['甲','乙','丙','丁'], tokenTimesMs:[100,500,1000,1500],
+              beginTime:0, endTime:2000}});
+            state.applySpeakerTurns([
+              {{beginTime:0,endTime:900,speakerId:'S1',secondarySpeakerIds:[]}},
+              {{beginTime:900,endTime:2000,speakerId:'UNKNOWN',secondarySpeakerIds:['S2'],overlap:true}}
+            ]);
+            const split = state.commitThrough(2000);
+            assert.deepEqual(split.map(x => x.speakerId), ['S1','UNKNOWN'], text);
+            assert.equal(split.map(x => x.text).join(''), text);
+            assert.equal(split.map(x => x.rawText).join(''), '甲乙丙丁');
+            assert.deepEqual(split.map(x => [x.beginTime,x.endTime]), [[0,1000],[1000,2000]]);
+            assert.deepEqual(split.map(x => x.sourceUtteranceId), ['u1','u1']);
+            assert.equal(split[1].overlap, true);
+            assert.deepEqual(state.finalUtterances(), []);
+            if (text === '甲乙，丙丁。') assert.deepEqual(split.map(x => x.text), ['甲乙，','丙丁。']);
+          }}
+          // Lexical edits (ITN or rewritten words) have no safe character mapping.
+          for (const text of ['23。', '甲戊，丙丁。']) {{
+            const state = new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙丁',text,tokens:['甲','乙','丙','丁'],
+              tokenTimesMs:[100,500,1000,1500],beginTime:0,endTime:2000}});
+            assert.deepEqual(state.finalUtterances().map(x => x.text), [text]);
+          }}
+        """)
+
     def test_transcript_revision_is_monotonic_and_token_split_conserves_text(self) -> None:
         run_node(
             f"""

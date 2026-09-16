@@ -61,6 +61,30 @@ function visibleSecondaryIds(ids: string[], primary: string): string[] {
     id !== primary && all.indexOf(id) === index);
 }
 
+// Align only inserted punctuation/spacing. Lexical rewrites (including ITN) must
+// keep the original paragraph until the postprocessor supplies a timed mapping.
+function tokenTextBoundaries(tokens: string[], text: string): number[] | undefined {
+  const inserted = ' ,.!?，。！？、;；:：\t\r\n';
+  const boundaries: number[] = [0];
+  let cursor = 0;
+  for (let index = 0; index < tokens.length; index++) {
+    const token = tokens[index];
+    if (token.length === 0) return undefined;
+    for (let character = 0; character < token.length; character++) {
+      while (cursor < text.length && text[cursor] !== token[character] &&
+        inserted.indexOf(text[cursor]) >= 0) cursor++;
+      if (cursor >= text.length || text[cursor] !== token[character]) return undefined;
+      // Keep inserted sentence punctuation with the preceding token.
+      if (index > 0 && character === 0) boundaries.push(cursor);
+      cursor++;
+    }
+  }
+  while (cursor < text.length && inserted.indexOf(text[cursor]) >= 0) cursor++;
+  if (cursor !== text.length) return undefined;
+  boundaries.push(cursor);
+  return boundaries;
+}
+
 export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
   private nextUtteranceId: number = 1;
@@ -145,13 +169,14 @@ export class SpeakerDiarizationTranscriptState {
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
       if ((utterance.audioEndTime ?? utterance.endTime) > throughTime) continue;
-      if (utterance.tokens.length === 0 ||
-        utterance.tokens.length !== utterance.tokenTimesMs.length ||
-        utterance.tokens.join('') !== utterance.text) {
+      const boundaries = utterance.tokens.length > 0 &&
+        utterance.tokens.length === utterance.tokenTimesMs.length ?
+        tokenTextBoundaries(utterance.tokens, utterance.text) : undefined;
+      if (boundaries === undefined) {
         result.push(this.unsplitUtterance(utterance));
         continue;
       }
-      const split = this.splitByTokenSpeaker(utterance);
+      const split = this.splitByTokenSpeaker(utterance, boundaries);
       if (split.map((item: DiarizedTranscriptUtterance): string => item.text).join('') !==
         utterance.text) {
         result.push(this.unsplitUtterance(utterance));
@@ -314,7 +339,8 @@ export class SpeakerDiarizationTranscriptState {
     return undefined;
   }
 
-  private splitByTokenSpeaker(utterance: StoredUtterance): DiarizedTranscriptUtterance[] {
+  private splitByTokenSpeaker(utterance: StoredUtterance,
+    textBoundaries: number[]): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
     let groupStart = 0;
     let active = this.turnAt(utterance.tokenTimesMs[0]);
@@ -334,7 +360,7 @@ export class SpeakerDiarizationTranscriptState {
           `${utterance.utteranceId}.${result.length + 1}`,
         sourceUtteranceId: utterance.utteranceId,
         rawText: utterance.tokens.slice(groupStart, index).join(''),
-        text: utterance.tokens.slice(groupStart, index).join(''),
+        text: utterance.text.slice(textBoundaries[groupStart], textBoundaries[index]),
         beginTime,
         endTime,
         speakerId: active?.speakerId ?? UNKNOWN_SPEAKER,
