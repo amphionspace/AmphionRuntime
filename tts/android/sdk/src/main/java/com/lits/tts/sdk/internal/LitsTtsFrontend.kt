@@ -293,6 +293,9 @@ internal object LitsTtsFrontend {
     private val acronymWordReadings = setOf("SIM", "TIMEOUT", "UNDERSCORE")
     private val technicalEnglishPhoneOverrides = mapOf(
         "AUDIO" to listOf("AO1", "D", "IY0", "OW2"),
+        "CALLBACK" to listOf("K", "AO1", "L", "B", "AE2", "K"),
+        "EMOJI" to listOf("IH0", "M", "OW1", "JH", "IY0"),
+        "REQUESTID" to listOf("R", "IH0", "K", "W", "EH1", "S", "T", "AY1", "D", "IY1"),
         "UNDERSCORE" to listOf("AH2", "N", "D", "ER0", "S", "K", "AO1", "R"),
         "WIFI" to listOf("W", "AY1", "F", "AY1"),
         "WI-FI" to listOf("W", "AY1", "F", "AY1"),
@@ -963,7 +966,8 @@ internal object LitsTtsFrontend {
                     val end = scanHanziChunk(normalized, index)
                     val hanziText = normalized.substring(index, end)
                     val pinyin = hanziChunkToPinyin(resources, hanziText)
-                    val sandhi = restoreOverridePinyin(resources, hanziText, applyMandarinToneSandhi(hanziText, pinyin))
+                    val sandhi = restoreOverridePinyin(resources, hanziText,
+                        applyMandarinToneSandhi(resources, hanziText, pinyin, normalized, index))
                     if (traceId > 0L) {
                         logDetail(
                             traceId,
@@ -1374,29 +1378,8 @@ internal object LitsTtsFrontend {
     private fun versionNumberToHanzi(text: String): String =
         text.split('.').joinToString("点", transform = ::digitSequenceToHanzi)
 
-    private fun integerTextToHanzi(text: String): String {
-        val value = text.toIntOrNull() ?: return text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
-        if (value == 0) return "零"
-        if (value < 10) return chineseDigitTextByChar.getValue(value.digitToChar())
-        if (value < 20) {
-            val ones = value % 10
-            return "十" + if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-        }
-        if (value < 100) {
-            val tens = value / 10
-            val ones = value % 10
-            return chineseDigitTextByChar.getValue(tens.digitToChar()) + "十" +
-                if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-        }
-        val hundreds = value / 100
-        val remainder = value % 100
-        return chineseDigitTextByChar.getValue(hundreds.digitToChar()) + "百" +
-            when {
-                remainder == 0 -> ""
-                remainder < 10 -> "零" + chineseDigitTextByChar.getValue(remainder.digitToChar())
-                else -> integerTextToHanzi(remainder.toString())
-            }
-    }
+    private fun integerTextToHanzi(text: String): String =
+        MandarinCardinal.read(text) ?: digitSequenceToHanzi(text)
 
     private fun flushSegment(segments: MutableList<String>, current: StringBuilder) {
         current.trimTrailingSpace()
@@ -1494,12 +1477,14 @@ internal object LitsTtsFrontend {
         .map { it.replace('\u7709', 'v').replace('\u813A', 'v') }
         .filter { pinyinSyllableRegex.matches(it) }
 
-    private fun applyMandarinToneSandhi(text: String, tokens: List<String>): List<String> {
+    private fun applyMandarinToneSandhi(
+        resources: FrontendResources, text: String, tokens: List<String>, context: String, offset: Int,
+    ): List<String> {
         val output = applyThirdToneSandhi(tokens).toMutableList()
         if (text.length != output.size) return output
         if (text.length > 1 && text.all { it in CHINESE_DIGIT_SEQUENCE_CHARS }) return output
         applyBuSandhi(text, output)
-        applyYiSandhi(text, output)
+        applyYiSandhi(resources, text, output, context, offset)
         applyErSandhi(text, output)
         return output
     }
@@ -1543,13 +1528,25 @@ internal object LitsTtsFrontend {
         }
     }
 
-    private fun applyYiSandhi(text: String, tokens: MutableList<String>) {
+    private fun applyYiSandhi(
+        resources: FrontendResources, text: String, tokens: MutableList<String>, context: String, offset: Int,
+    ) {
         if (text.length == 3 && text[1] == '一' && text[0] == text[2]) {
             tokens[1] = changePinyinTone(tokens[1], '5')
             return
         }
         text.forEachIndexed { index, char ->
-            if (char != '一' || index + 1 >= text.length || text.getOrNull(index - 1) == '第') return@forEachIndexed
+            if (char != '一') return@forEachIndexed
+            // TN may preserve spaces around numbers (第 100 轮). Keep the ordinal
+            // context across those token boundaries and across the whole numeral.
+            var beforeNumber = offset + index - 1
+            while (beforeNumber >= 0 && (context[beforeNumber].isWhitespace() ||
+                    context[beforeNumber] in CHINESE_NUMBER_CONTEXT_CHARS)) beforeNumber--
+            if (context.getOrNull(beforeNumber) == '第') {
+                tokens[index] = changePinyinTone(tokens[index], '1')
+                return@forEachIndexed
+            }
+            if (index + 1 >= text.length) return@forEachIndexed
             val current = tokens.getOrNull(index)
             val next = tokens.getOrNull(index + 1)
             if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
@@ -1561,8 +1558,14 @@ internal object LitsTtsFrontend {
             // (1+2), or a trailing units digit (八十一号).
             val nx = text[index + 1]
             val prev = text.getOrNull(index - 1)
-            val sandhi = if (next.last() == '4') '2' else '4'
+            // Neutralization (一下/一个) does not erase the following syllable's
+            // citation tone for 一 sandhi.
+            val nextTone = if (next.last() == '5') {
+                lexiconPinyinForWord(resources, nx.toString()).singleOrNull()?.lastOrNull() ?: next.last()
+            } else next.last()
+            val sandhi = if (nextTone == '4') '2' else '4'
             val tone = when {
+                nx == '点' && text.getOrNull(index + 2)?.let { it in CHINESE_DIGIT_ONLY_CHARS } == true -> '1' // decimal 1.23
                 nx in CHINESE_MULTIPLIER_CHARS -> sandhi              // 一百/一十/一千/一万
                 nx == '月' || nx == '日' || nx == '号' -> '1'          // date label
                 nx in CHINESE_DIGIT_ONLY_CHARS -> '1'                 // digit sequence 一二三
@@ -1987,6 +1990,11 @@ internal object LitsTtsFrontend {
 
     private fun loadWordPinyinOverrides(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
         buildMap {
+            // Context-specific defaults; a model's explicit phrase override wins.
+            // 调到 alone remains ambiguous (e.g. 调到北京 uses diao4).
+            put("音量调到", "yin1 liang4 tiao2 dao4")
+            put("串行", "chuan4 xing2")
+            put("只终止", "zhi3 zhong1 zhi3")
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
         }
