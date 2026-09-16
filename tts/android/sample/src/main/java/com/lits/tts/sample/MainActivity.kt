@@ -511,7 +511,10 @@ class MainActivity : AppCompatActivity() {
             """.trimIndent()
         }
         inputText.setText(preset)
-        inputText.setSelection(preset.length)
+        val smallScreen = resources.configuration.screenLayout and
+            android.content.res.Configuration.SCREENLAYOUT_SIZE_MASK ==
+            android.content.res.Configuration.SCREENLAYOUT_SIZE_SMALL
+        inputText.setSelection(if (smallScreen) 0 else preset.length)
         if (!busy) {
             setStatus(getString(R.string.status_ready))
         }
