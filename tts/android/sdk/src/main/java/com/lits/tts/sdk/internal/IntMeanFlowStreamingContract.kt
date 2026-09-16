@@ -14,14 +14,14 @@ internal object IntMeanFlowStreamingContract {
         growthFactor: Int?, maxChunkSize: Int?,
     ) {
         require(manifest.supportsStreaming && manifest.streamDecoderExternalLoop &&
-            manifest.streamingChunkSize == 100 && manifest.streamDecoderTimesteps == 2 &&
+            manifest.streamingChunkSize in setOf(50, 100) && manifest.streamDecoderTimesteps == 2 &&
             manifest.streamingPreLookaheadLen == 0 && manifest.streamDecoderTemperature.isFinite() &&
             manifest.streamDecoderTemperature >= 0f &&
-            manifest.streamDecoderCacheInfo?.requiresFixedChunkSize == 100) {
+            manifest.streamDecoderCacheInfo?.requiresFixedChunkSize == manifest.streamingChunkSize) {
             "Invalid IntMeanFlow streaming manifest"
         }
         require(listOf(chunkSize, firstChunkSize, secondChunkSize, steadyChunkSize, maxChunkSize)
-            .all { it == null || it == 100 }) { "This student requires 100-frame chunks" }
+            .all { it == null || it == manifest.streamingChunkSize }) { "This student requires ${manifest.streamingChunkSize}-frame chunks" }
         require(flowStep == null || flowStep == 2) { "This student requires two trained flow steps" }
         require(previousContext == null || previousContext == 0) { "This student carries history through KV cache" }
         require(growthFactor == null || growthFactor == 1) { "This student does not support chunk growth" }
