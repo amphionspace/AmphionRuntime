@@ -89,6 +89,75 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             """
         )
 
+    def test_final_diarization_replaces_visible_roles_when_text_is_unchanged(self) -> None:
+        source = INDEX.read_text(encoding="utf-8")
+        segment = source.split("class FinalSegment {", 1)[1].split("\n@Entry", 1)[0]
+        handlers = source.split("  handleSpeakerDiarizationUpdate(", 1)[1].split(
+            "  private async finishAutoEndedCapture", 1
+        )[0]
+        display = source.split("  private speakerLabel(", 1)[1].split(
+            "  private selectCustomerScenario", 1
+        )[0]
+        rows = source.split("ForEach(this.finalSegments,", 1)[1].split("\n      }", 1)[0]
+        key = rows.rsplit("}, ", 1)[1].rstrip().removesuffix(")")
+        script = f"""
+            import assert from 'node:assert/strict';
+            class FinalSegment {{{segment}
+            class Page {{
+              replaySessionId = 'replay'; lastDiarizationWindowIndex = -1;
+              capturedCustomerScenario = 'ptt'; finalSegments = [];
+              handleSpeakerDiarizationUpdate({handlers}
+              private speakerLabel({display}
+            }}
+            const keyOf = {key};
+            const page = new Page();
+            // Same-key ForEach rows retain their original non-observed item.
+            page.finalSegments = [
+              new FinalSegment('甲句', undefined, 'u1', 0, 4000, true),
+              new FinalSegment('乙句', undefined, 'u2', 1, 9000, true),
+              new FinalSegment('丙句', undefined, 'u3', -1, 12000, true),
+            ];
+            page.refreshSpeakerDisplayIndexes(page.finalSegments);
+            const cache = new Map();
+            function render() {{
+              return page.finalSegments.map((item, index) => {{
+                const key = keyOf(item, index);
+                if (!cache.has(key)) cache.set(key,
+                  item.speakerDiarization && (item.speakerIndex >= 0 || item.speakerAssignmentFinal)
+                    ? page.speakerLabel(item.displaySpeakerIndex) : '');
+                return cache.get(key);
+              }});
+            }}
+            assert.deepEqual(render(), ['说话人 1', '说话人 2', '']);
+            const utterances = page.finalSegments.map((item, index) => ({{
+              text: item.text, sourceUtteranceId: item.utteranceId,
+              utteranceId: item.utteranceId + '-final', endTime: item.endTime,
+              speakerIndex: index === 2 ? -1 : 0,
+            }}));
+            page.handleSpeakerDiarizationResult('live', {{
+              windowIndex: 0, utterances, isSessionFinal: true, degraded: false,
+            }});
+            assert.deepEqual(page.finalSegments.map(item => item.speakerIndex), [0, 0, -1]);
+            assert.deepEqual(render(), ['说话人 1', '说话人 1', '未能区分说话人'],
+              'final callback must refresh labels even when the text does not change');
+            // Late provisional updates cannot overwrite published assignments.
+            page.handleSpeakerDiarizationUpdate('live', {{
+              utteranceId: 'u2-final', revision: 99, speakerIndex: 1,
+            }});
+            assert.deepEqual(render(), ['说话人 1', '说话人 1', '未能区分说话人']);
+            // A real second speaker must remain distinct.
+            page.handleSpeakerDiarizationResult('live', {{
+              windowIndex: 1, isSessionFinal: true, degraded: false,
+              utterances: [{{sourceUtteranceId:'u4', utteranceId:'u4-final',
+                text:'丁句', endTime:15000, speakerIndex:1}}],
+            }});
+            assert.equal(render().at(-1), '说话人 2');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "speaker-display.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
+
     def test_customer_profiles_pin_the_mail_parameters(self) -> None:
         source = PROFILE.read_text(encoding="utf-8")
 
