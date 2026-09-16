@@ -1,6 +1,15 @@
 <?xml version='1.0' encoding='utf-8'?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/brand_cream" android:fitsSystemWindows="true" android:orientation="vertical" android:focusableInTouchMode="true">
     <androidx.appcompat.widget.Toolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="0dp" android:background="@color/brand_cream" android:visibility="gone" />
+    <TextView
+        android:id="@+id/text_memory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/memory_pending"
+        android:textColor="@color/brand_text_secondary"
+        android:textSize="11sp" />
     <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:id="@+id/scroll_content">
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/screen_padding">
             <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sample_title" android:textAppearance="@style/TextAppearance.Lits.BrandTitle" android:textSize="16sp" />
