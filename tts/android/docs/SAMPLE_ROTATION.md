@@ -1,68 +1,56 @@
-# Sample rotation lifecycle
+# Responsive sample and lifecycle
 
-The sample handles `orientation|screenSize` changes in its existing Activity.
-Both phone and small-screen layouts use flexible dimensions and the same view
-tree in portrait and landscape; Android remeasures that tree on rotation.
-There are no orientation-specific layouts to reinflate.
+## Page / engine boundary
 
-This preserves the engine, active request, PCM player, input and result while
-rotating. Explicit Stop still cancels work. Actual Activity destruction still
-releases resources. This change does not promise background playback across
-process death or other configuration changes.
+`MainActivity` binds widgets and forwards user actions to `TtsSampleViewModel`.
+It does not create, stop or release SDK engines. The ViewModel owns the engine,
+request callbacks, result audio, inputs and `SampleUiState`; it holds only the
+application context, never an Activity or View.
 
-## Device regression
+Android selects `res/layout-small/activity_main.xml` on small screens and
+`res/layout/activity_main.xml` on normal/larger screens. The IDs and actions are
+shared; both show RSS and the process RSS high-water mark in MiB, updated once
+per second while visible. These numbers include the entire process, not just
+model tensors. The peak is since process start and includes cold loading.
 
-Provision the sample with its model and license, open it in portrait, wait for
-warmup and use a long input. Run the following with the visible portrait button
-centres (the example coordinates are for EC521S at 240 × 320):
+Normal configuration recreation is enabled. Rotation reconnects the new page to
+the same ViewModel, preserving the request, input and result. Closing the page
+clears the ViewModel and shuts down the engine. Process death recovery and a
+background playback service are outside this sample's contract.
 
-```sh
-python3 tts/tools/android/check_sample_rotation.py \
-  --serial DSJ-TDTH6A10000336 --start 42 292 --stop 197 292 \
-  --log /tmp/rotation-synthesis.log
-```
+## SDK release / cancellation
 
-Repeat using the Speak button (`--start 119 292 --playback`) to cover streaming
-playback. Playback does not emit PCM callbacks: on Android 10 this check reads
-the app's AudioFlinger track and requires its server frame position to advance
-on the same track after each rotation.
-The synthesis check requires callbacks from the same request after landscape and portrait
-transitions. Both reject unexpected stop/error/completion or Activity restart, and
-then verifies explicit Stop. It restores rotation settings and refuses to
-overwrite existing logs. Run on a provisioned normal phone as well to validate
-its actual screen geometry; EC521S alone is not evidence of phone visual QA.
+The previous Activity closed its engine on rotation. In addition to stopping
+speech, native ORT inference sometimes crashed because engine shutdown closed
+sessions before running workers returned. The playback producer could also
+outlive `playStreaming` after cancellation.
 
-Before the fix, EC521S emitted `onStop ... STOP_ALL` immediately on rotation
-after the first audio chunk. The cause is Activity recreation invoking
-`MainActivity.onDestroy`, which shuts down its engine.
+Shutdown now marks requests cancelled immediately and returns without blocking
+the UI. Resource release waits for all submitted workers, including preempted
+workers, to exit. Streaming playback joins both producer and playback threads
+before returning to that engine worker. A Java interrupt is not treated as proof
+that JNI inference has ended.
 
-## Related open issue: shutdown during native inference
+Explicit cancellation is tracked separately from a player failure. A cancelled
+playback does not require a complete synthesized result, and its late exception
+cannot emit an error after Stop. Genuine uncancelled failures still emit errors.
 
-During the original rotation reproduction on 2026-09-16, the engine thread also
-crashed with SIGSEGV in `libonnxruntime.so` / `OrtSession.run` after shutdown.
-Evidence is saved locally as `work/logs/rotation-before-native-crash.log` in the
-parent workspace. Concurrent session release is suspected, not yet proven.
-The rotation fix avoids that shutdown but does not fix or validate the general
-SDK shutdown/inference race. Track that separately with a controlled active
-inference → shutdown reproduction before changing SDK resource ownership.
+## Regression evidence (EC521S, Android 10, 2026-09-16)
 
-## Related open issue: error following playback cancellation
+- JVM controlled native-work analogue: shutdown must not close a synthesizer
+  while its noninterruptible operation is still running.
+- JVM cancellation/error test: cancelled worker failure produces Stop only;
+  a subsequent genuine failure still produces Error. Both failed before the fix.
+- `TtsLifecycleDeviceTest`: real-model playback stop, synthesis shutdown and
+  playback shutdown; each is followed by successful engine recreation and PCM
+  synthesis, with exactly one Stop for each cancelled request and no late error.
+- `SampleScreenDeviceTest`: both layout variants contain the RSS display and
+  actions; Activity recreation preserves the same controller, edited input,
+  active synthesis and completed result.
+- Actual normal-phone hardware was not connected. Its layout is inflated in the
+  device test, but normal-phone visual QA is not claimed.
 
-EC521S playback validation also observed `onStop ... STOP_ALL` followed by
-`onError ... 1002300011: streaming playback produced no synthesized audio`.
-AudioFlinger confirmed zero active tracks after Stop. This extra error is a
-separate cancellation-callback defect: the streaming playback path requires a
-synthesized result even when cancellation ends the producer early. This patch
-does not change SDK callbacks; fix and test that cancellation path separately.
-
-## Validation on EC521S, Android 10 (2026-09-16)
-
-- Old APK: same-request continuity assertion fails with STOP_ALL on rotation.
-- Fixed APK: synthesis continues across landscape and portrait; explicit Stop
-  produces its stop callback.
-- Fixed APK: the same playback track advances across both rotations; explicit
-  Stop produces its callback and leaves no active app audio track.
-- Normal phone hardware was not connected; it uses the same Activity manifest,
-  but its on-device rotation check remains unperformed.
-- The playback checker was corrected to observe AudioFlinger rather than PCM
-  callbacks, which are intentionally absent in streaming playback mode.
+For an additional manual rotation check on a provisioned, foreground sample with
+long text, use `tts/tools/android/check_sample_rotation.py`. Supply visible
+portrait button centres. Playback uses `--playback` (Android 10 AudioFlinger
+format) rather than PCM callbacks, which streaming playback does not emit.
