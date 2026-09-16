@@ -38,16 +38,16 @@ Local evidence in the parent workspace: `work/logs/memory-baseline-ready/`,
 `sample-screen-device-result.log`, `sdk-unit-memory-final/`, and
 `full-lexicon-parity.log`. App/runtime source: `7e5a2ba9`.
 
-## Mixed FP16 candidate
+## Mixed FP16 experiment (reverted)
 
-`tts/tools/android/convert_intmeanflow_fp16.py` creates a separate package.
-Only Conv/MatMul/Gemm are eligible for FP16. Duration prediction is explicitly
-kept FP32; other arithmetic, normalization, masks and public graph/cache IO stay
-FP32. The converter repairs redundant casts between adjacent FP32 regions:
-without that repair large mask sentinels can become infinity and produce NaNs.
-A unit test checks that case and another protects Ceil-based duration rounding.
+The experiment converted Conv/MatMul/Gemm to FP16 while retaining duration
+prediction, other arithmetic, normalization, masks and public graph/cache IO in
+FP32. Redundant casts between adjacent FP32 regions needed repair to prevent
+large mask sentinels becoming infinity and producing NaNs. Duration rounding
+also needed FP32 preservation. The experiment-specific converter and tests have
+been removed; this document retains the findings.
 
-The current candidate reduces ONNX graph files from 197.9 to 127.1 MiB. Four
+The experimental package reduced ONNX graph files from 197.9 to 127.1 MiB. Four
 phonetic reference cases retain their FP32 mel lengths. Cached decoder checks
 cover 16, 49, 50, 51, 99, 100, 101, 350, 431, 2050 and 2101 frames with independent
 state for each of the two flow steps; all outputs are finite. These are numerical
@@ -72,14 +72,18 @@ quality verdict.
 | Synthesis wall time | 48.454 s | 52.128 s |
 
 One run per variant; FP16 did not improve memory or speed on this CPU/runtime.
-It remains installed for evaluation, with FP32 retained as a rollback artifact.
+The device has been rolled back to the verified optimized FP32 APK and model.
+FP16 is no longer an active deployment or development path. The installed APK
+hash matches the FP32 rollback artifact; startup callbacks confirm the FP32
+model and successful 1.056-second warmup synthesis after rollback.
 The 200 MB target remains unmet. Evidence: `work/logs/memory-fp16-active/`.
 
 Deployment caveat: external-resource discovery sorts valid model directories
 by path rather than preferring the compiled model ID. With both variants in the
 active resource root, it selected FP32. That preliminary run was stopped and is
-not FP16 evidence. The FP32 directory was moved outside the discovery root to
-`files/tts-model-backup/`; callbacks then confirmed the FP16 model. No discovery
+not FP16 evidence. For measurement, the FP32 directory was temporarily moved outside the discovery
+root; callbacks then confirmed the FP16 model. Rollback restores FP32 to the
+active resource root and removes the FP16 model from the device. No discovery
 policy code was changed in this experiment. Deploy one active model package.
 
 Removed the obsolete `com.amphion.lits.tts.demo` application and the sample
