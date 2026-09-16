@@ -103,6 +103,15 @@ interface SpeakListener {
 | `queueMode` | `QueueMode` | `QUEUE` | 排队策略 |
 | `extraParams` | `Map<String, Any?>` | `emptyMap()` | 预留扩展 |
 
+### 流式分块参数
+
+`SpeakParams.streamingConfig: TtsStreamingConfig?` 可设置 `chunkSize`、
+`firstChunkSize` 和 `pcmQueueCapacity`。当前 IntMeanFlow 模型默认 50 帧，
+可通过 `chunkSize` 改成 100 等不小于 40 的帧数；仍使用逐步独立的 KV 缓存。
+小于 40 的常规块受当前 ONNX 导出限制，不能使用。首块等分块覆盖值必须
+与所选块大小一致，不支持块大小增长。留空使用模型默认值。
+更改推理块大小可能改变首包延迟、内存和音质，数值执行正确不代表听感相同。
+
 ### 回调响应
 
 | 类型 | 字段 |

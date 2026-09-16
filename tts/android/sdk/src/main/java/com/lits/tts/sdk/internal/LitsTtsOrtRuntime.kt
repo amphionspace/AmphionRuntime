@@ -263,7 +263,7 @@ internal class LitsTtsOrtRuntime(
         val decoderCacheInfo = manifest.streamDecoderCacheInfo
         val useDecoderCache = (trainedCache || (EXPLICIT_DECODER_CACHE_ENABLED && LitsTtsRuntimeOptions.decoderCacheEnabled)) && externalLoop &&
             decoderCacheInfo != null &&
-            decoderCacheInfo.requiresFixedChunkSize == chunkSize &&
+            (trainedCache || decoderCacheInfo.requiresFixedChunkSize == chunkSize) &&
             streamDecoderCacheInitSession != null &&
             streamDecoderCacheStepSession != null
         check(!trainedCache || useDecoderCache) { "Required IntMeanFlow decoder cache sessions are unavailable" }
