@@ -1,0 +1,261 @@
+{
+  "status": "TARGETED_CUSTOMER_WITNESS_PASS",
+  "overallCustomerIdentityStatus": "OPEN: 38-second phrase and six-minute recording remain unresolved",
+  "canonicalDeviceEvidence": true,
+  "reportPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/report.json",
+  "reportSha256": "e06717cf8cf1bccbe5de6011993c67815dcb6d6f062c341b231ca201684abc88",
+  "runtimeSourceCommit": "9d2103a0725add65cffe84f7d8f59e5b4a617cb5",
+  "buildIdentity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "512b79ade38fc04e1ca0f674eccb68a7bf35a21d449619a7bc7f26f6396cd7a1",
+        "size_bytes": 219610371
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "e95537af0957fbe8da9759308d5548b5f6972b1584ae4c5d89bed0c7dc1a6b67",
+        "size_bytes": 380774065
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "8996f31d9fe2abc558c4c80923da6e4f1a8c3d1cbd474b8626242f85f318cee6",
+        "size_bytes": 42350040
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "06be5a85adcfdc3503a867122042ddaa157b239d1a539b904889f7b8db311b48",
+        "size_bytes": 30201824
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "060b205966a9f6952022e02b10f9cb1ab7a6f7ca05588c56494b6f181535197b",
+        "size_bytes": 6950509
+      }
+    },
+    "build_mode": "diagnostics",
+    "created_at": "2026-09-15T09:45:58.291588+00:00",
+    "git_commit": "9d2103a0725add65cffe84f7d8f59e5b4a617cb5",
+    "model_manifest_sha256": "3d68ca19e5ab97706b6f691df29a4ea6908c1dc49281d67dadae737c39321d90",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    "optional_models": {
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "source_fingerprint_sha256": "e50c0a4a2ce8e68e115def74dc883824859d5f9743237588ecf30922d30410dc",
+    "zh_en_only": true
+  },
+  "device": "PSN-AL00 / OpenHarmony 6.0.2.130 (same USB device as customer baseline)",
+  "checks": {
+    "speakerIdentityMatchesExpected": true,
+    "customerWitnessReturnsToOpeningRole": true,
+    "weak38secondQueryRemainsUnknown": true,
+    "startsOnce": true,
+    "noLastBeforeFinish": true,
+    "uniqueLastThenComplete": true,
+    "noErrors": true,
+    "noUnexpectedCallbacks": true,
+    "noNativeStreams": true,
+    "notDegraded": true,
+    "fullTerminalWindow": true,
+    "hostExactSpeakerIntervals": true
+  },
+  "rawHarnessStatus": "FAIL",
+  "rawHarnessFailures": [
+    "SDK contract checks failed"
+  ],
+  "rawCaseStatus": "FAIL",
+  "rawCaseDetail": "customer-meeting-diarization-contract",
+  "coverageLimitation": "86.08-second input cannot cover the 120-second intermediate window; preserve original harness status.",
+  "asrFinals": 9,
+  "unknownUtterances": 4,
+  "labels": [
+    2,
+    2,
+    0,
+    -1,
+    2,
+    3,
+    -1,
+    -1,
+    -1
+  ],
+  "utterances": [
+    {
+      "utteranceId": "u1",
+      "beginTime": 2720,
+      "endTime": 3960,
+      "speakerIndex": 2
+    },
+    {
+      "utteranceId": "u2",
+      "beginTime": 6320,
+      "endTime": 7800,
+      "speakerIndex": 2
+    },
+    {
+      "utteranceId": "u3",
+      "beginTime": 16920,
+      "endTime": 36000,
+      "speakerIndex": 0
+    },
+    {
+      "utteranceId": "u4",
+      "beginTime": 38320,
+      "endTime": 40560,
+      "speakerIndex": -1
+    },
+    {
+      "utteranceId": "u5",
+      "beginTime": 46120,
+      "endTime": 48560,
+      "speakerIndex": 2
+    },
+    {
+      "utteranceId": "u6",
+      "beginTime": 50040,
+      "endTime": 51120,
+      "speakerIndex": 3
+    },
+    {
+      "utteranceId": "u7",
+      "beginTime": 66040,
+      "endTime": 72520,
+      "speakerIndex": -1
+    },
+    {
+      "utteranceId": "u8",
+      "beginTime": 74500,
+      "endTime": 77100,
+      "speakerIndex": -1
+    },
+    {
+      "utteranceId": "u9",
+      "beginTime": 85620,
+      "endTime": 85980,
+      "speakerIndex": -1
+    }
+  ],
+  "inferenceMs": 24548,
+  "rtf": 0.28517657992565054,
+  "finishToCompleteMs": 563,
+  "memory": {
+    "status": "PASS",
+    "sample_count": 66,
+    "observation_seconds": 93.01,
+    "warmup_samples_excluded": 13,
+    "head_rss_mb": 641.676,
+    "tail_rss_mb": 673.707,
+    "rss_growth_mb": 32.031,
+    "rss_slope_mb_per_minute": -94.104,
+    "rss_third_medians_mb": [
+      649.402,
+      679.609,
+      671.791
+    ],
+    "peak_rss_mb": 706.312,
+    "peak_hwm_mb": 706.312,
+    "head_vm_data_mb": 1502.469,
+    "tail_vm_data_mb": 1542.531,
+    "vm_data_growth_mb": 40.062,
+    "peak_swap_mb": 0.066,
+    "head_threads": 68,
+    "tail_threads": 67,
+    "thread_growth": -1,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "resourceScope": "One short session; no conclusion on steady-state long-meeting resources.",
+  "sourceInput": {
+    "sha256": "e07f2e2e56ab3c319664e9b16f1dddd5d0f18a5853e4dd06b8ccea5183d9ed11",
+    "durationSeconds": 86.08
+  },
+  "evidence": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/report.json",
+      "sha256": "e06717cf8cf1bccbe5de6011993c67815dcb6d6f062c341b231ca201684abc88",
+      "bytes": 68613
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/result.txt",
+      "sha256": "b411409c39cb9e3647f883346e3ac0130b315d6d70c0c4b67fbac126fe1249a2",
+      "bytes": 62516
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/hilog.txt",
+      "sha256": "3476d3e454e84ab139bc8cc4a9840a6e1de646da59968324bb6e63a3cf564166",
+      "bytes": 766575
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/memory.csv",
+      "sha256": "6bacad39ea1a470a408ac42b2d9db7c76244ee6d940d16277ed0ecaf40cb5a99",
+      "bytes": 4167
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/inventory.json",
+      "sha256": "b8a4e1e029f0a7dbf6e9619274f113ae4ae2f7a6c30d945cb47c359bf94a2af5",
+      "bytes": 202
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/payload/corpus.json",
+      "sha256": "05d0f612d8f10d42a55b8f4321ff2b78d1dd57a9c50878cb866a45e6baf1d06c",
+      "bytes": 365
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/usb-unknown-query/20260915-174701-diarization-windows-b1b7a7d6/payload/manifest.txt",
+      "sha256": "77dcc7ebfde95d237e8882af6178c28bd217f5e08feced9e2eac0343dc768bf4",
+      "bytes": 109
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/candidate-short-usb-plan.json",
+      "sha256": "80be5e3fc3cdf824c81255b501d3aec3e00a0422803a85f6c97e7426f7dabdfb",
+      "bytes": 1100
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-final-build.log",
+      "sha256": "5b9d4d3ad0fd08f1d808f4dd64d1e1cc0a5b46e41b45aa5ff55300a08983ea28",
+      "bytes": 134425
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-install.log",
+      "sha256": "9e74146146ef039077a46ab8673b767d69bcaa8b375f8a2c4a149c0b21b426e0",
+      "bytes": 228
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-build-identity.json",
+      "sha256": "832a13f30f3851bc4656e35d2f3b4f7cb2eac48bb2aaa44bde942f4616509468",
+      "bytes": 2351
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-harmony-no-space.log",
+      "sha256": "7b6b7fbaa03e1178272a5cf40410913098ac25927ccbd58184f7a55edaba2067",
+      "bytes": 106019
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/temporary-build-cleanup.json",
+      "sha256": "a56bf097f848b9627a315828881d56c901bb7a67b5b22e7678484980e67dc38d",
+      "bytes": 468
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/unknown-query-device-assessment-parser-error.json",
+      "sha256": "2194262148285a50d267e726f4f2882597a50bbe0542c9ec50f12560f80c0e41",
+      "bytes": 8318
+    }
+  ],
+  "signingRefresh": {
+    "status": "COMPLETE",
+    "certificateNotAfter": "2026-09-29T17:28:20+08:00",
+    "method": "DevEco automatic same-application debug signing; private default config refreshed; no certificate/profile validation bypass",
+    "localBuildRecovery": "Preserved ENOSPC build failure log; removed only rebuildable Android intermediate directories and preserved all outputs, reports and inputs."
+  },
+  "noncanonicalAssessmentNote": "The first local report reader compared string counters to integers. Its false lifecycle flags are preserved as a parser-error artifact; the raw SDK report was not changed. Correct numeric parsing passes all lifecycle assertions."
+}

@@ -19,6 +19,7 @@ interface MutableSpeakerEntry {
 }
 
 const UNKNOWN_SPEAKER = 'UNKNOWN';
+const QUERY_SIMILARITY_THRESHOLD = 0.59;
 
 function normalize(embedding: Float32Array): Float32Array | undefined {
   let squaredNorm = 0;
@@ -74,13 +75,14 @@ export class OnlineSpeakerRegistry {
     rawEmbedding: Float32Array | undefined,
     speechDurationMs: number,
     atMs: number,
+    allowAdditionalSpeaker: boolean = true,
   ): SpeakerAssignment {
-    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs)[0];
+    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs, [allowAdditionalSpeaker])[0];
   }
 
   /** Assigns one window jointly so an existing centroid and observation must be mutual top-1. */
   assignBatch(rawEmbeddings: (Float32Array | undefined)[], speechDurationsMs: number[],
-    atMs: number): SpeakerAssignment[] {
+    atMs: number, allowAdditionalSpeaker?: boolean[]): SpeakerAssignment[] {
     if (rawEmbeddings.length !== speechDurationsMs.length) {
       throw new Error('embedding and duration counts must match');
     }
@@ -128,7 +130,12 @@ export class OnlineSpeakerRegistry {
         };
         continue;
       }
-      if (this.entries.length < this.maxSpeakers) {
+      // A plausible known speaker with insufficient certainty is not a new person.
+      // Distinct current channels still compete for different identities.
+      const novel = best === undefined || !mutual ||
+        best.score < Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD);
+      if (this.entries.length < this.maxSpeakers && novel &&
+        (this.entries.length === 0 || (allowAdditionalSpeaker?.[observation] ?? true))) {
         const entry: MutableSpeakerEntry = {
           speakerId: `S${this.entries.length + 1}`,
           centroid: embedding,
@@ -152,12 +159,25 @@ export class OnlineSpeakerRegistry {
   }
 
   matchKnown(raw: number[]): string | undefined {
+    return this.matchExisting(raw, this.similarityThreshold)?.speakerId;
+  }
+
+  /** Short output queries cannot enroll roles or match context-only profiles. */
+  matchQuery(raw: number[], establishedIds: Set<string>): SpeakerAssignment | undefined {
+    // Independent AISHELL3 calibration: maximum impostor cosine .5392 + .05 margin.
+    return this.matchExisting(raw, QUERY_SIMILARITY_THRESHOLD, establishedIds);
+  }
+
+  private matchExisting(raw: number[], threshold: number,
+    allowedIds?: Set<string>): SpeakerAssignment | undefined {
     const embedding = normalize(new Float32Array(raw));
     if (embedding === undefined) return undefined;
-    const ranked = this.entries.map(entry => ({ id: entry.speakerId, score: cosine(entry.centroid, embedding) }))
+    const ranked = this.entries.filter(entry => allowedIds === undefined || allowedIds.has(entry.speakerId))
+      .map(entry => ({ id: entry.speakerId, score: cosine(entry.centroid, embedding) }))
       .sort((left, right) => right.score - left.score);
-    return ranked.length > 0 && ranked[0].score >= this.similarityThreshold &&
-      (ranked.length < 2 || ranked[0].score - ranked[1].score >= this.topMargin) ? ranked[0].id : undefined;
+    if (ranked.length === 0 || ranked[0].score < threshold ||
+      (ranked.length > 1 && ranked[0].score - ranked[1].score < this.topMargin)) return undefined;
+    return { speakerId: ranked[0].id, confidence: Math.max(0, Math.min(1, ranked[0].score)), created: false };
   }
 
   commitKnown(id: string, embedding: number[], durationMs: number, atMs: number): void {

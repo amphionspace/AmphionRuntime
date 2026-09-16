@@ -1,0 +1,67 @@
+[
+  {
+    "name": "S_R004S01C01",
+    "offsetSeconds": 180,
+    "durationSeconds": 180,
+    "channel": 0,
+    "speakersSeconds": {
+      "001-M": 21.982,
+      "002-F": 0.9048999999999978,
+      "004-F": 60.574299999999994,
+      "005-F": 63.53590000000008
+    },
+    "sourceUrl": "https://huggingface.co/datasets/AISHELL/AISHELL-4/resolve/main/test/wav/S_R004S01C01.flac",
+    "selection": "earliest 30-second grid offset >=180s with <=4 active reference people and >=2 people each speaking >=10s; chosen before model evaluation",
+    "sourceSha256": "89ce19bfdf94fab9648cf1a67b0d1dd963b118c72080b22241833b56baa42ff7",
+    "sourceBytes": 239206836,
+    "inputSha256": "559247895304129d26ad54f801f4678e8fdcc7bcc576da5118cb39c4d5260d3c",
+    "sourceFormat": {
+      "sampleRate": 16000,
+      "channels": 8,
+      "frames": 37534528
+    },
+    "downloadSeconds": 20.62
+  },
+  {
+    "name": "S_R004S03C01",
+    "offsetSeconds": 180,
+    "durationSeconds": 180,
+    "channel": 0,
+    "speakersSeconds": {
+      "001-M": 99.30160000000004,
+      "004-F": 77.66000000000003
+    },
+    "sourceUrl": "https://huggingface.co/datasets/AISHELL/AISHELL-4/resolve/main/test/wav/S_R004S03C01.flac",
+    "selection": "earliest 30-second grid offset >=180s with <=4 active reference people and >=2 people each speaking >=10s; chosen before model evaluation",
+    "sourceSha256": "c21ce5ce455b87926ca6b486431db2889de5d14be91b55f8cffea31cd94c1262",
+    "sourceBytes": 235113956,
+    "inputSha256": "f09edd928c1a29f07d91693df202be0a7c0e0b52f6d7aee8857d3d032e70d6d4",
+    "sourceFormat": {
+      "sampleRate": 16000,
+      "channels": 8,
+      "frames": 37233904
+    },
+    "downloadSeconds": 19.71
+  },
+  {
+    "name": "M_R003S01C01",
+    "offsetSeconds": 210,
+    "durationSeconds": 180,
+    "channel": 0,
+    "speakersSeconds": {
+      "001-M": 11.129999999999995,
+      "006-F": 149.69820000000004
+    },
+    "sourceUrl": "https://huggingface.co/datasets/AISHELL/AISHELL-4/resolve/main/test/wav/M_R003S01C01.flac",
+    "selection": "earliest 30-second grid offset >=180s with <=4 active reference people and >=2 people each speaking >=10s; chosen before model evaluation",
+    "sourceSha256": "26b4cd2045077e3db7170c376db3cb63b469d208e1d474155721911b3fe9866a",
+    "sourceBytes": 252564853,
+    "inputSha256": "a51afcb1f4d9d1dce20ab69e746d4fa56e8590041f8536decfe8398322353671",
+    "sourceFormat": {
+      "sampleRate": 16000,
+      "channels": 8,
+      "frames": 36515360
+    },
+    "downloadSeconds": 22.14
+  }
+]

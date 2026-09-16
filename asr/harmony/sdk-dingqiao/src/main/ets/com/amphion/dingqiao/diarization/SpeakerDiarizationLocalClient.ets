@@ -169,7 +169,9 @@ export class SpeakerDiarizationLocalClient {
         }, INFERENCE_TIMEOUT_MS);
       });
       inferencePromise = this.inferenceLoad.then(
-        (): Promise<SpeakerDiarizationWindowResult> => this.inference.process(samples));
+        (): Promise<SpeakerDiarizationWindowResult> => this.inference.process(samples,
+          job.commitStartSample - job.windowStartSample + job.contentStartInWindowSample,
+          job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample));
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;

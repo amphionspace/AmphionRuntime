@@ -1,0 +1,54 @@
+{
+  "rawFiles": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/usb-four-control/20260915-153506-diarization-windows-b96d74ad/report.json",
+      "sha256": "abcb409f6d556e473d49c5a35b696e757541c7e1c7021dfa7165be59fe01e5a0",
+      "sizeBytes": 510573
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/usb-four-control/20260915-153506-diarization-windows-b96d74ad/result.txt",
+      "sha256": "5300d5fcfeb6ad849027395c6b5cd2d9e6360beb76c10462b1079129580f72fb",
+      "sizeBytes": 502352
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/usb-four-control/20260915-153506-diarization-windows-b96d74ad/memory.csv",
+      "sha256": "1f7ff6522623241cfe6027904987698f3c0b5355c7c33ef6988c033610d89e90",
+      "sizeBytes": 36138
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/usb-four-control/20260915-153506-diarization-windows-b96d74ad/hilog.txt",
+      "sha256": "26498518337fcc59319d6358f04621ff4038d05460124ff67093778a5c2c2cb6",
+      "sizeBytes": 1209069
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/usb-four-control/20260915-153506-diarization-windows-b96d74ad/payload/corpus.json",
+      "sha256": "c17b9f013d211bf589371ca18cb4c0e6bb1fad72a515154c00cb68837baffb24",
+      "sizeBytes": 1455
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/four-session-control-build-identity.json",
+      "sha256": "87c57df9d04dfefada1b8e13bb8ad58f175c00c6fa3ec874931e7d044f141014",
+      "sizeBytes": 2351
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/four-session-control-plan.json",
+      "sha256": "586f95a52e8ac612f576f37d7820fe637996adbce268aa582bb5904fdc578beb",
+      "sizeBytes": 959
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/four-session-control-build.log",
+      "sha256": "f462b7d699eb090c3aa0c36897d28f5268d70ac6b52c4062f8bd503e0d4877a0",
+      "sizeBytes": 6377
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/four-control-quiescent-resource.json",
+      "sha256": "608f2e471b03b6c667799c7ebe859d3378d735f4489206040b34dad5c28bd663",
+      "sizeBytes": 181
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/restore-bounded-install.log",
+      "sha256": "15d1cf94cc8ef1586e1eccbc91449c2b8d22e943d10520f62511bc8541de335d",
+      "sizeBytes": 2150
+    }
+  ]
+}

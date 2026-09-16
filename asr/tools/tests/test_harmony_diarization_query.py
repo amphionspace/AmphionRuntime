@@ -1,0 +1,192 @@
+"""Output-slice evidence may query established roles without changing their profiles."""
+import subprocess
+import tempfile
+import unittest
+from pathlib import Path
+
+from asr.tools.tests.test_harmony_speaker_diarization_session import REGISTRY, ROOT, TIMELINE, DIARIZATION, SESSION, TS_LOADER, run_node
+
+
+class HarmonyDiarizationQueryTest(unittest.TestCase):
+    def test_corrected_confidence_is_frozen_with_its_utterance(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const transcript = new SpeakerDiarizationTranscriptState();
+          transcript.addUtterance({{rawText:'甲',text:'甲',tokens:['甲'],tokenTimesMs:[100],beginTime:0,endTime:1000}});
+          transcript.applySpeakerTurns([{{beginTime:0,endTime:1000,speakerId:'S2',secondarySpeakerIds:[],confidence:1,evidenceKey:'query'}}]);
+          transcript.applyEvidenceRemap({{query:'S1'}},0,{{query:.63}});
+          const published=transcript.commitThrough(1000)[0];
+          assert.equal(published.speakerId,'S1');
+          assert.equal(published.confidence,.63);
+          assert.deepEqual(transcript.applyEvidenceRemap({{query:'S2'}},0,{{query:1}}),[]);
+          assert.equal(published.confidence,.63);
+        """)
+
+    def test_short_query_corrects_membership_without_changing_enrollment(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ OnlineSpeakerRegistry }} from {REGISTRY.as_uri()!r};
+          const registry = new OnlineSpeakerRegistry();
+          registry.assign(new Float32Array([1,0,0]), 6000, 0);
+          registry.assign(new Float32Array([0,1,0]), 6000, 0);
+          const before = registry.snapshot();
+          const query = [.63,.41,Math.sqrt(1-.63**2-.41**2)];
+          assert.equal(registry.matchKnown(query), undefined);
+          const match = registry.matchQuery(query, new Set(['S1','S2']));
+          assert.equal(match?.speakerId, 'S1');
+          assert.ok(Math.abs(match.confidence-.63)<1e-6);
+          assert.equal(match.created, false);
+          assert.equal(registry.matchQuery([.67,.67,Math.sqrt(1-2*.67**2)], new Set(['S1','S2'])), undefined);
+          assert.equal(registry.matchQuery([-1,0,0], new Set(['S1','S2'])), undefined);
+          assert.deepEqual(registry.snapshot(), before);
+        """)
+
+    def test_query_cannot_introduce_a_context_only_role(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ OnlineSpeakerRegistry }} from {REGISTRY.as_uri()!r};
+          const registry = new OnlineSpeakerRegistry();
+          const query = [.693,0,Math.sqrt(1-.693**2)];
+          registry.assignBatch([new Float32Array([-1,0,0]), new Float32Array([1,0,0]),
+            new Float32Array(query)], [6000,6000,1076], 0);
+          assert.equal(registry.matchKnown(query), 'S3');
+          const before = registry.snapshot();
+          assert.equal(registry.matchQuery(query, new Set(['S1','S2']))?.speakerId, 'S2');
+          assert.equal(registry.matchQuery(query, new Set()), undefined);
+          assert.deepEqual(registry.snapshot(), before);
+        """)
+
+    def test_query_pcm_is_restricted_to_the_owned_output_slice(self):
+        path = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarizationInference.ets'
+        source = path.read_text()
+        source = source[source.index('const SAMPLE_RATE:'):]
+        driver = """
+          import assert from 'node:assert/strict';
+          const samples = Float32Array.from({length:160000}, (_,i)=>i/160000);
+          const segments = [
+            {startSample:0,endSample:48000,speaker:0,speakerMask:1},
+            {startSample:48000,endSample:64000,speaker:0,speakerMask:3},
+            {startSample:64000,endSample:96000,speaker:1,speakerMask:2},
+            {startSample:96000,endSample:144000,speaker:0,speakerMask:1},
+          ];
+          async function processSpeakerTurnSegmentationAsync() { return segments; }
+          const consumed=[]; let released=0;
+          const inference=new SpeakerDiarizationInference();
+          inference.extractor={
+            createStream(){ return {acceptWaveform(w){this.samples=w.samples;},close(){released++;}}; },
+            isReady(){return true;},
+            async computeAsync(stream){consumed.push(stream.samples);return new Float32Array([stream.samples.length,stream.samples[0]]);},
+          };
+          const result=await inference.process(samples,96000,128000);
+          assert.deepEqual(result.embeddings[0].queryEmbedding,[32000,samples[96000]]);
+          assert.deepEqual(consumed[1],samples.slice(96000,128000));
+          assert.equal(result.embeddings[0].speechSamples,96000);
+          assert.equal(result.embeddings[1].queryEmbedding,undefined);
+          assert.equal(released,consumed.length);
+          consumed.length=0;
+          const short=await inference.process(samples,136000,144000);
+          assert.equal(short.embeddings[0].queryEmbedding,undefined);
+          assert.equal(consumed.length,2,'sub-second queries must not borrow context or pad silence');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'query.mts'
+            harness.write_text(source + driver)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
+    def test_query_keeps_unclassified_real_pcm_without_counting_it_as_speech(self):
+        path = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarizationInference.ets'
+        source = path.read_text()
+        source = source[source.index('const SAMPLE_RATE:'):]
+        driver = """
+          import assert from 'node:assert/strict';
+          const samples=Float32Array.from({length:64000},(_,i)=>(i+1)/64000);
+          let segments=[
+            {startSample:0,endSample:16000,speaker:0,speakerMask:1},
+            {startSample:20000,endSample:38000,speaker:0,speakerMask:1},
+            {startSample:40000,endSample:42000,speaker:1,speakerMask:2},
+            {startSample:44000,endSample:46000,speaker:0,speakerMask:3},
+            {startSample:48000,endSample:64000,speaker:0,speakerMask:1},
+          ];
+          async function processSpeakerTurnSegmentationAsync(){return segments;}
+          const consumed=[];
+          const inference=new SpeakerDiarizationInference();
+          inference.extractor={
+            createStream(){return {acceptWaveform(w){this.samples=w.samples;},close(){}};},
+            isReady(){return true;},
+            async computeAsync(stream){consumed.push(stream.samples);return new Float32Array([1,0]);},
+          };
+          const result=await inference.process(samples,16000,48000);
+          assert.deepEqual(result.embeddings[0].queryEmbedding,[1,0]);
+          assert.deepEqual(consumed[1],new Float32Array([
+            ...samples.slice(16000,40000),...samples.slice(42000,44000),...samples.slice(46000,48000)
+          ]),'retain real unclassified PCM within ownership; exclude other speakers and overlaps');
+          assert.equal(result.embeddings[0].speechSamples,50000,'enrollment still uses only single-speaker speech');
+          consumed.length=0;
+          segments[1].endSample=35999;
+          assert.equal((await inference.process(samples,20000,48000)).embeddings[0].queryEmbedding,undefined,
+            'unclassified samples must not lift 15999 confirmed samples above the 1-second minimum');
+          assert.equal(consumed.length,1);
+          segments[1].endSample=36000;
+          assert.deepEqual((await inference.process(samples,20000,48000)).embeddings[0].queryEmbedding,[1,0]);
+          assert.equal((await inference.process(samples,46000,48000)).embeddings[0].queryEmbedding,undefined,
+            'an unclassified-only interval is not eligible');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'query-gaps.mts'
+            harness.write_text(source + driver)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
+    def test_session_queries_only_established_output_and_preserves_profiles(self):
+        source = SESSION.read_text()
+        imports = "\n".join(
+            f"import {{ {name} }} from {(DIARIZATION / (name + '.ts')).as_uri()!r};"
+            for name in ['DiarizationCommitClock', 'OnlineSpeakerRegistry',
+                         'SpeakerDiarizationGlobalClusterer', 'SpeakerDiarizationTranscriptState']
+        )
+        imports += f"\nimport {{ speakerIndexFromInternalId, speakerIndexesFromInternalIds }} from {(DIARIZATION / 'SpeakerDiarizationSpeakerIndex.ts').as_uri()!r};"
+        stubs = """
+          import assert from 'node:assert/strict';
+          const SAMPLE_RATE=16000;
+          const SpeakerDiarizationDegradedReason={NONE:0};
+          class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
+          class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
+          class SpeakerDiarizationLocalClient {}
+          const SpeakerDiarizationRuntimeLeaseRegistry={acquire:()=>({release(){}})};
+        """
+        driver = """
+          const query=[.63,.41,Math.sqrt(1-.63**2-.41**2)];
+          function run(useQuery,published,context=[0,1,0],maxSpeakers=4,outputQuery=query) {
+            const s=new SpeakerDiarizationSession({},'',maxSpeakers,{
+              onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});
+            s.committedRegistry.assign(new Float32Array([1,0,0]),6000,0);
+            s.committedRegistry.assign(new Float32Array([0,1,0]),6000,0);
+            s.publishedSpeakerIds=new Set(published);
+            s.registry=s.committedRegistry.fork();s.totalSamples=32000;
+            s.onWindow({jobId:'handoff',windowStartSample:0,contentStartInWindowSample:0,
+              realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
+              result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:1}],
+                embeddings:[{localSpeaker:0,speechSamples:96000,embedding:context,
+                  queryEmbedding:useQuery?outputQuery:undefined}]}});
+            const result=s.commitWindow(2000,2000,true);
+            return {s,result,profile:s.committedRegistry.snapshot()};
+          }
+          const baseline=run(false,['S1']);const corrected=run(true,['S1']);
+          assert.equal(baseline.result.speakerTurns[0].speakerIndex,1);
+          assert.equal(corrected.result.speakerTurns[0].speakerIndex,0);
+          assert.ok(Math.abs(corrected.result.speakerTurns[0].confidence-.63)<1e-6);
+          assert.deepEqual(corrected.profile,baseline.profile,'queries must not update enrollment');
+          assert.equal(run(true,[]).result.speakerTurns[0].speakerIndex,1,
+            'a context-only registry entry must not become a new public identity');
+          assert.equal(run(true,['S1'],[0,0,1],2).result.speakerTurns[0].speakerIndex,0,
+            'strong owned speech must resolve UNKNOWN against an established role');
+          assert.equal(run(true,['S1'],[0,0,1],2,[.5,0,Math.sqrt(.75)]).result.speakerTurns[0].speakerIndex,-1,
+            'a below-threshold query must keep UNKNOWN');
+          corrected.s.transcript.applyEvidenceRemap({'handoff:0':'S2'});
+          assert.equal(corrected.result.speakerTurns[0].speakerIndex,0,'published output is immutable');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'session-query.mts'
+            harness.write_text(imports + stubs + source[source.index('export class SpeakerDiarizationSession'):] + driver)
+            subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
+                            TS_LOADER.as_uri(), str(harness)], check=True, cwd=ROOT)

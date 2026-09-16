@@ -521,6 +521,90 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_unanimous_speaker_fills_acoustic_gaps_but_not_explicit_unknown(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          function split(turns) {{
+            const state=new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙',text:'甲乙丙。',tokens:['甲','乙','丙'],
+              tokenTimesMs:[100,600,1100],beginTime:0,endTime:1200}});
+            state.applySpeakerTurns(turns);
+            return state.finalUtterances();
+          }}
+          const first={{beginTime:0,endTime:500,speakerId:'S1',secondarySpeakerIds:[]}};
+          const second={{beginTime:700,endTime:1000,speakerId:'S1',secondarySpeakerIds:[]}};
+          assert.deepEqual(split([first,second]).map(x=>x.speakerId),['S1']);
+          const unknown={{beginTime:500,endTime:1200,speakerId:'UNKNOWN',secondarySpeakerIds:[]}};
+          assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1','UNKNOWN']);
+          assert.deepEqual(split([first,{{...second,speakerId:'S2'}}]).map(x=>x.speakerId),
+            ['S1','UNKNOWN']);
+          // Overlap does not establish a unanimous single speaker for uncovered tokens.
+          assert.deepEqual(split([{{...first,overlap:true,secondarySpeakerIds:['S2']}}])
+            .map(x=>x.speakerId),['S1','UNKNOWN']);
+          assert.deepEqual(split([]).map(x=>x.speakerId),['UNKNOWN']);
+        """)
+
+    def test_bbpe_alignment_keeps_multibyte_characters_whole(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const state = new SpeakerDiarizationTranscriptState();
+          state.addUtterance({{rawText:'你好啊',text:'你好，啊。',
+            tokens:['▁Ƌ','ţŅƌŋţ','▁ƌĸī'],tokenTimesMs:[100,300,1200],beginTime:0,endTime:2000}});
+          state.applySpeakerTurns([
+            {{beginTime:0,endTime:200,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:200,endTime:1000,speakerId:'S2',secondarySpeakerIds:[]}},
+            {{beginTime:1000,endTime:2000,speakerId:'S3',secondarySpeakerIds:[]}}
+          ]);
+          const split=state.finalUtterances();
+          assert.deepEqual(split.map(x=>x.rawText),['你','好','啊']);
+          assert.deepEqual(split.map(x=>x.text),['你','好，','啊。']);
+          assert.deepEqual(split.map(x=>x.speakerId),['S1','S2','S3']);
+          // Native BBPE separators insert spaces after printable ASCII only.
+          const english = new SpeakerDiarizationTranscriptState();
+          english.addUtterance({{rawText:'HELLO WORLD',text:'HELLO, WORLD.',
+            tokens:['▁HELLO','▁WORLD'],tokenTimesMs:[100,1100],beginTime:0,endTime:2000}});
+          english.applySpeakerTurns([
+            {{beginTime:0,endTime:1000,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:1000,endTime:2000,speakerId:'S2',secondarySpeakerIds:[]}}
+          ]);
+          assert.equal(english.finalUtterances().map(x=>x.text).join(''),'HELLO, WORLD.');
+          assert.deepEqual(english.finalUtterances().map(x=>x.speakerId),['S1','S2']);
+        """)
+
+    def test_punctuation_does_not_disable_timed_speaker_splitting(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          for (const text of ['甲乙丙丁', '甲乙，丙丁。', ' 甲乙！丙丁？']) {{
+            const state = new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙丁', text,
+              tokens:['甲','乙','丙','丁'], tokenTimesMs:[100,500,1000,1500],
+              beginTime:0, endTime:2000}});
+            state.applySpeakerTurns([
+              {{beginTime:0,endTime:900,speakerId:'S1',secondarySpeakerIds:[]}},
+              {{beginTime:900,endTime:2000,speakerId:'UNKNOWN',secondarySpeakerIds:['S2'],overlap:true}}
+            ]);
+            const split = state.commitThrough(2000);
+            assert.deepEqual(split.map(x => x.speakerId), ['S1','UNKNOWN'], text);
+            assert.equal(split.map(x => x.text).join(''), text);
+            assert.equal(split.map(x => x.rawText).join(''), '甲乙丙丁');
+            assert.deepEqual(split.map(x => [x.beginTime,x.endTime]), [[0,1000],[1000,2000]]);
+            assert.deepEqual(split.map(x => x.sourceUtteranceId), ['u1','u1']);
+            assert.equal(split[1].overlap, true);
+            assert.deepEqual(state.finalUtterances(), []);
+            if (text === '甲乙，丙丁。') assert.deepEqual(split.map(x => x.text), ['甲乙，','丙丁。']);
+          }}
+          // Lexical edits (ITN or rewritten words) have no safe character mapping.
+          for (const text of ['23。', '甲戊，丙丁。']) {{
+            const state = new SpeakerDiarizationTranscriptState();
+            state.addUtterance({{rawText:'甲乙丙丁',text,tokens:['甲','乙','丙','丁'],
+              tokenTimesMs:[100,500,1000,1500],beginTime:0,endTime:2000}});
+            assert.deepEqual(state.finalUtterances().map(x => x.text), [text]);
+          }}
+        """)
+
     def test_transcript_revision_is_monotonic_and_token_split_conserves_text(self) -> None:
         run_node(
             f"""

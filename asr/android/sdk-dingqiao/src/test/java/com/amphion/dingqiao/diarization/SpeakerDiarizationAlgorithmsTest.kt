@@ -15,6 +15,77 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun unanimousSpeakerCoversGapsWithoutOverridingExplicitUncertainty() {
+        fun split(turns: List<SpeakerTimelineTurn>): List<String> {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙", "甲乙丙。", listOf("甲", "乙", "丙"),
+                listOf(100, 600, 1100), 0, 1200)
+            state.applySpeakerTurns(turns)
+            return state.finalUtterances().map { it.speakerId }
+        }
+        val first = SpeakerTimelineTurn(0, 500, "S1", emptyList())
+        val second = SpeakerTimelineTurn(700, 1000, "S1", emptyList())
+        assertEquals(listOf("S1"), split(listOf(first, second)))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first,
+            SpeakerTimelineTurn(500, 1200, "UNKNOWN", emptyList()))))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first, second.copy(speakerId = "S2"))))
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first.copy(overlap = true,
+            secondarySpeakerIds = listOf("S2")))))
+        assertEquals(listOf("UNKNOWN"), split(emptyList()))
+    }
+
+    @Test
+    fun bbpeAlignmentKeepsTheFirstByteTimestampAndWholeCharacters() {
+        val state = DiarizationTranscriptState()
+        state.addUtterance("你好啊", "你好，啊。", listOf("▁Ƌ", "ţŅƌŋţ", "▁ƌĸī"),
+            listOf(100, 300, 1200), 0, 2000)
+        state.applySpeakerTurns(listOf(
+            SpeakerTimelineTurn(0, 200, "S1", emptyList()),
+            SpeakerTimelineTurn(200, 1000, "S2", emptyList()),
+            SpeakerTimelineTurn(1000, 2000, "S3", emptyList()),
+        ))
+        val split = state.finalUtterances()
+        assertEquals(listOf("你", "好", "啊"), split.map { it.rawText })
+        assertEquals(listOf("你", "好，", "啊。"), split.map { it.text })
+        assertEquals(listOf("S1", "S2", "S3"), split.map { it.speakerId })
+        val english = DiarizationTranscriptState()
+        english.addUtterance("HELLO WORLD", "HELLO, WORLD.", listOf("▁HELLO", "▁WORLD"),
+            listOf(100, 1100), 0, 2000)
+        english.applySpeakerTurns(listOf(SpeakerTimelineTurn(0, 1000, "S1", emptyList()),
+            SpeakerTimelineTurn(1000, 2000, "S2", emptyList())))
+        assertEquals("HELLO, WORLD.", english.finalUtterances().joinToString("") { it.text })
+        assertEquals(listOf("S1", "S2"), english.finalUtterances().map { it.speakerId })
+    }
+
+    @Test
+    fun punctuationPreservesTimedSpeakersAndUnknownWithoutRewritingText() {
+        for (text in listOf("甲乙丙丁", "甲乙，丙丁。", " 甲乙！丙丁？")) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙丁", text, listOf("甲", "乙", "丙", "丁"),
+                listOf(100, 500, 1000, 1500), 0, 2000)
+            state.applySpeakerTurns(listOf(
+                SpeakerTimelineTurn(0, 900, "S1", emptyList()),
+                SpeakerTimelineTurn(900, 2000, "UNKNOWN", listOf("S2"), overlap = true),
+            ))
+            val split = state.commitThrough(2000)
+            assertEquals(listOf("S1", "UNKNOWN"), split.map { it.speakerId })
+            assertEquals(text, split.joinToString("") { it.text })
+            assertEquals("甲乙丙丁", split.joinToString("") { it.rawText })
+            assertEquals(listOf(0 to 1000, 1000 to 2000), split.map { it.beginTime to it.endTime })
+            assertEquals(listOf("u1", "u1"), split.map { it.sourceUtteranceId })
+            assertTrue(split.last().overlap)
+            assertTrue(state.finalUtterances().isEmpty())
+            if (text == "甲乙，丙丁。") assertEquals(listOf("甲乙，", "丙丁。"), split.map { it.text })
+        }
+        for (text in listOf("23。", "甲戊，丙丁。")) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("甲乙丙丁", text, listOf("甲", "乙", "丙", "丁"),
+                listOf(100, 500, 1000, 1500), 0, 2000)
+            assertEquals(listOf(text), state.finalUtterances().map { it.text })
+        }
+    }
+
+    @Test
     fun schedulerMatchesHarmonyWindowHopAndFinalFlush() {
         val scheduler = DiarizationWindowScheduler(16_000)
         val first = scheduler.acceptSamples(40_000).single()

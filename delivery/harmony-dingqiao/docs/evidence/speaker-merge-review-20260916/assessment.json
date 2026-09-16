@@ -1,0 +1,819 @@
+{
+  "scope": "PR merge checks, not a full customer release or overall accuracy acceptance",
+  "sourceCommit": "0f98b1136eada7ffe16e65a61eb2bf77a64bc1f2",
+  "sourceFingerprint": "321a34e4894ac4f93f94b7fd82719edbfb87ab7692d1952526b62ed5d863eab0",
+  "artifacts": {
+    "amphion_asr.har": {
+      "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+      "sha256": "0935a4875591f261601aedda91bfafaa0bf583678d2287e758aa2928faacd7cd",
+      "size_bytes": 219610258
+    },
+    "amphion_asr_demo.hap": {
+      "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+      "sha256": "fe204b0729ce9ab957094866a87ba61ae7cc9890064c0418bfa9578efc3ebc91",
+      "size_bytes": 380807082
+    },
+    "amphion_dingqiao.har": {
+      "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+      "sha256": "8d612541947d88264ddd1ffe881008e51d696d0b25866e104dc9d4b7bb787831",
+      "size_bytes": 42352736
+    },
+    "amphion_police.har": {
+      "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+      "sha256": "3ea8d3ca7126802b5c4d658958a420c61ca784003f429a7ef62f2502fb8b76ea",
+      "size_bytes": 30201886
+    },
+    "sherpa_onnx.har": {
+      "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+      "sha256": "9783a552eb630b274007c5e6b16707ff0fdc36558360354febdecfca8d396982",
+      "size_bytes": 6950539
+    }
+  },
+  "deviceAlias": "device-2257b2bbf3e2",
+  "model": "PSN-AL00",
+  "system": {
+    "name": "OpenHarmony",
+    "versionComponents": [
+      6,
+      0,
+      2,
+      130
+    ]
+  },
+  "status": "PASS",
+  "overallSpeakerAccuracy": "OPEN",
+  "modes": [
+    {
+      "mode": "burst",
+      "runId": "20260916-155149-burst-a5691bb3",
+      "status": "PASS",
+      "cycles": 3,
+      "reportSha256": "8fd8c23ee696ba18173885a86cf4f18e7389aa6dbd196733feff1971aafa5591",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.401
+      },
+      "coveredVariants": [
+        "finished",
+        "finished",
+        "finished"
+      ]
+    },
+    {
+      "mode": "paced",
+      "runId": "20260916-155159-paced-ba35a758",
+      "status": "PASS",
+      "cycles": 12,
+      "reportSha256": "ad04864e23455b0f5c62c508615e93d44c90b9b5090f9b858864b2e87c5fa377",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 12,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 48,
+        "observation_seconds": 62.179,
+        "warmup_samples_excluded": 9,
+        "head_rss_mb": 450.807,
+        "tail_rss_mb": 495.574,
+        "rss_growth_mb": 44.768,
+        "rss_slope_mb_per_minute": 56.278,
+        "rss_third_medians_mb": [
+          457.426,
+          468.031,
+          490.926
+        ],
+        "peak_rss_mb": 507.328,
+        "peak_hwm_mb": 507.328,
+        "head_vm_data_mb": 789.676,
+        "tail_vm_data_mb": 832.316,
+        "vm_data_growth_mb": 42.641,
+        "peak_swap_mb": 0.066,
+        "head_threads": 46.0,
+        "tail_threads": 47.0,
+        "thread_growth": 1.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "coveredVariants": [
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished",
+        "finished"
+      ]
+    },
+    {
+      "mode": "vad-begin",
+      "runId": "20260916-155305-vad-begin-9d90f7f6",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "b51ab1d659362926852ff484cf170cbaec42151f3ef585601cb18a61e63c0c49",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "coveredVariants": [
+        "vad-begin-no-early-last-speech-events-1",
+        "vad-begin-no-early-last-speech-events-1"
+      ]
+    },
+    {
+      "mode": "vad-begin-silence",
+      "runId": "20260916-155311-vad-begin-silence-0a68a59b",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "b2763b964dad09ee812f3f78e19d2af54fb8714f5557649ea76860b236255bf3",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "coveredVariants": [
+        "vad-begin-silence-auto-finished",
+        "vad-begin-silence-auto-finished"
+      ]
+    },
+    {
+      "mode": "voiceprint",
+      "runId": "20260916-155316-voiceprint-90aa2673",
+      "status": "PASS",
+      "cycles": 7,
+      "reportSha256": "e506c838ee2a29c2c699417df5e2e756e1bb70500eba61237074f8b7616142d2",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 7,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 12.838
+      },
+      "coveredVariants": [
+        "voiceprint-short-scored",
+        "voiceprint-threshold-scored",
+        "voiceprint-long-scored",
+        "voiceprint-leading-silence-scored",
+        "voiceprint-low-volume-scored",
+        "voiceprint-multi-utterance-scored",
+        "voiceprint-alternate-source-scored"
+      ]
+    },
+    {
+      "mode": "voiceprint-fallback",
+      "runId": "20260916-155332-voiceprint-fallback-24d0af29",
+      "status": "PASS",
+      "cycles": 8,
+      "reportSha256": "0728588dbfeb1e6709723fdbe33118cb400d9e09eec0e87e72896f325ce636f8",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 8,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 63,
+        "observation_seconds": 81.95,
+        "warmup_samples_excluded": 12,
+        "head_rss_mb": 625.828,
+        "tail_rss_mb": 648.141,
+        "rss_growth_mb": 22.312,
+        "rss_slope_mb_per_minute": 38.947,
+        "rss_third_medians_mb": [
+          629.344,
+          629.762,
+          640.457
+        ],
+        "peak_rss_mb": 664.918,
+        "peak_hwm_mb": 664.918,
+        "head_vm_data_mb": 1090.723,
+        "tail_vm_data_mb": 1133.785,
+        "vm_data_growth_mb": 43.062,
+        "peak_swap_mb": 0.066,
+        "head_threads": 46,
+        "tail_threads": 46,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "coveredVariants": [
+        "voiceprint-fallback-cold-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored",
+        "voiceprint-fallback-warm-scored"
+      ]
+    },
+    {
+      "mode": "voiceprint-vad-begin",
+      "runId": "20260916-155459-voiceprint-vad-begin-e8aa7c9f",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "712a76d4ee19cad5405bdc6147e8f8f2c8396fb8944df5f35cece0b0b94975bc",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 11.637
+      },
+      "coveredVariants": [
+        "voiceprint-vad-begin-burst-direct",
+        "voiceprint-vad-begin-paced-direct",
+        "voiceprint-vad-begin-burst-leading",
+        "voiceprint-vad-begin-paced-leading"
+      ]
+    },
+    {
+      "mode": "voiceprint-vad-begin-idle",
+      "runId": "20260916-155515-voiceprint-vad-begin-idle-42d92ee9",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "3725c8000c702a7826ad1930834d3381e84087a2c7ac1e70b967e07e28e0e9a7",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.389
+      },
+      "coveredVariants": [
+        "voiceprint-vad-begin-pure-silence",
+        "voiceprint-vad-begin-bounded-noise"
+      ]
+    },
+    {
+      "mode": "cancel",
+      "runId": "20260916-155525-cancel-111c1e62",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "c4dcd88e4c9d99517b76571201b734143acf1a36f589eca14d8bedfe41d88abf",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "coveredVariants": [
+        "cancelled",
+        "cancelled"
+      ]
+    },
+    {
+      "mode": "cancel-full",
+      "runId": "20260916-155529-cancel-full-9ad01f7c",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "45e89e4ad09becad1acba5fb223761a9df18cf6be7094ce8e891839b5a51d495",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "coveredVariants": [
+        "cancelled-full",
+        "cancelled-full"
+      ]
+    },
+    {
+      "mode": "max-duration",
+      "runId": "20260916-155533-max-duration-8ffe1b97",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "73a087dc0a040a0b71e613b668fa0f559357f9fc28f1bd7c6572afae2ab4245d",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 12.848
+      },
+      "coveredVariants": [
+        "auto-finished-burst",
+        "auto-finished-paced"
+      ]
+    },
+    {
+      "mode": "edge",
+      "runId": "20260916-155549-edge-b1fd2aae",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "b33e40f4b9ea447af3126ef74f376eb125ca1ccd865e4fd96f7ce4cda8e44336",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "coveredVariants": [
+        "edge-contracts",
+        "edge-contracts"
+      ]
+    },
+    {
+      "mode": "reentrant",
+      "runId": "20260916-155555-reentrant-010fa06a",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "230b52b5c901c8c6ab363b677f18ae4a9aa1c443502446da1a81d92a8cb65fed",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "coveredVariants": [
+        "reentrant-complete",
+        "reentrant-complete"
+      ]
+    },
+    {
+      "mode": "start-cancel",
+      "runId": "20260916-155602-start-cancel-83be0abb",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "93f89a475d6548b1e2b631fec799978f4de74ff0d14a72ef0b50cba00d5daf69",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "coveredVariants": [
+        "start-cancel",
+        "start-cancel"
+      ]
+    },
+    {
+      "mode": "start-write",
+      "runId": "20260916-155606-start-write-822dd6fd",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "2e2b6c0cd6e8854f5192616988028543a58ab1a7959ac9ee888e98861f91e189",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "coveredVariants": [
+        "onstart-write-32-frames-continue-batch-0ms-max-0ms",
+        "onstart-write-88-frames-continue-batch-1ms-max-1ms",
+        "onstart-write-32-frames-finish-batch-0ms-max-0ms",
+        "onstart-write-88-frames-finish-batch-1ms-max-1ms"
+      ]
+    },
+    {
+      "mode": "start-write-reload",
+      "runId": "20260916-155614-start-write-reload-b130cca3",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "db9161b57c38846a5874e9c5f9a52b20c807c9cccd77c02b0813a26739130938",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 7.682
+      },
+      "coveredVariants": [
+        "onstart-write-32-frames-continue-batch-1ms-max-1ms",
+        "onstart-write-88-frames-continue-batch-1ms-max-1ms",
+        "onstart-write-32-frames-finish-batch-1ms-max-1ms",
+        "onstart-write-88-frames-finish-batch-1ms-max-1ms"
+      ]
+    },
+    {
+      "mode": "user-sequence",
+      "runId": "20260916-155625-user-sequence-aa79d1a3",
+      "status": "PASS",
+      "cycles": 3,
+      "reportSha256": "6974952306045b0ae8ec2da6189053ca9f5666926d21734fd92c391719d4d27a",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.423
+      },
+      "coveredVariants": [
+        "user-sequence",
+        "user-sequence",
+        "user-sequence"
+      ]
+    },
+    {
+      "mode": "numeric-edge",
+      "runId": "20260916-155634-numeric-edge-11747cf7",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "c727dc818ccd3eadef3f7be980a4ae7d94eaf0a90c9a6eb8fd2cccfbd0839b4e",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 14,
+        "observation_seconds": 16.757,
+        "warmup_samples_excluded": 2,
+        "head_rss_mb": 467.375,
+        "tail_rss_mb": 492.449,
+        "rss_growth_mb": 25.074,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          479.035,
+          489.035,
+          491.994
+        ],
+        "peak_rss_mb": 534.375,
+        "peak_hwm_mb": 534.375,
+        "head_vm_data_mb": 802.441,
+        "tail_vm_data_mb": 842.504,
+        "vm_data_growth_mb": 40.062,
+        "peak_swap_mb": 0.066,
+        "head_threads": 51,
+        "tail_threads": 44,
+        "thread_growth": -7,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "coveredVariants": [
+        "omitted-max-duration-disabled",
+        "nan-max-duration-disabled"
+      ]
+    },
+    {
+      "mode": "callback-api-reentrant",
+      "runId": "20260916-160417-callback-api-reentrant-8755c8b3",
+      "status": "PASS",
+      "cycles": 3,
+      "reportSha256": "d26c05438b9d9b7bd04024774e2c3542510cf0aa0ad9d03312fedcf756f4246e",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "coveredVariants": [
+        "callback-api-reentrant-speech-begin",
+        "callback-api-reentrant-speech-end",
+        "callback-api-reentrant-result"
+      ]
+    },
+    {
+      "mode": "finish-shutdown",
+      "runId": "20260916-160424-finish-shutdown-731820c1",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "2185dc773b06664a4112f79cf37d726043352f9524b9eb7ae8c3aa8104f83bab",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "coveredVariants": [
+        "finish-shutdown-drained",
+        "finish-shutdown-drained"
+      ]
+    },
+    {
+      "mode": "diarization-windows",
+      "runId": "20260916-155720-diarization-windows-7096e654",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "1df46eacbbfea7f5c6dfc1b5eff933e19b30912235395acd3671e8b9ed62dcf7",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 284,
+        "observation_seconds": 374.004,
+        "warmup_samples_excluded": 56,
+        "head_rss_mb": 690.045,
+        "tail_rss_mb": 721.609,
+        "rss_growth_mb": 31.564,
+        "rss_slope_mb_per_minute": 7.843,
+        "rss_third_medians_mb": [
+          692.984,
+          696.67,
+          719.41
+        ],
+        "peak_rss_mb": 781.277,
+        "peak_hwm_mb": 781.277,
+        "head_vm_data_mb": 1568.988,
+        "tail_vm_data_mb": 1644.598,
+        "vm_data_growth_mb": 75.609,
+        "peak_swap_mb": 0.066,
+        "head_threads": 68.0,
+        "tail_threads": 68.0,
+        "thread_growth": 0.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "coveredVariants": [
+        "diarization-windows-contract",
+        "diarization-windows-contract"
+      ]
+    }
+  ],
+  "totalCycles": 72,
+  "finishCompatibility": {
+    "status": "PASS",
+    "rootReportSha256": "7edc39f702c736c0a3168e2087d2d1e275f43156588f4fcfdd0d9fa99a862371"
+  },
+  "unitTests": {
+    "harmonyContracts": 353,
+    "deliveryContracts": 95,
+    "evaluator": 2,
+    "androidSdkPerVariant": 59,
+    "androidDingqiaoPerVariant": 108,
+    "androidVariants": [
+      "Debug",
+      "Release"
+    ]
+  },
+  "review": {
+    "manual": "Completed; one sample-boundary inconsistency fixed with red/green tests",
+    "automated": "Copilot quota exhausted; no substantive automated review was produced",
+    "unresolvedThreads": 0
+  },
+  "fixedAcousticRegression": [
+    {
+      "case": "S_R003S01C01",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "M_R003S02C01",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "L_R003S01C02",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "new-single",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "old-single",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "customer-86s",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "meeting-180s-ch0",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "M_R003S01C01",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "S_R004S01C01",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    },
+    {
+      "case": "S_R004S03C01",
+      "speakerTimelineUnchanged": true,
+      "speakerCountsUnchanged": true
+    }
+  ],
+  "deviceDiarization": [
+    {
+      "name": "M_R003S01C01",
+      "inputSha256": "a51afcb1f4d9d1dce20ab69e746d4fa56e8590041f8536decfe8398322353671",
+      "checks": {
+        "startOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noError": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullTerminalCoverage": true,
+        "displayTextConserved": true,
+        "frozenTimelineMatchesDevice": true,
+        "noAddedConfusion": true,
+        "noWorseDer": true
+      },
+      "status": "PASS",
+      "rawCycleStatus": "PASS",
+      "finishToCompleteMs": "4008",
+      "windowCount": 2,
+      "knownSpeakerIds": [
+        0,
+        1
+      ],
+      "unknownTextChars": 14,
+      "textChars": 557,
+      "metrics": {
+        "baseline": {
+          "speakerConfusionSeconds": 0.0,
+          "unknownTurnSeconds": 5.9,
+          "classicDer250msNoOverlap": 0.058547
+        },
+        "candidate": {
+          "speakerConfusionSeconds": 0.0,
+          "unknownTurnSeconds": 5.9,
+          "classicDer250msNoOverlap": 0.058547
+        },
+        "device": {
+          "speakerConfusionSeconds": 0.0,
+          "unknownTurnSeconds": 5.9,
+          "classicDer250msNoOverlap": 0.058547
+        }
+      }
+    },
+    {
+      "name": "L_R003S01C02",
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "checks": {
+        "startOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noError": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullTerminalCoverage": true,
+        "displayTextConserved": true,
+        "frozenTimelineMatchesDevice": true,
+        "noAddedConfusion": true,
+        "noWorseDer": true
+      },
+      "status": "PASS",
+      "rawCycleStatus": "PASS",
+      "finishToCompleteMs": "5150",
+      "windowCount": 2,
+      "knownSpeakerIds": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "unknownTextChars": 217,
+      "textChars": 483,
+      "metrics": {
+        "baseline": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        },
+        "candidate": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        },
+        "device": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        }
+      }
+    }
+  ],
+  "nonCanonicalFindings": [
+    {
+      "sourceCommit": "2dd37f6cd5586c2d13918b096c17f05aef0918bb",
+      "mode": "voiceprint-fallback",
+      "cycles": 2,
+      "status": "FAIL",
+      "reason": "RSS growth 111 MiB over a 22-second observation; public callbacks passed.",
+      "followup": "Eight-cycle diagnostic under unchanged thresholds passed; early approximately 50 MiB steps did not repeat, smaller growth remained. Raw failure retained."
+    },
+    {
+      "mode": "finish-compat preflight",
+      "status": "FAIL",
+      "reason": "Untracked editor configuration files blocked clean-worktree preflight; device modes did not run.",
+      "followup": "Temporarily preserved files, reran original gate, restored files."
+    }
+  ],
+  "limitations": [
+    "Four-person accuracy remains OPEN; 19.23 seconds confusion and 60.41 seconds unknown on the labeled case.",
+    "Short real new speakers can remain unknown.",
+    "Short-run memory marked INCONCLUSIVE is not a stability PASS; no long-meeting leak conclusion.",
+    "No Android physical-device, new offline network observation, customer ZIP or release-ledger update."
+  ]
+}

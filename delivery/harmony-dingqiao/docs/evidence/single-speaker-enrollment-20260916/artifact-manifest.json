@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "localOnlyArtifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/freeze.json",
+      "sha256": "482cd3a5b9421ad3c9332429c3371d5896647cc05b5fd6854d126576314ffe92",
+      "bytes": 540
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/build-identity.json",
+      "sha256": "e1a4b4db01c4aad3d3637c43d628e25658d0fe823d3f727e5ddea805b024ba6d",
+      "bytes": 2351
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/input-meta.json",
+      "sha256": "8f83595570df155dfc7aa0e18fce291bddc7f76205d863ed08f3dd85efdc30a9",
+      "bytes": 1369
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/regression-before.txt",
+      "sha256": "3cec95788bdc56a69ea7ac6f330367cfd46c072e7d8661b10b6660ce9f0642e1",
+      "bytes": 2737
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/harmony-final-tests.txt",
+      "sha256": "53f9e59db11cf75f3b83032c55bbb728215d2aefad4aec58328854edfca130ca",
+      "bytes": 17301
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/android-final-tests.txt",
+      "sha256": "a5a03c603b7c32251ddb9b3ecb1c6b3fdae3e6b06dfe9caa8f571259502933fd",
+      "bytes": 3123
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/regression-assessment.json",
+      "sha256": "a01c2888888fc5f991a4cecc67841b37a84dc51b7e186d3bdd29f4a43b3127d7",
+      "bytes": 4866
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/candidate-comparison.json",
+      "sha256": "9416420959e3c46926d8010d11b519716c96a3d03fea4f1681242e529d330e77",
+      "bytes": 2256
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/online-risk.json",
+      "sha256": "df23db17b9accc87b279334577a5aec68bc41c2eea5478f9ca0407b66c64de83",
+      "bytes": 1557
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/variants-risk.json",
+      "sha256": "82b1e535633f8aeb47a3f0c2490e8749e28d947c0451fe959ee6051d71aae09b",
+      "bytes": 3114
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/device-assessment.json",
+      "sha256": "9c28e400cee2b220ba759abcc96484de937bbd0059e9baee195e2c885a73d3c6",
+      "bytes": 6591
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/paced-usb-device-assessment.json",
+      "sha256": "faefc1b9c1a64feac8299a041bf90343d17667d87edf66243d5136356c8b26dc",
+      "bytes": 5831
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/restore-before.log",
+      "sha256": "a10cfb208c658920e20bba07b825464d6123e64ce40318e48ebe5339f75ab760",
+      "bytes": 168
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/install-candidate.log",
+      "sha256": "9e74146146ef039077a46ab8673b767d69bcaa8b375f8a2c4a149c0b21b426e0",
+      "bytes": 228
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/paced-tail-reassessment.json",
+      "sha256": "d1b89e0171c1c1f57c5ccaa9aa1b11edab63692e157c52575cbdf853b8a25db8",
+      "bytes": 1441
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/paced-tail-manifest.json",
+      "sha256": "11c73daaffa63710609b945c2c6bd9f80a565c8cbaaeb2a7493a1f7790829b01",
+      "bytes": 405
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/phone-ready-check.json",
+      "sha256": "9f7c4b13f7505749d66822457343d6d6c9b8a9d3c16ba9cedac0a9fbe6c49fe3",
+      "bytes": 859
+    },
+    {
+      "label": "candidateBurst",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/usb/20260916-132007-customer-meeting-minutes-8a90d558/report.json",
+      "sha256": "68ca1a182c144f17c593f41fa3d6001921346a2fbb64a420073e8dd4f6e787ec",
+      "bytes": 75375
+    },
+    {
+      "label": "baselineBurst",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/baseline-usb/20260916-132335-customer-meeting-minutes-f7939f6a/report.json",
+      "sha256": "61f9ec551fe2f7aebf3b331be2297792a736934b7a136b1dbb783cbf960f38d7",
+      "bytes": 73131
+    },
+    {
+      "label": "candidatePaced",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/single-speaker-three-20260916-rr8vvcny/paced-usb/20260916-132654-customer-meeting-minutes-15ea258b/report.json",
+      "sha256": "553bc8fd7c617e746fd07b3b6dea0006d09287650d55a703d6f70cbb3dda68ed",
+      "bytes": 249732
+    }
+  ],
+  "privacy": "Raw PCM, transcripts, embeddings and full device logs remain outside the repository"
+}

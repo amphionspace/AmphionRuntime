@@ -114,6 +114,7 @@ class SessionEvents {
   speakerDiarizationViolations: number = 0;
   diarizationWindows: SpeakerDiarizationResult[] = [];
   diarizationTurns: SpeakerTurn[] = [];
+  provisionalSpeakerIndexes: Set<number> = new Set();
   frozenUtterances: Set<string> = new Set();
   speakerDiarizationSpeakerCount: number = -1;
   speakerDiarizationDegraded: number = -1;
@@ -222,6 +223,12 @@ class StressListener implements RecognitionListener {
     }
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
+    if (result.speakerIndex !== undefined && result.speakerIndex >= 0) {
+      this.events.provisionalSpeakerIndexes.add(result.speakerIndex);
+    }
+    for (const index of result.secondarySpeakerIndexes ?? []) {
+      if (index >= 0) this.events.provisionalSpeakerIndexes.add(index);
+    }
     this.events.lastIsLast = result.isLast;
     if (result.isLast) {
       this.events.lastFinals += 1;
@@ -248,6 +255,10 @@ class StressListener implements RecognitionListener {
   onSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
     if (this.events.frozenUtterances.has(update.utteranceId)) this.events.speakerDiarizationViolations += 1;
     this.events.speakerDiarizationUpdates += 1;
+    if (update.speakerIndex >= 0) this.events.provisionalSpeakerIndexes.add(update.speakerIndex);
+    for (const index of update.secondarySpeakerIndexes) {
+      if (index >= 0) this.events.provisionalSpeakerIndexes.add(index);
+    }
     this.record(sessionId, 'diarization-update');
   }
 
@@ -891,6 +902,7 @@ class CycleResult {
   speakerDiarizationReason: number = -1;
   speakerDiarizationMessageHex: string = '';
   speakerWindowsHex: string = '';
+  speakerProvisionalIndexes: string = '';
   speakerTurnsHex: string = '';
   speakerDiarizationInferenceMs: number = -1;
   speakerDiarizationRtf: number = -1;
@@ -939,6 +951,7 @@ class CycleResult {
       `|speakerDiarizationUpdates=${this.speakerDiarizationUpdates}` +
       `|speakerDiarizationResults=${this.speakerDiarizationResults}` +
       `|speakerWindowsHex=${this.speakerWindowsHex}` +
+      `|speakerProvisionalIndexes=${this.speakerProvisionalIndexes}` +
       `|speakerDiarizationSpeakerCount=${this.speakerDiarizationSpeakerCount}` +
       `|speakerDiarizationDegraded=${this.speakerDiarizationDegraded}` +
       `|speakerDiarizationReason=${this.speakerDiarizationReason}` +
@@ -1307,6 +1320,8 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.speakerDiarizationUpdates = events.speakerDiarizationUpdates;
   result.speakerDiarizationResults = events.speakerDiarizationResults;
   result.speakerWindowsHex = stringToUtf16Hex(JSON.stringify(events.diarizationWindows));
+  result.speakerProvisionalIndexes = Array.from(events.provisionalSpeakerIndexes)
+    .sort((left: number, right: number): number => left - right).join(',');
   result.speakerDiarizationSpeakerCount = events.speakerDiarizationSpeakerCount;
   result.speakerDiarizationDegraded = events.speakerDiarizationDegraded;
   result.speakerDiarizationReason = events.speakerDiarizationReason;

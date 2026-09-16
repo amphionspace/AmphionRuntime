@@ -5,6 +5,7 @@ export interface SpeakerDiarizationEmbeddingObservation {
   endTimeMs?: number;
   evidenceKey?: string;
   anchorId?: string;
+  queryEmbedding?: number[];
 }
 
 export interface SpeakerDiarizationClusterResult {

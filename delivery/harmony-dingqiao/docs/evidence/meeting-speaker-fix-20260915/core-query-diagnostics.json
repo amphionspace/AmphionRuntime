@@ -1,0 +1,102 @@
+{
+  "scope": "Output-slice membership correction; no speaker enrollment/global clustering change",
+  "runtimeCommit": "fd6211230a635c6b6b64fab20b0827aecb254718",
+  "productionHostReplay": {
+    "status": "PASS",
+    "canonical": false,
+    "recordings": [
+      {
+        "input": "meeting-180s-ch0",
+        "labelsAndBoundariesMatchFrozenPrototype": true,
+        "profileStateUnchanged": true,
+        "turns": 131
+      },
+      {
+        "input": "M_R003S01C01",
+        "labelsAndBoundariesMatchFrozenPrototype": true,
+        "profileStateUnchanged": true,
+        "turns": 88
+      },
+      {
+        "input": "S_R004S01C01",
+        "labelsAndBoundariesMatchFrozenPrototype": true,
+        "profileStateUnchanged": true,
+        "turns": 76
+      },
+      {
+        "input": "S_R004S03C01",
+        "labelsAndBoundariesMatchFrozenPrototype": true,
+        "profileStateUnchanged": true,
+        "turns": 79
+      }
+    ]
+  },
+  "calibration": {
+    "data": "Previously completed independent 24-speaker AISHELL3 calibration; neither these meeting references nor scores choose the threshold.",
+    "impostorMax": 0.5391214867118642,
+    "margin": 0.05,
+    "rule": "ceil((impostorMax + existing margin)*100)/100",
+    "threshold": 0.59
+  },
+  "candidateEligibility": {
+    "canonical": false,
+    "hypothesis": "The first core-query prototype corrected two COS handoff slices but introduced a third public speaker in a two-speaker recording by matching a 1076ms context-only registry entry. A profile existing in the registry is not evidence that it is an established output identity.",
+    "rootWitness": {
+      "recording": "S_R004S03C01",
+      "queryKey": "w00000042:2",
+      "contextOnlyProfile": "S3",
+      "profileSpeechMs": 1076,
+      "originalPublicSpeaker3Ms": 0,
+      "queryCosToContextOnly": 0.790448,
+      "queryCosToExistingS2": 0.693704
+    },
+    "only_change": "Keep the calibrated-core-query prototype, but restrict query candidates to identities present in original current-window public speech or previously published windows. Queries cannot introduce a public identity that original context clustering did not establish. Entire current-window decision is staged before immutable publication; candidate set and result depend only on that window, not async timing.",
+    "falsifier": "Require identical original public identity set and profiles, correction of the two COS slices, no increased DER/confusion/named-ID switches on all four recordings, and exact no-change on S03 phantom-identity regression.",
+    "stop": "One replay of saved embeddings and four frozen public commit timelines. No additional model inference. If it passes, implement smallest matching/query change with regression tests then verify USB once.",
+    "threshold": 0.59
+  },
+  "harmonyTests": {
+    "existingSuite": 31,
+    "additionalConfidenceCase": 1,
+    "additionalSessionCase": 1,
+    "failures": 0,
+    "sessionRedWitness": "a9df59dc maps handoff to index 1 instead of 0; fd621123 returns index 0"
+  },
+  "androidTests": [
+    {
+      "module": "sdk",
+      "variant": "Debug",
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk-dingqiao",
+      "variant": "Debug",
+      "tests": 97,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk",
+      "variant": "Release",
+      "tests": 59,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk-dingqiao",
+      "variant": "Release",
+      "tests": 97,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    }
+  ],
+  "deviceStatus": "QUALITY_NO_REGRESSION_AND_CORE_LIFECYCLE_PASS",
+  "deviceRawHarnessStatus": "FAIL",
+  "deviceReportSha256": "e1134705f5da493c5c18033212959a327d73495706db7761a3a66e5588d4111c"
+}

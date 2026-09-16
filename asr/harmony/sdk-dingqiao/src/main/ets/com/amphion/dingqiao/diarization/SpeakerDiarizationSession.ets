@@ -49,6 +49,8 @@ export interface SpeakerDiarizationSessionController {
 
 export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserver,
   SpeakerDiarizationSessionController {
+  // Recognize the first/known speaker as before; require more speech to add another.
+  private readonly minAdditionalSpeakerSpeechMs: number = 3000;
   private readonly client: SpeakerDiarizationLocalClient;
   private registry: OnlineSpeakerRegistry;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
@@ -58,6 +60,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private recentEmbeddingObservations: SpeakerDiarizationEmbeddingObservation[] = [];
   private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
   private readonly committedRegistry: OnlineSpeakerRegistry;
+  private readonly publishedSpeakerIds: Set<string> = new Set();
   private inferenceEndMs: number = 0;
   private windowIndex: number = 0;
   private terminalPayload?: SpeechRecognitionResult;
@@ -178,22 +181,36 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
     const channelIds = new Map<number, string>();
     const channelConfidences = new Map<number, number>();
+    const ownedStart = window.commitStartSample - window.windowStartSample + window.contentStartInWindowSample;
+    const ownedEnd = Math.min(window.realEndSample, window.stableEndSample) -
+      window.windowStartSample + window.contentStartInWindowSample;
+    // Historical/right-context channels must not compete with the current output.
+    // Keep their embeddings below for window-final clustering.
+    const activeEmbeddings = window.result.embeddings.filter(item =>
+      window.result.segments.some(segment =>
+        (segment.speakerMask & (1 << item.localSpeaker)) !== 0 &&
+        Math.max(ownedStart, segment.startSample) < Math.min(ownedEnd, segment.endSample)));
     const assignments = this.registry.assignBatch(
-      window.result.embeddings.map((item) => new Float32Array(item.embedding)),
-      window.result.embeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
-      Math.round(window.realEndSample * 1000 / SAMPLE_RATE));
+      activeEmbeddings.map((item) => new Float32Array(item.embedding)),
+      activeEmbeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
+      Math.round(window.realEndSample * 1000 / SAMPLE_RATE),
+      activeEmbeddings.map(item => item.speechSamples * 1000 / SAMPLE_RATE >= this.minAdditionalSpeakerSpeechMs));
     for (let i = 0; i < window.result.embeddings.length; i++) {
       const item = window.result.embeddings[i];
-      const assignment = assignments[i];
-      channelIds.set(item.localSpeaker, assignment.speakerId);
-      channelConfidences.set(item.localSpeaker, assignment.confidence);
+      const assignment = assignments[activeEmbeddings.indexOf(item)];
+      if (assignment !== undefined) {
+        channelIds.set(item.localSpeaker, assignment.speakerId);
+        channelConfidences.set(item.localSpeaker, assignment.confidence);
+      }
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
       const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
-        durationMs: Math.round(item.speechSamples * 1000 / SAMPLE_RATE),
-        onlineSpeakerId: assignment.speakerId,
+        // Do not round sub-threshold PCM up into an eligible new identity.
+        durationMs: Math.floor(item.speechSamples * 1000 / SAMPLE_RATE),
+        onlineSpeakerId: assignment?.speakerId ?? 'UNKNOWN',
         endTimeMs,
         evidenceKey: `${window.jobId}:${item.localSpeaker}`,
+        queryEmbedding: item.queryEmbedding?.slice(),
       };
       this.recentEmbeddingObservations.push(observation);
 
@@ -218,10 +235,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         if (localSpeaker === segment.speaker ||
           (segment.speakerMask & (1 << localSpeaker)) === 0) continue;
         const id = channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY';
-        if (id !== primary && secondary.indexOf(id) < 0) {
-          secondary.push(id);
-          secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
-        }
+        secondary.push(id);
+        secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
       }
       turns.push({
         beginTime: Math.round(globalStart * 1000 / SAMPLE_RATE),
@@ -281,10 +296,18 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       .map((item: SpeakerDiarizationEmbeddingObservation): SpeakerDiarizationEmbeddingObservation => ({
         embedding: item.embedding, durationMs: item.durationMs, endTimeMs: item.endTimeMs,
         evidenceKey: item.evidenceKey, onlineSpeakerId: 'UNKNOWN',
+        queryEmbedding: item.queryEmbedding,
         anchorId: this.committedRegistry.matchKnown(item.embedding) }));
     const clustered = this.globalClusterer.cluster(observations);
+    const clusters = clustered.clusters.slice();
+    if (this.committedRegistry.speakerIds().length === 0) {
+      // Repeated short context must not outweigh a better-supported first identity.
+      const firstSupported = clusters.findIndex(cluster => cluster.indexes.some(index =>
+        observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs));
+      if (firstSupported > 0) clusters.unshift(clusters.splice(firstSupported, 1)[0]);
+    }
     const remap: Record<string, string> = {};
-    for (const cluster of clustered.clusters) {
+    for (const cluster of clusters) {
       const anchor = cluster.indexes.map(index => observations[index].anchorId)
         .find(id => id !== undefined);
       let id: string;
@@ -292,20 +315,40 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         id = anchor;
         this.committedRegistry.commitKnown(id, cluster.centroid, cluster.durationMs, endTime);
       } else {
+        // Overlapping windows repeatedly contain the same short PCM. Their summed
+        // weights cannot qualify it as a longer recording for a new identity.
+        const canEnroll = cluster.indexes.some(index =>
+          observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs) &&
+          // Context alone can mix earlier speakers. Require evidence from an
+          // owned output slice before making an additional role a query target.
+          cluster.indexes.some(index => observations[index].queryEmbedding !== undefined);
         id = this.committedRegistry.assign(new Float32Array(cluster.centroid), cluster.durationMs,
-          endTime).speakerId;
+          endTime, canEnroll).speakerId;
       }
       for (const index of cluster.indexes) {
         const key = observations[index].evidenceKey;
         if (key !== undefined) remap[key] = id;
       }
     }
-    this.transcript.applyEvidenceRemap(remap);
+    const established = new Set<string>(this.publishedSpeakerIds);
+    this.collectOutputSpeakerIds(beginTime, endTime, remap, established);
+    const queryConfidences: Record<string, number> = {};
+    for (const observation of observations) {
+      const key = observation.evidenceKey;
+      if (key === undefined || observation.queryEmbedding === undefined) continue;
+      const match = this.committedRegistry.matchQuery(observation.queryEmbedding, established);
+      if (match !== undefined && match.speakerId !== remap[key]) {
+        remap[key] = match.speakerId;
+        queryConfidences[key] = match.confidence;
+      }
+    }
+    this.transcript.applyEvidenceRemap(remap, 0, queryConfidences);
     this.finalSpeakerCount = this.committedRegistry.speakerIds().length;
     this.registry = this.committedRegistry.fork();
     if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
     const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
+    this.collectOutputSpeakerIds(beginTime, endTime, {}, this.publishedSpeakerIds);
     this.transcript.commitThrough(endTime);
     // Keep only evidence needed by a crossing inference window / later uncommitted turns.
     const needed = new Set(this.transcript.allTurns().flatMap(turn =>
@@ -313,6 +356,20 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(item =>
       (item.endTimeMs ?? 0) > endTime || needed.has(item.evidenceKey ?? ''));
     return result;
+  }
+
+  private collectOutputSpeakerIds(beginTime: number, endTime: number,
+    remap: Record<string, string>, ids: Set<string>): void {
+    for (const turn of this.transcript.allTurns()) {
+      if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue;
+      const primary = turn.evidenceKey === undefined ? turn.speakerId : remap[turn.evidenceKey] ?? turn.speakerId;
+      if (primary.startsWith('S')) ids.add(primary);
+      (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds).forEach((id: string, index: number): void => {
+        const key = turn.secondaryEvidenceKeys?.[index];
+        const secondary = key === undefined ? id : remap[key] ?? id;
+        if (secondary.startsWith('S')) ids.add(secondary);
+      });
+    }
   }
 
   onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void {

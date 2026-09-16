@@ -1,0 +1,77 @@
+{
+  "selectionBeforeModelOutput": true,
+  "scope": "Each fresh SDK session receives one continuous clip with 2-4 GT speakers; source whole meetings have 5-6 speakers and are not fed in full.",
+  "selectionRule": "One previously unused recording from each small/medium/large room: target 2/3/4 speakers respectively; lexicographically first meeting and earliest 30-second-grid start >=180 seconds; clip 180 seconds; every speaker >=10 annotated seconds and >=2 reference segments. No reference segments, including brief speech or overlaps, are discarded when counting speakers.",
+  "candidatesFile": "aishell4-clip-candidates.json",
+  "selected": [
+    {
+      "meeting": "S_R003S01C01",
+      "wholeMeetingSpeakerCount": 5,
+      "startSeconds": 540,
+      "durationSeconds": 180,
+      "inputSpeakerCount": 2,
+      "speakerSeconds": {
+        "001-M": 99.97049999999956,
+        "005-M": 74.15689999999961
+      },
+      "referenceSegments": {
+        "001-M": 23,
+        "005-M": 24
+      },
+      "previouslyUsedMeeting": false
+    },
+    {
+      "meeting": "M_R003S02C01",
+      "wholeMeetingSpeakerCount": 6,
+      "startSeconds": 360,
+      "durationSeconds": 180,
+      "inputSpeakerCount": 3,
+      "speakerSeconds": {
+        "001-M": 37.24559999999997,
+        "005-F": 13.097800000000007,
+        "006-F": 135.0238000000001
+      },
+      "referenceSegments": {
+        "001-M": 11,
+        "005-F": 4,
+        "006-F": 16
+      },
+      "previouslyUsedMeeting": false
+    },
+    {
+      "meeting": "L_R003S01C02",
+      "wholeMeetingSpeakerCount": 6,
+      "startSeconds": 690,
+      "durationSeconds": 180,
+      "inputSpeakerCount": 4,
+      "speakerSeconds": {
+        "002-F": 24.259800000000155,
+        "004-M": 25.525100000000066,
+        "003-F": 11.711099999999874,
+        "005-M": 124.76829999999995
+      },
+      "referenceSegments": {
+        "002-F": 17,
+        "004-M": 5,
+        "003-F": 3,
+        "005-M": 17
+      },
+      "previouslyUsedMeeting": false
+    }
+  ],
+  "parameters": {
+    "maxSpeakers": 4,
+    "paceMs": 20,
+    "sampleRate": 16000,
+    "channel": 0,
+    "mode": "diarization-windows",
+    "cycles": 3
+  },
+  "runtimeCommit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+  "acceptance": "Report DER (250ms collar, no overlap), speaker confusion, unknown/miss, per-reference named speaker switches and cross-person ID sharing; preserve absolute identity failures separately from improvement vs baseline. Compare current output to pre-gap sampling and original 2.5s/no-query state on same PCM and public boundaries. Do not tune or replace selected inputs after seeing results.",
+  "deviceRisk": "Validate independent 2/3/4-speaker meetings through public SDK with unique last then complete, no early last/error, stream cleanup and intermediate window freezing.",
+  "expectedDeviceMinutes": 10,
+  "stop": "One run per selected clip. Preserve every failed case and stop extra reruns; no threshold or sample substitutions.",
+  "evidence": "Raw report, per-session callbacks, hilog, memory samples, input-to-source map and immutable hashes.",
+  "invalidation": "Runtime, model, parameters, selected PCM or HAP/HAR contents change."
+}
