@@ -317,7 +317,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         // Overlapping windows repeatedly contain the same short PCM. Their summed
         // weights cannot qualify it as a longer recording for a new identity.
         const canEnroll = cluster.indexes.some(index =>
-          observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs);
+          observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs) &&
+          // Context alone can mix earlier speakers. Require evidence from an
+          // owned output slice before making an additional role a query target.
+          cluster.indexes.some(index => observations[index].queryEmbedding !== undefined);
         id = this.committedRegistry.assign(new Float32Array(cluster.centroid), cluster.durationMs,
           endTime, canEnroll).speakerId;
       }

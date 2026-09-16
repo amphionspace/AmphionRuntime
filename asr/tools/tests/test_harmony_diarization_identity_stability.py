@@ -37,6 +37,29 @@ def run_session(body: str) -> None:
 
 
 class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
+    def test_context_without_output_query_cannot_enroll_or_redirect_another_speaker(self):
+        run_session("""
+          const s=session(); s.totalSamples=320000;
+          s.committedRegistry.assign(new Float32Array([1,0,0]),6000,0);
+          const voice=[0,1,0];
+          const query=[Math.sqrt(1-.57**2-.636**2),.57,.636];
+          function window(id,begin,end,contextBegin,embedding,queryEmbedding) {
+            s.onWindow({jobId:id,windowStartSample:0,contentStartInWindowSample:0,
+              realEndSample:320000,commitStartSample:begin*16,stableEndSample:end*16,
+              finalWindow:false,result:{inferenceMs:0,segments:[{
+                startSample:contextBegin*16,endSample:end*16,speaker:0,speakerMask:1}],
+                embeddings:[{localSpeaker:0,speechSamples:(end-contextBegin)*16,
+                  embedding,queryEmbedding}]}});
+          }
+          window('supported',6000,10000,6000,voice,voice);
+          window('query',10000,12000,8000,voice,query);
+          window('mixed-context',12000,12673,9163,[0,0,1],undefined);
+          const result=s.commitWindow(20000,Infinity,true);
+          assert.deepEqual(result.speakerTurns.map(t=>t.speakerIndex),[1,1,-1],
+            'sub-second output without a query must not create a role that steals a known turn');
+          assert.equal(result.speakerCount,2);
+        """)
+
     def test_repeated_short_context_cannot_enroll_a_new_speaker(self):
         run_session("""
           function run(embedding, speechMs, seedMs=6000) {
@@ -49,7 +72,8 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
                 realEndSample:224000,commitStartSample:i<2 ? 0 : 176000,
                 stableEndSample:224000,finalWindow:false,result:{inferenceMs:0,
                   segments:[{startSample:w.start*16,endSample:w.end*16,speaker:0,speakerMask:1}],
-                  embeddings:[{localSpeaker:0,speechSamples:(w.end-w.start)*16,embedding:w.embedding}]}});
+                  embeddings:[{localSpeaker:0,speechSamples:(w.end-w.start)*16,embedding:w.embedding,
+                    queryEmbedding:i<2 ? w.embedding : undefined}]}});
             }
             const provisional=s.registry.speakerIds();
             const result=s.commitWindow(14000,Infinity,true);
@@ -120,19 +144,22 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
     def test_final_overlap_does_not_depend_on_provisional_unknown_collisions(self):
         run_session("""
           function run(provisional) {
-            const s=session(); s.totalSamples=51200;
+            const s=session(); s.totalSamples=153600;
             s.registry.assignBatch=()=>provisional.map(speakerId=>({speakerId,confidence:1,created:false}));
             s.onWindow({jobId:'same-audio',windowStartSample:0,contentStartInWindowSample:0,
-              realEndSample:51200,commitStartSample:0,stableEndSample:51200,finalWindow:true,
-              result:{inferenceMs:0,segments:[{startSample:0,endSample:51200,speaker:0,speakerMask:3}],
-                embeddings:[{localSpeaker:0,speechSamples:51200,embedding:[1,0]},
-                  {localSpeaker:1,speechSamples:51200,embedding:[0,1]}]}});
-            return s.commitWindow(3200,3200,true);
+              realEndSample:153600,commitStartSample:0,stableEndSample:153600,finalWindow:true,
+              result:{inferenceMs:0,segments:[
+                {startSample:0,endSample:51200,speaker:0,speakerMask:1},
+                {startSample:51200,endSample:102400,speaker:1,speakerMask:2},
+                {startSample:102400,endSample:153600,speaker:0,speakerMask:3}],
+                embeddings:[{localSpeaker:0,speechSamples:51200,embedding:[1,0],queryEmbedding:[1,0]},
+                  {localSpeaker:1,speechSamples:51200,embedding:[0,1],queryEmbedding:[0,1]}]}});
+            return s.commitWindow(9600,9600,true);
           }
           const known=run(['S1','S2']); const unknown=run(['UNKNOWN','UNKNOWN']);
           assert.deepEqual(unknown.speakerTurns,known.speakerTurns,
             'final acoustic attribution must retain both channels regardless of provisional IDs');
-          assert.deepEqual(unknown.speakerTurns[0].secondarySpeakerIndexes,[1]);
+          assert.deepEqual(unknown.speakerTurns.at(-1).secondarySpeakerIndexes,[1]);
         """)
 
     def test_remapping_a_hidden_secondary_preserves_its_evidence_binding(self):
