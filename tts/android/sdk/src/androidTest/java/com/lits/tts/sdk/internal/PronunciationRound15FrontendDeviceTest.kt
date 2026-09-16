@@ -30,6 +30,8 @@ class PronunciationRound15FrontendDeviceTest {
 
         val layout = LitsTtsAssetInstaller.ensureInstalled(context, workPath)
         val reversePinyin = reversePinyinMap(layout.rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS))
+        val pinyinTokens = JSONObject(layout.rootDir.resolve(LitsTtsAssetRegistry.PINYIN_TO_TOKENS).readText())
+            .getJSONObject("pinyin_to_tokens")
         val summary = Summary()
         val byCategory = linkedMapOf<String, Summary>()
         val failureExamples = mutableListOf<JSONObject>()
@@ -48,13 +50,15 @@ class PronunciationRound15FrontendDeviceTest {
                     ?: language
                 val rawText = row.optString("text", row.optString("tnText"))
                 val tnText = row.optString("tnText", rawText)
-                val expectedPinyin = expectedPronunciation(row)
+                val rawExpectedPinyin = expectedPronunciation(row)
+                // Alias spellings are equivalent only when the model maps them to
+                // exactly the same tokens, including tone; never ignore tone errors.
+                val expectedPinyin = rawExpectedPinyin.map { pinyin ->
+                    pinyinTokens.optJSONArray(pinyin)?.let { reversePinyin[it.toStringList()] } ?: pinyin
+                }
                 val result = try {
-                    val currentTokens = if (useTn) {
-                        LitsTtsFrontend.debugTokensForTest(layout, rawText, language, languageContext)
-                    } else {
-                        LitsTtsFrontend.debugTokensForNormalizedForTest(layout, tnText, language, languageContext)
-                    }
+                    val currentTnText = if (useTn) LitsTnNormalizer.normalize(layout, rawText, language, languageContext) else tnText
+                    val currentTokens = LitsTtsFrontend.debugTokensForNormalizedForTest(layout, currentTnText, language, languageContext)
                     val currentPinyin = tokensToPronunciationSequence(currentTokens, reversePinyin)
                     val errorPinyin = diffPinyin(currentPinyin, expectedPinyin)
                     val matched = currentPinyin == expectedPinyin
@@ -63,6 +67,8 @@ class PronunciationRound15FrontendDeviceTest {
                         .put("category", category)
                         .put("text", rawText)
                         .put("tnText", tnText)
+                        .put("current_tn_text", currentTnText)
+                        .put("raw_expected_pinyin", JSONArray(rawExpectedPinyin))
                         .put("expected_pinyin", JSONArray(expectedPinyin))
                         .put("expected_source", expectedSource(row))
                         .put("golden_pinyin", row.optJSONArray("golden_pinyin") ?: JSONArray())

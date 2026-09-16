@@ -30,6 +30,7 @@ class PronunciationRound15FrontendCorrectnessTest {
 
         val layout = realAssetLayout()
         val reversePinyin = reversePinyinMap(layout.rootDir.resolve("pinyin_to_tokens.json"))
+        val pinyinTokens = JSONObject(layout.rootDir.resolve("pinyin_to_tokens.json").readText()).getJSONObject("pinyin_to_tokens")
         val summary = Summary()
         val byCategory = linkedMapOf<String, Summary>()
         val failureExamples = mutableListOf<JSONObject>()
@@ -42,7 +43,10 @@ class PronunciationRound15FrontendCorrectnessTest {
             val language = row.optString("language", "zh-en")
             val languageContext = row.optString("languageContext", row.optString("language_context", language))
             val tnText = row.getString("tnText")
-            val goldenPinyin = row.optJSONArray("golden_pinyin").toStringList()
+            val rawGoldenPinyin = row.optJSONArray("golden_pinyin").toStringList()
+            val goldenPinyin = rawGoldenPinyin.map { pinyin ->
+                pinyinTokens.optJSONArray(pinyin)?.let { reversePinyin[it.toStringList()] } ?: pinyin
+            }
             val currentTokens = try {
                 LitsTtsFrontend.debugTokensForNormalizedForTest(layout, tnText, language, languageContext)
             } catch (error: Throwable) {
@@ -66,6 +70,7 @@ class PronunciationRound15FrontendCorrectnessTest {
                 .put("category", category)
                 .put("text", row.optString("text"))
                 .put("tnText", tnText)
+                .put("raw_golden_pinyin", JSONArray(rawGoldenPinyin))
                 .put("golden_pinyin", JSONArray(goldenPinyin))
                 .put("current_pinyin", JSONArray(currentPinyin))
                 .put("round15_actual_pinyin", row.optJSONArray("actual_pinyin") ?: JSONArray())
@@ -132,9 +137,7 @@ class PronunciationRound15FrontendCorrectnessTest {
             listOf(
                 "manifest.json",
                 "chinese_lexicon.txt",
-                "chinese_lexicon.bin",
                 "cmudict.txt",
-                "cmudict.bin",
                 "supplement_lexicon.json",
                 "frontend_rules.json",
                 "zh_en_symbols.json",
@@ -148,31 +151,13 @@ class PronunciationRound15FrontendCorrectnessTest {
                 "rules_v2/en.full.json",
                 "rules_v2/zh_pinyin.json",
             ).forEach { copyAsset(root, it) }
+            // Binary lexicons are optional accelerators; current student assets use text.
+            listOf("chinese_lexicon.bin", "cmudict.bin", "polyphone_context.txt").forEach {
+                if (assetRoot.resolve(it).isFile) copyAsset(root, it)
+            }
             LitsTtsAssetInstaller.InstalledLayout.of(
                 rootDir = root,
-                manifest = LitsTtsAssetInstaller.ManifestInfo(
-                    modelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop",
-                    version = "0.1.0",
-                    sampleRate = 24_000,
-                    hopLength = 256,
-                    speakerCount = 2,
-                    defaultSpeakerId = 1,
-                    supportsStreaming = true,
-                    acousticModelFile = null,
-                    vocoderModelFile = "vocos_vocoder.onnx",
-                    hiddenEncoderModelFile = "lits_hidden_encoder.onnx",
-                    streamDecoderChunkModelFile = "lits_stream_decoder.onnx",
-                    streamDecoderFinalModelFile = "lits_stream_decoder.onnx",
-                    streamDecoderExternalLoop = true,
-                    streamDecoderTimesteps = 10,
-                    streamDecoderTemperature = 0.667f,
-                    streamConditionChunkModelFile = "lits_stream_cond.onnx",
-                    streamConditionFinalModelFile = "lits_stream_cond.onnx",
-                    streamDecoderStepModelFile = "lits_stream_decoder_step.onnx",
-                    streamingChunkSize = 50,
-                    streamingPreLookaheadLen = 3,
-                    streamingMelCacheLen = 10,
-                ),
+                manifest = LitsTtsAssetInstaller.parseAndValidateManifest(root.resolve("manifest.json")),
                 source = LitsTtsAssetInstaller.LayoutSource.BUNDLED_ASSET,
             )
         }
