@@ -14,6 +14,48 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun contextOnlyCandidateLeavesCapacityForASupportedFourthSpeaker() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-fourth-speaker-test").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val observer = object : SpeakerDiarizationSessionObserver {
+                override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+            }
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4, observer)
+            try {
+                session.append(ByteArray(320000))
+                fun vector(index: Int) = FloatArray(5) { if (it == index) 1f else 0f }
+                val committed = session.javaClass.getDeclaredField("committedRegistry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                committed.assignBatch((0..2).map(::vector), listOf(6000, 6000, 6000), 0)
+                session.javaClass.getDeclaredField("registry").apply { isAccessible = true }
+                    .set(session, committed.fork())
+                fun window(id: String, begin: Int, end: Int, contextBegin: Int,
+                           index: Int, hasQuery: Boolean) {
+                    session.onWindow(DiarizationLocalWindowResult(id, 0, 0, 160000,
+                        begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
+                            listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, vector(index),
+                                if (hasQuery) vector(index) else null)), 0)))
+                }
+                // A longer historical mixture must not take the last available identity.
+                window("mixed-context", 4000, 4600, 1000, 3, false)
+                window("fourth-person", 4600, 7800, 4600, 4, true)
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
+                    AsrResult("", isLast = true))
+                session.onDrained()
+                assertEquals(listOf(-1, 3), results.single().speakerTurns.map { it.speakerIndex })
+                assertEquals(4, results.single().speakerCount)
+                assertEquals(listOf("S1", "S2", "S3", "S4"), committed.speakerIds())
+            } finally {
+                session.cancel()
+                directory.deleteRecursively()
+            }
+        }
+    }
+
     @Test fun contextWithoutOutputQueryCannotEnrollOrRedirectAnotherSpeaker() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-query-enrollment-test").toFile()

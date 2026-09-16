@@ -37,6 +37,31 @@ def run_session(body: str) -> None:
 
 
 class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
+    def test_context_only_candidate_leaves_capacity_for_a_supported_fourth_speaker(self):
+        run_session("""
+          const s=session(); s.totalSamples=160000;
+          const vector=index=>Array.from({length:5},(_,i)=>i===index?1:0);
+          s.committedRegistry.assignBatch([0,1,2].map(i=>new Float32Array(vector(i))),
+            [6000,6000,6000],0);
+          s.registry=s.committedRegistry.fork();
+          function window(id,begin,end,contextBegin,index,hasQuery) {
+            s.onWindow({jobId:id,windowStartSample:0,contentStartInWindowSample:0,
+              realEndSample:160000,commitStartSample:begin*16,stableEndSample:end*16,
+              finalWindow:false,result:{inferenceMs:0,segments:[{
+                startSample:contextBegin*16,endSample:end*16,speaker:0,speakerMask:1}],
+                embeddings:[{localSpeaker:0,speechSamples:(end-contextBegin)*16,
+                  embedding:vector(index),queryEmbedding:hasQuery?vector(index):undefined}]}});
+          }
+          // The longer historical mixture is considered before the genuine new voice.
+          window('mixed-context',4000,4600,1000,3,false);
+          window('fourth-person',4600,7800,4600,4,true);
+          const result=s.commitWindow(10000,Infinity,true);
+          assert.deepEqual(result.speakerTurns.map(t=>t.speakerIndex),[-1,3],
+            'rejecting a context-only role must preserve capacity for a real fourth speaker');
+          assert.equal(result.speakerCount,4);
+          assert.deepEqual(s.committedRegistry.speakerIds(),['S1','S2','S3','S4']);
+        """)
+
     def test_context_without_output_query_cannot_enroll_or_redirect_another_speaker(self):
         run_session("""
           const s=session(); s.totalSamples=320000;
