@@ -86,7 +86,7 @@ interface SpeakListener {
 | `gender` | `String` | `Male` 或 `Female` |
 | `description` | `String?` | 描述 |
 
-同一个 `voiceId` 可能对应多条 `VoiceInfo` 记录，仅 `language` 不同，表示同一 speaker 支持多种前端语种。
+当前仅公开 `lits-female-02`（模型 speaker 1），支持 `zh-en` 和 `en-US`。不筛选语种时返回两条语言记录，但只有一个唯一音色；筛选语种时返回一条。`lits-female-01` 不再支持，创建引擎时返回 `VOICE_UNSUPPORTED`。
 
 ### SpeakParams
 

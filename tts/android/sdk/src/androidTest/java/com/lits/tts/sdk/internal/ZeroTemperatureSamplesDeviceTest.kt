@@ -29,9 +29,9 @@ class ZeroTemperatureSamplesDeviceTest {
             Triple("zh-en", 1, "你现在方便接电话吗？好的，我十分钟后再联系你。"),
             Triple("zh-en", 1, "清晨的阳光照进窗户，桌上的茶还冒着热气。我打开电脑，整理好今天需要完成的事情，然后戴上耳机，认真听完这段语音。希望每一句都清楚自然，句子之间的停顿也恰到好处。"),
             Triple("zh-en", 1, "请打开 WiFi，然后点击 OK。Room 204 is ready."),
-            Triple("en-US", 0, "Hello! This is a speech synthesis test. Room two hundred and four is ready."),
-            Triple("en-US", 0, "Please put the blue backpack beside the table, then bring me a bottle of cold water."),
-            Triple("en-US", 0, "Good morning. Before we begin, please check your microphone and make sure the room is quiet. When you are ready, read the next sentence slowly and clearly. Thank you for your help.")
+            Triple("en-US", 1, "Hello! This is a speech synthesis test. Room two hundred and four is ready."),
+            Triple("en-US", 1, "Please put the blue backpack beside the table, then bring me a bottle of cold water."),
+            Triple("en-US", 1, "Good morning. Before we begin, please check your microphone and make sure the room is quiet. When you are ready, read the next sentence slowly and clearly. Thank you for your help.")
         )
         val workPath = requireNotNull(args.getString("workPath"))
         val manifest = File(workPath, "tts/dingqiao_intmeanflow_student_0010000_vocos24k/0.1.0/manifest.json")
@@ -51,7 +51,7 @@ class ZeroTemperatureSamplesDeviceTest {
                     currentSpeaker = speaker
                 }
                 val params = CreateEngineParams(language = language, mode = RunMode.OFFLINE,
-                    voiceId = if (speaker == 0) "lits-female-01" else "lits-female-02")
+                    voiceId = "lits-female-02")
                 val audio = synth!!.synthesize(text, SpeakParams(requestId = "zero-varied-$i", languageContext = language, speed = 1.0f), params)
                 assertEquals(24000, audio.sampleRate)
                 assertTrue(audio.pcm.isNotEmpty())

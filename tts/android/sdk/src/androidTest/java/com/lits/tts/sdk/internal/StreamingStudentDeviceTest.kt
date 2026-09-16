@@ -33,7 +33,7 @@ class StreamingStudentDeviceTest {
         run {
             for ((language, samples) in groups) {
                 val engine = TextToSpeechSdk.createEngine(CreateEngineParams(language = language,
-                    mode = RunMode.OFFLINE, voiceId = if (language == "en-US") "lits-female-01" else "lits-female-02"))
+                    mode = RunMode.OFFLINE, voiceId = "lits-female-02"))
                 try {
                     for (text in samples) {
                         val index = rows.length() + 1

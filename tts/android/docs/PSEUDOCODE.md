@@ -19,7 +19,7 @@ TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
 params = CreateEngineParams {
     language: "zh-en",
     mode: OFFLINE,
-    voiceId: "lits-female-01",
+    voiceId: "lits-female-02",
     locate: "CN",
     engineName: "xiaoqiao-tts",
     modelLoadOnCreate: true
@@ -108,7 +108,5 @@ TextToSpeechSdk.createEngine(params, Callback {
 
 | language | voiceId | gender |
 | --- | --- | --- |
-| `zh-en` | `lits-female-01` | `Female` |
 | `zh-en` | `lits-female-02` | `Female` |
-| `en-US` | `lits-female-01` | `Female` |
 | `en-US` | `lits-female-02` | `Female` |
