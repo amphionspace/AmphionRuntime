@@ -1,0 +1,267 @@
+{
+  "scope": "Candidate fix validation, not release acceptance",
+  "commit": "9ced6004d1d553638b9e6bf97e5bbd18cd251acb",
+  "hapSha256": "19e8e323f8895c46dc90acbe0eef443b594b565d0ac9ee121b3a149c626eb534",
+  "sourceFingerprintSha256": "6e5ec5921a4cd8f0a4de76ff0801468dde61340bb1232649b175ef69ed2e6112",
+  "currentDeviceStatus": "PASS",
+  "currentRawHarnessStatus": "PASS",
+  "currentRawHarnessFailures": [],
+  "currentDeviceCases": [
+    {
+      "name": "phone-single-speaker",
+      "inputSha256": "d3c1a2c50c3f7d269a3743aae8f2031a5a98da801c73bcf4434efbc8da7dd3f2",
+      "inputSpeakerCount": 1,
+      "durationSeconds": 47.26,
+      "checks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullTerminalCoverage": true,
+        "displayTextConserved": true,
+        "singlePersonPreserved": true
+      },
+      "status": "PASS",
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "customer-meeting-minutes-contract",
+      "windowCount": 1,
+      "currentText": {
+        "utterances": 8,
+        "sourceUtterances": 8,
+        "splitSourceUtterances": 0,
+        "unknownUtterances": 0,
+        "unknownTextChars": 0,
+        "textChars": 92
+      },
+      "beforeText": {
+        "utterances": 18,
+        "sourceUtterances": 8,
+        "splitSourceUtterances": 7,
+        "unknownUtterances": 10,
+        "unknownTextChars": 20,
+        "textChars": 92
+      },
+      "speakerCount": "1",
+      "finishToCompleteMs": "795",
+      "rtf": "0.2391874735505713"
+    }
+  ],
+  "priorDeviceCommit": "ea31459bef163667f4a3b77e93529103dafc9349",
+  "priorAnnotatedDeviceCases": [
+    {
+      "name": "M_R003S02C01",
+      "inputSha256": "89e8fa17087c50546afb9db74f1e1e5e585536ff52a1316bf23dcf9faf54b2fd",
+      "inputSpeakerCount": 3,
+      "durationSeconds": 180,
+      "checks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullTerminalCoverage": true,
+        "displayTextConserved": true
+      },
+      "status": "PASS",
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "diarization-windows-contract",
+      "windowCount": 2,
+      "currentText": {
+        "utterances": 41,
+        "sourceUtterances": 22,
+        "splitSourceUtterances": 4,
+        "unknownUtterances": 7,
+        "unknownTextChars": 29,
+        "textChars": 707
+      },
+      "beforeText": {
+        "utterances": 22,
+        "sourceUtterances": 22,
+        "splitSourceUtterances": 0,
+        "unknownUtterances": 1,
+        "unknownTextChars": 44,
+        "textChars": 707
+      },
+      "accuracy": {
+        "before": {
+          "classicDer250msNoOverlap": 0.022177,
+          "speakerConfusionSeconds": 0.9,
+          "unknownTurnSeconds": 4.98,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 3,
+          "switchesDiagnosticOnly": 1
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.022177,
+          "speakerConfusionSeconds": 0.9,
+          "unknownTurnSeconds": 4.98,
+          "referenceSpeakerCount": 3,
+          "systemSpeakerCount": 3,
+          "switchesDiagnosticOnly": 1
+        }
+      },
+      "qualityStatus": "OPEN: corrective switches allowed; confusion and unknown durations remain reported separately",
+      "speakerCount": "4",
+      "finishToCompleteMs": "4416",
+      "rtf": "0.49733333333333335"
+    },
+    {
+      "name": "L_R003S01C02",
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "inputSpeakerCount": 4,
+      "durationSeconds": 180,
+      "checks": {
+        "startsOnce": true,
+        "noLastBeforeFinish": true,
+        "uniqueLastThenComplete": true,
+        "noErrors": true,
+        "noUnexpectedCallbacks": true,
+        "noNativeStreams": true,
+        "notDegraded": true,
+        "fullTerminalCoverage": true,
+        "displayTextConserved": true
+      },
+      "status": "PASS",
+      "rawCaseStatus": "PASS",
+      "rawCaseDetail": "diarization-windows-contract",
+      "windowCount": 2,
+      "currentText": {
+        "utterances": 55,
+        "sourceUtterances": 30,
+        "splitSourceUtterances": 9,
+        "unknownUtterances": 25,
+        "unknownTextChars": 223,
+        "textChars": 483
+      },
+      "beforeText": {
+        "utterances": 30,
+        "sourceUtterances": 30,
+        "splitSourceUtterances": 0,
+        "unknownUtterances": 7,
+        "unknownTextChars": 180,
+        "textChars": 483
+      },
+      "accuracy": {
+        "before": {
+          "classicDer250msNoOverlap": 0.468378,
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "switchesDiagnosticOnly": 1
+        },
+        "after": {
+          "classicDer250msNoOverlap": 0.468378,
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "switchesDiagnosticOnly": 1
+        }
+      },
+      "qualityStatus": "OPEN: corrective switches allowed; confusion and unknown durations remain reported separately",
+      "speakerCount": "4",
+      "finishToCompleteMs": "7064",
+      "rtf": "0.6857055555555556"
+    }
+  ],
+  "currentGapStateReplay": {
+    "scope": "Frozen public part boundaries isolate only the consensus gap decision; not fresh audio/accuracy validation",
+    "status": "PASS",
+    "cases": [
+      {
+        "name": "phone-single-speaker",
+        "unknownBefore": 20,
+        "unknownAfter": 0,
+        "changedSources": 7,
+        "explicitUnknownPreserved": 0
+      },
+      {
+        "name": "M_R003S02C01",
+        "unknownBefore": 29,
+        "unknownAfter": 29,
+        "changedSources": 0,
+        "explicitUnknownPreserved": 5
+      },
+      {
+        "name": "L_R003S01C02",
+        "unknownBefore": 223,
+        "unknownAfter": 217,
+        "changedSources": 1,
+        "explicitUnknownPreserved": 20
+      }
+    ]
+  },
+  "currentMemory": {
+    "status": "PASS",
+    "sample_count": 43,
+    "observation_seconds": 54.517,
+    "warmup_samples_excluded": 8,
+    "head_rss_mb": 589.219,
+    "tail_rss_mb": 354.941,
+    "rss_growth_mb": -234.277,
+    "rss_slope_mb_per_minute": null,
+    "rss_third_medians_mb": [
+      607.363,
+      610.891,
+      618.447
+    ],
+    "peak_rss_mb": 651.934,
+    "peak_hwm_mb": 651.934,
+    "head_vm_data_mb": 1461.941,
+    "tail_vm_data_mb": 1501.254,
+    "vm_data_growth_mb": 39.312,
+    "peak_swap_mb": 0.074,
+    "head_threads": 67,
+    "tail_threads": 45,
+    "thread_growth": -22,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "priorThreeCaseMemory": {
+    "status": "PASS",
+    "sample_count": 327,
+    "observation_seconds": 429.55,
+    "warmup_samples_excluded": 65,
+    "head_rss_mb": 696.984,
+    "tail_rss_mb": 744.043,
+    "rss_growth_mb": 47.059,
+    "rss_slope_mb_per_minute": 4.996,
+    "rss_third_medians_mb": [
+      704.375,
+      726.697,
+      739.684
+    ],
+    "peak_rss_mb": 833.285,
+    "peak_hwm_mb": 833.285,
+    "head_vm_data_mb": 1579.004,
+    "tail_vm_data_mb": 1636.723,
+    "vm_data_growth_mb": 57.719,
+    "peak_swap_mb": 0.066,
+    "head_threads": 67,
+    "tail_threads": 67,
+    "thread_growth": 0,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "limitations": [
+    "Final HAP device replay is the47.26sec single-person regression; annotated3/4 device evidence belongs to ea31459b, supplemented by current pure-state replay of frozen public part boundaries",
+    "Not a new complete3/4-speaker device matrix on the final HAP",
+    "First55sec field recording does not reproduce full160sec scene; no timed identity truth for that recording",
+    "Continuous speaker changes do not force an immediate ASR endpoint",
+    "ITN lexical changes have no safe mapping and retain paragraph",
+    "Four-person identity accuracy and earlier finish-timeout/resource issues remain open"
+  ],
+  "userAcceptancePolicy": "Corrective switches are allowed; wrong named identity duration and UNKNOWN duration reported separately",
+  "checksPassed": {
+    "harmony": 49,
+    "android": 105
+  },
+  "deviceModel": "PSN-AL00",
+  "targetLanguage": "ZH_EN"
+}
