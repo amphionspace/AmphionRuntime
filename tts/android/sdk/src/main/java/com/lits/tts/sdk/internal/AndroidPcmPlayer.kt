@@ -5,6 +5,7 @@ import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.SystemClock
 import java.util.concurrent.LinkedBlockingQueue
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class AndroidPcmPlayer {
@@ -122,7 +123,7 @@ internal class AndroidPcmPlayer {
                         producerFinished = true
                         prebufferLock.notifyAll()
                     }
-                    audioQueue.offer(END_OF_STREAM)
+                    enqueuePlaybackEnd(audioQueue, END_OF_STREAM, cancelled)
                 }
             },
             "lits-tts-pcm-producer",
@@ -291,5 +292,18 @@ internal class AndroidPcmPlayer {
         const val STREAMING_PREBUFFER_CHUNKS = 1
         const val STREAMING_PREBUFFER_WAIT_MS = 20L
         val END_OF_STREAM = ByteArray(0)
+    }
+}
+
+/** Signal normal producer completion without discarding queued PCM. */
+internal fun enqueuePlaybackEnd(queue: LinkedBlockingQueue<ByteArray>, marker: ByteArray, cancelled: AtomicBoolean) {
+    try {
+        // A nonblocking offer can drop EOS when the last PCM occupies the
+        // queue. Retry until consumed, but let stop/error cancel the wait.
+        while (!cancelled.get()) {
+            if (queue.offer(marker, 20, TimeUnit.MILLISECONDS)) return
+        }
+    } catch (_: InterruptedException) {
+        Thread.currentThread().interrupt()
     }
 }
