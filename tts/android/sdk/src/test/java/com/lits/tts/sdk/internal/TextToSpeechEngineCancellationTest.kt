@@ -20,6 +20,99 @@ import java.util.concurrent.CopyOnWriteArrayList
 import org.junit.Test
 
 class TextToSpeechEngineCancellationTest {
+    @Test fun terminalCallbacksCommitBeforeReentrantStopOrShutdown() {
+        for (playType in listOf(PlayType.SYNTHESIZE_ONLY, PlayType.SYNTHESIZE_AND_PLAY)) {
+            for (action in listOf("stop", "shutdown")) {
+                val closed = CountDownLatch(1)
+                val done = CountDownLatch(1)
+                val events = CopyOnWriteArrayList<String>()
+                val synth = object : PcmSynthesizer {
+                    override fun preload() = Unit
+                    override fun supportsInternalPlayback() = false
+                    override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams) =
+                        SynthesizedAudio(byteArrayOf(1, 0), 24000)
+                    override fun close(releaseSharedResources: Boolean) { closed.countDown() }
+                }
+                val engine = TextToSpeechEngineImpl(
+                    CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+                    VoiceInfo("zh-en", "lits-female-02", "female"), null, null, { true }, synth,
+                    // Exercise completion before worker-finally without relying on thread timing.
+                    java.util.concurrent.Executor { it.run() },
+                )
+                engine.setListener(object : SpeakListener {
+                    override fun onStart(requestId: String, response: StartResponse) = Unit
+                    override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+                    override fun onComplete(requestId: String, response: CompleteResponse) {
+                        events += response.type.name
+                        if (playType == PlayType.SYNTHESIZE_ONLY || response.type == com.lits.tts.sdk.CompleteType.PLAYBACK_COMPLETE) {
+                            if (action == "stop") engine.stop() else engine.shutdown()
+                            done.countDown()
+                        }
+                    }
+                    override fun onStop(requestId: String, response: StopResponse) { events += "STOP" }
+                    override fun onError(requestId: String, errorCode: Int, errorMessage: String) { events += "ERROR"; done.countDown() }
+                })
+                try {
+                    engine.speak("完成回调内释放。", SpeakParams("terminal", playType = playType))
+                    assertTrue(done.await(2, TimeUnit.SECONDS))
+                } finally { runCatching { engine.shutdown() } }
+                assertTrue(closed.await(2, TimeUnit.SECONDS))
+                assertEquals("$playType/$action", if (playType == PlayType.SYNTHESIZE_ONLY)
+                    listOf("SYNTHESIS_COMPLETE") else listOf("SYNTHESIS_COMPLETE", "PLAYBACK_COMPLETE"), events.toList())
+            }
+        }
+    }
+
+    @Test fun errorCallbackCanShutdownWithoutAStopAfterError() {
+        val closed = CountDownLatch(1)
+        val events = CopyOnWriteArrayList<String>()
+        val synth = object : PcmSynthesizer {
+            override fun preload() = Unit
+            override fun supportsInternalPlayback() = false
+            override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams): SynthesizedAudio =
+                throw IllegalStateException("genuine error")
+            override fun close(releaseSharedResources: Boolean) { closed.countDown() }
+        }
+        val engine = TextToSpeechEngineImpl(CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+            VoiceInfo("zh-en", "lits-female-02", "female"), null, null, { true }, synth, java.util.concurrent.Executor { it.run() })
+        engine.setListener(object : SpeakListener {
+            override fun onStart(requestId: String, response: StartResponse) = Unit
+            override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+            override fun onComplete(requestId: String, response: CompleteResponse) { events += "COMPLETE" }
+            override fun onStop(requestId: String, response: StopResponse) { events += "STOP" }
+            override fun onError(requestId: String, errorCode: Int, errorMessage: String) { events += "ERROR"; engine.shutdown() }
+        })
+        engine.speak("错误回调内释放。", SpeakParams("error", playType = PlayType.SYNTHESIZE_ONLY))
+        assertTrue(closed.await(2, TimeUnit.SECONDS))
+        assertEquals(listOf("ERROR"), events.toList())
+    }
+
+    @Test fun synthesisCompletionDuringPlaybackIsNotTerminalAndCanStillBeStopped() {
+        val closed = CountDownLatch(1)
+        val stopped = CountDownLatch(1)
+        val events = CopyOnWriteArrayList<String>()
+        val synth = object : PcmSynthesizer {
+            override fun preload() = Unit
+            override fun supportsInternalPlayback() = false
+            override fun synthesize(text: String, params: SpeakParams, engineParams: CreateEngineParams) = SynthesizedAudio(byteArrayOf(1, 0), 24000)
+            override fun close(releaseSharedResources: Boolean) { closed.countDown() }
+        }
+        val engine = TextToSpeechEngineImpl(CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+            VoiceInfo("zh-en", "lits-female-02", "female"), null, null, { true }, synth, java.util.concurrent.Executor { it.run() })
+        engine.setListener(object : SpeakListener {
+            override fun onStart(requestId: String, response: StartResponse) = Unit
+            override fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse) = Unit
+            override fun onComplete(requestId: String, response: CompleteResponse) { events += response.type.name; engine.stop() }
+            override fun onStop(requestId: String, response: StopResponse) { events += "STOP"; stopped.countDown() }
+        })
+        try {
+            engine.speak("合成完成仍可停止播放。", SpeakParams("play", playType = PlayType.SYNTHESIZE_AND_PLAY))
+            assertTrue(stopped.await(2, TimeUnit.SECONDS))
+        } finally { engine.shutdown() }
+        assertTrue(closed.await(2, TimeUnit.SECONDS))
+        assertEquals(listOf("SYNTHESIS_COMPLETE", "STOP"), events.toList())
+    }
+
     @Test
     fun shutdownDefersCloseUntilInFlightNativeWorkReturns() {
         val entered = CountDownLatch(1)
