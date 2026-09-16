@@ -262,6 +262,7 @@ internal class TextToSpeechEngineImpl(
                     text = task.text,
                     params = task.params,
                     engineParams = engineParams,
+                    collectOutput = false,
                     isCancelled = { task.cancelled.get() || destroyed },
                 ) { chunk ->
                     if (!task.cancelled.get() && !destroyed) {
