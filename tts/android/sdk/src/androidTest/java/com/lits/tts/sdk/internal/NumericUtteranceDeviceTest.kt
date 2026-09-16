@@ -58,7 +58,7 @@ class NumericUtteranceDeviceTest {
             )) {
                 val engine = TextToSpeechSdk.createEngine(CreateEngineParams(
                     language = language, mode = RunMode.OFFLINE,
-                    voiceId = if (language == "en-US") "lits-female-01" else "lits-female-02",
+                    voiceId = "lits-female-02",
                 ))
                 try {
                     for ((index, text) in texts.withIndex()) {

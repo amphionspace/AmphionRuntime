@@ -96,16 +96,16 @@ class TextToSpeechEngineCancellationTest {
     }
 
     private fun testEngine(synthesizer: PcmSynthesizer) = TextToSpeechEngineImpl(
-        CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-01"),
-        VoiceInfo("zh-en", "lits-female-01", "female"), null, null, { true }, synthesizer,
+        CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+        VoiceInfo("zh-en", "lits-female-02", "female"), null, null, { true }, synthesizer,
     )
 
     @Test
     fun stopLetsNextPreemptRequestStartWithoutWaitingForLongStreamingSynthesis() {
         val synthesizer = SlowStreamingSynthesizer(checkCancellation = true)
         val engine = TextToSpeechEngineImpl(
-            engineParams = CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-01"),
-            voice = VoiceInfo("zh-en", "lits-female-01", "female"),
+            engineParams = CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+            voice = VoiceInfo("zh-en", "lits-female-02", "female"),
             engineName = null,
             workPath = null,
             onRelease = { true },
@@ -138,8 +138,8 @@ class TextToSpeechEngineCancellationTest {
     fun preemptStartsNextRequestEvenIfCancelledStreamingProducerHasNotReturned() {
         val synthesizer = SlowStreamingSynthesizer(checkCancellation = false)
         val engine = TextToSpeechEngineImpl(
-            engineParams = CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-01"),
-            voice = VoiceInfo("zh-en", "lits-female-01", "female"),
+            engineParams = CreateEngineParams("zh-en", RunMode.OFFLINE, "lits-female-02"),
+            voice = VoiceInfo("zh-en", "lits-female-02", "female"),
             engineName = null,
             workPath = null,
             onRelease = { true },

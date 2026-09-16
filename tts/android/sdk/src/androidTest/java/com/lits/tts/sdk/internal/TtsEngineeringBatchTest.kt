@@ -837,7 +837,7 @@ class TtsEngineeringBatchTest {
 
     private companion object {
         const val MIN_CASE_COUNT = 200
-        const val VOICE_EN = "lits-female-01"
+        const val VOICE_EN = "lits-female-02"
         const val VOICE_ZH = "lits-female-02"
 
         val successProfiles = listOf(

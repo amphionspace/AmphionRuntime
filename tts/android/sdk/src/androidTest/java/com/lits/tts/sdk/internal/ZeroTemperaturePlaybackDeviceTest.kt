@@ -22,11 +22,11 @@ class ZeroTemperaturePlaybackDeviceTest {
             licenseAssetName = null, deviceIdProvider = TtsDeviceIdProvider { requireNotNull(args.getString("deviceSerial")) },
         ))
         val text = "Hello! This is a speech synthesis test. Room two hundred and four is ready."
-        val params = CreateEngineParams(language = "en-US", mode = RunMode.OFFLINE, voiceId = "lits-female-01")
+        val params = CreateEngineParams(language = "en-US", mode = RunMode.OFFLINE, voiceId = "lits-female-02")
         val workPath = requireNotNull(args.getString("workPath"))
         val manifest = File(workPath, "tts/dingqiao_intmeanflow_student_0010000_vocos24k/0.1.0/manifest.json")
         assertEquals(0.0, JSONObject(manifest.readText()).getDouble("inference_temperature"), 0.0)
-        val synth = LitsDeliveryPcmSynthesizer(context, workPath, 0)
+        val synth = LitsDeliveryPcmSynthesizer(context, workPath, 1)
         val player = AndroidPcmPlayer()
         val results = JSONArray()
         try {

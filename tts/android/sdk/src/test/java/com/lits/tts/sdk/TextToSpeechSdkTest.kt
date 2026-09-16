@@ -12,8 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TextToSpeechSdkTest {
-    private val primaryVoiceId = "lits-female-01"
-    private val secondaryVoiceId = "lits-female-02"
+    private val primaryVoiceId = "lits-female-02"
     private val engines = mutableListOf<TextToSpeechEngine>()
 
     @After
@@ -40,17 +39,33 @@ class TextToSpeechSdkTest {
             VoiceQuery(requestId = "voices-1", mode = RunMode.OFFLINE),
         )
 
-        assertEquals(4, voices.size)
+        assertEquals(2, voices.size)
         assertEquals(setOf("zh-en", "en-US"), voices.map { it.language }.toSet())
-        assertEquals(setOf(primaryVoiceId, secondaryVoiceId), voices.map { it.voiceId }.toSet())
+        assertEquals(setOf(primaryVoiceId), voices.map { it.voiceId }.toSet())
         assertEquals(
-            setOf(primaryVoiceId, secondaryVoiceId),
+            setOf(primaryVoiceId),
             voices.filter { it.language == "zh-en" }.map { it.voiceId }.toSet(),
         )
         assertEquals(
-            setOf(primaryVoiceId, secondaryVoiceId),
+            setOf(primaryVoiceId),
             voices.filter { it.language == "en-US" }.map { it.voiceId }.toSet(),
         )
+    }
+
+    @Test
+    fun retiredSpeakerIsNotAvailableForEitherLanguage() {
+        for (language in listOf("zh-en", "en-US")) {
+            val voices = TextToSpeechSdk.listVoices(
+                VoiceQuery("single-$language", RunMode.OFFLINE, language),
+            )
+            assertEquals(listOf(primaryVoiceId), voices.map { it.voiceId })
+            val error = expectTtsException {
+                TextToSpeechSdk.createEngine(
+                    CreateEngineParams(language, RunMode.OFFLINE, "lits-female-01"),
+                )
+            }
+            assertEquals(TtsErrorCode.VOICE_UNSUPPORTED, error.errorCode)
+        }
     }
 
     @Test
@@ -76,9 +91,9 @@ class TextToSpeechSdkTest {
         )
 
         assertTrue(latch.await(5, TimeUnit.SECONDS))
-        assertEquals(4, voicesResult.get().size)
+        assertEquals(2, voicesResult.get().size)
         assertEquals(setOf("zh-en", "en-US"), voicesResult.get().map { it.language }.toSet())
-        assertEquals(setOf(primaryVoiceId, secondaryVoiceId), voicesResult.get().map { it.voiceId }.toSet())
+        assertEquals(setOf(primaryVoiceId), voicesResult.get().map { it.voiceId }.toSet())
         assertNotEquals(callerThread, callbackThread.get())
     }
 

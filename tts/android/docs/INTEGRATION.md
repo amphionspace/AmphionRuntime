@@ -60,7 +60,7 @@ TextToSpeechSdk.createEngine(
     CreateEngineParams(
         language = "zh-en",
         mode = RunMode.OFFLINE,
-        voiceId = "lits-female-01",
+        voiceId = "lits-female-02",
         modelLoadOnCreate = true,
     ),
     object : Callback<TextToSpeechEngine> {
@@ -90,13 +90,11 @@ val voices = TextToSpeechSdk.listVoices(
 )
 ```
 
-当前内置音色：
+当前仅公开一个音色：`lits-female-02`，对应模型 speaker 1，中英共用。按语种查询各返回一条；不筛选语种时返回两条语言记录，但只有一个唯一 voiceId：
 
 | language | voiceId | gender |
 | --- | --- | --- |
-| `zh-en` | `lits-female-01` | `Female` |
 | `zh-en` | `lits-female-02` | `Female` |
-| `en-US` | `lits-female-01` | `Female` |
 | `en-US` | `lits-female-02` | `Female` |
 
 同一个 `voiceId` 会在不同 `language` 下重复出现，表示同一 speaker 支持多套前端语言规则；创建引擎时切换 `language` 不要求切换 `voiceId`。
