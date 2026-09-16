@@ -68,9 +68,11 @@ internal class DiarizationTranscriptState {
         audioEndTime: Int = endTime,
     ): String {
         val id = "u${nextUtteranceId++}"
+        val decoded = decodedTranscriptTokens(rawText, tokens, tokenTimesMs)
         val assignment = assignmentFor(beginTime, endTime)
         utterances += StoredUtterance(
-            audioEndTime, id, rawText, text, tokens.toList(), tokenTimesMs.toList(), beginTime, endTime,
+            audioEndTime, id, rawText, text, decoded?.first ?: tokens.toList(),
+            decoded?.second ?: tokenTimesMs.toList(), beginTime, endTime,
             0, assignment.speakerId, assignment.secondarySpeakerIds,
         )
         return id
@@ -202,6 +204,50 @@ internal class DiarizationTranscriptState {
 
     private fun turnAt(timeMs: Int): SpeakerTimelineTurn? = turns.asReversed().find {
         timeMs >= it.beginTime && timeMs < it.endTime
+    }
+
+
+    // Mirrors sherpa's BBPE alphabet/spacing; require byte-exact agreement with rawText.
+    private fun decodedTranscriptTokens(rawText: String, tokens: List<String>,
+        times: List<Int>): Pair<List<String>, List<Int>>? {
+        if (tokens.size != times.size || tokens.joinToString("") == rawText) return null
+        val alphabet = "ĀāĂăĄąĆćĈĉĊċČčĎďĐđĒēĔĕĖėĘęĚěĜĝĞğ !\"#\$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~ĠġĢģĤĥĦħĨĩĪīĬĭĮįİıĴĵĶķĸĹĺĻļĽľŁłŃńŅņŇňŊŋŌōŎŏŐőŒœŔŕŖŗŘřŚśŜŝŞşŠšŢţŤťŦŧŨũŪūŬŭŮůŰűŲųŴŵŶŷŸŹźŻżŽžƀƁƂƃƄƅƆƇƈƉƊƋƌƍƎƏƐƑƒƓƔƕƖƗƘƙƚƛƜƝƞƟƠơƢƣƤƥƦ"
+        val bytes = mutableListOf<Int>()
+        val owners = mutableListOf<Int>()
+        tokens.forEachIndexed { index, token ->
+            for (character in token) {
+                if (character == '▁') {
+                    if ((bytes.lastOrNull() ?: -1) in 33..126) {
+                        bytes += 32
+                        owners += times[index]
+                    }
+                    continue
+                }
+                val value = if (character == '⁇') 32 else alphabet.indexOf(character)
+                if (value < 0) return null
+                bytes += value
+                owners += times[index]
+            }
+        }
+        val decoded = mutableListOf<String>()
+        val decodedTimes = mutableListOf<Int>()
+        var byteOffset = 0
+        var index = 0
+        while (index < rawText.length) {
+            val point = rawText.codePointAt(index)
+            if (point in 0xD800..0xDFFF) return null
+            val width = Character.charCount(point)
+            val character = rawText.substring(index, index + width)
+            val encoded = character.toByteArray(Charsets.UTF_8)
+            encoded.forEachIndexed { part, value ->
+                if (bytes.getOrNull(byteOffset + part) != (value.toInt() and 255)) return null
+            }
+            decoded += character
+            decodedTimes += owners[byteOffset]
+            byteOffset += encoded.size
+            index += width
+        }
+        return if (byteOffset == bytes.size) decoded to decodedTimes else null
     }
 
     // Only punctuation/spacing insertions are alignable; do not guess ITN boundaries.
