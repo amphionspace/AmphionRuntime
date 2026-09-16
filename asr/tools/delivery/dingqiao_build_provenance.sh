@@ -269,6 +269,7 @@ PY
 
 dingqiao_verify_aar_asr_models() {
   local aar_path="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/verify_android_itn_verbalizer.py" "$aar_path" || return 1
   python3 - "$aar_path" <<'PY'
 import json
 import sys
@@ -278,7 +279,6 @@ aar_path = sys.argv[1]
 required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
-    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
     "assets/amphion-models/punct-zhen/v1/model.int8.ort.mp3": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3": 100 * 1024 * 1024,
@@ -396,6 +396,7 @@ PY
 
 dingqiao_verify_apk_asr_models() {
   local apk_path="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/verify_android_itn_verbalizer.py" "$apk_path" || return 1
   python3 - "$apk_path" <<'PY'
 import json
 import sys
@@ -405,7 +406,6 @@ apk_path = sys.argv[1]
 required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
-    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
     "assets/amphion-models/punct-zhen/v1/model.int8.ort.mp3": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3": 100 * 1024 * 1024,
