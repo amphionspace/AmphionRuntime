@@ -11,6 +11,84 @@ import org.junit.Test
 import org.json.JSONObject
 
 class LitsTtsFrontendTest {
+    @Test fun ordinalYiKeepsContextAcrossWhitespace() {
+        val layout = realAssetLayout()
+        for (text in listOf("第一百轮。", "第 一百 轮。", "第\t一百轮。")) {
+            assertNormalizedTokenSequence(layout, text, "ㄉ ㄧ ˋ ㄧ ˉ ㄅ ㄞ ˇ")
+        }
+        assertNormalizedTokenSequence(layout, "第一百一十轮。", "ㄧ ˉ ㄕ ˊ")
+        // A cardinal quantity must still take 一 sandhi; punctuation breaks ordinal context.
+        assertNormalizedTokenSequence(layout, "一百轮。", "ㄧ ˋ ㄅ ㄞ ˇ")
+        assertNormalizedTokenSequence(layout, "第，一百轮。", "ㄧ ˋ ㄅ ㄞ ˇ")
+    }
+
+    @Test fun pcmExtensionIsProtectedFromNativeUnitExpansion() {
+        val normalized = LitsTnNormalizer.normalize(testLayout(), "文件 audio.pcm 已生成。", "zh-en", "zh-en")
+        assertTrue(normalized, normalized.contains("P C M"))
+        assertFalse(normalized, normalized.contains("pcm"))
+    }
+
+    @Test fun yiSandhiUsesCitationToneBeforeNeutralSyllablesAndKeepsDecimals() {
+        val layout = testLayout()
+        assertNormalizedTokenSequence(layout, "稍等一下。", "ㄧ ˊ ㄒ ㄧㄚ ˙")
+        assertNormalizedTokenSequence(layout, "百分之一点二三。", "ㄧ ˉ ㄉ ㄧㄢ ˇ ㄦ ˋ ㄙ ㄢ ˉ")
+        assertNormalizedTokenSequence(layout, "买一点水果。", "ㄧ ˋ ㄉ ㄧㄢ ˇ")
+    }
+
+    @Test fun orderIdsKeepDigitSequences() {
+        val normalized = LitsTnNormalizer.normalize(testLayout(), "订单 ID 是 A12B11。", "zh-en", "zh-en")
+        assertTrue(normalized, normalized.contains("A一二B一一"))
+    }
+
+    @Test fun numericPathKeepsEverySeparatorBeforeNativeTn() {
+        val layout = testLayout()
+        for (path in listOf("/sdcard/test/6/audio.wav", "/sdcard/test/18/audio.wav", "C:/Users/test/3/audio.pcm")) {
+            val prepared = LitsTnNormalizer.normalize(layout, "路径 $path 已生成。", "zh-en", "zh-en")
+            assertFalse(prepared, prepared.contains('/'))
+            assertEquals(prepared, path.count { it == '/' }, Regex("斜杠").findAll(prepared).count())
+        }
+    }
+
+    @Test fun spacedClocksPreserveLeadingZeroMinutes() {
+        val layout = testLayout()
+        for (raw in listOf("闹钟设为 5 点 05 分。", "闹钟设为5点05分。", "闹钟设为五点05分。")) {
+            assertTrue(raw, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en").contains("五点零五分"))
+        }
+        assertTrue(LitsTnNormalizer.normalize(layout, "下午3:05开会。", "zh-en", "zh-en").contains("三点零五分"))
+    }
+
+    @Test fun percentCardinalsKeepInternalTensAndSupportThousands() {
+        val layout = testLayout()
+        for ((raw, spoken) in listOf("12%" to "百分之十二", "112%" to "百分之一百一十二",
+            "1012%" to "百分之一千零一十二", "100010%" to "百分之十万零一十")) {
+            assertEquals(raw, spoken, LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
+            assertArrayEquals(raw, LitsTtsFrontend.encodeNormalized(layout, spoken, "zh-en", "zh-en"),
+                LitsTtsFrontend.encodeNormalized(layout, raw, "zh-en", "zh-en"))
+        }
+    }
+
+    @Test fun buildIdentifiersUseDigitsButQuantitiesUseCardinals() {
+        val layout = testLayout()
+        assertTrue(LitsTnNormalizer.normalize(layout, "build 20260702 已完成。", "zh-en", "zh-en").contains("二零二六零七零二"))
+        assertTrue(LitsTnNormalizer.normalize(layout, "数量20260702个。", "zh-en", "zh-en").contains("二千零二十六万零七百零二"))
+    }
+
+    @Test fun volumeAndSerialContextResolvePolyphones() {
+        val layout = testLayout()
+        assertNormalizedTokenSequence(layout, "请把音量调到合适的大小。", "ㄊ ㄧㄠ ˊ ㄉ ㄠ ˋ")
+        assertNormalizedTokenSequence(layout, "请求应该串行完成。", "ㄔ ㄨㄢ ˋ ㄒ ㄧㄥ ˊ")
+        assertNormalizedTokenSequence(layout, "每个请求只终止一次。", "ㄓ ˇ ㄓ ㄨㄥ ˉ ㄓ ˇ")
+        // Transfer uses diao: do not globally replace the ambiguous word 调到.
+        assertNormalizedTokenSequence(layout, "他被调到北京。", "ㄉ ㄧㄠ ˋ ㄉ ㄠ ˋ")
+    }
+
+    @Test fun commonTechnicalWordsDoNotFallBackToLetterSpelling() {
+        val layout = testLayout()
+        assertNormalizedTokenSequence(layout, "SDK callback 已完成。", "K AO1 L B AE2 K")
+        assertNormalizedTokenSequence(layout, "emoji 作为输入。", "IH0 M OW1 JH IY0")
+        assertNormalizedTokenSequence(layout, "每个 requestId 都不同。", "R IH0 K W EH1 S T AY1 D IY1")
+    }
+
     @Test
     fun sentenceColonBeforeEnglishRemainsPunctuation() {
         val layout = testLayout()
