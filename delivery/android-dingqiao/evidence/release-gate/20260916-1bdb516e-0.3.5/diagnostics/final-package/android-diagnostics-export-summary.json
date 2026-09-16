@@ -1,0 +1,76 @@
+{
+  "overall_status": "PASS",
+  "automatic_persistence": true,
+  "schema_version": 2,
+  "wav_duration_seconds": 180,
+  "sample_rate": 16000,
+  "channels": 1,
+  "files": [
+    {
+      "name": "resource-samples.csv",
+      "size_bytes": 245,
+      "sha256": "68aadf61e983de91760dcf79de5a854513621cb6251b3195cb2be89f7676172f"
+    },
+    {
+      "name": "events.ndjson",
+      "size_bytes": 57294,
+      "sha256": "b6ea3d0f585e7883127f62adebf9bc1dbed281ae5a974a92fe7a6e51b8bceca6"
+    },
+    {
+      "name": "callbacks.ndjson",
+      "size_bytes": 56842,
+      "sha256": "22124a12bfab69be75e72ad9f2b9ce6ca94c9fc84fe5087c7450f55b16071190"
+    },
+    {
+      "name": "timeline.json",
+      "size_bytes": 57296,
+      "sha256": "7a3c1d3cdb3e344b3544ea3d130f624691d11efac7209d2d6e1786fcc529f6e6"
+    },
+    {
+      "name": "result.json",
+      "size_bytes": 80,
+      "sha256": "de9c43f7d28a4716d88b3690dba9d737fbbf1a863ca7be21547b831e168f8b7a"
+    },
+    {
+      "name": "sdk-input.wav",
+      "size_bytes": 5760044,
+      "sha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2"
+    },
+    {
+      "name": "sdk-input.json",
+      "size_bytes": 595,
+      "sha256": "441682e97c9cbe54f660a003f68e80280f7f2cbc8fd4781143b0811cb186c6f2"
+    },
+    {
+      "name": "summary.json",
+      "size_bytes": 566,
+      "sha256": "a9ee1aafd48fa1acfe81ea7cddbdc6b2cd26af16c6e78fc01a44b6c449f2d42b"
+    },
+    {
+      "name": "effective-config.json",
+      "size_bytes": 141,
+      "sha256": "b2b1ecdefa3f57f75fa6526c3da60c4e3b86b5cac90cfd4db75a2a8ee743baea"
+    },
+    {
+      "name": "native-state.json",
+      "size_bytes": 119,
+      "sha256": "2ca1de05c691c45df9dd82eb0d8fdc48a02602bfcf483e4894ba06090819d1d9"
+    },
+    {
+      "name": "build-identity.json",
+      "size_bytes": 120,
+      "sha256": "cbe0733f53b2f19d06bdda37255dae4d21ab50224495f1553c1b2db56585ce5b"
+    },
+    {
+      "name": "model-manifest.json",
+      "size_bytes": 4789,
+      "sha256": "04d6a87c6115929c19938a1ae91e0acee580cc4d1c8fd91d350084cd74c71202"
+    },
+    {
+      "name": "manifest.json",
+      "size_bytes": 441,
+      "sha256": "333138f5e7e45f3b517e50e916ad69b5b46c4eeab1cb2310c0395df018c5fa86"
+    }
+  ],
+  "privacy": "Raw PCM and transcript retained only in the private diagnostics directory; not committed."
+}
