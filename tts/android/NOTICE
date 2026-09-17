@@ -65,6 +65,6 @@ API surface delivered to Android applications.
 ================================================================================
 
 The bundled ONNX model files and Chinese/English frontend resources under
-assets/lits-models/tts/lits_delivery_16k_hifigan/1.0.0 are project delivery
+external-resources/tts are project delivery
 artifacts. Their use is governed by the SDK provider's separate written
 agreement described in LICENSE.

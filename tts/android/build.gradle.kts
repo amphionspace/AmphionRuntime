@@ -14,7 +14,6 @@ val modelId = providers.gradleProperty("LITS_TTS_MODEL_ID")
 val sourceModelId = modelId
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-dingqiao-tts-android-sdk-vocos24k-$sdkVersion"
-val deliveryAarName = "lits-dingqiao-tts-sdk-vocos24k-$sdkVersion.aar"
 val litsModelDir = providers.gradleProperty("LITS_TTS_MODEL_DIR").orNull
     ?.let { file(it) } ?: rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
 val candidateModelDir = rootDir.resolve("build/generated/tts-model-candidate/$sourceModelId/$modelVersion")
@@ -236,26 +235,18 @@ subprojects {
     }
 }
 
-tasks.register<Sync>("stageSdkDelivery") {
+tasks.register<Exec>("stageSdkDelivery") {
     group = "distribution"
-    description = "Stage the SDK-only delivery package."
-    dependsOn(":sdk:assembleRelease", stageExternalTtsResources)
-
-    into(rootProject.layout.buildDirectory.dir("delivery/$deliveryDirName"))
-
-    from(rootDir.resolve("sdk/build/outputs/aar/sdk-release.aar")) {
-        rename { deliveryAarName }
-    }
-    from(rootDir.resolve("external-resources")) {
-        into("external-resources")
-    }
-    from(rootDir) {
-        include("README.md", "CHANGELOG.md", "LICENSE", "NOTICE", "CHECKSUMS.txt")
-    }
-    from(rootDir.resolve("docs")) {
-        into("docs")
-        include("API.md", "DELIVERY.md", "INTEGRATION.md", "PSEUDOCODE.md")
-    }
+    description = "Stage and zip the SDK-only customer package with current docs and checksums."
+    dependsOn(":sdk:assembleRelease")
+    commandLine(
+        "python3", rootDir.resolve("../tools/android/pack_sdk_only.py").absolutePath,
+        "--aar", rootDir.resolve("sdk/build/outputs/aar/sdk-release.aar").absolutePath,
+        "--model-dir", litsModelDir.absolutePath,
+        "--android-root", rootDir.absolutePath,
+        "--output", rootProject.layout.buildDirectory.dir("delivery/$deliveryDirName").get().asFile.absolutePath,
+        "--version", sdkVersion,
+    )
 }
 
 tasks.register("clean", Delete::class) {

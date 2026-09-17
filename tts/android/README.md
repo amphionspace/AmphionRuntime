@@ -22,6 +22,8 @@ AmphionRuntime/tts/android/
 
 ## 文档导航
 
+- **固定交付清单：[打包交付 README](docs/delivery/README.md)**（SDK 包、Demo 包的内容、命名和核对要求）
+
 - Dingqiao v3 源码编译说明：[docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)
 - Dingqiao v3 批测说明：[docs/BATCH_TESTING.md](docs/BATCH_TESTING.md)
 - 从源码构建 SDK：[docs/DELIVERY.md](docs/DELIVERY.md)
@@ -86,6 +88,13 @@ tts/android/external-resources/tts/dingqiao_imf_step00170000_streaming_vocos24k/
 - `createEngine(params, callback)` 和 `listVoices(params, callback)` 是异步接口；Android 环境下 callback 回到主线程
 - 同步版 `createEngine(params)` 会在当前线程完成模型加载，调用方应自行放到后台线程
 - `SpeakListener` 的 `onStart/onData/onComplete/onStop/onError` 为 SDK 内部异步派发；更新 UI 时需要切回主线程
+
+## SDK-only 交付打包
+
+在已配置模型目录和授权公钥的构建环境中执行 `./gradlew stageSdkDelivery`，模型参数与上面的构建命令一致。任务调用 `tts/tools/android/pack_sdk_only.py`，输出 `build/delivery/lits-dingqiao-tts-android-sdk-vocos24k-3.1/` 及同名 ZIP。
+
+客户包使用 [SDK_README.md](docs/SDK_README.md) 作为根 README，保留 API、INTEGRATION、PSEUDOCODE、当前版本 CHANGELOG 和 LICENSE / NOTICE。源码构建历史、内部验收报告不随包发放。CHECKSUMS.txt 在组包时生成，不再使用仓库内的旧校验表。
+
 
 ## 验证状态
 

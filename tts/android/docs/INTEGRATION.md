@@ -27,7 +27,7 @@ dependencies {
 
 说明：AAR 使用 Kotlin 编译，本地 `files(...)` 方式接入时不会自动携带 Maven 传递依赖。宿主 App 如果已经通过 Kotlin Android 插件引入 `kotlin-stdlib`，可使用项目内已有版本。
 
-推荐宿主 App 避免压缩 ONNX 模型资源，降低首次安装/解包成本：
+如果宿主将外置模型放入自己的 APK assets，建议避免压缩 ONNX 文件；创建引擎前仍需由宿主复制到工作目录：
 
 ```kotlin
 android {
@@ -142,11 +142,11 @@ engine.speak(
 
 ```text
 onStart
-onComplete(SYNTHESIS_COMPLETE)
+// onPlaybackStart 与 SYNTHESIS_COMPLETE 均会发生，二者先后不固定
 onComplete(PLAYBACK_COMPLETE)
 ```
 
-`SYNTHESIZE_AND_PLAY` 默认不通过 `onData` 返回 PCM。
+`SYNTHESIZE_AND_PLAY` 默认不通过 `onData` 返回 PCM。具体回调顺序见 [API.md](API.md)。
 
 ### 7.2 仅合成
 
@@ -194,6 +194,7 @@ engine.stop()
 engine.shutdown()
 ```
 
+- `speak()` 异步提交；需要完整播报时等待 `PLAYBACK_COMPLETE`，只合成时等待 `SYNTHESIS_COMPLETE`，不要提交后立即释放引擎。
 - `stop()` 停止当前合成/播报并清空队列，不销毁引擎。
 - `shutdown()` 释放模型、线程和播放资源；调用后该 engine 不可再使用。
 
@@ -234,6 +235,8 @@ engine.shutdown()
 | `1002300017` | license 已过期 |
 | `1002300018` | license 绑定的设备与当前设备不一致 |
 
+完整授权错误码见 [API.md](API.md)，包括主版本、维护期、TTS 权限和未设置授权。
+
 `1002300012` 起为离线授权失败码，仅当 SDK 被武装（构建期注入 license 公钥）时才可能出现。
 
 ## 12. 离线授权（License）
@@ -265,6 +268,8 @@ TextToSpeechSdk.init(
 设备 SN 默认由系统应用通过 `Build.getSerial()` 读取，宿主 App 需要申请并获得 `android.permission.READ_PRIVILEGED_PHONE_STATE`。如果缺少权限或系统返回空/`UNKNOWN`，启用 SN 白名单的 license 会校验失败。
 
 武装态下校验失败时，`init` 与 `createEngine` 抛 `TextToSpeechException`（errorCode 见上表 `1002300012`+）。
+默认 `ENFORCE` 会阻止无效授权创建引擎；`PERMISSIVE` 只记录无效状态。应用应提供当前设备真实 SN，SDK 不执行硬件证明。
+
 查询授权状态用于「关于」页展示：
 
 ```kotlin
