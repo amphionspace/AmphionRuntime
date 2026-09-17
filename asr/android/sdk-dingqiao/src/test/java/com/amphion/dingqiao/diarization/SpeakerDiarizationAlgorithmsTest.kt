@@ -15,6 +15,45 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun unknownBackgroundAndEndpointTokensDoNotSplitWords() {
+        fun turn(begin: Int, end: Int, id: String, secondary: List<String> = emptyList()) =
+            SpeakerTimelineTurn(begin, end, id, secondary, overlap = secondary.isNotEmpty())
+        fun split(times: List<Int>, end: Int, turns: List<SpeakerTimelineTurn>): List<DiarizedTranscriptUtterance> {
+            val state = DiarizationTranscriptState()
+            state.addUtterance("角色", "角色。", listOf("角", "色"), times, 0, end)
+            state.applySpeakerTurns(turns)
+            val before = state.allTurns()
+            val result = state.finalUtterances()
+            assertEquals(before, state.allTurns())
+            return result
+        }
+        for (turns in listOf(
+            listOf(turn(0, 400, "S1"), turn(400, 700, "UNKNOWN")),
+            listOf(turn(0, 400, "S1", listOf("UNKNOWN_SECONDARY")), turn(400, 700, "UNKNOWN")),
+        )) {
+            val result = split(listOf(100, 500), 500, turns).single()
+            assertEquals("角色。", result.text)
+            assertEquals("S1", result.speakerId)
+            assertTrue(result.speakerInferred)
+            assertEquals(0f, result.confidence)
+            assertEquals(turns.first().overlap, result.overlap)
+        }
+        val head = split(listOf(100, 500), 800, listOf(turn(0, 150, "UNKNOWN"),
+            turn(150, 800, "S1", listOf("UNKNOWN")))).single()
+        assertEquals("角色。", head.text)
+        assertTrue(head.speakerInferred)
+        assertTrue(head.overlap)
+        assertEquals(listOf("UNKNOWN"), head.secondarySpeakerIds)
+        for (turns in listOf(
+            listOf(turn(0, 400, "S1", listOf("S2")), turn(400, 700, "UNKNOWN")),
+            listOf(turn(0, 300, "S1"), turn(300, 350, "S2"), turn(350, 700, "UNKNOWN")),
+            listOf(turn(0, 400, "S1"), turn(400, 700, "S2")),
+        )) assertEquals(2, split(listOf(100, 500), 500, turns).size)
+        assertEquals(2, split(listOf(100, 3001), 3001,
+            listOf(turn(0, 400, "S1"), turn(400, 3200, "UNKNOWN"))).size)
+    }
+
+    @Test
     fun boundedUnknownBackfillPreservesAcousticEvidenceAndRealTurns() {
         fun turn(start: Int, end: Int, id: String) = SpeakerTimelineTurn(start, end, id, emptyList(), 0.9f)
         fun state(text: String, times: List<Int>, end: Int, turns: List<SpeakerTimelineTurn>): DiarizationTranscriptState {

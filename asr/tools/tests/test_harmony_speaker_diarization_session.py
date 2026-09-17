@@ -619,6 +619,47 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
           assert.deepEqual(alone.finalUtterances().map(x=>x.speakerId),['UNKNOWN','S1']);
         """)
 
+    def test_unknown_background_and_endpoint_tokens_do_not_split_words(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,secondarySpeakerIds=[])=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds,overlap:secondarySpeakerIds.length>0}});
+          function split(times,endTime,turns) {{
+            const s=new SpeakerDiarizationTranscriptState();
+            s.addUtterance({{rawText:'角色',text:'角色。',tokens:['角','色'],tokenTimesMs:times,
+              beginTime:0,endTime}});
+            s.applySpeakerTurns(turns);
+            const before=s.allTurns(), result=s.finalUtterances();
+            assert.deepEqual(s.allTurns(),before,'text inference must not rewrite acoustic evidence');
+            return result;
+          }}
+          for (const turns of [
+            [turn(0,400,'S1'),turn(400,700,'UNKNOWN')],
+            [turn(0,400,'S1',['UNKNOWN_SECONDARY']),turn(400,700,'UNKNOWN')]
+          ]) {{
+            const result=split([100,500],500,turns);
+            assert.deepEqual(result.map(x=>[x.text,x.speakerId]),[['角色。','S1']]);
+            assert.equal(result[0].speakerInferred,true);
+            assert.equal(result[0].confidence,0);
+            assert.equal(result[0].overlap,turns[0].overlap);
+          }}
+          const head=split([100,500],800,[turn(0,150,'UNKNOWN'),
+            turn(150,800,'S1',['UNKNOWN'])]);
+          assert.deepEqual(head.map(x=>x.text),['角色。']);
+          assert.equal(head[0].speakerInferred,true);
+          assert.equal(head[0].overlap,true);
+          assert.deepEqual(head[0].secondarySpeakerIds,['UNKNOWN']);
+          for (const turns of [
+            [turn(0,400,'S1',['S2']),turn(400,700,'UNKNOWN')],
+            [turn(0,300,'S1'),turn(300,350,'S2'),turn(350,700,'UNKNOWN')],
+            [turn(0,400,'S1'),turn(400,700,'S2')]
+          ]) assert.equal(split([100,500],500,turns).length,2,
+            'a real known speaker or overlap must still block inferred merging');
+          assert.equal(split([100,3001],3001,[turn(0,400,'S1'),turn(400,3200,'UNKNOWN')]).length,2,
+            'zero-duration endpoint must not bridge an arbitrarily long acoustic gap');
+        """)
+
     def test_unanimous_speaker_and_bounded_backfill_keep_conflicting_or_overlapping_turns(self) -> None:
         run_node(f"""
           import assert from 'node:assert/strict';
