@@ -60,6 +60,39 @@ class DiarizationDemoInstrumentedTest {
         }
     }
 
+    @Test
+    fun roleFragmentsKeepReadableSourceParagraphsAndHonestLabels() {
+        val activity = activity()
+        try {
+            instrumentation.runOnMainSync {
+                val listener = MainActivity::class.java.getDeclaredMethod("createListener")
+                    .apply { isAccessible = true }.invoke(activity) as RecognitionListener
+                val view = activity.findViewById<TextView>(R.id.tv_final)
+                listener.onSpeakerDiarizationResult("s", SpeakerDiarizationResult(utterances = listOf(
+                    DiarizedUtterance("u", text = "随便", speakerIndex = 1, sourceUtteranceId = "u"),
+                    DiarizedUtterance("u.2", text = "说两", speakerIndex = -1, sourceUtteranceId = "u"),
+                    DiarizedUtterance("u.3", text = "句你好。", speakerIndex = 0, sourceUtteranceId = "u"),
+                    DiarizedUtterance("v", text = "跟", speakerIndex = -1, beginTime = 1000, sourceUtteranceId = "v"),
+                    DiarizedUtterance("v.2", text = "谁相似。", speakerIndex = 1, beginTime = 1200,
+                        sourceUtteranceId = "v", secondarySpeakerIndexes = listOf(0), overlap = true),
+                    DiarizedUtterance("w", text = "好。", speakerIndex = 0, beginTime = 2000,
+                        sourceUtteranceId = "w", speakerInferred = true, confidence = 0f),
+                ), windowIndex = 0))
+                val text = view.text.toString()
+                assertTrue("UNKNOWN must not break a word in the readable paragraph: $text", text.contains("随便说两句你好。"))
+                assertTrue(text.contains("多位说话人 · 部分待确认（最终结果）"))
+                assertTrue(text.contains("跟谁相似。"))
+                assertTrue(text.contains("说话人 2 · 部分待确认 · 重叠说话（最终结果）"))
+                assertTrue(text.contains("说话人 1 · 含推断补全（最终结果）] 好。"))
+                assertTrue(text.contains("查看角色详情"))
+                listener.onSpeakerDiarizationUpdate("s", SpeakerDiarizationUpdate(utteranceId = "u.2", speakerIndex = 3))
+                assertEquals("committed parts stay frozen", text, view.text.toString())
+            }
+        } finally {
+            instrumentation.runOnMainSync { activity.finish() }
+        }
+    }
+
     /** Explicit device experiment: same PCM and 20ms clock; only vadEnd changes. */
     @Test
     fun compareMeetingPauseOnRealSdk() {
@@ -112,7 +145,11 @@ class DiarizationDemoInstrumentedTest {
                         .put("secondarySpeakerIndexes", JSONArray(it.secondarySpeakerIndexes)).put("overlap", it.overlap)) }
                     val utterances = JSONArray()
                     result.utterances.forEach { utterances.put(JSONObject().put("text", it.text).put("beginTime", it.beginTime)
-                        .put("endTime", it.endTime).put("speakerIndex", it.speakerIndex)) }
+                        .put("endTime", it.endTime).put("speakerIndex", it.speakerIndex)
+                        .put("utteranceId", it.utteranceId).put("sourceUtteranceId", it.sourceUtteranceId)
+                        .put("secondarySpeakerIndexes", JSONArray(it.secondarySpeakerIndexes))
+                        .put("overlap", it.overlap).put("speakerInferred", it.speakerInferred)
+                        .put("confidence", it.confidence)) }
                     record("window", JSONObject().put("speakerTurns", turns).put("utterances", utterances)
                         .put("windowIndex", result.windowIndex).put("isSessionFinal", result.isSessionFinal)
                         .put("degraded", result.degraded).put("inferenceMs", result.inferenceMs))
