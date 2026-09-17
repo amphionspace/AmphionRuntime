@@ -1,0 +1,5 @@
+{
+  "reason": "Diagnostics build driver omitted assembleDiagnostics; stale variant confirmed by bytecode and real negative tail. Release SDK/APK unaffected.",
+  "status": "FAIL",
+  "never_distribute": true
+}

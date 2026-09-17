@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.ResultTimestampParityTest" tests="1" skipped="0" failures="0" errors="0" timestamp="2026-09-17T11:03:41" hostname="redacted" time="0.01">
+  <properties/>
+  <testcase name="endpointTimestampMatchesTokenClockAndPreservesRealSpeakerChanges" classname="com.amphion.dingqiao.ResultTimestampParityTest" time="0.01"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

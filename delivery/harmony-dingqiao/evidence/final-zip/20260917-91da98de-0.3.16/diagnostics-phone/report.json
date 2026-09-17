@@ -1,0 +1,219 @@
+{
+  "application": {
+    "completed": "1",
+    "completes": "1",
+    "elapsedMs": "92019",
+    "emptyFinals": "0",
+    "errors": "0",
+    "failed": "0",
+    "fatal": "",
+    "finals": "16",
+    "mode": "customer-meeting-minutes",
+    "partials": "89",
+    "requested": "1",
+    "runId": "20260917-191248-customer-meeting-minutes-69cb808f",
+    "starts": "1",
+    "status": "PASS"
+  },
+  "build_identity": {
+    "api_target_version": 50000012,
+    "bundle_name": "com.amphion.asr.harmony.demo",
+    "compile_sdk_version": "6.1.0.105",
+    "cpu_abi": "arm64-v8a",
+    "debug": true,
+    "fingerprint": "D6CE6F943F7D8AF4C0121C1842BB46F9225F1AF6657D1B088734B0B10A97250D",
+    "source": "installed_package",
+    "version_code": 316,
+    "version_name": "0.3.16"
+  },
+  "configuration": {
+    "asr_allow_spinning": true,
+    "asr_cpu_ids": "none",
+    "asr_disable_prepack": true,
+    "asr_num_threads": 4,
+    "asr_qos": "default",
+    "cycles": 1,
+    "diarization_vad_end_ms": 800,
+    "effective_diarization_vad_end_ms": 800,
+    "finish_recovery_entry_ids": [],
+    "pace_ms": 20,
+    "post_run_observe_seconds": 5.0,
+    "sample_interval_seconds": 1.0,
+    "settle_ms": 0,
+    "speaker_vad_threshold": null,
+    "speech_end_ms": 0,
+    "target_content_check_enabled": true
+  },
+  "corpus_preconditions": {},
+  "cpu": {
+    "interval_count": 70,
+    "logical_cpus": 12,
+    "mean_device_capacity_percent": 20.617,
+    "mean_single_core_equivalent_percent": 247.407,
+    "observation_seconds": 91.949,
+    "p50_device_capacity_percent": 20.862,
+    "p50_single_core_equivalent_percent": 250.341,
+    "p95_device_capacity_percent": 26.52,
+    "p95_single_core_equivalent_percent": 318.244,
+    "peak_device_capacity_percent": 28.525,
+    "peak_single_core_equivalent_percent": 342.3,
+    "sample_count": 71,
+    "status": "MEASURED"
+  },
+  "cycles": [
+    {
+      "audioFeedStartedAtMs": "-1",
+      "audioStartToFirstNonEmptyResultMs": "2218",
+      "audioStartToSpeechBeginMs": "1597",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "customer-meeting-minutes-contract",
+      "effectiveMaxAudioDurationMs": "-1",
+      "elapsedMs": "90827",
+      "errors": "0",
+      "fedFrames": "4458",
+      "finalChars": "359",
+      "finals": "16",
+      "finishToCompleteMs": "1144",
+      "finishToDiarizationResultMs": "1118",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "finishToLastMs": "1118",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "2738",
+      "id": "000000",
+      "index": "0",
+      "lastFinalsBeforeFinish": "0",
+      "liveStreams": "0",
+      "missingSpeakerScores": "16",
+      "nonEmptyFinals": "16",
+      "nonEmptySpeakerScores": "0",
+      "partials": "89",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryStarts": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "requestedMaxAudioDurationMs": "7200000",
+      "requestedVadBeginMs": "-1",
+      "resultHex": {
+        "redacted": true,
+        "sha256": "3a2d1afa44d101200100d332f52384e523e7e881b7db0008da228cd94cebdfe1"
+      },
+      "speakerDiarizationDegraded": "0",
+      "speakerDiarizationInferenceMs": "53082",
+      "speakerDiarizationMessageHex": "",
+      "speakerDiarizationReason": "0",
+      "speakerDiarizationResults": "1",
+      "speakerDiarizationRtf": "0.5953566621803499",
+      "speakerDiarizationSpeakerCount": "2",
+      "speakerDiarizationUpdates": "15",
+      "speakerProvisionalIndexes": "0,1",
+      "speakerScores": "0",
+      "speakerTurnsHex": {
+        "redacted": true,
+        "sha256": "938de07e1488284e81c5f8cf08d547ce0ef8e3bcf701a91a4c8c99c114f3b96b"
+      },
+      "speakerWindowsHex": {
+        "redacted": true,
+        "sha256": "5544bb01650485bb67d9340605e2f48f03b53e5ab5ca27ff9b2419d13b353ced"
+      },
+      "speechBeginToFirstNonEmptyResultMs": "621",
+      "speechEndAtMs": "-1",
+      "speechEndLatencyMs": "-1",
+      "speechEndsBeforeFinish": "-1",
+      "startListeningMs": "-1",
+      "starts": "1",
+      "status": "PASS",
+      "tailSilenceMs": "-1",
+      "trace": "customer-meeting-minutes-0:start>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:event-1>customer-meeting-minutes-0:partial>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:event-3>customer-meeting-minutes-0:final>customer-meeting-minutes-0:diarization-update>customer-meeting-minutes-0:final-last>customer-meeting-minutes-0:diarization-result>customer-meeting-minutes-0:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    }
+  ],
+  "device": "device-9d33cec60055",
+  "empty_finals": {
+    "count": 0,
+    "max_rate": 0.05,
+    "rate": 0.0,
+    "status": "PASS"
+  },
+  "expected_tail": {
+    "cases": [
+      {
+        "decode_error": "",
+        "normalized_result_length": 321,
+        "required_suffix_sha256": "3d424d4f6f83b9d2afab60dd8b4c06c14febe2f6c3aebb9e946d7cefb1edcec2",
+        "source_sha256": "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a",
+        "status": "PASS"
+      }
+    ],
+    "expected_sha256": [
+      "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a"
+    ],
+    "manifest_sha256": "f0bed9cdbc8fbc5e25e1b3a0817cfaa31bfa7e05ddfd0ed35d9aeadb490fcf3a",
+    "observed_sha256": [
+      "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a"
+    ],
+    "status": "PASS"
+  },
+  "failures": [],
+  "inventory": {
+    "sample_rates": {
+      "16000": 1
+    },
+    "selected_duration_seconds": 89.16,
+    "selected_wavs": 1,
+    "target_speaker_enrollment_wavs": 1,
+    "total_valid_duration_seconds": 89.16,
+    "valid_wavs": 1
+  },
+  "memory": {
+    "head_rss_mb": 573.881,
+    "head_threads": 69.0,
+    "head_vm_data_mb": 3158.078,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2,
+    "observation_seconds": 96.304,
+    "peak_hwm_mb": 639.586,
+    "peak_rss_mb": 634.148,
+    "peak_swap_mb": 90.625,
+    "rss_growth_mb": 23.229,
+    "rss_slope_mb_per_minute": -70.809,
+    "rss_third_medians_mb": [
+      582.506,
+      604.668,
+      601.969
+    ],
+    "sample_count": 75,
+    "status": "PASS",
+    "tail_rss_mb": 597.109,
+    "tail_threads": 69.0,
+    "tail_vm_data_mb": 3205.828,
+    "thread_growth": 0.0,
+    "vm_data_growth_mb": 47.75,
+    "warmup_samples_excluded": 15
+  },
+  "mode": "customer-meeting-minutes",
+  "native_streams": {
+    "max_live_streams": 0,
+    "nonzero_cycles": 0,
+    "observed_cycles": 1,
+    "status": "PASS"
+  },
+  "overall_status": "PASS",
+  "run_id": "20260917-191248-customer-meeting-minutes-69cb808f",
+  "speech_end_latency": {
+    "status": "NOT_APPLICABLE"
+  },
+  "target_speaker_content": {
+    "cases": [],
+    "reason": "accuracy gate disabled or mode is lifecycle-only",
+    "status": "NOT_APPLICABLE"
+  },
+  "target_speaker_realtime": {
+    "chunk_count": 0,
+    "reason": "mode disabled",
+    "status": "NOT_APPLICABLE"
+  }
+}

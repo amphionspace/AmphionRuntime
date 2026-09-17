@@ -1,0 +1,27 @@
+{
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "changed": [
+    "Diagnostics AAR",
+    "Diagnostics Demo APK",
+    "complete ZIP identity"
+  ],
+  "unchanged": [
+    "Release AAR",
+    "Release Demo APK",
+    "independent Demo source tree"
+  ],
+  "independent_source_files_equal": 117,
+  "reuse": [
+    "355 unit tests",
+    "48 Release AAR SDK device checks",
+    "300 cycles / 600 sessions",
+    "independent source build"
+  ],
+  "rerun": [
+    "Diagnostics phone original audio",
+    "Diagnostics customer original audio"
+  ],
+  "remaining": [
+    "Release Demo UI original audio"
+  ]
+}

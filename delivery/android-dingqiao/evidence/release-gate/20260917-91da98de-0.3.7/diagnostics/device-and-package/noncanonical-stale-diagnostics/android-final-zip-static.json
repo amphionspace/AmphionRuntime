@@ -1,0 +1,9 @@
+{
+  "status": "PASS",
+  "artifact": "<LOCAL_PATH>",
+  "sha256": "0fcb2f64fdda9e2e9520486c3524ff888ba9f08ef23f30c3ddca339ea268886c",
+  "size_bytes": 1813870541,
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "checked_payloads": 128,
+  "device_acceptance": "PENDING"
+}

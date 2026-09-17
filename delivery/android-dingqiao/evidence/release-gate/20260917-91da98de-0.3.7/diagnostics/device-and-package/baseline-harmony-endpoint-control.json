@@ -1,0 +1,39 @@
+[
+  {
+    "utteranceId": "u1",
+    "sourceUtteranceId": "u1",
+    "rawText": {
+      "redacted": true,
+      "sha256": "33e3580c093111e1c4cac922872c40371f7896bb3fa4e23be5840bd1834fc622"
+    },
+    "text": {
+      "redacted": true,
+      "sha256": "33e3580c093111e1c4cac922872c40371f7896bb3fa4e23be5840bd1834fc622"
+    },
+    "beginTime": 8300,
+    "endTime": 15000,
+    "speakerId": "S2",
+    "secondarySpeakerIds": [],
+    "confidence": 0,
+    "overlap": false
+  },
+  {
+    "utteranceId": "u1.2",
+    "sourceUtteranceId": "u1",
+    "rawText": {
+      "redacted": true,
+      "sha256": "979e2bc35b14bf4c6dfe8e6b96afa366692a45a5df3c9ed7d6fba075122ef606"
+    },
+    "text": {
+      "redacted": true,
+      "sha256": "e534db8596ac8e4d9dbfb48632aecac6ab1b86cccf213a0f40830b4558deb888"
+    },
+    "beginTime": 15000,
+    "endTime": 15220,
+    "speakerId": "S1",
+    "secondarySpeakerIds": [],
+    "confidence": 0,
+    "overlap": false,
+    "speakerInferred": true
+  }
+]

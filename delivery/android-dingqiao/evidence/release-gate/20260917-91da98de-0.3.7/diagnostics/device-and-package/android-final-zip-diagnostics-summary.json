@@ -1,0 +1,43 @@
+{
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "asr_contract_status": "PASS",
+  "identity_accuracy": "UNCHANGED/BLOCKED",
+  "inputs": {
+    "phone": {
+      "window_count": 1,
+      "role_parts": 22,
+      "original_sentences": 15,
+      "callback_sha256": "b165750927b672169d26d9b15bd0e95b033eef32806909794355c070998b24be"
+    },
+    "customer": {
+      "window_count": 2,
+      "role_parts": 16,
+      "original_sentences": 16,
+      "callback_sha256": "4739f1e66d92c3a49c1b2dd7a8b0c414f8151e514037b0de7d3d98ab77263aa1"
+    }
+  },
+  "phone_acoustic_timeline_unchanged": true,
+  "negative_duration_fixed": true,
+  "principal_speaker_anchors": [
+    {
+      "beginTime": 3900,
+      "endTime": 5300,
+      "speakerIndex": 0
+    },
+    {
+      "beginTime": 17900,
+      "endTime": 21500,
+      "speakerIndex": 1
+    },
+    {
+      "beginTime": 27400,
+      "endTime": 29300,
+      "speakerIndex": 2
+    },
+    {
+      "beginTime": 39450,
+      "endTime": 40600,
+      "speakerIndex": 3
+    }
+  ]
+}
