@@ -136,8 +136,8 @@ bash asr/tools/07_sync_kotlin_from_upstream.sh   # 同步 Kotlin 桥接文件
 
 | 能力 / 平台 | 当前版本 | 权威来源 |
 | --- | --- | --- |
-| ASR Android | `0.3.4` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
-| ASR HarmonyOS | `0.3.13` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
+| ASR Android | `0.3.5` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
+| ASR HarmonyOS | `0.3.14` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
 | ASR iOS 预览版 | `0.3.4-alpha.1` | [asr/ios/AmphionRuntime.podspec](asr/ios/AmphionRuntime.podspec) `s.version` |
 | TTS Android | `3.0` | [tts/android/build.gradle.kts](tts/android/build.gradle.kts) `sdkVersion` |
 | TTS HarmonyOS | `3.0.0` | [tts/harmony/sdk/oh-package.json5](tts/harmony/sdk/oh-package.json5) `version` |
