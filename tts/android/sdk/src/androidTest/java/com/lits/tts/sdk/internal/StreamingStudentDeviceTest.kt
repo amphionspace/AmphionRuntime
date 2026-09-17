@@ -78,7 +78,7 @@ class StreamingStudentDeviceTest {
                         assertTrue("streaming start required", streaming)
                         assertTrue("streaming callbacks required", callbacksStreaming)
                         assertTrue("nonempty audio", pcm.size() > 0)
-                        assertTrue(profile, profile.contains("intmeanflow_absolute_kv"))
+                        assertTrue(profile, profile.contains(args.getString("expectedDecoder") ?: "intmeanflow_absolute_kv"))
                         if (text.length > 60) {
                             assertTrue("multiple real chunks required", times.length() > 1)
                             assertTrue("first packet must precede synthesis completion", firstMs >= 0 && firstMs < synthesisMs)
