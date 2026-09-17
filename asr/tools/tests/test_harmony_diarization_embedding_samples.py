@@ -9,6 +9,38 @@ SOURCE = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarization
 
 
 class HarmonyDiarizationEmbeddingSamplesTest(unittest.TestCase):
+    def test_owned_fragments_query_their_complete_speech_run_without_mixing_other_runs(self):
+        source = SOURCE.read_text()
+        source = source[source.index('const SAMPLE_RATE:'):]
+        driver = """
+        import assert from 'node:assert/strict';
+        const samples = Float32Array.from({length: 160000}, (_, i) => i / 160000);
+        const segments = [
+          {startSample:0,endSample:48000,speaker:0,speakerMask:1},
+          {startSample:64000,endSample:104000,speaker:0,speakerMask:1},
+          {startSample:112000,endSample:128000,speaker:0,speakerMask:3},
+          {startSample:132000,endSample:140000,speaker:1,speakerMask:2},
+        ];
+        async function processSpeakerTurnSegmentationAsync() { return segments; }
+        const inference = new SpeakerDiarizationInference();
+        const consumed=[];
+        inference.extractor={};
+        inference.computeEmbedding=async pcm=>{
+          consumed.push(pcm);return Float32Array.from([pcm[0],pcm.at(-1)]);
+        };
+        const result=await inference.process(samples,96000,144000);
+        assert.equal(result.segments[0].queryEmbedding,undefined,'historical-only run is not queried');
+        assert.deepEqual(result.segments[1].queryEmbedding,[samples[64000],samples[103999]],
+          'a 500ms owned fragment can use its enclosing 2.5s run, without earlier speaker PCM');
+        assert.equal(result.segments[2].queryEmbedding,undefined,'overlap cannot become single-person evidence');
+        assert.equal(result.segments[3].queryEmbedding,undefined,'insufficient actual speech remains unqueried');
+        assert.deepEqual(consumed.at(-1),samples.slice(64000,104000));
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'run-query-samples.mts'
+            harness.write_text(source + driver)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
     def test_retains_later_speech_and_excludes_overlap_and_other_speakers(self):
         source = SOURCE.read_text()
         source = source[source.index('const SAMPLE_RATE:'):]
@@ -41,7 +73,9 @@ class HarmonyDiarizationEmbeddingSamplesTest(unittest.TestCase):
         }
         // The endpoint's later clean speech must contribute to its speaker identity.
         assert.equal(consumed[0].at(-1), samples[143999]);
-        assert.deepEqual(result.segments.map(s => ({...s})), segments);
+        assert.deepEqual(result.segments.map(s => ({startSample:s.startSample,endSample:s.endSample,
+          speaker:s.speaker,speakerMask:s.speakerMask})), segments);
+        assert.ok(result.segments.every(s=>s.queryEmbedding===undefined));
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / 'embedding-samples.mts'

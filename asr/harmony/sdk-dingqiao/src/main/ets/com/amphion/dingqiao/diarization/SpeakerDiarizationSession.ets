@@ -31,6 +31,12 @@ import {
 } from './SpeakerDiarizationTranscriptState';
 
 const SAMPLE_RATE: number = 16000;
+interface SpeakerDiarizationTurnQuery {
+  evidenceKey: string;
+  contextEvidenceKey: string;
+  embedding: number[];
+  endTimeMs: number;
+}
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
   onWindowResult(result: SpeakerDiarizationResult): void;
@@ -58,6 +64,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly globalClusterer: SpeakerDiarizationGlobalClusterer;
   private readonly maxSpeakers: number;
   private recentEmbeddingObservations: SpeakerDiarizationEmbeddingObservation[] = [];
+  private recentTurnQueries: SpeakerDiarizationTurnQuery[] = [];
   private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
   private readonly committedRegistry: OnlineSpeakerRegistry;
   private readonly publishedSpeakerIds: Set<string> = new Set();
@@ -236,6 +243,14 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const globalEnd = Math.min(window.realEndSample, window.stableEndSample,
         window.windowStartSample + localEnd);
       if (globalEnd <= globalStart) continue;
+      const contextEvidenceKey = `${window.jobId}:${segment.speaker}`;
+      let evidenceKey = contextEvidenceKey;
+      if (segment.queryEmbedding !== undefined) {
+        evidenceKey = `${contextEvidenceKey}:t${i}`;
+        this.recentTurnQueries.push({ evidenceKey, contextEvidenceKey,
+          embedding: segment.queryEmbedding.slice(),
+          endTimeMs: Math.round(window.realEndSample * 1000 / SAMPLE_RATE) });
+      }
       const primary = channelIds.get(segment.speaker) ?? 'UNKNOWN';
       const secondary: string[] = [];
       const secondaryEvidenceKeys: string[] = [];
@@ -253,7 +268,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         secondarySpeakerIds: secondary,
         confidence: channelConfidences.get(segment.speaker) ?? 0,
         overlap: (segment.speakerMask & (segment.speakerMask - 1)) !== 0,
-        evidenceKey: `${window.jobId}:${segment.speaker}`,
+        evidenceKey,
         secondaryEvidenceKeys,
       });
     }
@@ -309,6 +324,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         queryEmbedding: item.queryEmbedding,
         anchorId: this.committedRegistry.matchKnown(item.embedding) }));
     const clustered = this.globalClusterer.cluster(observations);
+    const turnQueries = this.recentTurnQueries.filter(query =>
+      query.endTimeMs <= evidenceEndTime && query.endTimeMs > beginTime);
     const clusters = clustered.clusters.slice();
     if (this.committedRegistry.speakerIds().length === 0) {
       // Repeated short context must not outweigh a better-supported first identity.
@@ -338,12 +355,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           // owned output slice before making an additional role a query target.
           cluster.indexes.some(index => observations[index].queryEmbedding !== undefined);
         id = this.committedRegistry.assign(new Float32Array(cluster.centroid), cluster.durationMs,
-          endTime, canEnroll).speakerId;
+          endTime, canEnroll, cluster.indexes.flatMap(index =>
+            observations[index].queryEmbedding === undefined ? [] : [observations[index].queryEmbedding!])).speakerId;
       }
       for (const index of cluster.indexes) {
         const key = observations[index].evidenceKey;
         if (key !== undefined) remap[key] = id;
       }
+    }
+    for (const query of turnQueries) {
+      remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?? 'UNKNOWN';
     }
     const established = new Set<string>(this.publishedSpeakerIds);
     this.collectOutputSpeakerIds(beginTime, endTime, remap, established);
@@ -357,6 +378,18 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         queryConfidences[key] = match.confidence;
       }
     }
+    const eligibleKeys = new Set(observations.map(item => item.evidenceKey));
+    for (const query of turnQueries) {
+      remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?? 'UNKNOWN';
+      const contextConfidence = queryConfidences[query.contextEvidenceKey];
+      if (contextConfidence !== undefined) queryConfidences[query.evidenceKey] = contextConfidence;
+      if (!eligibleKeys.has(query.contextEvidenceKey)) continue;
+      const match = this.committedRegistry.matchQuery(query.embedding, established);
+      if (match !== undefined) {
+        remap[query.evidenceKey] = match.speakerId;
+        queryConfidences[query.evidenceKey] = match.confidence;
+      }
+    }
     this.transcript.applyEvidenceRemap(remap, 0, queryConfidences);
     this.finalSpeakerCount = this.committedRegistry.speakerIds().length;
     this.registry = this.committedRegistry.fork();
@@ -368,6 +401,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     // Keep only evidence needed by a crossing inference window / later uncommitted turns.
     const needed = new Set(this.transcript.allTurns().flatMap(turn =>
       [turn.evidenceKey ?? '', ...(turn.secondaryEvidenceKeys ?? [])]));
+    this.recentTurnQueries = this.recentTurnQueries.filter(query =>
+      query.endTimeMs > endTime || needed.has(query.evidenceKey));
+    for (const query of this.recentTurnQueries) needed.add(query.contextEvidenceKey);
     this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(item =>
       (item.endTimeMs ?? 0) > endTime || needed.has(item.evidenceKey ?? ''));
     return result;

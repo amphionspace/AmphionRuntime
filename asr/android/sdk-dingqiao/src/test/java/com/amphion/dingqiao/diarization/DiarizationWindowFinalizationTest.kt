@@ -14,6 +14,74 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun independentOutputQueriesPreserveTheSecondPersonAtFinalization() {
+        for (queryCount in listOf(2, 1)) mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-query-consensus").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+                })
+            try {
+                session.append(ByteArray(640000))
+                val context = floatArrayOf(.61f, kotlin.math.sqrt(1f - .61f * .61f))
+                val query = floatArrayOf(.45f, kotlin.math.sqrt(1f - .45f * .45f))
+                for (i in 0..3) {
+                    val begin = i * 80000L
+                    val embedding = if (i < 2) floatArrayOf(1f, 0f) else context
+                    val owned = if (i < 2) embedding else if (i - 2 < queryCount) query else null
+                    session.onWindow(DiarizationLocalWindowResult("w$i", begin, 0,
+                        begin + 80000, begin, begin + 80000, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(0, 80000, 0, 1)),
+                            listOf(DiarizationEmbedding(0, if (i < 2) 80000 else 64000,
+                                embedding, owned, .1)), 0)))
+                }
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true), AsrResult("", isLast = true))
+                session.onDrained()
+                assertEquals(if (queryCount == 2) 2 else 1, results.single().speakerCount)
+                assertEquals(if (queryCount == 2) listOf(0, 0, 1, 1) else listOf(0, 0, -1, -1),
+                    results.single().speakerTurns.map { it.speakerIndex })
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
+    @Test fun separateRunsOnOneChannelUseTheirOwnQueryAcrossACommitBoundary() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-run-query").toFile()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) = Unit
+                })
+            try {
+                session.append(ByteArray(320000))
+                val committed = session.javaClass.getDeclaredField("committedRegistry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                committed.assignBatch(listOf(floatArrayOf(1f, 0f), floatArrayOf(0f, 1f)), listOf(6000, 6000), 0)
+                session.javaClass.getDeclaredField("registry").apply { isAccessible = true }.set(session, committed.fork())
+                @Suppress("UNCHECKED_CAST")
+                val published = session.javaClass.getDeclaredField("publishedSpeakerIds")
+                    .apply { isAccessible = true }.get(session) as MutableSet<String>
+                published.addAll(listOf("S1", "S2"))
+                session.onWindow(DiarizationLocalWindowResult("mixed-channel", 0, 0, 160000, 0, 160000, true,
+                    DiarizationWindowInferenceResult(listOf(
+                        SpeakerSegmentationSegment(0, 32000, 0, 1, floatArrayOf(1f, 0f)),
+                        SpeakerSegmentationSegment(64000, 96000, 0, 1, floatArrayOf(0f, 1f))),
+                        listOf(DiarizationEmbedding(0, 64000, floatArrayOf(1f, 0f), floatArrayOf(1f, 0f), .1)), 0)))
+                val commit = session.javaClass.getDeclaredMethod("commitWindowLocked", Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                    .apply { isAccessible = true }
+                val first = commit.invoke(session, 3000, 10000, false, 0) as SpeakerDiarizationResult
+                val second = commit.invoke(session, 10000, Int.MAX_VALUE, true, 3000) as SpeakerDiarizationResult
+                assertEquals(listOf(0), first.speakerTurns.map { it.speakerIndex })
+                assertEquals(listOf(1), second.speakerTurns.map { it.speakerIndex })
+                assertEquals(2, committed.speakerIds().size)
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
     @Test fun contextOnlyCandidateLeavesCapacityForASupportedFourthSpeaker() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-fourth-speaker-test").toFile()

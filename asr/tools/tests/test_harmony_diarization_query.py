@@ -87,7 +87,10 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
           consumed.length=0;
           const short=await inference.process(samples,136000,144000);
           assert.equal(short.embeddings[0].queryEmbedding,undefined);
-          assert.equal(consumed.length,2,'sub-second queries must not borrow context or pad silence');
+          // Channel queries still require one second inside the owned slice.
+          // The separate run query may use this run's real contiguous context.
+          assert.deepEqual(short.segments[3].queryEmbedding,[48000,samples[96000]]);
+          assert.deepEqual(consumed.at(-1),samples.slice(96000,144000));
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / 'query.mts'

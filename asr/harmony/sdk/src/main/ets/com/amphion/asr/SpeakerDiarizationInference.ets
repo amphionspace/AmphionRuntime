@@ -20,6 +20,7 @@ export class SpeakerDiarizationSegment {
   endSample: number = 0;
   speaker: number = 0;
   speakerMask: number = 0;
+  queryEmbedding?: number[];
 }
 
 export class SpeakerDiarizationEmbedding {
@@ -90,6 +91,16 @@ export class SpeakerDiarizationInference {
         if (query !== undefined) value.queryEmbedding = Array.from(query);
       }
       result.embeddings.push(value);
+    }
+    for (const segment of result.segments) {
+      if (segment.speakerMask !== (1 << segment.speaker) ||
+        Math.max(segment.startSample, queryStartSample) >= Math.min(segment.endSample, queryEndSample)) continue;
+      // A local channel can join different people across a pause. Query the
+      // enclosing speech run, including its available context, independently.
+      const end = Math.min(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES);
+      if (end - segment.startSample < MIN_EMBEDDING_SAMPLES) continue;
+      const query = await this.computeEmbedding(samples.slice(segment.startSample, end));
+      if (query !== undefined) segment.queryEmbedding = Array.from(query);
     }
     result.inferenceMs = Date.now() - startedMs;
     return result;

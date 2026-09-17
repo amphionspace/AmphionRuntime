@@ -54,6 +54,7 @@ internal class SpeakerDiarizationSession(
     private var terminalPayload: SpeechRecognitionResult? = null
     private var decoratedTerminalPayload: SpeechRecognitionResult? = null
     private var recentObservations = mutableListOf<SpeakerEmbeddingObservation>()
+    private val recentTurnQueries = mutableListOf<SpeakerTurnQuery>()
     private val publishedSpeakerIds = mutableSetOf<String>()
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
@@ -69,6 +70,13 @@ internal class SpeakerDiarizationSession(
     private data class FinalDispatch(
         val updates: List<SpeakerDiarizationUpdate>,
         val result: SpeakerDiarizationResult,
+    )
+
+    private data class SpeakerTurnQuery(
+        val evidenceKey: String,
+        val contextEvidenceKey: String,
+        val embedding: FloatArray,
+        val endTimeMs: Int,
     )
 
     init { require(maxSpeakers in 1..4) }
@@ -210,7 +218,7 @@ internal class SpeakerDiarizationSession(
             )
             recentObservations += observation
         }
-        val turns = window.result.segments.mapNotNull { segment ->
+        val turns = window.result.segments.mapIndexedNotNull { segmentIndex, segment ->
             val localStart = max(0, segment.startSample - window.contentStartInWindowSample)
             val localEnd = max(localStart, segment.endSample - window.contentStartInWindowSample)
             val globalStart = max(window.commitStartSample, window.windowStartSample + localStart)
@@ -218,7 +226,14 @@ internal class SpeakerDiarizationSession(
                 min(window.realEndSample, window.stableEndSample),
                 window.windowStartSample + localEnd,
             )
-            if (globalEnd <= globalStart) return@mapNotNull null
+            if (globalEnd <= globalStart) return@mapIndexedNotNull null
+            val contextEvidenceKey = "${window.jobId}:${segment.speaker}"
+            val evidenceKey = if (segment.queryEmbedding == null) contextEvidenceKey else {
+                val key = "$contextEvidenceKey:t$segmentIndex"
+                recentTurnQueries += SpeakerTurnQuery(key, contextEvidenceKey,
+                    segment.queryEmbedding.copyOf(), (window.realEndSample * 1000 / SAMPLE_RATE).toInt())
+                key
+            }
             val primary = channelIds[segment.speaker] ?: "UNKNOWN"
             val secondary = mutableListOf<String>()
             val secondaryEvidence = mutableListOf<String>()
@@ -237,7 +252,7 @@ internal class SpeakerDiarizationSession(
                 secondarySpeakerIds = secondary,
                 confidence = channelConfidences[segment.speaker] ?: 0f,
                 overlap = segment.speakerMask and (segment.speakerMask - 1) != 0,
-                evidenceKey = "${window.jobId}:${segment.speaker}",
+                evidenceKey = evidenceKey,
                 secondaryEvidenceKeys = secondaryEvidence,
             )
         }
@@ -294,6 +309,7 @@ internal class SpeakerDiarizationSession(
             it.speechRms > 0 && it.speechRms >= speakerLevelReference * 0.5 }
             .map { it.copy(onlineSpeakerId = "UNKNOWN", anchorId = committedRegistry.matchKnown(it.embedding)) }
         val clustered = globalClusterer.cluster(observations)
+        val turnQueries = recentTurnQueries.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
         val clusters = clustered.clusters.toMutableList()
         if (committedRegistry.speakerIds().isEmpty()) {
             // Repeated short context cannot outweigh a better-supported first identity.
@@ -319,10 +335,12 @@ internal class SpeakerDiarizationSession(
                 val canEnroll = cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs } &&
                     cluster.indexes.any { observations[it].queryEmbedding != null }
                 committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs),
-                    endTime, listOf(canEnroll))[0].speakerId
+                    endTime, listOf(canEnroll),
+                    listOf(cluster.indexes.mapNotNull { observations[it].queryEmbedding }))[0].speakerId
             }
             cluster.indexes.forEach { remap[observations[it].evidenceKey] = id }
         }
+        turnQueries.forEach { remap[it.evidenceKey] = remap[it.contextEvidenceKey] ?: "UNKNOWN" }
         val established = publishedSpeakerIds.toMutableSet()
         collectOutputSpeakerIds(beginTime, endTime, remap, established)
         val queryConfidences = mutableMapOf<String, Float>()
@@ -334,6 +352,15 @@ internal class SpeakerDiarizationSession(
                 queryConfidences[observation.evidenceKey] = match.confidence
             }
         }
+        val eligibleKeys = observations.map { it.evidenceKey }.toSet()
+        for (query in turnQueries) {
+            remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?: "UNKNOWN"
+            queryConfidences[query.contextEvidenceKey]?.let { queryConfidences[query.evidenceKey] = it }
+            if (query.contextEvidenceKey !in eligibleKeys) continue
+            val match = committedRegistry.matchQuery(query.embedding, established) ?: continue
+            remap[query.evidenceKey] = match.speakerId
+            queryConfidences[query.evidenceKey] = match.confidence
+        }
         transcript.applyEvidenceRemap(remap, 0, queryConfidences)
         finalSpeakerCount = committedRegistry.speakerIds().size
         registry = committedRegistry.fork()
@@ -341,7 +368,9 @@ internal class SpeakerDiarizationSession(
         val result = buildResultLocked(degradedReason, degradedMessage, endTime, beginTime).copy(isSessionFinal = isSessionFinal)
         collectOutputSpeakerIds(beginTime, endTime, emptyMap(), publishedSpeakerIds)
         transcript.commitThrough(endTime)
-        val needed = transcript.allTurns().flatMap { listOfNotNull(it.evidenceKey) + it.secondaryEvidenceKeys }.toSet()
+        val needed = transcript.allTurns().flatMap { listOfNotNull(it.evidenceKey) + it.secondaryEvidenceKeys }.toMutableSet()
+        recentTurnQueries.removeAll { it.endTimeMs <= endTime && it.evidenceKey !in needed }
+        recentTurnQueries.forEach { needed += it.contextEvidenceKey }
         recentObservations.removeAll { it.endTimeMs <= endTime && it.evidenceKey !in needed }
         return result
     }

@@ -37,6 +37,55 @@ def run_session(body: str) -> None:
 
 
 class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
+    def test_independent_output_queries_can_confirm_an_ambiguous_context_cluster(self):
+        run_session("""
+          function run(queryCount, query) {
+            const s=session(); s.totalSamples=320000;
+            const context=[.61,Math.sqrt(1-.61**2)];
+            for(let i=0;i<4;i++) {
+              const embedding=i<2?[1,0]:context;
+              const begin=i*5000, end=begin+5000;
+              s.onWindow({jobId:`w${i}`,windowStartSample:begin*16,contentStartInWindowSample:0,
+                realEndSample:end*16,commitStartSample:begin*16,stableEndSample:end*16,
+                finalWindow:false,result:{inferenceMs:0,
+                  segments:[{startSample:0,endSample:80000,speaker:0,speakerMask:1}],
+                  embeddings:[{localSpeaker:0,speechRms:.1,speechSamples:i<2?80000:64000,
+                    embedding,queryEmbedding:i<2?[1,0]:(i-2<queryCount?query:undefined)}]}});
+            }
+            return s.commitWindow(20000,Infinity,true);
+          }
+          const distinct=[.45,Math.sqrt(1-.45**2)];
+          const result=run(2,distinct);
+          assert.equal(result.speakerCount,2,'a supported second voice must not disappear at finalization');
+          assert.deepEqual(result.speakerTurns.map(t=>t.speakerIndex),[0,0,1,1]);
+          assert.equal(run(1,distinct).speakerCount,1,'one short query cannot prove a new identity');
+          assert.equal(run(2,[1,0]).speakerCount,1,'queries matching an existing person cannot create a duplicate');
+        """)
+
+    def test_separate_runs_on_one_local_channel_keep_their_own_query_and_commit_boundary(self):
+        run_session("""
+          const s=session();s.totalSamples=160000;
+          s.committedRegistry.assignBatch([new Float32Array([1,0]),new Float32Array([0,1])],
+            [6000,6000],0);
+          s.publishedSpeakerIds.add('S1');s.publishedSpeakerIds.add('S2');
+          s.registry=s.committedRegistry.fork();
+          s.onWindow({jobId:'mixed-channel',windowStartSample:0,contentStartInWindowSample:0,
+            realEndSample:160000,commitStartSample:0,stableEndSample:160000,finalWindow:true,
+            result:{inferenceMs:0,segments:[
+              {startSample:0,endSample:32000,speaker:0,speakerMask:1,queryEmbedding:[1,0]},
+              {startSample:64000,endSample:96000,speaker:0,speakerMask:1,queryEmbedding:[0,1]}],
+              embeddings:[{localSpeaker:0,speechRms:.1,speechSamples:64000,
+                embedding:[1,0],queryEmbedding:[1,0]}]}});
+          const first=s.commitWindow(3000,10000,false,0);
+          const frozen=JSON.stringify(first);
+          const second=s.commitWindow(10000,Infinity,true,3000);
+          assert.deepEqual(first.speakerTurns.map(t=>t.speakerIndex),[0]);
+          assert.deepEqual(second.speakerTurns.map(t=>t.speakerIndex),[1],
+            'another run on the same local channel must not inherit historical identity');
+          assert.equal(JSON.stringify(first),frozen);
+          assert.equal(s.committedRegistry.speakerIds().length,2,'run queries never enroll identities');
+        """)
+
     def test_context_only_candidate_leaves_capacity_for_a_supported_fourth_speaker(self):
         run_session("""
           const s=session(); s.totalSamples=160000;
