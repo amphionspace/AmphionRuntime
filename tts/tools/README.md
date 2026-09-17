@@ -1,5 +1,7 @@
 # TTS tools 目录说明
 
+当前 Android SDK / Demo 打包以 [固定交付清单](../android/docs/delivery/README.md) 为准。下方 v2 及旧 shell 打包说明仅用于历史追溯。
+
 本目录只服务 TTS 产品线；license 签发 / 校验工具已统一迁移到仓库根目录 `tools/license/`，ASR 与 TTS 共用同一份 `amphion-license.lic` 和同一套签发逻辑。
 
 下面统一用 `仓库根目录` 指代 amphion-runtime 仓库根目录。

@@ -12,6 +12,15 @@
         android:layout_height="?attr/actionBarSize"
         android:background="@color/brand_cream" />
 
+    <TextView
+        android:id="@+id/text_memory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/memory_pending"
+        android:textColor="@color/brand_text_secondary"
+        android:textSize="11sp" />
     <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -118,7 +127,6 @@
                     android:hint="@string/hint_chunk_size"
                     android:inputType="number"
                     android:maxLines="1"
-                    android:text="50"
                     android:textAppearance="@style/TextAppearance.Lits.Body" />
 
                 <TextView

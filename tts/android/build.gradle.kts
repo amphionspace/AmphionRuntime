@@ -8,21 +8,23 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
 }
 
-val sdkVersion = "3.0"
-val modelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
-val sourceModelId = "dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop"
+val sdkVersion = "3.1"
+val modelId = providers.gradleProperty("LITS_TTS_MODEL_ID")
+    .orElse("dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop").get()
+val sourceModelId = modelId
 val modelVersion = "0.1.0"
 val deliveryDirName = "lits-dingqiao-tts-android-sdk-vocos24k-$sdkVersion"
-val deliveryAarName = "lits-dingqiao-tts-sdk-vocos24k-$sdkVersion.aar"
-val litsModelDir = rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
+val litsModelDir = providers.gradleProperty("LITS_TTS_MODEL_DIR").orNull
+    ?.let { file(it) } ?: rootDir.resolve("../tools/trial-export/$sourceModelId/$modelVersion")
 val candidateModelDir = rootDir.resolve("build/generated/tts-model-candidate/$sourceModelId/$modelVersion")
+val studentFrontendDir = rootDir.resolve("../frontend/rhyme_body_tone_173")
 val frontendBinaryBuilder = rootDir.resolve("../tools/android/build_frontend_binary_assets.py")
 val externalResourceDir = rootDir.resolve("external-resources/tts/$modelId/$modelVersion")
 val sourceDirName = "dingqiao_lits"
 val tnPackageDirName = "Dingqiao_Multilingual_Text_Normalization_for_TTS"
 val litsSourceRoot = rootDir.resolve("../training/$sourceDirName")
 val tnSourceRoot = litsSourceRoot.resolve(tnPackageDirName)
-val bundledAssetRoot = rootDir.resolve("sdk/src/main/assets/lits-models/tts")
+val bundledAssetRoot = rootDir.resolve("build/generated/tts-assets")
 
 fun ByteArray.replacingAscii(oldValue: String, newValue: String): ByteArray {
     require(oldValue.length == newValue.length)
@@ -150,14 +152,26 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
         "rules_v2/en.full.json",
         "rules_v2/zh_pinyin.json",
         "lits_hidden_encoder.onnx",
+        "lits_acoustic.onnx",
+        "lits_stream_decoder_cache_init.onnx",
+        "lits_stream_decoder_cache_step.onnx",
         "external_loop_export_report.json",
         "lits_stream_condition_chunk.onnx",
         "lits_stream_decoder_step.onnx",
         "vocos_vocoder.onnx",
     )
     inputs.dir(litsModelDir)
+    inputs.dir(studentFrontendDir)
     outputs.dir(externalResourceDir)
     doFirst {
+        val sourceManifest = JsonSlurper().parse(litsModelDir.resolve("manifest.json")) as Map<*, *>
+        if (sourceManifest["frontend_paradigm"] == "rhyme_body_tone_173") {
+            for (name in listOf("zh_en_symbols.json", "pinyin_to_tokens.json")) {
+                require(JsonSlurper().parse(litsModelDir.resolve(name)) == JsonSlurper().parse(studentFrontendDir.resolve(name))) {
+                    "Student model $name does not match the versioned 173-token frontend"
+                }
+            }
+        }
         externalResourceDir.resolve("lits_stream_condition_final.onnx").delete()
     }
     doLast {
@@ -195,50 +209,49 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
             val exportReport = JsonSlurper().parse(exportReportFile) as MutableMap<String, Any?>
             exportReport["frontend_binary_assets"] = listOf("chinese_lexicon.bin", "cmudict.bin")
             exportReport["frontend_text_assets"] = listOf("chinese_lexicon.txt", "cmudict.txt")
-            exportReport["android_decoder_models"] = listOf(
-                "lits_stream_condition_chunk.onnx",
-                "lits_stream_decoder_step.onnx",
-            )
+            exportReport["android_decoder_models"] = if (manifest["supports_streaming"] == false) {
+                listOf("lits_acoustic.onnx")
+            } else {
+                listOf("lits_stream_condition_chunk.onnx", "lits_stream_decoder_step.onnx")
+            }
             exportReportFile.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(exportReport)) + "\n")
         }
     }
 }
 
-val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources") {
+val stageBundledTtsResources = tasks.register<Exec>("stageBundledTtsResources") {
     group = "build"
-    description = "Remove bundled TTS model/frontend resources so the AAR stays SDK-only."
-    delete(bundledAssetRoot)
+    description = "Bundle the selected model and frontend in the SDK AAR."
+    val packager = rootDir.resolve("../tools/android/pack_sdk_only.py")
+    inputs.dir(litsModelDir)
+    inputs.file(packager)
+    outputs.dir(bundledAssetRoot)
+    commandLine("python3", packager.absolutePath, "--stage-assets",
+        "--model-dir", litsModelDir.absolutePath, "--output", bundledAssetRoot.absolutePath)
 }
 
 subprojects {
     tasks.withType<Test>().configureEach {
         systemProperty("lits.tts.testAssetRoot", litsModelDir.absolutePath)
+        systemProperty("lits.tts.studentFrontendRoot", studentFrontendDir.absolutePath)
     }
     tasks.matching { it.name == "preBuild" }.configureEach {
-        dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
+        dependsOn(stageBundledTtsResources)
     }
 }
 
-tasks.register<Sync>("stageSdkDelivery") {
+tasks.register<Exec>("stageSdkDelivery") {
     group = "distribution"
-    description = "Stage the SDK-only delivery package."
-    dependsOn(":sdk:assembleRelease", stageExternalTtsResources)
-
-    into(rootProject.layout.buildDirectory.dir("delivery/$deliveryDirName"))
-
-    from(rootDir.resolve("sdk/build/outputs/aar/sdk-release.aar")) {
-        rename { deliveryAarName }
-    }
-    from(rootDir.resolve("external-resources")) {
-        into("external-resources")
-    }
-    from(rootDir) {
-        include("README.md", "CHANGELOG.md", "LICENSE", "NOTICE", "CHECKSUMS.txt")
-    }
-    from(rootDir.resolve("docs")) {
-        into("docs")
-        include("API.md", "DELIVERY.md", "INTEGRATION.md", "PSEUDOCODE.md")
-    }
+    description = "Stage and zip the SDK-only customer package with current docs and checksums."
+    dependsOn(":sdk:assembleRelease")
+    commandLine(
+        "python3", rootDir.resolve("../tools/android/pack_sdk_only.py").absolutePath,
+        "--aar", rootDir.resolve("sdk/build/outputs/aar/sdk-release.aar").absolutePath,
+        "--model-dir", litsModelDir.absolutePath,
+        "--android-root", rootDir.absolutePath,
+        "--output", rootProject.layout.buildDirectory.dir("delivery/$deliveryDirName").get().asFile.absolutePath,
+        "--version", sdkVersion,
+    )
 }
 
 tasks.register("clean", Delete::class) {

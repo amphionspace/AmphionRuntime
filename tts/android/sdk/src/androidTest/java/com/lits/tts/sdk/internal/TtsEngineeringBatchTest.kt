@@ -1,6 +1,10 @@
 package com.lits.tts.sdk.internal
 
 import androidx.test.core.app.ApplicationProvider
+import androidx.test.platform.app.InstrumentationRegistry
+import com.lits.tts.sdk.TtsLicenseOptions
+import com.lits.tts.sdk.TtsLicenseStatus
+import com.lits.tts.sdk.TtsDeviceIdProvider
 import com.lits.tts.sdk.CompleteResponse
 import com.lits.tts.sdk.CompleteType
 import com.lits.tts.sdk.CreateEngineParams
@@ -35,13 +39,24 @@ class TtsEngineeringBatchTest {
     private val resultFile = File(outputDir, "tts-batch-results.jsonl")
     private val summaryFile = File(outputDir, "tts-batch-summary.json")
     private val runId = "tts-batch-${System.currentTimeMillis()}"
+    private val modelProfile = InstrumentationRegistry.getArguments().getString("modelProfile") ?: "legacy"
     private val results = mutableListOf<CaseResult>()
     private val engines = mutableListOf<TextToSpeechEngine>()
 
     @Test
     fun engineeringBatchCoversStabilityPerformanceAndEdgeCases() {
+        require(modelProfile in setOf("legacy", "intmeanflow-student")) { "Unknown modelProfile: $modelProfile" }
         resultFile.writeText("", Charsets.UTF_8)
-        TextToSpeechSdk.setWorkPath(File(context.cacheDir, "tts-batch-work").apply { mkdirs() }.absolutePath)
+        val arguments = InstrumentationRegistry.getArguments()
+        val workPath = requireNotNull(arguments.getString("workPath")) { "Pass -e workPath <model root>" }
+        val licensePath = requireNotNull(arguments.getString("licensePath")) { "Pass -e licensePath <license file>" }
+        val deviceIdPath = arguments.getString("deviceIdPath")
+        TextToSpeechSdk.init(context, TtsLicenseOptions(
+            license = File(licensePath).readText(), licenseAssetName = null,
+            deviceIdProvider = deviceIdPath?.let { path -> TtsDeviceIdProvider { File(path).readText().trim() } },
+        ))
+        assertEquals(TtsLicenseStatus.State.LICENSED, TextToSpeechSdk.licenseStatus().state)
+        TextToSpeechSdk.setWorkPath(workPath)
 
         verifyVoiceListing()
         runSuccessMatrix()
@@ -70,7 +85,16 @@ class TtsEngineeringBatchTest {
         val zhEngine = createEngine(language = "zh-en", voiceId = VOICE_ZH, name = "batch-zh")
         val enEngine = createEngine(language = "en-US", voiceId = VOICE_EN, name = "batch-en")
         val cases = buildSuccessCases(zhEngine, enEngine)
-        cases.forEach { runCase(it, expectError = null) }
+        cases.forEach { case ->
+            if (modelProfile == "intmeanflow-student" && case.chunkSize < 40) {
+                // Keep the original unsupported input as a negative contract check,
+                // then exercise the same text and remaining parameters at the minimum.
+                runCase(case.copy(id = "${case.id}-unsupported"), expectError = TtsErrorCode.RUNTIME_EXCEPTION)
+                runCase(case.copy(id = "${case.id}-student-min40", chunkSize = 40), expectError = null)
+            } else {
+                runCase(case, expectError = null)
+            }
+        }
         shutdownEngine(zhEngine)
         shutdownEngine(enEngine)
     }
@@ -545,6 +569,7 @@ class TtsEngineeringBatchTest {
             }
         return JSONObject()
             .put("runId", runId)
+            .put("modelProfile", modelProfile)
             .put("resultFile", resultFile.absolutePath)
             .put("summaryFile", summaryFile.absolutePath)
             .put("total", results.size)
@@ -837,7 +862,7 @@ class TtsEngineeringBatchTest {
 
     private companion object {
         const val MIN_CASE_COUNT = 200
-        const val VOICE_EN = "lits-female-01"
+        const val VOICE_EN = "lits-female-02"
         const val VOICE_ZH = "lits-female-02"
 
         val successProfiles = listOf(

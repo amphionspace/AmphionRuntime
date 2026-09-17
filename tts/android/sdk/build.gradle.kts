@@ -25,6 +25,8 @@ android {
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testApplicationId = providers.gradleProperty("LITS_TTS_TEST_APPLICATION_ID")
+            .orElse("com.lits.tts.sdk.test").get()
         consumerProguardFiles("consumer-rules.pro")
         buildConfigField("int", "SDK_MAJOR", sdkMajor)
         buildConfigField("String", "SDK_RELEASE_DATE", "\"$sdkReleaseDate\"")
@@ -67,6 +69,7 @@ android {
         }
     }
 
+    sourceSets["main"].assets.srcDir(rootProject.layout.buildDirectory.dir("generated/tts-assets"))
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
     sourceSets["androidTest"].assets.srcDir(generatedAndroidTestAssets)
 }
