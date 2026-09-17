@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
@@ -29,6 +31,7 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
+import com.amphion.dingqiao.DiarizedUtterance
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
@@ -96,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         val confidence: Float,
         val overlap: Boolean,
         val beginTime: Int,
+        val speakerParts: List<DiarizedUtterance> = emptyList(),
     )
     private val finalizedUtteranceIds = mutableSetOf<String>()
     private var lastDiarizationWindowIndex = -1
@@ -493,16 +497,17 @@ class MainActivity : AppCompatActivity() {
                         if (source !in finalizedUtteranceIds) meetingLines.remove(source)
                         finalizedUtteranceIds += source
                     }
-                    result.utterances.forEach { utterance ->
-                        finalizedUtteranceIds += utterance.utteranceId
-                        meetingLines[utterance.utteranceId] = MeetingLine(
-                            utterance.utteranceId,
-                            utterance.text,
-                            utterance.speakerIndex,
-                            utterance.secondarySpeakerIndexes,
-                            utterance.confidence,
-                            utterance.overlap,
-                            utterance.beginTime,
+                    result.utterances.groupBy { it.sourceUtteranceId }.forEach { (source, parts) ->
+                        finalizedUtteranceIds += parts.map { it.utteranceId }
+                        meetingLines[source] = MeetingLine(
+                            source,
+                            parts.joinToString("") { it.text },
+                            parts.map { it.speakerIndex }.distinct().singleOrNull() ?: -1,
+                            parts.flatMap { it.secondarySpeakerIndexes }.distinct(),
+                            parts.minOf { it.confidence },
+                            parts.any { it.overlap },
+                            parts.first().beginTime,
+                            parts,
                         )
                     }
                     renderMeetingLines()
@@ -1087,12 +1092,19 @@ class MainActivity : AppCompatActivity() {
         lines.forEach { line ->
             if (finalLines.isNotEmpty()) finalLines.append('\n')
             val labelStart = finalLines.length
-            val speaker = if (line.speakerIndex >= 0) {
-                getString(R.string.diarization_speaker, line.speakerIndex + 1)
-            } else {
-                getString(R.string.diarization_speaker_unknown)
+            val known = line.speakerParts.map { it.speakerIndex }.filter { it >= 0 }.distinct()
+            val speaker = when {
+                known.size > 1 -> getString(R.string.diarization_multiple_speakers)
+                known.size == 1 -> speakerLabel(known.single())
+                else -> speakerLabel(line.speakerIndex)
             }
             finalLines.append('[').append(speaker)
+            if (known.isNotEmpty() && line.speakerParts.any { it.speakerIndex < 0 }) {
+                finalLines.append(" · ").append(getString(R.string.diarization_partly_unknown))
+            }
+            if (line.speakerParts.any { it.speakerInferred }) {
+                finalLines.append(" · ").append(getString(R.string.diarization_inferred))
+            }
             if (line.overlap || line.secondarySpeakerIndexes.isNotEmpty()) {
                 finalLines.append(" · ").append(getString(R.string.diarization_overlap))
             }
@@ -1112,8 +1124,43 @@ class MainActivity : AppCompatActivity() {
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
             finalLines.append(line.text)
+            if (line.speakerParts.size > 1 || line.speakerParts.any {
+                    it.overlap || it.secondarySpeakerIndexes.isNotEmpty() || it.speakerInferred
+                }) {
+                finalLines.append('\n')
+                val detailsStart = finalLines.length
+                finalLines.append(getString(R.string.diarization_details))
+                finalLines.setSpan(object : ClickableSpan() {
+                    override fun onClick(widget: View) {
+                        showSpeakerParts(line.speakerParts)
+                    }
+                }, detailsStart, finalLines.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
         }
         tvFinal.text = finalLines
+        tvFinal.movementMethod = LinkMovementMethod.getInstance()
+    }
+
+    private fun speakerLabel(index: Int): String = if (index >= 0) {
+        getString(R.string.diarization_speaker, index + 1)
+    } else getString(R.string.diarization_speaker_unknown)
+
+    private fun showSpeakerParts(parts: List<DiarizedUtterance>) {
+        val details = parts.joinToString("\n\n") { part ->
+            buildString {
+                append(getString(R.string.diarization_part_time, part.beginTime / 1000.0, part.endTime / 1000.0))
+                append(" · ").append(speakerLabel(part.speakerIndex))
+                if (part.speakerInferred) append(" · ").append(getString(R.string.diarization_inferred))
+                if (part.overlap) append(" · ").append(getString(R.string.diarization_overlap))
+                if (part.secondarySpeakerIndexes.isNotEmpty()) {
+                    append(" · ").append(getString(R.string.diarization_secondary_speakers,
+                        part.secondarySpeakerIndexes.joinToString("、") { speakerLabel(it) }))
+                }
+                append('\n').append(part.text)
+            }
+        }
+        AlertDialog.Builder(this).setTitle(R.string.diarization_details)
+            .setMessage(details).setPositiveButton(android.R.string.ok, null).show()
     }
 
     private fun finishActiveDebugRecord(
