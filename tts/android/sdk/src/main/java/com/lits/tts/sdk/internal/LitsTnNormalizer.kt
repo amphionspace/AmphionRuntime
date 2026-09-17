@@ -83,7 +83,7 @@ internal object LitsTnNormalizer {
         fun normalize(text: String, language: String, languageContext: String): String {
             val totalStartedAt = System.nanoTime()
             val cleanStartedAt = System.nanoTime()
-            val cleaned = Normalizer.normalize(expandSuperscriptUnits(text), Normalizer.Form.NFKC)
+            val cleaned = Normalizer.normalize(expandSuperscriptUnits(TtsLineBreaks.normalize(text)), Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()

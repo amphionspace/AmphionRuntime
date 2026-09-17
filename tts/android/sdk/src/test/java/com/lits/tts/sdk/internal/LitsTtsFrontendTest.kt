@@ -724,6 +724,42 @@ class LitsTtsFrontendTest {
         assertTrue("expected 已为你 with 为 as fourth tone, actual=$actual", actual.contains("ㄧ ˇ ㄨㄟ ˋ ㄋ ㄧ ˇ ㄕ ㄜ ˋ"))
     }
 
+    @Test fun lineBreakWithoutPunctuationBecomesSentenceEnd() {
+        for (separator in listOf("\n", "\r\n", "\r", "\u2028", "\u2029", "\n  \n")) {
+            assertArrayEquals(arrayOf("今天天气很好.", "我们出去走走"),
+                LitsTtsFrontend.splitRawForStreaming("今天天气很好${separator}我们出去走走").toTypedArray())
+        }
+        assertArrayEquals(arrayOf("Hello world.", "Welcome home"),
+            LitsTtsFrontend.splitRawForStreaming("Hello world\nWelcome home").toTypedArray())
+    }
+
+    @Test fun lineBreakNormalizationPreservesExistingPunctuationAndSpaces() {
+        for (punctuation in listOf("。", ".", "！", "!", "？", "?", "，", ",", "：", ":", "；", ";", "…")) {
+            assertArrayEquals(
+                LitsTtsFrontend.splitRawForStreaming("你好$punctuation 欢迎回来").toTypedArray(),
+                LitsTtsFrontend.splitRawForStreaming("你好$punctuation\n\n欢迎回来").toTypedArray())
+        }
+        assertArrayEquals(arrayOf("你好 世界"), LitsTtsFrontend.splitRawForStreaming("你好 世界").toTypedArray())
+        assertTrue(LitsTtsFrontend.splitRawForStreaming("\n \r\n").isEmpty())
+        assertArrayEquals(arrayOf("你好"), LitsTtsFrontend.splitRawForStreaming("\n你好").toTypedArray())
+    }
+
+    @Test fun lineBreakWithClosingQuoteAndTrailingNewlineDoesNotDuplicatePeriod() {
+        assertEquals("他说：“你好.” 下一句", TtsLineBreaks.normalize("他说：“你好”\n下一句"))
+        assertEquals("他说：“你好。” 下一句", TtsLineBreaks.normalize("他说：“你好。”\n下一句"))
+        assertEquals("你好. ", TtsLineBreaks.normalize("你好\n"))
+        val once = TtsLineBreaks.normalize("你好\n世界\n")
+        assertEquals(once, TtsLineBreaks.normalize(once))
+    }
+
+    @Test fun lineBreakTokensMatchExplicitPeriodInBothLanguages() {
+        val layout = realAssetLayout()
+        for ((language, text) in listOf("zh-en" to "今天阳光很好\n我们出去走走", "en-US" to "Hello world\nWelcome home")) {
+            assertArrayEquals(LitsTtsFrontend.encode(layout, text.replace("\n", ". "), language, language),
+                LitsTtsFrontend.encode(layout, text, language, language))
+        }
+    }
+
     @Test
     fun splitRawForStreamingUsesStrongChinesePunctuation() {
         val segments = LitsTtsFrontend.splitRawForStreaming("你好。欢迎使用语音合成系统！请稍等。")
