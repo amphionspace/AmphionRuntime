@@ -578,15 +578,18 @@ struct Index {
     const known = new Set<number>();
     let unknown = false;
     let overlap = false;
+    let inferred = false;
     for (const part of segment.speakerParts) {
       if (part.speakerIndex >= 0) known.add(part.speakerIndex);
       else unknown = true;
       overlap = overlap || part.overlap;
+      inferred = inferred || part.speakerInferred;
     }
     let label = this.speakerLabel(segment.displaySpeakerIndex);
     if (known.size > 1) label = '多位说话人';
     else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
     if (unknown && known.size > 0) label += ' · 部分待确认';
+    if (inferred) label += ' · 含推断补全';
     if (overlap) label += ' · 含重叠发言';
     return label;
   }
@@ -1497,7 +1500,7 @@ struct Index {
           }
           .width('100%')
           .fontSize(16)
-          if (item.speakerParts.length > 1 || item.speakerParts.some(part => part.overlap)) {
+          if (item.speakerParts.length > 1 || item.speakerParts.some(part => part.overlap || part.speakerInferred)) {
             Button(item.showSpeakerParts ? '收起角色详情' : '查看角色详情')
               .fontSize(12)
               .onClick(() => {
@@ -1508,6 +1511,7 @@ struct Index {
               ForEach(item.speakerParts, (part: DiarizedUtterance) => {
                 Text(`${(part.beginTime / 1000).toFixed(2)}–${(part.endTime / 1000).toFixed(2)} 秒 · ` +
                   `${this.speakerLabel(part.speakerIndex)}` +
+                  `${part.speakerInferred ? ' · 含推断补全' : ''}` +
                   `${part.overlap ? ' · 含重叠发言' : ''}` +
                   `${part.secondarySpeakerIndexes.length > 0 ? ' · 重叠角色：' +
                     part.secondarySpeakerIndexes.map((id: number): string => this.speakerLabel(id)).join('、') : ''}` +

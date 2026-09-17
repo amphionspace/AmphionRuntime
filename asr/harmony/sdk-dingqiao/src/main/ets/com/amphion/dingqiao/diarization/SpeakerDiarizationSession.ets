@@ -438,6 +438,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       value.secondarySpeakerIds, this.maxSpeakers, true);
     result.confidence = value.confidence ?? 0;
     result.overlap = value.overlap;
+    result.speakerInferred = value.speakerInferred ?? false;
     return result;
   }
 

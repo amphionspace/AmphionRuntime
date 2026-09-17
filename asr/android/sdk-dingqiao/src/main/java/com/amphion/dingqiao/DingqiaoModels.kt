@@ -76,6 +76,8 @@ data class DiarizedUtterance(
     val confidence: Float = 0f,
     val overlap: Boolean = false,
     val sourceUtteranceId: String = utteranceId,
+    /** Includes bounded UNKNOWN backfill; confidence is 0 and speakerTurns remains unchanged. */
+    val speakerInferred: Boolean = false,
 )
 
 data class SpeakerTurn(

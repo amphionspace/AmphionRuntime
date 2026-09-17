@@ -33,6 +33,7 @@ export interface DiarizedTranscriptUtterance extends SpeakerTimelineTurn {
   rawText: string;
   text: string;
   overlap: boolean;
+  speakerInferred?: boolean;
 }
 
 interface StoredUtterance extends DiarizationTranscriptInput {
@@ -43,6 +44,9 @@ interface StoredUtterance extends DiarizationTranscriptInput {
 }
 
 const UNKNOWN_SPEAKER = 'UNKNOWN';
+// One current inference hop. See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
+// measured bounded/unbounded comparison; this is not an identity threshold.
+const MAX_UNKNOWN_BACKFILL_MS = 2_500;
 
 function overlapMs(beginA: number, endA: number, beginB: number, endB: number): number {
   return Math.max(0, Math.min(endA, endB) - Math.max(beginA, beginB));
@@ -436,7 +440,45 @@ export class SpeakerDiarizationTranscriptState {
       groupStart = index;
       active = next;
     }
-    return result;
+    return this.backfillUnknown(result);
+  }
+
+  private backfillUnknown(parts: DiarizedTranscriptUtterance[]): DiarizedTranscriptUtterance[] {
+    const resolved = parts.map((part, index): DiarizedTranscriptUtterance => {
+      const duration = part.endTime - part.beginTime;
+      if (part.speakerId !== UNKNOWN_SPEAKER || duration <= 0 || duration > MAX_UNKNOWN_BACKFILL_MS ||
+        part.overlap || part.secondarySpeakerIds.length > 0) return part;
+      const previous = index > 0 ? parts[index - 1] : undefined;
+      const next = index + 1 < parts.length ? parts[index + 1] : undefined;
+      if (previous !== undefined && next !== undefined && previous.speakerId !== next.speakerId) return part;
+      if ([previous, next].some(neighbour => neighbour !== undefined &&
+        (neighbour.overlap || neighbour.secondarySpeakerIds.length > 0))) return part;
+      const speakerId = previous?.speakerId ?? next?.speakerId;
+      if (speakerId === undefined || speakerId === UNKNOWN_SPEAKER) return part;
+      // Preserve real short turns even when no token timestamp landed in them.
+      if (this.turns.some(turn => turn.speakerId !== UNKNOWN_SPEAKER && turn.speakerId !== speakerId &&
+        overlapMs(part.beginTime, part.endTime, turn.beginTime, turn.endTime) > 0)) return part;
+      return { ...part, speakerId, confidence: 0, speakerInferred: true };
+    });
+    const merged: DiarizedTranscriptUtterance[] = [];
+    for (const part of resolved) {
+      const previous = merged[merged.length - 1];
+      if (previous !== undefined && previous.speakerId === part.speakerId) {
+        previous.rawText += part.rawText;
+        previous.text += part.text;
+        previous.endTime = part.endTime;
+        previous.confidence = Math.min(previous.confidence ?? 0, part.confidence ?? 0);
+        previous.speakerInferred = previous.speakerInferred || part.speakerInferred;
+        previous.overlap = previous.overlap || part.overlap;
+        previous.secondarySpeakerIds = Array.from(new Set([...previous.secondarySpeakerIds,
+          ...part.secondarySpeakerIds]));
+      } else {
+        merged.push({ ...part, secondarySpeakerIds: part.secondarySpeakerIds.slice(),
+          utteranceId: merged.length === 0 ? part.sourceUtteranceId :
+            `${part.sourceUtteranceId}.${merged.length + 1}` });
+      }
+    }
+    return merged;
   }
 
   private unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn | undefined {

@@ -371,6 +371,7 @@ internal class SpeakerDiarizationSession(
                 it.confidence,
                 it.overlap,
                 it.sourceUtteranceId,
+                it.speakerInferred,
             )
         }
         val turns = transcript.allTurns().filter { it.endTime > beginTime && it.beginTime < endTime }.map {

@@ -68,6 +68,8 @@ export class DiarizedUtterance {
   secondarySpeakerIndexes: number[] = [];
   confidence: number = 0;
   overlap: boolean = false;
+  /** Includes bounded UNKNOWN backfill; confidence is 0 and speakerTurns remains unchanged. */
+  speakerInferred: boolean = false;
 }
 
 export class SpeakerTurn {

@@ -37,6 +37,7 @@ internal data class DiarizedTranscriptUtterance(
     val confidence: Float,
     val overlap: Boolean,
     val sourceUtteranceId: String = utteranceId,
+    val speakerInferred: Boolean = false,
 )
 
 private data class StoredUtterance(
@@ -307,7 +308,47 @@ internal class DiarizationTranscriptState {
             groupStart = index
             active = next
         }
-        return result
+        return backfillUnknown(result)
+    }
+
+    private fun backfillUnknown(parts: List<DiarizedTranscriptUtterance>): List<DiarizedTranscriptUtterance> {
+        // One current inference hop; operating points are recorded in
+        // delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
+        val resolved = parts.mapIndexed { index, part ->
+            val duration = part.endTime - part.beginTime
+            if (part.speakerId != "UNKNOWN" || duration !in 1..2_500 ||
+                part.overlap || part.secondarySpeakerIds.isNotEmpty()) return@mapIndexed part
+            val previous = parts.getOrNull(index - 1)
+            val next = parts.getOrNull(index + 1)
+            if (previous != null && next != null && previous.speakerId != next.speakerId) return@mapIndexed part
+            if (listOfNotNull(previous, next).any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }) {
+                return@mapIndexed part
+            }
+            val speakerId = previous?.speakerId ?: next?.speakerId ?: return@mapIndexed part
+            if (speakerId == "UNKNOWN") return@mapIndexed part
+            if (turns.any { it.speakerId != "UNKNOWN" && it.speakerId != speakerId &&
+                overlapMs(part.beginTime, part.endTime, it.beginTime, it.endTime) > 0 }) return@mapIndexed part
+            part.copy(speakerId = speakerId, confidence = 0f, speakerInferred = true)
+        }
+        val merged = mutableListOf<DiarizedTranscriptUtterance>()
+        for (part in resolved) {
+            val previous = merged.lastOrNull()
+            if (previous != null && previous.speakerId == part.speakerId) {
+                merged[merged.lastIndex] = previous.copy(
+                    rawText = previous.rawText + part.rawText,
+                    text = previous.text + part.text,
+                    endTime = part.endTime,
+                    confidence = min(previous.confidence, part.confidence),
+                    speakerInferred = previous.speakerInferred || part.speakerInferred,
+                    overlap = previous.overlap || part.overlap,
+                    secondarySpeakerIds = (previous.secondarySpeakerIds + part.secondarySpeakerIds).distinct(),
+                )
+            } else {
+                merged += part.copy(utteranceId = if (merged.isEmpty()) part.sourceUtteranceId
+                    else "${part.sourceUtteranceId}.${merged.size + 1}")
+            }
+        }
+        return merged
     }
 
     private fun unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn? {

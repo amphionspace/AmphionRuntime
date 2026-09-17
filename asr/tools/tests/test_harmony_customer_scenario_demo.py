@@ -214,6 +214,10 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             multi.speakerParts = [parts[0],parts[2]];
             assert.equal(mixed.segmentSpeakerLabel(multi),'多位说话人',
               'do not relabel a multi-speaker paragraph using its majority speaker');
+            const inferred = new FinalSegment('张三',undefined,'inferred',0,1000,true,true);
+            inferred.speakerParts = [{{...parts[0],text:'张三',confidence:0,speakerInferred:true}}];
+            assert.equal(mixed.segmentSpeakerLabel(inferred),'说话人 1 · 含推断补全',
+              'bounded UNKNOWN backfill must be visible as an inference');
             mixed.handleSpeakerDiarizationUpdate('live',{{utteranceId:'u1',revision:99,speakerIndex:2}});
             assert.equal(mixed.finalSegments[0].speakerIndex,-1);
             mixed.handleSpeakerDiarizationResult('live', {{

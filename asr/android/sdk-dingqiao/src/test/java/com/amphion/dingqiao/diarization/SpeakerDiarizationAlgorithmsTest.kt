@@ -15,6 +15,56 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun boundedUnknownBackfillPreservesAcousticEvidenceAndRealTurns() {
+        fun turn(start: Int, end: Int, id: String) = SpeakerTimelineTurn(start, end, id, emptyList(), 0.9f)
+        fun state(text: String, times: List<Int>, end: Int, turns: List<SpeakerTimelineTurn>): DiarizationTranscriptState {
+            val state = DiarizationTranscriptState()
+            state.addUtterance(text, "$text。", text.map { it.toString() }, times, 0, end)
+            state.applySpeakerTurns(turns)
+            return state
+        }
+        val sample = state("张三", listOf(100, 500), 900,
+            listOf(turn(0, 500, "S1"), turn(500, 900, "UNKNOWN")))
+        val before = sample.allTurns()
+        val fixed = sample.finalUtterances().single()
+        assertEquals("张三。", fixed.text)
+        assertEquals("S1", fixed.speakerId)
+        assertTrue(fixed.speakerInferred)
+        assertEquals(0f, fixed.confidence)
+        assertEquals(before, sample.allTurns())
+        assertEquals(listOf(fixed), sample.commitThrough(900))
+        assertTrue(sample.finalUtterances().isEmpty())
+        for (turns in listOf(
+            listOf(turn(0, 500, "UNKNOWN"), turn(500, 900, "S1")),
+            listOf(turn(0, 200, "S1"), turn(200, 500, "UNKNOWN"), turn(500, 900, "S1")),
+        )) {
+            val result = state("你好啊", listOf(100, 300, 600), 900, turns).finalUtterances().single()
+            assertEquals("S1", result.speakerId)
+            assertTrue(result.speakerInferred)
+        }
+        for (duration in listOf(2500, 2501)) {
+            val result = state("甲乙", listOf(100, 500), 500 + duration,
+                listOf(turn(0, 500, "S1"), turn(500, 500 + duration, "UNKNOWN"))).finalUtterances()
+            assertEquals(if (duration == 2500) listOf("S1") else listOf("S1", "UNKNOWN"), result.map { it.speakerId })
+        }
+        assertEquals(listOf("S1", "UNKNOWN", "S2"), state("甲嗯乙", listOf(100, 500, 900), 1200,
+            listOf(turn(0, 500, "S1"), turn(500, 900, "UNKNOWN"), turn(900, 1200, "S2")))
+            .finalUtterances().map { it.speakerId })
+        for (uncertain in listOf(turn(500, 900, "UNKNOWN").copy(overlap = true),
+            SpeakerTimelineTurn(500, 900, "UNKNOWN", listOf("S2"), 0.9f))) {
+            assertEquals(listOf("S1", "UNKNOWN"), state("甲乙", listOf(100, 500), 900,
+                listOf(turn(0, 500, "S1"), uncertain)).finalUtterances().map { it.speakerId })
+        }
+        assertEquals(listOf("S1", "UNKNOWN"), state("甲乙", listOf(100, 500), 900,
+            listOf(turn(0, 500, "S1"), turn(500, 600, "UNKNOWN"), turn(600, 650, "S2"),
+                turn(650, 900, "UNKNOWN"))).finalUtterances().map { it.speakerId })
+        val alone = state("甲", listOf(100), 900, listOf(turn(0, 900, "UNKNOWN")))
+        alone.addUtterance("乙", "乙", listOf("乙"), listOf(1000), 900, 1200)
+        alone.applySpeakerTurns(listOf(turn(900, 1200, "S1")))
+        assertEquals(listOf("UNKNOWN", "S1"), alone.finalUtterances().map { it.speakerId })
+    }
+
+    @Test
     fun secondaryChangesDoNotFragmentPrimarySpeechOrEraseOverlap() {
         val state = DiarizationTranscriptState()
         state.addUtterance("你叫什么名字", "你叫什么名字。", listOf("你", "叫", "什", "么", "名", "字"),
@@ -49,7 +99,7 @@ class SpeakerDiarizationAlgorithmsTest {
     }
 
     @Test
-    fun unanimousSpeakerCoversGapsWithoutOverridingExplicitUncertainty() {
+    fun unanimousSpeakerAndBoundedBackfillKeepConflictingOrOverlappingTurns() {
         fun split(turns: List<SpeakerTimelineTurn>): List<String> {
             val state = DiarizationTranscriptState()
             state.addUtterance("甲乙丙", "甲乙丙。", listOf("甲", "乙", "丙"),
@@ -60,7 +110,7 @@ class SpeakerDiarizationAlgorithmsTest {
         val first = SpeakerTimelineTurn(0, 500, "S1", emptyList())
         val second = SpeakerTimelineTurn(700, 1000, "S1", emptyList())
         assertEquals(listOf("S1"), split(listOf(first, second)))
-        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first,
+        assertEquals(listOf("S1"), split(listOf(first,
             SpeakerTimelineTurn(500, 1200, "UNKNOWN", emptyList()))))
         assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first, second.copy(speakerId = "S2"))))
         assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first.copy(overlap = true,
