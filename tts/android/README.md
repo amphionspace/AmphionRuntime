@@ -1,6 +1,6 @@
 # Lits TTS Android SDK
 
-当前入口用于构建 Dingqiao v3 离线 TTS AAR。SDK 与模型分开交付：AAR 包含代码和 native 库，模型与前端资源位于构建生成的 `external-resources/`。以 [源码编译说明](docs/BUILD_FROM_SOURCE.md) 为准，不要沿用旧 16 kHz HiFi-GAN 包的目录和文件清单。
+当前入口用于构建 Dingqiao v3 离线 TTS AAR。AAR 包含代码、native 库、模型和前端资源；依赖该 AAR 的 APK 自动携带资源。以 [源码编译说明](docs/BUILD_FROM_SOURCE.md) 为准，不要沿用旧 16 kHz HiFi-GAN 包的目录和文件清单。
 
 以下命令从 AmphionRuntime 仓库根目录执行；Windows 请把 `./gradlew` 替换为 `gradlew.bat`。
 
@@ -33,7 +33,7 @@ AmphionRuntime/tts/android/
 
 ## 源码构建快速开始
 
-1. 克隆本仓库（已包含 TN 源码），并按仓库[资产同步说明](../../tools/assets/README.md)恢复构建依赖；本次 IMF 模型使用 3.1 交付包的 `external-resources/tts/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/`。
+1. 克隆本仓库（已包含 TN 源码），并按仓库[资产同步说明](../../tools/assets/README.md)恢复构建依赖；本次 IMF 模型从已确认的导出目录通过 `LITS_TTS_MODEL_DIR` 指定；客户无需另行取得模型。
 2. 放到下面这个固定目录：
 
 ```text
@@ -60,7 +60,7 @@ cd tts/android
 sdk/build/outputs/aar/sdk-release.aar
 ```
 
-注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；OBS 模型包已包含校验过的前端 `.bin`，Gradle 会在 `preBuild` 阶段以只读方式同步资源。`tts/android/external-resources/` 是构建输出，不是第二份源资产，不得提交到 Git。只有显式执行 `syncLitsTnAssets` 时才会在 `build/generated/` 生成候选词典，不会改写源包。
+注意：模型文件只需要放到 `tts/tools/trial-export/...`，不要手动放到 `sdk/src/main/assets/...`；OBS 模型包已包含校验过的前端 `.bin`，Gradle 会在 `preBuild` 阶段以只读方式生成 `build/generated/tts-assets/` 并打入 AAR。`tts/android/external-resources/` 是构建输出，不是第二份源资产，不得提交到 Git。只有显式执行 `syncLitsTnAssets` 时才会在 `build/generated/` 生成候选词典，不会改写源包。
 
 完整步骤、输入文件清单、自检方式与常见报错见 [docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)。
 
@@ -78,10 +78,10 @@ sdk/build/outputs/aar/sdk-release.aar
 完整清单还包括前端词典与 `rules_v2`，见源码编译说明。Gradle 在 `preBuild` 阶段同步到：
 
 ```text
-tts/android/external-resources/tts/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/
+tts/android/build/generated/tts-assets/lits-models/tts/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/
 ```
 
-该目录是可重建输出。运行时把 `external-resources/tts/` 放在调用方 `workPath` 下的 `tts/` 目录，先激活有效 TTS license，再创建引擎；不要将 `workPath` 指向具体模型版本目录。
+该目录是可重建输出，由 AAR 携带。先激活有效 TTS license，再创建引擎，SDK 自动解包到 `workPath/tts/`；不要将 `workPath` 指向具体模型版本目录。已部署的外置模型仍优先使用。
 
 ## 运行时说明
 

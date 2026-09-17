@@ -69,6 +69,7 @@ android {
         }
     }
 
+    sourceSets["main"].assets.srcDir(rootProject.layout.buildDirectory.dir("generated/tts-assets"))
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
     sourceSets["androidTest"].assets.srcDir(generatedAndroidTestAssets)
 }

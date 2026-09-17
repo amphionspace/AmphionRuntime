@@ -7,48 +7,77 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal object LitsTtsAssetInstaller {
+    @Synchronized
     fun ensureInstalled(context: Context, workPath: String?): InstalledLayout {
         val installRoot = installRoot(context, workPath)
         discoverExternalLayout(installRoot)?.let { return it }
-        val rootDir = installRoot
-            .resolve(LitsTtsAssetRegistry.MODEL_ID)
-            .resolve(LitsTtsAssetRegistry.MODEL_VERSION)
-        val versionFile = rootDir.resolve(".version")
-        val signatureFile = rootDir.resolve(".asset_signature")
-        val manifestFile = rootDir.resolve(LitsTtsAssetRegistry.MANIFEST)
-        val assetSignature = runCatching { readAssetSignature(context) }.getOrElse { error ->
-            throw illegalState(
-                TtsErrorCode.CREATE_ENGINE_FAILED,
-                "TTS external resources not found under ${installRoot.absolutePath}",
-                error,
-            )
+        val assetRoot = "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.MODEL_ROOT}"
+        val candidates = context.assets.list(assetRoot).orEmpty().flatMap { model ->
+            context.assets.list("$assetRoot/$model").orEmpty().map { version -> "$assetRoot/$model/$version" }
+        }.filter { path -> context.assets.list(path).orEmpty().contains(LitsTtsAssetRegistry.MANIFEST) }
+        if (candidates.size != 1) {
+            throw illegalState(TtsErrorCode.CREATE_ENGINE_FAILED,
+                "Expected one bundled TTS model, found ${candidates.size}; no external resources under $installRoot")
         }
-        val needsInstall = versionFile.readTextSafely() != LitsTtsAssetRegistry.MODEL_VERSION ||
-            signatureFile.readTextSafely() != assetSignature ||
-            !manifestFile.isFile ||
-            LitsTtsAssetRegistry.files.any { !rootDir.resolve(it).isFile }
-
-        if (needsInstall) {
-            rootDir.deleteRecursively()
-            rootDir.mkdirsOrThrow()
-            for (name in LitsTtsAssetRegistry.files) {
-                copyAssetFile(context, rootDir, name)
+        val assetPath = candidates.single()
+        val manifestText = context.assets.open("$assetPath/manifest.json").bufferedReader().use { it.readText() }
+        val json = JSONObject(manifestText)
+        val modelId = json.getString("model_id")
+        val version = json.getString("version")
+        requireSafeAssetPath(modelId, singleSegment = true)
+        requireSafeAssetPath(version, singleSegment = true)
+        check(assetPath == "$assetRoot/$modelId/$version") { "Bundled TTS identity mismatch" }
+        val entries = json.getJSONArray("files")
+        val files = (0 until entries.length()).map { entries.getJSONObject(it) }
+        files.forEach { requireSafeAssetPath(it.getString("name")) }
+        val rootDir = installRoot.resolve(modelId).resolve(version)
+        val signature = manifestText.trim()
+        val needsInstall = rootDir.resolve(".asset_signature").readTextSafely() != signature ||
+            !rootDir.resolve("manifest.json").isFile ||
+            files.any { entry ->
+                val file = rootDir.resolve(entry.getString("name"))
+                !file.isFile || file.length() != entry.getLong("size_bytes")
             }
-            versionFile.writeText(LitsTtsAssetRegistry.MODEL_VERSION)
-            signatureFile.writeText(assetSignature)
+        if (needsInstall) {
+            // Stage fully before replacing the previous installed bundle. Mark staging so
+            // interrupted extraction can never be mistaken for an external model.
+            val staging = rootDir.parentFile!!.resolve(".$version.installing")
+            staging.deleteRecursively()
+            staging.mkdirsOrThrow()
+            staging.resolve(".version").writeText(version)
+            try {
+                for (entry in files) {
+                    val name = entry.getString("name")
+                    val outFile = staging.resolve(name)
+                    outFile.parentFile?.mkdirsOrThrow()
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    context.assets.open("$assetPath/$name").use { input ->
+                        java.security.DigestInputStream(input, digest).use { checked ->
+                            outFile.outputStream().use { output -> checked.copyTo(output) }
+                        }
+                    }
+                    val hash = digest.digest().joinToString("") { "%02x".format(it) }
+                    check(outFile.length() == entry.getLong("size_bytes") && hash == entry.getString("sha256")) {
+                        "Bundled TTS resource checksum mismatch: $name"
+                    }
+                }
+                staging.resolve("manifest.json").writeText(manifestText)
+                val layout = InstalledLayout.of(staging, parseAndValidateManifest(staging.resolve("manifest.json")), LayoutSource.BUNDLED_ASSET)
+                check(layout.hasRequiredFiles()) { "Bundled TTS resources are incomplete" }
+                staging.resolve(".asset_signature").writeText(signature)
+                check(!rootDir.exists() || rootDir.deleteRecursively()) { "Cannot replace installed TTS bundle" }
+                check(staging.renameTo(rootDir)) { "Cannot publish installed TTS bundle" }
+            } finally {
+                staging.deleteRecursively()
+            }
         }
-
-        val manifest = parseAndValidateManifest(manifestFile)
-        return InstalledLayout.of(rootDir, manifest, LayoutSource.BUNDLED_ASSET)
+        return InstalledLayout.of(rootDir, parseAndValidateManifest(rootDir.resolve("manifest.json")), LayoutSource.BUNDLED_ASSET)
     }
 
-    private fun copyAssetFile(context: Context, rootDir: File, name: String) {
-        val assetPath = "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/$name"
-        val outFile = rootDir.resolve(name)
-        outFile.parentFile?.mkdirsOrThrow()
-        context.assets.open(assetPath).use { input ->
-            outFile.outputStream().use { output -> input.copyTo(output) }
-        }
+    private fun requireSafeAssetPath(name: String, singleSegment: Boolean = false) {
+        require(name.isNotBlank() && !name.startsWith("/") && '\\' !in name &&
+            name.split('/').all { it.isNotBlank() && it != "." && it != ".." } &&
+            (!singleSegment || '/' !in name)) { "Invalid bundled TTS resource path" }
     }
 
     internal fun parseAndValidateManifest(file: File): ManifestInfo {
@@ -230,15 +259,6 @@ internal object LitsTtsAssetInstaller {
                     .thenBy { it.rootDir.absolutePath },
             )
             .firstOrNull()
-    }
-
-    private fun readAssetSignature(context: Context): String {
-        val assetPath =
-            "${LitsTtsAssetRegistry.ASSET_ROOT}/${LitsTtsAssetRegistry.assetSubPath}/${LitsTtsAssetRegistry.MANIFEST}"
-        val manifestSignature = context.assets.open(assetPath).use { input ->
-            input.bufferedReader().use { it.readText() }
-        }
-        return "${LitsTtsAssetRegistry.ASSET_SIGNATURE_VERSION}\n$manifestSignature"
     }
 
     private fun File.mkdirsOrThrow() {

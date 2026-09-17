@@ -4,6 +4,7 @@ import androidx.test.core.app.ApplicationProvider
 import java.io.File
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class ApkPathFrontendSmokeTest {
@@ -17,12 +18,9 @@ class ApkPathFrontendSmokeTest {
 
         val layout = LitsTtsAssetInstaller.ensureInstalled(context, installRoot.absolutePath)
         val signatureText = layout.rootDir.resolve(".asset_signature").readText(Charsets.UTF_8)
-        assertTrue(
-            "asset signature should include frontend resource version",
-            signatureText.contains(LitsTtsAssetRegistry.ASSET_SIGNATURE_VERSION),
-        )
-        assertTrue(layout.rootDir.resolve("cmudict.bin").isFile)
-        assertTrue(layout.rootDir.resolve("chinese_lexicon.bin").isFile)
+        assertEquals(layout.rootDir.resolve("manifest.json").readText().trim(), signatureText)
+        assertTrue(layout.cmudict.isFile)
+        assertTrue(layout.chineseLexicon.isFile)
         assertTrue(layout.rootDir.resolve("supplement_lexicon.json").isFile)
         assertTrue(layout.rootDir.resolve("frontend_rules.json").isFile)
         assertTrue(layout.rootDir.resolve("rules_v2/zh.full.json").isFile)
