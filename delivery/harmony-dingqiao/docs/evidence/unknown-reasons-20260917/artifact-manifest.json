@@ -1,0 +1,203 @@
+{
+  "referenceRuntimeCommit": "c19db6d55d0e834c03238246fed4e2ac1df6541c",
+  "privateArtifacts": [
+    {
+      "path": "plan.json",
+      "sha256": "ebbb75dc55a31d5ed137ee734a472a942aff2e7e364f8f467b4b5bc1846e3ca4",
+      "sizeBytes": 1117
+    },
+    {
+      "path": "candidate-assessment.json",
+      "sha256": "512f9b6256ffcd7668ce44e47b974ee49230a788fab7cef95593707b7b9e8e00",
+      "sizeBytes": 1092
+    },
+    {
+      "path": "decision.json",
+      "sha256": "e9f23086584f709bf2020b996fa85781c8b318debc5e307c39e370bbc55e94ab",
+      "sizeBytes": 867
+    },
+    {
+      "path": "interval-audit.json",
+      "sha256": "4f89362ced0f0dc4b69a10905a6a657ca8ad8489ce785db3c0f875c709388d87",
+      "sizeBytes": 10203
+    },
+    {
+      "path": "diagnostic-red.log",
+      "sha256": "298090afa9a50e2b5e360008ed06f3b659c117fa15b81b58fca6915af8816fbb",
+      "sizeBytes": 2655
+    },
+    {
+      "path": "diagnostic-contract-pass.log",
+      "sha256": "01f743c77f742c86aefc6c5eeee2f5404095e5dee2ea43341701e1f66d1c602d",
+      "sizeBytes": 687
+    },
+    {
+      "path": "diagnostic-dictionary-pass.log",
+      "sha256": "64dcd75e3e2f25cd576f7b236725af7b651e38868ba8eed699e4471553d1abbd",
+      "sizeBytes": 687
+    },
+    {
+      "path": "phone-baseline.json",
+      "sha256": "be9a77c87929980a031ff6015a6e4c3a9b04498dc967bd774d3beb7f300b057f",
+      "sizeBytes": 3151522
+    },
+    {
+      "path": "phone-candidate.json",
+      "sha256": "0b99228d6bf2c107981cab9bcbac5c606d90e24bc1d8f36b26dbfa3865c1c7d0",
+      "sizeBytes": 3151576
+    },
+    {
+      "path": "phone-diagnostic.json",
+      "sha256": "7ee7a6001911563e311019baccd24282e2b06051be5fb3015d88f4f4e4b18eda",
+      "sizeBytes": 3107699
+    },
+    {
+      "path": "customer159-baseline.json",
+      "sha256": "d5c0081779ac8bc98b6e0cd949f11d53d8569018e73d060371dfbc840baade81",
+      "sizeBytes": 7325638
+    },
+    {
+      "path": "customer159-candidate.json",
+      "sha256": "d5c0081779ac8bc98b6e0cd949f11d53d8569018e73d060371dfbc840baade81",
+      "sizeBytes": 7325638
+    },
+    {
+      "path": "customer159-diagnostic.json",
+      "sha256": "a7ebb3e494d438028950ba48915bd77e63f76e91eb6f55fff995b1c3179daf3d",
+      "sizeBytes": 7256726
+    },
+    {
+      "path": "S_R003S01C01-baseline.json",
+      "sha256": "6eee6d238a2eeba4807d0815b269dd56585a2b536c9c67f903e92255dfa085bb",
+      "sizeBytes": 5494798
+    },
+    {
+      "path": "S_R003S01C01-candidate.json",
+      "sha256": "e73fe18f2077a2e3b2db1f70f9e3773f301d00f32a25cad5f9cb4f246a282b0f",
+      "sizeBytes": 5495071
+    },
+    {
+      "path": "S_R003S01C01-diagnostic.json",
+      "sha256": "61ad3b35f3f4002b8a170ca8dd37bee08574d400a77c1a65da07b60a3300832f",
+      "sizeBytes": 5411820
+    },
+    {
+      "path": "M_R003S02C01-baseline.json",
+      "sha256": "036a63da140f452b22863c33114b4c92af098e509e69a1048420cacba9b795f0",
+      "sizeBytes": 5937249
+    },
+    {
+      "path": "M_R003S02C01-candidate.json",
+      "sha256": "68f02c195fbfc6eeba4b26db41a2dff4fb424f1cd16fa22eb610f0b6544c1091",
+      "sizeBytes": 5937269
+    },
+    {
+      "path": "M_R003S02C01-diagnostic.json",
+      "sha256": "6319b916ae5331414e627d5b8bea61658ab937330871ad64c8cf54a9264b5fd5",
+      "sizeBytes": 5845709
+    },
+    {
+      "path": "L_R003S01C02-baseline.json",
+      "sha256": "0d007fe2518d2de4cba2844e65acbd4ff46ae3194f9d1bdfe1b265598c8f5532",
+      "sizeBytes": 9588247
+    },
+    {
+      "path": "L_R003S01C02-candidate.json",
+      "sha256": "0d007fe2518d2de4cba2844e65acbd4ff46ae3194f9d1bdfe1b265598c8f5532",
+      "sizeBytes": 9588247
+    },
+    {
+      "path": "L_R003S01C02-diagnostic.json",
+      "sha256": "29614ef528cbcafe5acb1bc132d6d3fa71a2979e5be25ad0d088ec3bed32e79a",
+      "sizeBytes": 9484403
+    },
+    {
+      "path": "single47-baseline.json",
+      "sha256": "6034213f6d9e261d8b594c3d2af746c13df40326dff4151a5feea656320f61f1",
+      "sizeBytes": 974265
+    },
+    {
+      "path": "single47-candidate.json",
+      "sha256": "6034213f6d9e261d8b594c3d2af746c13df40326dff4151a5feea656320f61f1",
+      "sizeBytes": 974265
+    },
+    {
+      "path": "single47-diagnostic.json",
+      "sha256": "c1477b333472bca3da07adab59622fc63b05d367530eabe8be88037d1cff73c7",
+      "sizeBytes": 962337
+    },
+    {
+      "path": "single69-baseline.json",
+      "sha256": "a71ff16b4611e23c9f1d553310867164ce0a66a5e34a99f465848a6d546ef482",
+      "sizeBytes": 1873783
+    },
+    {
+      "path": "single69-candidate.json",
+      "sha256": "a71ff16b4611e23c9f1d553310867164ce0a66a5e34a99f465848a6d546ef482",
+      "sizeBytes": 1873783
+    },
+    {
+      "path": "single69-diagnostic.json",
+      "sha256": "82bce096cfbb7a0f8225ceafdcde102bcc305c8222c2e29431710c27c069834c",
+      "sizeBytes": 1860501
+    },
+    {
+      "path": "final-state-parity.json",
+      "sha256": "b088332f3dfeb08ad170247394b6658d410822f71c62f32b81f5f1a93e6052e6",
+      "sizeBytes": 2015
+    },
+    {
+      "path": "device-diagnostic-assessment.json",
+      "sha256": "71b9ef0a2acd1e03e3d5755c88eb01d81209b733a3c4350323c92a26a41d181e",
+      "sizeBytes": 1738
+    },
+    {
+      "path": "final-diagnostic-production.mts",
+      "sha256": "baed02b5b615ecac7d0fe8f4214313e0f58b22d4edff1fc358d84228ef653840",
+      "sizeBytes": 30179
+    },
+    {
+      "path": "M_R003S02C01-final-diagnostic.json",
+      "sha256": "6319b916ae5331414e627d5b8bea61658ab937330871ad64c8cf54a9264b5fd5",
+      "sizeBytes": 5845709
+    },
+    {
+      "path": "S_R003S01C01-final-diagnostic.json",
+      "sha256": "61ad3b35f3f4002b8a170ca8dd37bee08574d400a77c1a65da07b60a3300832f",
+      "sizeBytes": 5411820
+    },
+    {
+      "path": "single47-final-diagnostic.json",
+      "sha256": "c1477b333472bca3da07adab59622fc63b05d367530eabe8be88037d1cff73c7",
+      "sizeBytes": 962337
+    },
+    {
+      "path": "single69-final-diagnostic.json",
+      "sha256": "82bce096cfbb7a0f8225ceafdcde102bcc305c8222c2e29431710c27c069834c",
+      "sizeBytes": 1860501
+    },
+    {
+      "path": "L_R003S01C02-final-diagnostic.json",
+      "sha256": "29614ef528cbcafe5acb1bc132d6d3fa71a2979e5be25ad0d088ec3bed32e79a",
+      "sizeBytes": 9484403
+    },
+    {
+      "path": "phone-final-diagnostic.json",
+      "sha256": "7ee7a6001911563e311019baccd24282e2b06051be5fb3015d88f4f4e4b18eda",
+      "sizeBytes": 3107699
+    },
+    {
+      "path": "customer159-final-diagnostic.json",
+      "sha256": "a7ebb3e494d438028950ba48915bd77e63f76e91eb6f55fff995b1c3179daf3d",
+      "sizeBytes": 7256726
+    },
+    {
+      "path": "human-adjudication-customer-tail.json",
+      "sha256": "f0b50775d8dbfaa3fc9b9f1bf7dda5655f9898a660864980f3645f12317e82a7",
+      "sizeBytes": 843
+    }
+  ],
+  "rejectedCandidateNeverInRuntime": true,
+  "initialDiagnosticReplaySource": "8cb0c18d before ArkTS dictionary typing correction",
+  "finalDiagnosticRuntimeCommit": "6579f400a5eb43761ab266ecbb3b641381123628"
+}
