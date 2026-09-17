@@ -1,0 +1,90 @@
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqSdkCornerCaseTest:
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.RuntimeException: Could not launch intent Intent { flg=0x14000000 cmp=com.amphion.dingqiao.demo/.HotwordsActivity } within 45000 milliseconds. Perhaps the main thread has not gone idle within a reasonable amount of time? There could be an animation or something constantly repainting the screen. Or the activity is doing network calls on creation? See the threaddump logs. For your reference the last time the event queue was idle before your activity launch request was 1789640209396 and now the last time the queue went idle was: 1789640242411. If these numbers are the same your activity might be hogging the event queue.
+	at androidx.test.runner.MonitoringInstrumentation.startActivitySync(MonitoringInstrumentation.java:537)
+	at com.amphion.dingqiao.demo.ForegroundGateListener.testStarted(ForegroundGateListener.kt:13)
+	at org.junit.runner.notification.SynchronizedRunListener.testStarted(SynchronizedRunListener.java:80)
+	at org.junit.runner.notification.RunNotifier$5.notifyListener(RunNotifier.java:156)
+	at org.junit.runner.notification.RunNotifier$SafeNotifier.run(RunNotifier.java:72)
+	at org.junit.runner.notification.RunNotifier.fireTestStarted(RunNotifier.java:153)
+	at org.junit.internal.runners.model.EachTestNotifier.fireTestStarted(EachTestNotifier.java:42)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:364)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+
+INSTRUMENTATION_STATUS: stream=
+Error in Test mechanism:
+java.lang.RuntimeException: Could not launch intent Intent { flg=0x14000000 cmp=com.amphion.dingqiao.demo/.HotwordsActivity } within 45000 milliseconds. Perhaps the main thread has not gone idle within a reasonable amount of time? There could be an animation or something constantly repainting the screen. Or the activity is doing network calls on creation? See the threaddump logs. For your reference the last time the event queue was idle before your activity launch request was 1789640209396 and now the last time the queue went idle was: 1789640242411. If these numbers are the same your activity might be hogging the event queue.
+	at androidx.test.runner.MonitoringInstrumentation.startActivitySync(MonitoringInstrumentation.java:537)
+	at com.amphion.dingqiao.demo.ForegroundGateListener.testStarted(ForegroundGateListener.kt:13)
+	at org.junit.runner.notification.SynchronizedRunListener.testStarted(SynchronizedRunListener.java:80)
+	at org.junit.runner.notification.RunNotifier$5.notifyListener(RunNotifier.java:156)
+	at org.junit.runner.notification.RunNotifier$SafeNotifier.run(RunNotifier.java:72)
+	at org.junit.runner.notification.RunNotifier.fireTestStarted(RunNotifier.java:153)
+	at org.junit.internal.runners.model.EachTestNotifier.fireTestStarted(EachTestNotifier.java:42)
+	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:364)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+	at org.junit.runners.Suite.runChild(Suite.java:128)
+	at org.junit.runners.Suite.runChild(Suite.java:27)
+	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: shortMsg=Process crashed.
+INSTRUMENTATION_CODE: 0

@@ -1,0 +1,235 @@
+{
+  "overall_status": "PASS",
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "first_run": {
+    "tests": 48,
+    "passed": 28,
+    "failed": 20,
+    "canonical": false,
+    "failure_classification": "19 engine-destroyed failures occurred after MonitoringInstrumentation finished MainActivity whose onDestroy unloads the model. One silence-timeout failure occurred during background suspension. Original results retained."
+  },
+  "corrected_foreground": {
+    "minimal": 2,
+    "affected": 18,
+    "qualified_unique_tests": 48,
+    "assertions_unchanged": true,
+    "public_aar_from_final_zip": true,
+    "foreground_surface": "Existing debug-only DeviceTestKeepAliveActivity, no SDK calls. A temporary listener attempt was abandoned because startActivitySync could not make progress from the suspended background process; final runs did not use that listener."
+  },
+  "tests": {
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a01_tailFrame_abruptFinish_keepsTail": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10g_onStartSynchronousWrite_afterEngineReload": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10ga_onStartCancel_sameIdReplacementOwnsCallbacks": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10gb_onStartCanWaitForOtherThreadWriteAudio": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10h_lateOldWrite_doesNotAffectReplacement": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10i_lateOldFinish_doesNotAffectReplacement": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10j_lateOldCancel_doesNotAffectReplacement": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_unsupportedLanguage_createFails": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_vadBegin_initialSilenceAutoFinish": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a12_postShutdown_throwsInsteadOfCallback": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v01_register_fromSample_ok": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v02_register_tooLong_rejected": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v03_register_missingPath_rejected": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04_verification_similarityReturned": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v09_register_async_offCallerThread_ok": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L01_assetLicensed_engineWorks_andInfoReadable": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L10_setValid_ok": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L20_setExpired": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L80_setMalformed": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L85_setMissingPath": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqLicenseTest#L90_restoreValid": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest#assetLicenseInfoReflectsRuntimeLicense": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest#fastFeedFinishDoesNotDropQueuedFinals": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest#generatedSessionTagIsValidForUnicodeAssetName": {
+      "status": "PASS",
+      "source": "first-run"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a02_frameSize_nonStandardRejected": {
+      "status": "PASS",
+      "source": "foreground-minimal"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04e_voiceprintVadBegin_pureSilenceEndsOnce": {
+      "status": "PASS",
+      "source": "foreground-minimal"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a03_writeBeforeStart_notListening": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a04_doubleStart_busy": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a05_finishWhenIdle_finishFailed": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a06_cancel_noFinalNoComplete": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a07_invalidSessionId_rejected": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a08_writeWrongSessionId_mismatch": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09_maxAudioDuration_explicitShortLimitAutoFinishes": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09b_maxAudioDuration_nonFiniteValuesStayDisabled": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10_maxAudioDuration_autoFinish": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10b_autoFinishWindow_ignoresLateFrames": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10c_finishIdempotent_singleComplete": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10d_terminalCallback_reentrantReplacementOwnsCompletion": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10e_onStartSynchronousWrite_thenContinue": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10f_onStartSynchronousWrite_thenImmediateFinish": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v05_speakerVad_requiresVoiceprintIds": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v06_speakerVad_overlapRuns": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v07_delete_thenNotFound": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    },
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v08_setSpeakerVadEnabled_noVoiceprint_error": {
+      "status": "PASS",
+      "source": "foreground-affected"
+    }
+  },
+  "user_sequence": {
+    "ts": 1789640587822,
+    "case": "a13_userSequenceStress",
+    "cycles": 300,
+    "completedSessions": 600,
+    "elapsedMs": 219900
+  },
+  "resource_observation": {
+    "samples": 107,
+    "rss_head_mib": 350.91,
+    "rss_tail_mib": 307.98,
+    "rss_peak_mib": 616.41,
+    "threads_head": 54,
+    "threads_tail": 36,
+    "threads_peak": 59,
+    "status": "INCONCLUSIVE",
+    "reason": "Short foreground sequence; incremental residency and long-meeting leaks are not distinguished."
+  },
+  "limitations": [
+    "Foreground-only acceptance on V2505A Android 16; background/lock-screen operation remains unqualified.",
+    "Lifecycle checks do not establish speaker identity accuracy."
+  ]
+}
