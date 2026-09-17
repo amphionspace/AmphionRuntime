@@ -12,8 +12,8 @@ AmphionRuntime/tts/android/
 
 | 项 | 值 |
 | --- | --- |
-| SDK 构建版本 | `3.0`，见 [build.gradle.kts](build.gradle.kts) 的 `sdkVersion` |
-| 模型 ID | `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop` |
+| SDK 构建版本 | `3.1`，见 [build.gradle.kts](build.gradle.kts) 的 `sdkVersion` |
+| 模型 ID | `dingqiao_imf_step00170000_streaming_vocos24k` |
 | 模型资源版本 | `0.1.0`（不是 SDK 版本） |
 | 支持语种 | `zh-en`, `en-US` |
 | 输出格式 | `pcm`, 24000 Hz, 16-bit, mono |
@@ -31,11 +31,11 @@ AmphionRuntime/tts/android/
 
 ## 源码构建快速开始
 
-1. 克隆本仓库（已包含 TN 源码），并按仓库[资产同步说明](../../tools/assets/README.md)恢复 `tts-runtime-zhen-v1` 等构建资产；不要从旧交付目录拼装资源。
+1. 克隆本仓库（已包含 TN 源码），并按仓库[资产同步说明](../../tools/assets/README.md)恢复构建依赖；本次 IMF 模型使用 3.1 交付包的 `external-resources/tts/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/`。
 2. 放到下面这个固定目录：
 
 ```text
-tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
+tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/
 ```
 
 3. 让 Gradle 能找到本机 Android SDK：
@@ -47,8 +47,9 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 
 ```bash
 cd tts/android
-./gradlew :sdk:testDebugUnitTest
-./gradlew :sdk:assembleRelease
+./gradlew :sdk:testDebugUnitTest :sdk:assembleRelease \
+  -PLITS_TTS_MODEL_ID=dingqiao_imf_step00170000_streaming_vocos24k \
+  -PLITS_TTS_MODEL_DIR=/absolute/path/to/0.1.0
 ```
 
 5. 构建输出位于：
@@ -68,13 +69,14 @@ sdk/build/outputs/aar/sdk-release.aar
 - `manifest.json`
 - `lits_hidden_encoder.onnx`
 - `lits_stream_condition_chunk.onnx`
-- `lits_stream_decoder_step.onnx`
+- `lits_stream_decoder_cache_init.onnx`
+- `lits_stream_decoder_cache_step.onnx`
 - `vocos_vocoder.onnx`
 
 完整清单还包括前端词典与 `rules_v2`，见源码编译说明。Gradle 在 `preBuild` 阶段同步到：
 
 ```text
-tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
+tts/android/external-resources/tts/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/
 ```
 
 该目录是可重建输出。运行时把 `external-resources/tts/` 放在调用方 `workPath` 下的 `tts/` 目录，先激活有效 TTS license，再创建引擎；不要将 `workPath` 指向具体模型版本目录。

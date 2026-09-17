@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.android) apply false
 }
 
-val sdkVersion = "3.0"
+val sdkVersion = "3.1"
 val modelId = providers.gradleProperty("LITS_TTS_MODEL_ID")
     .orElse("dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop").get()
 val sourceModelId = modelId

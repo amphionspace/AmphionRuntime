@@ -10,17 +10,17 @@
 | 模式 | 离线 `RunMode.OFFLINE` |
 | 网络权限 | 不需要 |
 
-SDK AAR 已包含模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
+SDK AAR 包含 ONNX Runtime Java 类和 arm64 native 库。模型和前端资源随包放在 `external-resources/`，接入方需在创建引擎前部署到工作目录。
 
 ## 2. Gradle 接入
 
-源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-tts-sdk-0.1.0.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
+源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-dingqiao-tts-sdk-vocos24k-3.1.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
 
-把 `lits-tts-sdk-0.1.0.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
+把 `lits-dingqiao-tts-sdk-vocos24k-3.1.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/lits-tts-sdk-0.1.0.aar"))
+    implementation(files("libs/lits-dingqiao-tts-sdk-vocos24k-3.1.aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 }
 ```
@@ -39,7 +39,7 @@ android {
 
 ## 3. 工作目录
 
-SDK 首次创建引擎时会把 AAR 内置模型资源安装到可读写目录，再从文件路径创建 ONNX Runtime session。
+创建引擎前，将随包 `external-resources/tts/` 完整复制到 `<filesDir>/lits-tts/tts/`，再从文件路径加载模型。`setWorkPath` 指向 `lits-tts`，不要指向具体模型目录。
 
 ```kotlin
 TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
@@ -53,7 +53,7 @@ TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
 
 ## 4. 创建与预加载
 
-`createEngine` 会同时加载模型。建议 App 打开后立即调用 callback 版接口做预加载，不要等用户点击合成时才加载。
+先完成第 3 节资源部署和第 12 节授权初始化，再创建引擎。`createEngine` 会同时加载模型。建议 App 打开后立即调用 callback 版接口做预加载，不要等用户点击合成时才加载。
 
 ```kotlin
 TextToSpeechSdk.createEngine(
@@ -168,7 +168,7 @@ onData(sequence=0..n)
 onComplete(SYNTHESIS_COMPLETE)
 ```
 
-`onData` 返回 16 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
+`onData` 返回 24 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
 
 ## 8. 播放通道
 
@@ -238,8 +238,8 @@ engine.shutdown()
 
 ## 12. 离线授权（License）
 
-To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId / bundleName、签名证书、设备 SN 白名单、运行到期和维护期。
-完整签发 / 校验流程见 `tts/tools/license/README.md`，机制细节见 `docs/LICENSE.md`。
+To B 交付使用纯离线 ECDSA P-256 签名授权，校验 TTS 权限、设备 SN 白名单和 SDK 兼容主版本；包名、证书、运行到期和维护期按 license 实际字段校验。
+本包不附授权文件；使用已签发的 TTS-ONLY 或 ASR-TTS license。交付版本为 3.1，授权兼容字段 `sdkMajor` 仍为 1。
 
 判断 SDK 是否被武装：构建期 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` 是否注入了公钥。
 
@@ -255,7 +255,7 @@ TextToSpeechSdk.init(
     context,
     TtsLicenseOptions(
         licenseAssetName = "amphion-license.lic",
-        licenseEnforcement = LicenseEnforcement.ENFORCE,
+        enforcement = LicenseEnforcement.ENFORCE,
         // 一般不需要传；仅当客户系统改用其他 SN API 时覆盖默认实现
         deviceIdProvider = TtsDeviceIdProvider { _ -> "DEVICE-SN-FROM-DINGQIAO" },
     ),
@@ -283,6 +283,5 @@ val deviceHash = TextToSpeechSdk.deviceLicenseFingerprint(
 ## 13. 混淆
 
 SDK AAR 自带 `consumer-rules.pro`，只保留公开 API（`com.lits.tts.sdk.*`）。宿主 App 开启 R8/minify
-时 Gradle 会自动合并这些规则。SDK 自身 release 构建已开启 R8（`isMinifyEnabled=true`），
-`com.lits.tts.sdk.internal.*`（含离线 license 验签逻辑）会被混淆。交付前应至少跑一次宿主 App
+时 Gradle 会自动合并这些规则。当前 SDK 库的 release 构建未显式开启 R8，不应假定内部类已经混淆。交付前应至少跑一次宿主 App
 release 构建和真机合成 smoke。
