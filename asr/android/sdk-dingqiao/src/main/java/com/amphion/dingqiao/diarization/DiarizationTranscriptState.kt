@@ -278,13 +278,19 @@ internal class DiarizationTranscriptState {
         for (index in 1..utterance.tokens.size) {
             val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) ?: unanimous else null
             val same = index < utterance.tokens.size &&
-                (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN") &&
-                (next?.secondarySpeakerIds ?: emptyList<String>()) ==
-                (active?.secondarySpeakerIds ?: emptyList<String>())
+                (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN")
             if (same) continue
             val begin = if (groupStart == 0) utterance.beginTime else utterance.tokenTimesMs[groupStart]
             val end = if (index < utterance.tokens.size) utterance.tokenTimesMs[index] else utterance.endTime
-            val secondary = active?.secondarySpeakerIds?.toList() ?: emptyList()
+            // Secondary changes annotate speech instead of splitting the primary
+            // speaker's words. allTurns() retains their exact time intervals.
+            val secondary = (active?.secondarySpeakerIds ?: emptyList()).toMutableSet()
+            var overlap = active?.overlap ?: secondary.isNotEmpty()
+            for (turn in turns) {
+                if (overlapMs(begin, end, turn.beginTime, turn.endTime) <= 0) continue
+                secondary.addAll(turn.secondarySpeakerIds.filter { it != (active?.speakerId ?: "UNKNOWN") })
+                overlap = overlap || turn.overlap || turn.secondarySpeakerIds.isNotEmpty()
+            }
             val text = utterance.tokens.subList(groupStart, index).joinToString("")
             result += DiarizedTranscriptUtterance(
                 utteranceId = if (result.isEmpty()) utterance.utteranceId else "${utterance.utteranceId}.${result.size + 1}",
@@ -294,9 +300,9 @@ internal class DiarizationTranscriptState {
                 beginTime = begin,
                 endTime = end,
                 speakerId = active?.speakerId ?: "UNKNOWN",
-                secondarySpeakerIds = secondary,
+                secondarySpeakerIds = secondary.toList(),
                 confidence = active?.confidence ?: 0f,
-                overlap = active?.overlap ?: secondary.isNotEmpty(),
+                overlap = overlap,
             )
             groupStart = index
             active = next

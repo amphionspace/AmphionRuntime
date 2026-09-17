@@ -7,6 +7,7 @@ import {
   CreateEngineCallback,
   CreateEngineParams,
   DingqiaoEventCode,
+  DiarizedUtterance,
   LicenseActivationCallback,
   LicenseActivationResult,
   SpeakerDiarizationUpdate,
@@ -63,6 +64,8 @@ class FinalSegment {
   endTime: number = 0;
   speakerDiarization: boolean = false;
   speakerAssignmentFinal: boolean = false;
+  speakerParts: DiarizedUtterance[] = [];
+  showSpeakerParts: boolean = false;
 
   constructor(text: string, score?: number, utteranceId?: string, speakerIndex: number = -1,
     endTime: number = 0, speakerDiarization: boolean = false, speakerAssignmentFinal: boolean = false) {
@@ -569,6 +572,23 @@ struct Index {
 
   private speakerLabel(speakerIndex: number): string {
     return speakerIndex < 0 ? '未能区分说话人' : `说话人 ${speakerIndex + 1}`;
+  }
+
+  private segmentSpeakerLabel(segment: FinalSegment): string {
+    const known = new Set<number>();
+    let unknown = false;
+    let overlap = false;
+    for (const part of segment.speakerParts) {
+      if (part.speakerIndex >= 0) known.add(part.speakerIndex);
+      else unknown = true;
+      overlap = overlap || part.overlap;
+    }
+    let label = this.speakerLabel(segment.displaySpeakerIndex);
+    if (known.size > 1) label = '多位说话人';
+    else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
+    if (unknown && known.size > 0) label += ' · 部分待确认';
+    if (overlap) label += ' · 含重叠发言';
+    return label;
   }
 
   private refreshSpeakerDisplayIndexes(segments: FinalSegment[]): void {
@@ -1109,11 +1129,20 @@ struct Index {
     const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
     const next = this.finalSegments.filter(item =>
       item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
-    for (let i = 0; i < result.utterances.length; i++) {
-      const utterance = result.utterances[i];
-      next.push(new FinalSegment(
-        utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
-        utterance.endTime, true, true));
+    const paragraphs = new Map<string, FinalSegment>();
+    for (const utterance of result.utterances) {
+      let paragraph = paragraphs.get(utterance.sourceUtteranceId);
+      if (paragraph === undefined) {
+        paragraph = new FinalSegment('', undefined, utterance.sourceUtteranceId,
+          utterance.speakerIndex, utterance.endTime, true, true);
+        paragraphs.set(utterance.sourceUtteranceId, paragraph);
+        next.push(paragraph);
+      }
+      paragraph.text += utterance.text;
+      paragraph.endTime = Math.max(paragraph.endTime, utterance.endTime);
+      paragraph.speakerParts.push(utterance);
+      // Mixed or partly unknown speech has no single confirmed paragraph owner.
+      if (paragraph.speakerIndex !== utterance.speakerIndex) paragraph.speakerIndex = -1;
     }
     next.sort((left: FinalSegment, right: FinalSegment): number => left.endTime - right.endTime);
     this.refreshSpeakerDisplayIndexes(next);
@@ -1457,7 +1486,7 @@ struct Index {
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
             if (item.speakerDiarization) {
-              Span(`${this.speakerLabel(item.displaySpeakerIndex)}（${item.speakerAssignmentFinal ? '最终结果' : '中间结果'}） `)
+              Span(`${this.segmentSpeakerLabel(item)}（${item.speakerAssignmentFinal ? '最终结果' : '中间结果'}） `)
                 .fontColor(item.speakerAssignmentFinal ? BRAND_ACCENT : Color.Gray)
                 .fontWeight(FontWeight.Bold)
             }
@@ -1468,6 +1497,25 @@ struct Index {
           }
           .width('100%')
           .fontSize(16)
+          if (item.speakerParts.length > 1 || item.speakerParts.some(part => part.overlap)) {
+            Button(item.showSpeakerParts ? '收起角色详情' : '查看角色详情')
+              .fontSize(12)
+              .onClick(() => {
+                item.showSpeakerParts = !item.showSpeakerParts;
+                this.finalSegments = this.finalSegments.slice();
+              })
+            if (item.showSpeakerParts) {
+              ForEach(item.speakerParts, (part: DiarizedUtterance) => {
+                Text(`${(part.beginTime / 1000).toFixed(2)}–${(part.endTime / 1000).toFixed(2)} 秒 · ` +
+                  `${this.speakerLabel(part.speakerIndex)}` +
+                  `${part.overlap ? ' · 含重叠发言' : ''}` +
+                  `${part.secondarySpeakerIndexes.length > 0 ? ' · 重叠角色：' +
+                    part.secondarySpeakerIndexes.map((id: number): string => this.speakerLabel(id)).join('、') : ''}` +
+                  `\n${part.text}`)
+                  .fontSize(12).fontColor(Color.Gray).width('100%')
+              }, (part: DiarizedUtterance) => part.utteranceId)
+            }
+          }
         }, (item: FinalSegment, index: number) => `${index}-${JSON.stringify(item)}`)
       }
       .width('100%')

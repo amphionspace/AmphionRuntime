@@ -521,6 +521,48 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_secondary_changes_do_not_fragment_primary_speech(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const state=new SpeakerDiarizationTranscriptState();
+          state.addUtterance({{rawText:'你叫什么名字',text:'你叫什么名字。',
+            tokens:['你','叫','什','么','名','字'],tokenTimesMs:[100,300,500,700,900,1100],
+            beginTime:0,endTime:1200}});
+          const turns=[
+            {{beginTime:0,endTime:250,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:250,endTime:450,speakerId:'S1',secondarySpeakerIds:['UNKNOWN_SECONDARY'],overlap:true}},
+            {{beginTime:450,endTime:650,speakerId:'S1',secondarySpeakerIds:['S2'],overlap:true}},
+            {{beginTime:650,endTime:1200,speakerId:'S1',secondarySpeakerIds:[]}}
+          ];
+          state.applySpeakerTurns(turns);
+          const before=state.allTurns();
+          const result=state.finalUtterances();
+          assert.deepEqual(result.map(x=>x.text),['你叫什么名字。'],
+            'a secondary identity change must not split a word spoken by the same primary speaker');
+          assert.equal(result[0].speakerId,'S1');
+          assert.deepEqual(result[0].secondarySpeakerIds,['UNKNOWN_SECONDARY','S2']);
+          assert.equal(result[0].overlap,true);
+          assert.deepEqual(state.allTurns(),before,'exact overlap intervals must remain available');
+
+          // Brief overlap between token timestamps must also survive paragraph grouping.
+          const short=new SpeakerDiarizationTranscriptState();
+          short.addUtterance({{rawText:'嗯好',text:'嗯，好。',tokens:['嗯','好'],
+            tokenTimesMs:[100,700],beginTime:0,endTime:1000}});
+          short.applySpeakerTurns([
+            {{beginTime:0,endTime:250,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:250,endTime:300,speakerId:'S1',secondarySpeakerIds:['S2'],overlap:true}},
+            {{beginTime:300,endTime:600,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:600,endTime:1000,speakerId:'S2',secondarySpeakerIds:[]}}
+          ]);
+          const split=short.commitThrough(1000);
+          assert.deepEqual(split.map(x=>[x.text,x.speakerId]),[['嗯，','S1'],['好。','S2']],
+            'a real short answer by a different primary speaker must stay separate');
+          assert.deepEqual(split[0].secondarySpeakerIds,['S2']);
+          assert.equal(split[0].overlap,true);
+          assert.deepEqual(short.finalUtterances(),[]);
+        """)
+
     def test_unanimous_speaker_fills_acoustic_gaps_but_not_explicit_unknown(self) -> None:
         run_node(f"""
           import assert from 'node:assert/strict';

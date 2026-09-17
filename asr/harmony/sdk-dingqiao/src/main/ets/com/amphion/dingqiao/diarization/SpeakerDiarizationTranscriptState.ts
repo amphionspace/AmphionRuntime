@@ -403,13 +403,23 @@ export class SpeakerDiarizationTranscriptState {
       const next = index < utterance.tokens.length ?
         (this.turnAt(utterance.tokenTimesMs[index]) ?? unanimous) : undefined;
       const same = index < utterance.tokens.length &&
-        (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER) &&
-        sameStrings(next?.secondarySpeakerIds ?? [], active?.secondarySpeakerIds ?? []);
+        (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER);
       if (same) continue;
       const beginTime = groupStart === 0 ? utterance.beginTime : utterance.tokenTimesMs[groupStart];
       const endTime = index < utterance.tokens.length ?
         utterance.tokenTimesMs[index] : utterance.endTime;
-      const secondarySpeakerIds = active?.secondarySpeakerIds.slice() ?? [];
+      // Secondary/overlap changes annotate speech; they are not primary speaker
+      // boundaries. Keep the exact intervals in allTurns() and summarize every
+      // overlapping interval here, including those between token timestamps.
+      const secondarySpeakerIds = new Set<string>(active?.secondarySpeakerIds ?? []);
+      let overlap = active?.overlap ?? secondarySpeakerIds.size > 0;
+      for (const turn of this.turns) {
+        if (overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) <= 0) continue;
+        for (const id of turn.secondarySpeakerIds) {
+          if (id !== (active?.speakerId ?? UNKNOWN_SPEAKER)) secondarySpeakerIds.add(id);
+        }
+        overlap = overlap || (turn.overlap ?? turn.secondarySpeakerIds.length > 0);
+      }
       result.push({
         utteranceId: result.length === 0 ? utterance.utteranceId :
           `${utterance.utteranceId}.${result.length + 1}`,
@@ -419,9 +429,9 @@ export class SpeakerDiarizationTranscriptState {
         beginTime,
         endTime,
         speakerId: active?.speakerId ?? UNKNOWN_SPEAKER,
-        secondarySpeakerIds,
+        secondarySpeakerIds: Array.from(secondarySpeakerIds),
         confidence: active?.confidence ?? 0,
-        overlap: active?.overlap ?? secondarySpeakerIds.length > 0,
+        overlap,
       });
       groupStart = index;
       active = next;

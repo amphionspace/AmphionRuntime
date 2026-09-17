@@ -377,6 +377,14 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `inferenceMs` | `number` | 累计分人推理耗时 |
 | `rtf` | `number` | 分人处理实时率 |
 
+同一主说话人的副角色或重叠状态变化不会单独拆开文本；`DiarizedUtterance` 的
+`secondarySpeakerIndexes` 汇总该文本区间内出现的副角色，`overlap` 表示其中存在重叠。
+精确的角色及重叠起止位置以 `speakerTurns` 为准，不能把汇总字段解释为整段同时发言。
+
+展示时建议按 `sourceUtteranceId` 将同一原句的文字连成一个段落，并保留各子区间供查看。
+包含多位主说话人或未知区间时，应明确标注“多位说话人”或“部分待确认”，不能按多数角色
+给整句确定身份。原句可读不代表角色精度通过；`-1`、短插话及重叠信息均不得丢弃。
+
 `SpeakerDiarizationDegradedReason` 包含 `NONE`、`INFERENCE_UNAVAILABLE`、
 `MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
 和 `SPEAKER_LIMIT_EXCEEDED`。

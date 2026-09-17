@@ -64,6 +64,7 @@ export class DiarizedUtterance {
   beginTime: number = 0;
   endTime: number = 0;
   speakerIndex: number = -1;
+  /** Secondary identities observed within this text span; speakerTurns gives exact intervals. */
   secondarySpeakerIndexes: number[] = [];
   confidence: number = 0;
   overlap: boolean = false;

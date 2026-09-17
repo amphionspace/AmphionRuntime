@@ -71,6 +71,7 @@ data class DiarizedUtterance(
     val beginTime: Int = 0,
     val endTime: Int = 0,
     val speakerIndex: Int = -1,
+    /** Secondary identities observed within this text span; speakerTurns gives exact intervals. */
     val secondarySpeakerIndexes: List<Int> = emptyList(),
     val confidence: Float = 0f,
     val overlap: Boolean = false,

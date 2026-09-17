@@ -15,6 +15,40 @@ import java.util.concurrent.TimeUnit
 
 class SpeakerDiarizationAlgorithmsTest {
     @Test
+    fun secondaryChangesDoNotFragmentPrimarySpeechOrEraseOverlap() {
+        val state = DiarizationTranscriptState()
+        state.addUtterance("你叫什么名字", "你叫什么名字。", listOf("你", "叫", "什", "么", "名", "字"),
+            listOf(100, 300, 500, 700, 900, 1100), 0, 1200)
+        state.applySpeakerTurns(listOf(
+            SpeakerTimelineTurn(0, 250, "S1", emptyList()),
+            SpeakerTimelineTurn(250, 450, "S1", listOf("UNKNOWN_SECONDARY"), overlap = true),
+            SpeakerTimelineTurn(450, 650, "S1", listOf("S2"), overlap = true),
+            SpeakerTimelineTurn(650, 1200, "S1", emptyList()),
+        ))
+        val before = state.allTurns()
+        val result = state.finalUtterances()
+        assertEquals(listOf("你叫什么名字。"), result.map { it.text })
+        assertEquals("S1", result.single().speakerId)
+        assertEquals(listOf("UNKNOWN_SECONDARY", "S2"), result.single().secondarySpeakerIds)
+        assertTrue(result.single().overlap)
+        assertEquals(before, state.allTurns())
+
+        val short = DiarizationTranscriptState()
+        short.addUtterance("嗯好", "嗯，好。", listOf("嗯", "好"), listOf(100, 700), 0, 1000)
+        short.applySpeakerTurns(listOf(
+            SpeakerTimelineTurn(0, 250, "S1", emptyList()),
+            SpeakerTimelineTurn(250, 300, "S1", listOf("S2"), overlap = true),
+            SpeakerTimelineTurn(300, 600, "S1", emptyList()),
+            SpeakerTimelineTurn(600, 1000, "S2", emptyList()),
+        ))
+        val split = short.commitThrough(1000)
+        assertEquals(listOf("嗯，" to "S1", "好。" to "S2"), split.map { it.text to it.speakerId })
+        assertEquals(listOf("S2"), split.first().secondarySpeakerIds)
+        assertTrue(split.first().overlap)
+        assertTrue(short.finalUtterances().isEmpty())
+    }
+
+    @Test
     fun unanimousSpeakerCoversGapsWithoutOverridingExplicitUncertainty() {
         fun split(turns: List<SpeakerTimelineTurn>): List<String> {
             val state = DiarizationTranscriptState()
