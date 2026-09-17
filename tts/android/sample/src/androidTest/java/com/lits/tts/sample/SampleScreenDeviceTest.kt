@@ -15,6 +15,17 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SampleScreenDeviceTest {
+    @Test fun mixedModeStartsWithPhilosophyText() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity {
+                val text = it.findViewById<EditText>(R.id.edit_input).text.toString()
+                assertTrue("Mixed demo should show the philosophy preset", text.startsWith("清晨醒来"))
+                assertTrue(text.contains("freedom"))
+                assertEquals(SampleTexts.forLanguage("zh-en"), text)
+            }
+        }
+    }
+
     @Test fun bothScreenLayoutsExposeMemoryAndAllActions() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         for (size in listOf(Configuration.SCREENLAYOUT_SIZE_SMALL, Configuration.SCREENLAYOUT_SIZE_NORMAL)) {
