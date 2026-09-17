@@ -1,0 +1,32 @@
+{
+  "date": "2026-09-17",
+  "version": "3.1",
+  "archive": "lits-dingqiao-tts-android-demo-vocos24k-3.1.zip",
+  "size_bytes": 249598996,
+  "archive_sha256": "2e69a20c0403cb90536b691a920d93532263d3c8329762103fded6af259fa4f4",
+  "apk_sha256": "0548b4d1f3e8d8e8342a9088418b46bfc3dc06afaff4b18a77201274a8823b9c",
+  "aar_sha256": "68c3d19146d8dd55c15018677f51916f85bb004d58cc89233775b37d301aac8d",
+  "package_name": "com.lits.tts.demo31",
+  "app_label": "Lits TTS Demo 3.1",
+  "variant": "debug",
+  "sample_source_commit": "4266d3be299f24ba99d3aabba7a6b612b478ed55",
+  "sample_main_source_changes": false,
+  "standalone_build_changes": [
+    "app module depends on local Release AAR",
+    "applicationId/label/versionName",
+    "arm64 ABI",
+    "standalone settings and root Gradle config"
+  ],
+  "customer_license_files_included": false,
+  "model": "IMF 170000",
+  "source_fingerprint": "a0299831a64b34fce2f0791e86e915a2be7add4a79732e90180beeae34f63a3d",
+  "verification": {
+    "standalone_build": "PASS",
+    "both_screen_layouts": "PASS",
+    "recreation_retains_synthesis": "PASS",
+    "ui_sdk_playback": "PASS",
+    "instrumentation_tests": 3,
+    "device_log_sha256": "79de9bf6385de16bb325fcae33d28922677c7f57c08e1b63308d8fac9ddff2bb",
+    "archive_crc_and_hashes": "PASS"
+  }
+}

@@ -18,8 +18,7 @@ voices = TextToSpeechSdk.listVoices(VoiceQuery {
     language: "zh-en"
 })
 
-// 1. 工作目录应与上述资源部署位置一致
-TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
+// 1. 工作目录已在创建前设置
 
 // 2. 创建引擎并在 createEngine 阶段加载模型
 params = CreateEngineParams {
@@ -67,12 +66,16 @@ engine.speak("您好，有什么可以帮您？", SpeakParams {
     queueMode: PREEMPT
 })
 
+// 等待 play-001 的 PLAYBACK_COMPLETE 后，再继续下一示例
+
 // 5. 仅合成并通过 onData 接收 PCM
 engine.speak("hello world", SpeakParams {
     requestId: "pcm-001",
     playType: SYNTHESIZE_ONLY,
     queueMode: QUEUE
 })
+
+// 等待 pcm-001 的 SYNTHESIS_COMPLETE 后继续；如果需要取消则直接调用 stop
 
 // 6. 可选：停止全部任务
 engine.stop()
@@ -86,6 +89,7 @@ engine.shutdown()
 Android App 推荐优先使用 callback 版 `createEngine` 做预加载，不要在主线程调用同步版创建接口。
 
 ```pseudocode
+// 已完成第 1 节的资源部署和授权初始化
 TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
 
 TextToSpeechSdk.createEngine(params, Callback {

@@ -34,13 +34,48 @@
   "delivery_version": "3.1",
   "aar_filename": "lits-dingqiao-tts-sdk-vocos24k-3.1.aar",
   "archive_filename": "lits-dingqiao-tts-android-sdk-vocos24k-3.1.zip",
-  "archive_sha256": "1717e07bf04ca2fd248a7c8c27ca16072ed906e730a8b0a98790d9487b28ed5d",
-  "archive_size_bytes": 222239312,
+  "archive_sha256": "a31f4a879804cb619e1fa10f5a426e599708a919ea72bb533fa019b4aad6d7cd",
+  "archive_size_bytes": 222233900,
   "customer_validation_files_included": false,
   "packaging_only": true,
   "layout_basis": "tts/android/build.gradle.kts: stageSdkDelivery",
   "examples": "Original docs/INTEGRATION.md and docs/PSEUDOCODE.md; 11 Kotlin snippets compiled against actual Release AAR",
   "customer_build_info_included": false,
   "resource_directory": "external-resources",
-  "checksum_file": "CHECKSUMS.txt"
+  "checksum_file": "CHECKSUMS.txt",
+  "superseded_archives": [
+    {
+      "archive_filename": "lits-dingqiao-tts-android-sdk-vocos24k-3.1.zip",
+      "archive_sha256": "1717e07bf04ca2fd248a7c8c27ca16072ed906e730a8b0a98790d9487b28ed5d",
+      "archive_size_bytes": 222239312
+    }
+  ],
+  "packaging_script": "tts/tools/android/pack_sdk_only.py",
+  "cleanup_revision": 2,
+  "customer_docs": [
+    "README.md",
+    "CHANGELOG.md",
+    "docs/API.md",
+    "docs/INTEGRATION.md",
+    "docs/PSEUDOCODE.md"
+  ],
+  "removed_customer_files": [
+    "docs/DELIVERY.md",
+    "model/export_report.json"
+  ],
+  "api_compatibility": "AAR SHA-256 unchanged; no SDK production code changes. Existing minimum positive chunk override remains 40.",
+  "validation": {
+    "device": "TECNO KI8 / Android 13",
+    "release_aar_api_tests_passed": 5,
+    "variable_chunks": [
+      50,
+      75,
+      100,
+      150
+    ],
+    "kotlin_snippets_compiled": 11,
+    "packaging_tests_passed": 4,
+    "evidence_summary_sha256": "49b6d0082a029563a3fef5396c0d6a8ee6d5a9fcfc566ead553841d0c969929b",
+    "device_log_sha256": "4fad0213f9cc6b8e2c2b14e810474b1aed1b7a820bc50a6fa2072aa9adbdc5d6"
+  }
 }
