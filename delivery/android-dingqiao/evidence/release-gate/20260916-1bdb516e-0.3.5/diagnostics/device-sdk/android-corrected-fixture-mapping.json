@@ -1,0 +1,26 @@
+[
+  {
+    "file": "000_target.wav",
+    "source": "<LOCAL_PATH>",
+    "source_sha256": "16496d1d3ee7d7acd927e665038ab984a6cf95d549f4fcae5523bf4840f38de1",
+    "sha256": "3642e95a2ae303ba9a74bcbde36d365031ed4f3fa7288f55679b9bdef8587df5",
+    "duration_ms": 2240.0,
+    "resampler": "audioop.ratecv"
+  },
+  {
+    "file": "000_声纹.wav",
+    "source": "<LOCAL_PATH>",
+    "source_sha256": "179d9b8c5800b303a91e9bd2c87c4b0e4ced510575f80c20d8ce3c7fb0097b54",
+    "sha256": "9cd91afebad829790d5f292b451ecce9aa7b6839644fe5878219c861127c03e2",
+    "duration_ms": 3200.0,
+    "resampler": "audioop.ratecv"
+  },
+  {
+    "file": "900_重叠.wav",
+    "source": "<LOCAL_PATH>",
+    "source_sha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+    "sha256": "255ec8d56f9fef898b839d4a3df599467181303884437b49c2cc846214a7b341",
+    "duration_ms": 30000.0,
+    "resampler": "unchanged"
+  }
+]

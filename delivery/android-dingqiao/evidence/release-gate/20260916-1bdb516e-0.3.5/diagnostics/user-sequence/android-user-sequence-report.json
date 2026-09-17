@@ -1,0 +1,524 @@
+{
+  "overall_status": "PASS",
+  "elapsed_seconds": 669.12,
+  "cycles": 300,
+  "normal_sessions_expected": 600,
+  "cancelled_sessions_expected": 300,
+  "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+  "carrier": "independently compiled packaged Demo source + Release AAR",
+  "carrier_sha256": "fae1a12e336f3f33920884bd3952ae6b58eedd958ee1670400eaf1eeb9e8a439",
+  "samples": [
+    {
+      "elapsed_seconds": 0.04,
+      "file": "memory-000.txt"
+    },
+    {
+      "elapsed_seconds": 5.3,
+      "file": "memory-001.txt"
+    },
+    {
+      "elapsed_seconds": 10.53,
+      "file": "memory-002.txt"
+    },
+    {
+      "elapsed_seconds": 15.69,
+      "file": "memory-003.txt"
+    },
+    {
+      "elapsed_seconds": 20.9,
+      "file": "memory-004.txt"
+    },
+    {
+      "elapsed_seconds": 26.13,
+      "file": "memory-005.txt"
+    },
+    {
+      "elapsed_seconds": 31.36,
+      "file": "memory-006.txt"
+    },
+    {
+      "elapsed_seconds": 36.57,
+      "file": "memory-007.txt"
+    },
+    {
+      "elapsed_seconds": 41.78,
+      "file": "memory-008.txt"
+    },
+    {
+      "elapsed_seconds": 47.02,
+      "file": "memory-009.txt"
+    },
+    {
+      "elapsed_seconds": 52.26,
+      "file": "memory-010.txt"
+    },
+    {
+      "elapsed_seconds": 57.52,
+      "file": "memory-011.txt"
+    },
+    {
+      "elapsed_seconds": 62.94,
+      "file": "memory-012.txt"
+    },
+    {
+      "elapsed_seconds": 68.17,
+      "file": "memory-013.txt"
+    },
+    {
+      "elapsed_seconds": 73.4,
+      "file": "memory-014.txt"
+    },
+    {
+      "elapsed_seconds": 78.75,
+      "file": "memory-015.txt"
+    },
+    {
+      "elapsed_seconds": 83.93,
+      "file": "memory-016.txt"
+    },
+    {
+      "elapsed_seconds": 89.19,
+      "file": "memory-017.txt"
+    },
+    {
+      "elapsed_seconds": 94.41,
+      "file": "memory-018.txt"
+    },
+    {
+      "elapsed_seconds": 99.72,
+      "file": "memory-019.txt"
+    },
+    {
+      "elapsed_seconds": 104.95,
+      "file": "memory-020.txt"
+    },
+    {
+      "elapsed_seconds": 110.24,
+      "file": "memory-021.txt"
+    },
+    {
+      "elapsed_seconds": 115.45,
+      "file": "memory-022.txt"
+    },
+    {
+      "elapsed_seconds": 120.68,
+      "file": "memory-023.txt"
+    },
+    {
+      "elapsed_seconds": 125.92,
+      "file": "memory-024.txt"
+    },
+    {
+      "elapsed_seconds": 131.11,
+      "file": "memory-025.txt"
+    },
+    {
+      "elapsed_seconds": 136.39,
+      "file": "memory-026.txt"
+    },
+    {
+      "elapsed_seconds": 141.59,
+      "file": "memory-027.txt"
+    },
+    {
+      "elapsed_seconds": 146.95,
+      "file": "memory-028.txt"
+    },
+    {
+      "elapsed_seconds": 152.16,
+      "file": "memory-029.txt"
+    },
+    {
+      "elapsed_seconds": 157.36,
+      "file": "memory-030.txt"
+    },
+    {
+      "elapsed_seconds": 162.6,
+      "file": "memory-031.txt"
+    },
+    {
+      "elapsed_seconds": 167.81,
+      "file": "memory-032.txt"
+    },
+    {
+      "elapsed_seconds": 173.05,
+      "file": "memory-033.txt"
+    },
+    {
+      "elapsed_seconds": 178.25,
+      "file": "memory-034.txt"
+    },
+    {
+      "elapsed_seconds": 183.46,
+      "file": "memory-035.txt"
+    },
+    {
+      "elapsed_seconds": 188.7,
+      "file": "memory-036.txt"
+    },
+    {
+      "elapsed_seconds": 194.02,
+      "file": "memory-037.txt"
+    },
+    {
+      "elapsed_seconds": 199.24,
+      "file": "memory-038.txt"
+    },
+    {
+      "elapsed_seconds": 204.47,
+      "file": "memory-039.txt"
+    },
+    {
+      "elapsed_seconds": 209.61,
+      "file": "memory-040.txt"
+    },
+    {
+      "elapsed_seconds": 214.85,
+      "file": "memory-041.txt"
+    },
+    {
+      "elapsed_seconds": 220.08,
+      "file": "memory-042.txt"
+    },
+    {
+      "elapsed_seconds": 225.21,
+      "file": "memory-043.txt"
+    },
+    {
+      "elapsed_seconds": 230.45,
+      "file": "memory-044.txt"
+    },
+    {
+      "elapsed_seconds": 235.7,
+      "file": "memory-045.txt"
+    },
+    {
+      "elapsed_seconds": 240.91,
+      "file": "memory-046.txt"
+    },
+    {
+      "elapsed_seconds": 246.17,
+      "file": "memory-047.txt"
+    },
+    {
+      "elapsed_seconds": 251.39,
+      "file": "memory-048.txt"
+    },
+    {
+      "elapsed_seconds": 256.6,
+      "file": "memory-049.txt"
+    },
+    {
+      "elapsed_seconds": 261.8,
+      "file": "memory-050.txt"
+    },
+    {
+      "elapsed_seconds": 267.06,
+      "file": "memory-051.txt"
+    },
+    {
+      "elapsed_seconds": 272.26,
+      "file": "memory-052.txt"
+    },
+    {
+      "elapsed_seconds": 277.56,
+      "file": "memory-053.txt"
+    },
+    {
+      "elapsed_seconds": 282.69,
+      "file": "memory-054.txt"
+    },
+    {
+      "elapsed_seconds": 287.94,
+      "file": "memory-055.txt"
+    },
+    {
+      "elapsed_seconds": 293.17,
+      "file": "memory-056.txt"
+    },
+    {
+      "elapsed_seconds": 298.38,
+      "file": "memory-057.txt"
+    },
+    {
+      "elapsed_seconds": 303.71,
+      "file": "memory-058.txt"
+    },
+    {
+      "elapsed_seconds": 308.85,
+      "file": "memory-059.txt"
+    },
+    {
+      "elapsed_seconds": 314.09,
+      "file": "memory-060.txt"
+    },
+    {
+      "elapsed_seconds": 319.46,
+      "file": "memory-061.txt"
+    },
+    {
+      "elapsed_seconds": 324.69,
+      "file": "memory-062.txt"
+    },
+    {
+      "elapsed_seconds": 329.94,
+      "file": "memory-063.txt"
+    },
+    {
+      "elapsed_seconds": 335.16,
+      "file": "memory-064.txt"
+    },
+    {
+      "elapsed_seconds": 340.44,
+      "file": "memory-065.txt"
+    },
+    {
+      "elapsed_seconds": 345.9,
+      "file": "memory-066.txt"
+    },
+    {
+      "elapsed_seconds": 351.03,
+      "file": "memory-067.txt"
+    },
+    {
+      "elapsed_seconds": 356.24,
+      "file": "memory-068.txt"
+    },
+    {
+      "elapsed_seconds": 361.47,
+      "file": "memory-069.txt"
+    },
+    {
+      "elapsed_seconds": 366.69,
+      "file": "memory-070.txt"
+    },
+    {
+      "elapsed_seconds": 371.94,
+      "file": "memory-071.txt"
+    },
+    {
+      "elapsed_seconds": 377.17,
+      "file": "memory-072.txt"
+    },
+    {
+      "elapsed_seconds": 382.39,
+      "file": "memory-073.txt"
+    },
+    {
+      "elapsed_seconds": 387.62,
+      "file": "memory-074.txt"
+    },
+    {
+      "elapsed_seconds": 392.84,
+      "file": "memory-075.txt"
+    },
+    {
+      "elapsed_seconds": 397.99,
+      "file": "memory-076.txt"
+    },
+    {
+      "elapsed_seconds": 403.22,
+      "file": "memory-077.txt"
+    },
+    {
+      "elapsed_seconds": 408.42,
+      "file": "memory-078.txt"
+    },
+    {
+      "elapsed_seconds": 413.65,
+      "file": "memory-079.txt"
+    },
+    {
+      "elapsed_seconds": 418.83,
+      "file": "memory-080.txt"
+    },
+    {
+      "elapsed_seconds": 424.06,
+      "file": "memory-081.txt"
+    },
+    {
+      "elapsed_seconds": 429.27,
+      "file": "memory-082.txt"
+    },
+    {
+      "elapsed_seconds": 434.5,
+      "file": "memory-083.txt"
+    },
+    {
+      "elapsed_seconds": 439.71,
+      "file": "memory-084.txt"
+    },
+    {
+      "elapsed_seconds": 444.93,
+      "file": "memory-085.txt"
+    },
+    {
+      "elapsed_seconds": 450.19,
+      "file": "memory-086.txt"
+    },
+    {
+      "elapsed_seconds": 455.41,
+      "file": "memory-087.txt"
+    },
+    {
+      "elapsed_seconds": 460.66,
+      "file": "memory-088.txt"
+    },
+    {
+      "elapsed_seconds": 465.9,
+      "file": "memory-089.txt"
+    },
+    {
+      "elapsed_seconds": 471.14,
+      "file": "memory-090.txt"
+    },
+    {
+      "elapsed_seconds": 476.33,
+      "file": "memory-091.txt"
+    },
+    {
+      "elapsed_seconds": 481.56,
+      "file": "memory-092.txt"
+    },
+    {
+      "elapsed_seconds": 486.69,
+      "file": "memory-093.txt"
+    },
+    {
+      "elapsed_seconds": 491.91,
+      "file": "memory-094.txt"
+    },
+    {
+      "elapsed_seconds": 497.1,
+      "file": "memory-095.txt"
+    },
+    {
+      "elapsed_seconds": 502.31,
+      "file": "memory-096.txt"
+    },
+    {
+      "elapsed_seconds": 507.53,
+      "file": "memory-097.txt"
+    },
+    {
+      "elapsed_seconds": 512.76,
+      "file": "memory-098.txt"
+    },
+    {
+      "elapsed_seconds": 517.99,
+      "file": "memory-099.txt"
+    },
+    {
+      "elapsed_seconds": 523.21,
+      "file": "memory-100.txt"
+    },
+    {
+      "elapsed_seconds": 528.43,
+      "file": "memory-101.txt"
+    },
+    {
+      "elapsed_seconds": 533.7,
+      "file": "memory-102.txt"
+    },
+    {
+      "elapsed_seconds": 538.93,
+      "file": "memory-103.txt"
+    },
+    {
+      "elapsed_seconds": 544.18,
+      "file": "memory-104.txt"
+    },
+    {
+      "elapsed_seconds": 549.4,
+      "file": "memory-105.txt"
+    },
+    {
+      "elapsed_seconds": 554.6,
+      "file": "memory-106.txt"
+    },
+    {
+      "elapsed_seconds": 559.82,
+      "file": "memory-107.txt"
+    },
+    {
+      "elapsed_seconds": 565.05,
+      "file": "memory-108.txt"
+    },
+    {
+      "elapsed_seconds": 570.25,
+      "file": "memory-109.txt"
+    },
+    {
+      "elapsed_seconds": 575.49,
+      "file": "memory-110.txt"
+    },
+    {
+      "elapsed_seconds": 580.62,
+      "file": "memory-111.txt"
+    },
+    {
+      "elapsed_seconds": 585.85,
+      "file": "memory-112.txt"
+    },
+    {
+      "elapsed_seconds": 591.08,
+      "file": "memory-113.txt"
+    },
+    {
+      "elapsed_seconds": 596.27,
+      "file": "memory-114.txt"
+    },
+    {
+      "elapsed_seconds": 601.41,
+      "file": "memory-115.txt"
+    },
+    {
+      "elapsed_seconds": 606.63,
+      "file": "memory-116.txt"
+    },
+    {
+      "elapsed_seconds": 611.86,
+      "file": "memory-117.txt"
+    },
+    {
+      "elapsed_seconds": 617.06,
+      "file": "memory-118.txt"
+    },
+    {
+      "elapsed_seconds": 622.27,
+      "file": "memory-119.txt"
+    },
+    {
+      "elapsed_seconds": 627.44,
+      "file": "memory-120.txt"
+    },
+    {
+      "elapsed_seconds": 632.7,
+      "file": "memory-121.txt"
+    },
+    {
+      "elapsed_seconds": 637.92,
+      "file": "memory-122.txt"
+    },
+    {
+      "elapsed_seconds": 643.1,
+      "file": "memory-123.txt"
+    },
+    {
+      "elapsed_seconds": 648.32,
+      "file": "memory-124.txt"
+    },
+    {
+      "elapsed_seconds": 653.54,
+      "file": "memory-125.txt"
+    },
+    {
+      "elapsed_seconds": 658.76,
+      "file": "memory-126.txt"
+    },
+    {
+      "elapsed_seconds": 663.96,
+      "file": "memory-127.txt"
+    }
+  ]
+}

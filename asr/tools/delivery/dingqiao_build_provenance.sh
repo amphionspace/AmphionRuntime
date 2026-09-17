@@ -102,9 +102,10 @@ dingqiao_assert_reproducible_build() {
 
 dingqiao_read_buildconfig_sdk_version() {
   local ar_root="$1"
-  local bc="$ar_root/sdk/build/generated/source/buildConfig/release/com/amphion/asr/BuildConfig.java"
+  local variant="${2:-release}"
+  local bc="$ar_root/sdk/build/generated/source/buildConfig/$variant/com/amphion/asr/BuildConfig.java"
   if [[ ! -f "$bc" ]]; then
-    echo "[ERROR] missing $bc — run :sdk:assembleRelease first" >&2
+    echo "[ERROR] missing $bc — build the $variant SDK first" >&2
     exit 1
   fi
   sed -n 's/.*SDK_VERSION = "\([^"]*\)".*/\1/p' "$bc" | head -1
@@ -112,9 +113,10 @@ dingqiao_read_buildconfig_sdk_version() {
 
 dingqiao_assert_sdk_version_consistent() {
   local ar_root="$1"
+  local variant="${2:-release}"
   local gradle_ver buildconfig_ver
   gradle_ver="$(dingqiao_read_sdk_version "$ar_root")"
-  buildconfig_ver="$(dingqiao_read_buildconfig_sdk_version "$ar_root")"
+  buildconfig_ver="$(dingqiao_read_buildconfig_sdk_version "$ar_root" "$variant")"
   if [[ "$gradle_ver" != "$buildconfig_ver" ]]; then
     echo "[ERROR] SDK version mismatch: gradle.properties=$gradle_ver BuildConfig.SDK_VERSION=$buildconfig_ver" >&2
     echo "        Re-run ./gradlew :sdk:assembleRelease after editing gradle.properties" >&2
@@ -139,6 +141,7 @@ amphion.sdk.version=$sdk_ver
 amphion.buildconfig.sdk.version=${BUILDCONFIG_SDK_VERSION:-$sdk_ver}
 amphion.delivery.version=${delivery_version:-$sdk_ver}
 amphion.delivery.status=${DINGQIAO_DELIVERY_STATUS_CODE:-formal}
+amphion.build.variant=${DINGQIAO_BUILD_VARIANT:-release}
 amphion.git.commit.full=${GIT_COMMIT_FULL:-unknown}
 amphion.git.commit.short=${GIT_COMMIT_SHORT:-unknown}
 amphion.git.branch=${GIT_BRANCH:-unknown}
@@ -266,6 +269,7 @@ PY
 
 dingqiao_verify_aar_asr_models() {
   local aar_path="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/verify_android_itn_verbalizer.py" "$aar_path" || return 1
   python3 - "$aar_path" <<'PY'
 import json
 import sys
@@ -275,7 +279,6 @@ aar_path = sys.argv[1]
 required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
-    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
     "assets/amphion-models/punct-zhen/v1/model.int8.ort.mp3": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3": 100 * 1024 * 1024,
@@ -393,6 +396,7 @@ PY
 
 dingqiao_verify_apk_asr_models() {
   local apk_path="$1"
+  python3 "$(dirname "${BASH_SOURCE[0]}")/verify_android_itn_verbalizer.py" "$apk_path" || return 1
   python3 - "$apk_path" <<'PY'
 import json
 import sys
@@ -402,7 +406,6 @@ apk_path = sys.argv[1]
 required = {
     "assets/amphion-models/manifest.json": 100,
     "assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst": 1024 * 1024,
-    "assets/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst": 100 * 1024,
     "assets/amphion-models/punct-zhen/v1/model.int8.ort.mp3": 50 * 1024 * 1024,
     "assets/amphion-models/vad/v1/silero_vad.onnx": 500 * 1024,
     "assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3": 100 * 1024 * 1024,
@@ -534,6 +537,8 @@ dingqiao_stage_customer_docs() {
   cp "$repo_root/shared/api-spec/dingqiao-asr-parameters.json" \
     "$out_docs/DINGQIAO_ASR_PARAMETER_CONTRACT.json"
   cp "$customer_docs/DINGQIAO_INTEGRATION.md" "$out_docs/"
+  local upgrade="$customer_docs/UPGRADE_$(dingqiao_read_sdk_version "$repo_root/asr/android").md"
+  [[ ! -f "$upgrade" ]] || cp "$upgrade" "$out_docs/"
   cp "$customer_docs/LICENSE.md" "$out_docs/"
   cp "$customer_docs/NOTICE" "$out_docs/NOTICE"
   mkdir -p "$out_docs/third-party"

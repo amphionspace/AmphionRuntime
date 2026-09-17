@@ -1,0 +1,81 @@
+{
+  "overall_status": "PASS",
+  "distinct_sdk_cases": 39,
+  "latest_results": {
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a01_tailFrame_abruptFinish_keepsTail": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a02_frameSize_nonStandardRejected": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a03_writeBeforeStart_notListening": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a04_doubleStart_busy": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a05_finishWhenIdle_finishFailed": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a06_cancel_noFinalNoComplete": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a07_invalidSessionId_rejected": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a08_writeWrongSessionId_mismatch": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09_maxAudioDuration_explicitShortLimitAutoFinishes": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09b_maxAudioDuration_nonFiniteValuesStayDisabled": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10_maxAudioDuration_autoFinish": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10b_autoFinishWindow_ignoresLateFrames": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10c_finishIdempotent_singleComplete": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10d_terminalCallback_reentrantReplacementOwnsCompletion": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10e_onStartSynchronousWrite_thenContinue": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10f_onStartSynchronousWrite_thenImmediateFinish": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10g_onStartSynchronousWrite_afterEngineReload": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10ga_onStartCancel_sameIdReplacementOwnsCallbacks": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10gb_onStartCanWaitForOtherThreadWriteAudio": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10h_lateOldWrite_doesNotAffectReplacement": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10i_lateOldFinish_doesNotAffectReplacement": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10j_lateOldCancel_doesNotAffectReplacement": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_unsupportedLanguage_createFails": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_vadBegin_initialSilenceAutoFinish": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint": "PASS",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a12_postShutdown_throwsInsteadOfCallback": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v01_register_fromSample_ok": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v02_register_tooLong_rejected": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v03_register_missingPath_rejected": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04_verification_similarityReturned": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04e_voiceprintVadBegin_pureSilenceEndsOnce": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v05_speakerVad_requiresVoiceprintIds": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v06_speakerVad_overlapRuns": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v07_delete_thenNotFound": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v08_setSpeakerVadEnabled_noVoiceprint_error": "PASS",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v09_register_async_offCallerThread_ok": "PASS"
+  },
+  "attempts": [
+    {
+      "artifact": "android-sdk-device.log",
+      "passed": 34,
+      "failed": 5
+    },
+    {
+      "artifact": "android-corrected-five.log",
+      "passed": 4,
+      "failed": 1
+    },
+    {
+      "artifact": "android-direct-onset-gate.log",
+      "passed": 1,
+      "failed": 0
+    }
+  ],
+  "android_user_sequence": {
+    "status": "PASS",
+    "cycles": 300,
+    "normal_sessions": 600,
+    "cancelled_sessions": 300
+  },
+  "diagnostics_tests": 2,
+  "release_demo_ui": "PASS foreground, screen timeout controlled; initial locked run retained",
+  "input_notes": [
+    "v02/v03 corrected tests to public VoiceprintRegisterResult.status",
+    "VAD uses one coherent utterance",
+    "voiceprint target uses a separate same-speaker enrollment; 400ms low-energy lead trimmed for the 1000ms initial-silence test",
+    "overlap source is AISHELL-4 with RTTM overlap"
+  ],
+  "noncanonical_failures": [
+    "Initial 39-test run: 5 failures; stale error-code assertion and mismatched or missing fixture preconditions",
+    "Corrected five: target onset confirmation still outside deadline; one-variable lead-silence trim passed",
+    "Initial Release UI run locked after 30 seconds; role inference degraded and observation timed out. Foreground-only acceptance does not establish background reliability."
+  ]
+}

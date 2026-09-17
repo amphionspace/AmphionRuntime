@@ -1,0 +1,2 @@
+000000	/data/storage/el2/base/files/asr-stress/20260916-175957-speaker-vad-turn-00d9360d/audio/000000.pcm
+000001	/data/storage/el2/base/files/asr-stress/20260916-175957-speaker-vad-turn-00d9360d/audio/000001.pcm
