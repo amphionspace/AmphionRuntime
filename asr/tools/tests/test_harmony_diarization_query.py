@@ -166,7 +166,7 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
             s.onWindow({jobId:'handoff',windowStartSample:0,contentStartInWindowSample:0,
               realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
               result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:1}],
-                embeddings:[{localSpeaker:0,speechSamples:96000,embedding:context,
+                embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:96000,embedding:context,
                   queryEmbedding:useQuery?outputQuery:undefined}]}});
             const result=s.commitWindow(2000,2000,true);
             return {s,result,profile:s.committedRegistry.snapshot()};

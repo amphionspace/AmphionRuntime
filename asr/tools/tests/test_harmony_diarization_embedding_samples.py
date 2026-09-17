@@ -33,6 +33,12 @@ class HarmonyDiarizationEmbeddingSamplesTest(unittest.TestCase):
         assert.deepEqual(result.embeddings.map(e => [e.localSpeaker, e.speechSamples]), [[0, 96000], [1, 32000]]);
         assert.deepEqual(consumed[0], Float32Array.from([...samples.slice(0, 48000), ...samples.slice(96000, 144000)]));
         assert.deepEqual(consumed[1], samples.slice(64000, 96000));
+        // Loudness admission must measure precisely the PCM used for this
+        // speaker's profile, excluding the other channel and overlapping speech.
+        for (let i = 0; i < 2; i++) {
+          const expected = Math.sqrt(consumed[i].reduce((sum, x) => sum + x*x, 0) / consumed[i].length);
+          assert.ok(Math.abs(result.embeddings[i].speechRms - expected) < 1e-8);
+        }
         // The endpoint's later clean speech must contribute to its speaker identity.
         assert.equal(consumed[0].at(-1), samples[143999]);
         assert.deepEqual(result.segments.map(s => ({...s})), segments);

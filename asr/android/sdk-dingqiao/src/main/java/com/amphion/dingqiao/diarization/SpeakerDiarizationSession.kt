@@ -41,6 +41,7 @@ internal class SpeakerDiarizationSession(
 ) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
     // Recognize the first/known speaker as before; require more speech to add another.
     private val minAdditionalSpeakerSpeechMs = 3000
+    private var speakerLevelReference = 0.0
     private val client = SpeakerDiarizationLocalClient(context, workPath, this)
     private var registry = OnlineSpeakerRegistry(maxSpeakers, 0.72f, 0.05f)
     private val globalClusterer = SpeakerDiarizationGlobalClusterer(maxSpeakers, 0.72f)
@@ -176,7 +177,11 @@ internal class SpeakerDiarizationSession(
             window.windowStartSample + window.contentStartInWindowSample
         // Only current output channels compete for online identities. Retain all
         // contextual embeddings below for window-final clustering.
+        // Prioritize principal voices within 6 dB of the observed speech level.
+        // Quieter speech stays UNKNOWN and cannot occupy a role slot.
+        window.result.embeddings.forEach { speakerLevelReference = maxOf(speakerLevelReference, it.speechRms) }
         val activeEmbeddings = window.result.embeddings.filter { embedding ->
+            embedding.speechRms > 0 && embedding.speechRms >= speakerLevelReference * 0.5 &&
             window.result.segments.any { segment ->
                 segment.speakerMask and (1 shl embedding.localSpeaker) != 0 &&
                     max(ownedStart, segment.startSample.toLong()) < min(ownedEnd, segment.endSample.toLong())
@@ -196,6 +201,7 @@ internal class SpeakerDiarizationSession(
             }
             val observation = SpeakerEmbeddingObservation(
                 embedding = embedding.embedding.copyOf(),
+                speechRms = embedding.speechRms,
                 durationMs = embedding.speechSamples * 1000 / SAMPLE_RATE,
                 onlineSpeakerId = assignment?.speakerId ?: "UNKNOWN",
                 endTimeMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
@@ -283,7 +289,9 @@ internal class SpeakerDiarizationSession(
 
     private fun commitWindowLocked(endTime: Int, evidenceEndTime: Int, isSessionFinal: Boolean,
         beginTime: Int = commitClock.beginTime()): SpeakerDiarizationResult {
-        val observations = recentObservations.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
+        val windowObservations = recentObservations.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
+        val observations = windowObservations.filter {
+            it.speechRms > 0 && it.speechRms >= speakerLevelReference * 0.5 }
             .map { it.copy(onlineSpeakerId = "UNKNOWN", anchorId = committedRegistry.matchKnown(it.embedding)) }
         val clustered = globalClusterer.cluster(observations)
         val clusters = clustered.clusters.toMutableList()
@@ -295,6 +303,10 @@ internal class SpeakerDiarizationSession(
             if (firstSupported > 0) clusters.add(0, clusters.removeAt(firstSupported))
         }
         val remap = mutableMapOf<String, String>()
+        // Clear ineligible evidence instead of retaining an earlier provisional ID.
+        windowObservations.forEach { observation ->
+            remap[observation.evidenceKey] = "UNKNOWN"
+        }
         for (cluster in clusters) {
             val anchor = cluster.indexes.mapNotNull { observations[it].anchorId }.firstOrNull()
             val id = if (anchor != null) {

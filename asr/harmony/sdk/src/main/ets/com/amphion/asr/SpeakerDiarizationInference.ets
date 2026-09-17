@@ -25,6 +25,7 @@ export class SpeakerDiarizationSegment {
 export class SpeakerDiarizationEmbedding {
   localSpeaker: number = 0;
   speechSamples: number = 0;
+  speechRms: number = 0;
   embedding: number[] = [];
   queryEmbedding?: number[];
 }
@@ -78,6 +79,9 @@ export class SpeakerDiarizationInference {
       const value = new SpeakerDiarizationEmbedding();
       value.localSpeaker = localSpeaker;
       value.speechSamples = channelSamples.length;
+      let squaredLevel = 0;
+      for (const sample of channelSamples) squaredLevel += sample * sample;
+      value.speechRms = Math.sqrt(squaredLevel / channelSamples.length);
       value.embedding = Array.from(embedding);
       const querySamples = this.collectQuerySamples(
         samples, nativeSegments, localSpeaker, queryStartSample, queryEndSample);

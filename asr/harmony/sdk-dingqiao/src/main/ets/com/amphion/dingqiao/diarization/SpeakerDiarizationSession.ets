@@ -62,6 +62,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly committedRegistry: OnlineSpeakerRegistry;
   private readonly publishedSpeakerIds: Set<string> = new Set();
   private inferenceEndMs: number = 0;
+  private speakerLevelReference: number = 0;
   private windowIndex: number = 0;
   private terminalPayload?: SpeechRecognitionResult;
   private totalSamples: number = 0;
@@ -186,7 +187,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       window.windowStartSample + window.contentStartInWindowSample;
     // Historical/right-context channels must not compete with the current output.
     // Keep their embeddings below for window-final clustering.
+    // Prioritize principal voices within 6 dB of the observed speech level.
+    // Quieter speech remains UNKNOWN; it must not occupy the four role slots.
+    for (const item of window.result.embeddings) {
+      this.speakerLevelReference = Math.max(this.speakerLevelReference, item.speechRms);
+    }
     const activeEmbeddings = window.result.embeddings.filter(item =>
+      item.speechRms > 0 && item.speechRms >= this.speakerLevelReference * 0.5 &&
       window.result.segments.some(segment =>
         (segment.speakerMask & (1 << item.localSpeaker)) !== 0 &&
         Math.max(ownedStart, segment.startSample) < Math.min(ownedEnd, segment.endSample)));
@@ -205,6 +212,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
       const observation: SpeakerDiarizationEmbeddingObservation = {
         embedding: item.embedding.slice(),
+        speechRms: item.speechRms,
         // Do not round sub-threshold PCM up into an eligible new identity.
         durationMs: Math.floor(item.speechSamples * 1000 / SAMPLE_RATE),
         onlineSpeakerId: assignment?.speakerId ?? 'UNKNOWN',
@@ -291,8 +299,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   private commitWindow(endTime: number, evidenceEndTime: number, isSessionFinal: boolean,
     beginTime: number = this.commitClock.beginTime()): SpeakerDiarizationResult {
-    const observations = this.recentEmbeddingObservations.filter(item =>
-      (item.endTimeMs ?? 0) <= evidenceEndTime && (item.endTimeMs ?? 0) > beginTime)
+    const windowObservations = this.recentEmbeddingObservations.filter(item =>
+      (item.endTimeMs ?? 0) <= evidenceEndTime && (item.endTimeMs ?? 0) > beginTime);
+    const observations = windowObservations.filter(item =>
+      (item.speechRms ?? 0) > 0 && (item.speechRms ?? 0) >= this.speakerLevelReference * 0.5)
       .map((item: SpeakerDiarizationEmbeddingObservation): SpeakerDiarizationEmbeddingObservation => ({
         embedding: item.embedding, durationMs: item.durationMs, endTimeMs: item.endTimeMs,
         evidenceKey: item.evidenceKey, onlineSpeakerId: 'UNKNOWN',
@@ -307,6 +317,11 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       if (firstSupported > 0) clusters.unshift(clusters.splice(firstSupported, 1)[0]);
     }
     const remap: Record<string, string> = {};
+    // A louder later voice can make earlier provisional evidence ineligible.
+    // Explicitly clear that evidence instead of retaining its provisional ID.
+    for (const observation of windowObservations) {
+      if (observation.evidenceKey !== undefined) remap[observation.evidenceKey] = 'UNKNOWN';
+    }
     for (const cluster of clusters) {
       const anchor = cluster.indexes.map(index => observations[index].anchorId)
         .find(id => id !== undefined);

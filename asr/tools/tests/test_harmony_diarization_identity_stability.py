@@ -49,7 +49,7 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
               realEndSample:160000,commitStartSample:begin*16,stableEndSample:end*16,
               finalWindow:false,result:{inferenceMs:0,segments:[{
                 startSample:contextBegin*16,endSample:end*16,speaker:0,speakerMask:1}],
-                embeddings:[{localSpeaker:0,speechSamples:(end-contextBegin)*16,
+                embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:(end-contextBegin)*16,
                   embedding:vector(index),queryEmbedding:hasQuery?vector(index):undefined}]}});
           }
           // The longer historical mixture is considered before the genuine new voice.
@@ -73,7 +73,7 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
               realEndSample:320000,commitStartSample:begin*16,stableEndSample:end*16,
               finalWindow:false,result:{inferenceMs:0,segments:[{
                 startSample:contextBegin*16,endSample:end*16,speaker:0,speakerMask:1}],
-                embeddings:[{localSpeaker:0,speechSamples:(end-contextBegin)*16,
+                embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:(end-contextBegin)*16,
                   embedding,queryEmbedding}]}});
           }
           window('supported',6000,10000,6000,voice,voice);
@@ -97,7 +97,7 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
                 realEndSample:224000,commitStartSample:i<2 ? 0 : 176000,
                 stableEndSample:224000,finalWindow:false,result:{inferenceMs:0,
                   segments:[{startSample:w.start*16,endSample:w.end*16,speaker:0,speakerMask:1}],
-                  embeddings:[{localSpeaker:0,speechSamples:(w.end-w.start)*16,embedding:w.embedding,
+                  embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:(w.end-w.start)*16,embedding:w.embedding,
                     queryEmbedding:i<2 ? w.embedding : undefined}]}});
             }
             const provisional=s.registry.speakerIds();
@@ -134,8 +134,8 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
             result:{inferenceMs:0,segments:[
               {startSample:32000,endSample:96000,speaker:0,speakerMask:1},
               {startSample:121600,endSample:160000,speaker:1,speakerMask:2}],
-              embeddings:[{localSpeaker:0,speechSamples:32000,embedding:[1,0,0]},
-                {localSpeaker:1,speechSamples:38400,embedding:current}]}};
+              embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:32000,embedding:[1,0,0]},
+                {localSpeaker:1,speechRms:0.1,speechSamples:38400,embedding:current}]}};
           s.onWindow(window);
           assert.deepEqual(s.transcript.allTurns().map(t=>t.speakerId),['S1'],
             'a closer historical fragment must not force the current speaker into a new role');
@@ -179,8 +179,8 @@ class HarmonyDiarizationIdentityStabilityTest(unittest.TestCase):
                 {startSample:0,endSample:51200,speaker:0,speakerMask:1},
                 {startSample:51200,endSample:102400,speaker:1,speakerMask:2},
                 {startSample:102400,endSample:153600,speaker:0,speakerMask:3}],
-                embeddings:[{localSpeaker:0,speechSamples:51200,embedding:[1,0],queryEmbedding:[1,0]},
-                  {localSpeaker:1,speechSamples:51200,embedding:[0,1],queryEmbedding:[0,1]}]}});
+                embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:51200,embedding:[1,0],queryEmbedding:[1,0]},
+                  {localSpeaker:1,speechRms:0.1,speechSamples:51200,embedding:[0,1],queryEmbedding:[0,1]}]}});
             return s.commitWindow(9600,9600,true);
           }
           const known=run(['S1','S2']); const unknown=run(['UNKNOWN','UNKNOWN']);

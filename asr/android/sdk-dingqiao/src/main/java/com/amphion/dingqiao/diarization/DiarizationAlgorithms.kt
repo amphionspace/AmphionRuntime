@@ -204,6 +204,7 @@ internal data class SpeakerEmbeddingObservation(
     val evidenceKey: String,
     val anchorId: String? = null,
     val queryEmbedding: FloatArray? = null,
+    val speechRms: Double = 0.0,
 )
 
 internal data class SpeakerClusterResult(

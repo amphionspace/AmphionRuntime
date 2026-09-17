@@ -37,7 +37,7 @@ class DiarizationWindowFinalizationTest {
                         begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
                             listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
                             listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, vector(index),
-                                if (hasQuery) vector(index) else null)), 0)))
+                                if (hasQuery) vector(index) else null, speechRms = 0.1)), 0)))
                 }
                 // A longer historical mixture must not take the last available identity.
                 window("mixed-context", 4000, 4600, 1000, 3, false)
@@ -78,7 +78,7 @@ class DiarizationWindowFinalizationTest {
                         begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
                             listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
                             listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, embedding,
-                                outputQuery)), 0)))
+                                outputQuery, speechRms = 0.1)), 0)))
                 }
                 window("supported", 6000, 10000, 6000, voice, voice)
                 window("query", 10000, 12000, 8000, voice, query)
@@ -118,7 +118,7 @@ class DiarizationWindowFinalizationTest {
                             DiarizationWindowInferenceResult(listOf(
                                 SpeakerSegmentationSegment(start * 16, start * 16 + durationSamples, 0, 1)),
                                 listOf(DiarizationEmbedding(0, durationSamples, vector,
-                                    if (index < 2) vector else null)), 0)))
+                                    if (index < 2) vector else null, speechRms = 0.1)), 0)))
                     }
                     val registry = session.javaClass.getDeclaredField("registry")
                         .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
@@ -181,8 +181,8 @@ class DiarizationWindowFinalizationTest {
                         listOf(SpeakerSegmentationSegment(0, 51200, 0, 1),
                             SpeakerSegmentationSegment(51200, 102400, 1, 2),
                             SpeakerSegmentationSegment(102400, 153600, 0, 3)),
-                        listOf(DiarizationEmbedding(0, 51200, vector(4), vector(4)),
-                            DiarizationEmbedding(1, 51200, vector(5), vector(5))), 0)))
+                        listOf(DiarizationEmbedding(0, 51200, vector(4), vector(4), speechRms = 0.1),
+                            DiarizationEmbedding(1, 51200, vector(5), vector(5), speechRms = 0.1)), 0)))
                 session.finish()
                 session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
                     AsrResult("", isLast = true))
@@ -212,8 +212,8 @@ class DiarizationWindowFinalizationTest {
                     136000, false, DiarizationWindowInferenceResult(listOf(
                         SpeakerSegmentationSegment(32000, 96000, 0, 1),
                         SpeakerSegmentationSegment(121600, 160000, 1, 2)), listOf(
-                        DiarizationEmbedding(0, 32000, floatArrayOf(1f, 0f)),
-                        DiarizationEmbedding(1, 38400, current)), 0)))
+                        DiarizationEmbedding(0, 32000, floatArrayOf(1f, 0f), speechRms = 0.1),
+                        DiarizationEmbedding(1, 38400, current, speechRms = 0.1)), 0)))
                 val transcript = session.javaClass.getDeclaredField("transcript")
                     .apply { isAccessible = true }.get(session) as DiarizationTranscriptState
                 assertEquals(listOf("S1"), transcript.allTurns()
@@ -428,6 +428,6 @@ class DiarizationWindowFinalizationTest {
             DiarizationWindowInferenceResult(
                 listOf(SpeakerSegmentationSegment(padding, 160_000, 0, 1)),
                 listOf(DiarizationEmbedding(0, minOf(realCount, 96_000), embedding,
-                    if (realCount >= 40_000) embedding else null)), 1))
+                    if (realCount >= 40_000) embedding else null, speechRms = 0.1)), 1))
     }
 }
