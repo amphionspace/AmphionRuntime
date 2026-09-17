@@ -1,6 +1,6 @@
 # 隐私与合规说明
 
-适用 SDK：`com.amphion:amphion-runtime` 0.3.5
+适用 SDK：`com.amphion:amphion-runtime` 0.3.6
 
 本文件用于：
 1. 让你（集成方）在自己的 App 隐私政策、上架材料里准确披露 SDK 的数据行为；
