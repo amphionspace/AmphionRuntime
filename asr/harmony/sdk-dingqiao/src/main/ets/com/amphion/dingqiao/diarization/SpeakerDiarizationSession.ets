@@ -435,7 +435,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         if (observation === undefined) reasons.push('NO_VALID_CONTEXT_EMBEDDING');
         if (!queryAvailable) reasons.push('NO_VALID_QUERY_EMBEDDING');
         if (observation !== undefined && !filtered) reasons.push('IDENTITY_UNCERTAIN');
-        unknownTurns.push({
+        const diagnosticTurn: Record<string, Object> = {
           beginTime: Math.max(beginTime, turn.beginTime), endTime: Math.min(endTime, turn.endTime),
           evidenceKey: key, contextEvidenceKey: contextKey, reasons,
           speechRms: level ?? -1, referenceRms: this.speakerLevelReference,
@@ -446,10 +446,12 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           queryEmbeddingAvailable: queryAvailable,
           channelQueryAvailable: observation?.queryEmbedding !== undefined,
           runQueryAvailable: query !== undefined,
-        });
+        };
+        unknownTurns.push(diagnosticTurn);
       }
-      this.diagnostic('DIARIZATION_UNKNOWN', { windowBeginTime: beginTime,
-        windowEndTime: endTime, stage: 'WINDOW_FINAL', unknownTurns });
+      const fields: Record<string, Object> = { windowBeginTime: beginTime,
+        windowEndTime: endTime, stage: 'WINDOW_FINAL', unknownTurns };
+      this.diagnostic('DIARIZATION_UNKNOWN', fields);
     } catch (_ignored) {
       // Diagnostics must not affect identity decisions or finalization.
     }
