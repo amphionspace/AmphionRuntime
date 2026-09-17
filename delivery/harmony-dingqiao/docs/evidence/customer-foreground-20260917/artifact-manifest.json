@@ -1,0 +1,62 @@
+[
+  {
+    "path": "device-assessment.json",
+    "bytes": 1883,
+    "sha256": "6643b416630c4b54293e476dc0942a1000626c31328da6fafd6b8f0921ac3310"
+  },
+  {
+    "path": "device-public-results.json",
+    "bytes": 27737,
+    "sha256": "34e2442154a0cec583419878a9ba63309ebd8d5ae41b9f483c6784e54680fcd0"
+  },
+  {
+    "path": "production-candidate-assessment.json",
+    "bytes": 3035,
+    "sha256": "96bbb298c92beae42b4dd87df987d173c2e97b6f8b2de73b4b8c8ab0ebe6eb18"
+  },
+  {
+    "path": "full-production-candidate.mts",
+    "bytes": 23447,
+    "sha256": "dd27deb4f3cb04213ff0157f74de838fb2f0cc073577a7fd307b44317022a9e8"
+  },
+  {
+    "path": "full-production-candidate.json",
+    "bytes": 38359,
+    "sha256": "f45525d97513f9d63b77dd8a9b1be5acddeabc0a7b15db900dca1430677b4723"
+  },
+  {
+    "path": "build-identity.json",
+    "bytes": 2351,
+    "sha256": "90862fc79209b2ab06468f3722fed54b0e048c8e316d1c26d3853911cee3d83b"
+  },
+  {
+    "path": "device-acceptance-plan.json",
+    "bytes": 1475,
+    "sha256": "2c8c82d476dc45faf04eb1eb723e1be04ae3f901148800093d911923f9ba5ab0"
+  },
+  {
+    "path": "device/20260917-154629-diarization-windows-0ce3a455/report.json",
+    "bytes": 125930,
+    "sha256": "90d1b89d3d830048ceafec1c5bc76d1fda541f66ffd83af72f283d00148782ef"
+  },
+  {
+    "path": "device/20260917-154629-diarization-windows-0ce3a455/inventory.json",
+    "bytes": 202,
+    "sha256": "4bcb3353721b329b9f6f413a5ff44b4ba61ccae2729bad3518dd91769f26489b"
+  },
+  {
+    "path": "device/20260917-154629-diarization-windows-0ce3a455/result.txt",
+    "bytes": 119777,
+    "sha256": "1a3a3e9f67cb11f5bd4485d9638d8a00ff536d92bcb893c489b33e563650f459"
+  },
+  {
+    "path": "device/20260917-154629-diarization-windows-0ce3a455/hilog.txt",
+    "bytes": 950156,
+    "sha256": "a59ac5fb2327abd1268d8587ae1e8e723b4084ef4ecd26602d3711f9ca22f10f"
+  },
+  {
+    "path": "device/20260917-154629-diarization-windows-0ce3a455/memory.csv",
+    "bytes": 8496,
+    "sha256": "e25f06f49a5bcdd3ea043546e96152c6121548878b49ffc3e0d0875a67b14494"
+  }
+]

@@ -1,0 +1,265 @@
+{
+  "canonical": false,
+  "privateArtifactRoot": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9",
+  "files": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/AdmissionRegistry.ts",
+      "bytes": 8704,
+      "sha256": "0b55d68782d662f31679ed41e2d3a2da272f9cbe67b6ef4329bdbf301485b0e5"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/L_R003S01C02-joint-backend.json",
+      "bytes": 423943,
+      "sha256": "c731d14ac11ebe8e5597100a7f2d9562e2ac4521c16eb03b17949f4ceba3c07b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/L_R003S01C02-masks.json",
+      "bytes": 49974,
+      "sha256": "390b7b6f8018bffde2734e3cf36967673355ae8bf0d9a78c397af21df3af589a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/M_R003S02C01-joint-backend.json",
+      "bytes": 442338,
+      "sha256": "a187df7d53d6a981c6e2edf9bfe090acc4ab405dda3104523bc513dd386fd43e"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/M_R003S02C01-masks.json",
+      "bytes": 38408,
+      "sha256": "4f7edac9c3ed0a9f492ed6551c72a5949f2139399b847cd923799ad8a1c085e6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/S_R003S01C01-joint-backend.json",
+      "bytes": 411194,
+      "sha256": "d3a5a0470669f1ac1f7647bd2a13495ca7a404fe89b07b2bee8b615bfd878fac"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/S_R003S01C01-masks.json",
+      "bytes": 36980,
+      "sha256": "917689ee4153f760562ee717cfcd4f58ce3d35e49b7a0faea14f284b9ff9657e"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/admission-driver.mts",
+      "bytes": 24233,
+      "sha256": "df69b5737dd07daaf5ea28d4cdd7663106a7f6e7c1b16fd113e27f70cd9561c1"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/admission-plan.json",
+      "bytes": 783,
+      "sha256": "35e5047e3617e479c6abd70fbf52997843d6d383c5643d491f45c9400d1a2034"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/admission-state.json",
+      "bytes": 11858561,
+      "sha256": "f91c7bb0c8eab970dc6b2a050b4a63719c7061cdffd11871c8dbb08404a37f68"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/agreement-sample-probe.json",
+      "bytes": 351194,
+      "sha256": "0f34c199eab1faea277783cd9fda66069ab2266ea79c4802fef4e49270510a4a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/alternative-embedding.json",
+      "bytes": 163184,
+      "sha256": "a0d255e4940c0d8f273a32fc7198e3b289e44e6b39fcfa520d9b851621c7c059"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/backend-inputs.json",
+      "bytes": 288,
+      "sha256": "c5e28553520bdb6cd6ac581b157b109285debbb8cdc3152994598cf7a79d82cf"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/baseline-evaluation.json",
+      "bytes": 1869,
+      "sha256": "bf8136c37b858fa915af194bebde8d0cd9710d10e74ac941b368a26957b47fb5"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/baseline-state.json",
+      "bytes": 11744592,
+      "sha256": "a5d6de9e03417d86b05793b0213cff71310e18cf5d565998733a171f9bf85b6f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-comparison.json",
+      "bytes": 5146,
+      "sha256": "14f8b094cfc65910642e9e090fcaffef21896b101be5c7aaebb942ff9ed7e4b1"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-fork-state.json",
+      "bytes": 11876068,
+      "sha256": "00536af16407942adb06222170d3cca3c7df058d640fb8c624ce676ed63a6075"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-fork.log",
+      "bytes": 530,
+      "sha256": "b6b41ce13461cf28297e27d5bf64bc9e4b59e215c4e3f63d46fa9364e110ba55"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-oracle-driver.mts",
+      "bytes": 24193,
+      "sha256": "2008139a0f848f1a008f0b1fc5d5fde9d4e99c3d65abfc3fc11d167780c23654"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-oracle-evaluation.json",
+      "bytes": 1884,
+      "sha256": "c8198dc5429472488f320ff2f5ca77b0955c0f2275d4615c790c762244e003d1"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-oracle-state.json",
+      "bytes": 11519106,
+      "sha256": "e7c53f49255b3d68f9a434f9dbd3169a7ddb8de9a8d5a4bbb666ae33b6806bc6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/capacity-oracle.log",
+      "bytes": 530,
+      "sha256": "c7ab8a11ff8cebc67d9053df911298545eb86f3dd9ffd64c1c0db29fe6e3ee66"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/clean-context-evaluation.json",
+      "bytes": 2410,
+      "sha256": "e63d02b4f05c512bb62f74ab05a8fdbbc202d527115e685abc407666594f29c7"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/clean-context-state.json",
+      "bytes": 11901702,
+      "sha256": "91716ff5aa81adb4143eafd379f04dd90bf643f1024c6b2edfa9245725d4b90c"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/clean-sample-fork.log",
+      "bytes": 5742,
+      "sha256": "62ea9f03223a56c51631d914327c2d27e871245ceae003d0f4f27f0dd05020d2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/clean-sample-fork.py",
+      "bytes": 4015,
+      "sha256": "ac98cf570c257720719be2236cf189004120db369030e97ed924ce8cd8a72ad4"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/compare-embedding.py",
+      "bytes": 1718,
+      "sha256": "fd8f55b28aa10f752cb317c70069f9fc3bf884577e23c0114cbc4c4b8ab0b129"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/compare.log",
+      "bytes": 981,
+      "sha256": "7ec657ffd93d6d5ba6e3732d6db0c37424fa20f780820d879bbfc00b78c2f3b1"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/embedding-comparison.json",
+      "bytes": 3399,
+      "sha256": "c3e6dec3c9e413c05f315fd67756381ca872a17cdc3d69d578e367544be8713f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/exemplar-spans.json",
+      "bytes": 1119,
+      "sha256": "a3245db098b37d3738b5cc5f9e3e251af778612345edc6a28c9625be384e9e8a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/experiment-plan.json",
+      "bytes": 678,
+      "sha256": "1b4dc88a86fe00f1f74fc8f70fcee81bea23ad3e17592460107b4a860cec833b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/fork-comparison.json",
+      "bytes": 4129,
+      "sha256": "64c6566e74b8d06339fd7c9ff6a01ed2977c2911cd78a41c9b7fdb7d603ce301"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/joint-backend-assessment.json",
+      "bytes": 2128,
+      "sha256": "43ce52600d3966fcde3918a3aed13d0b467e34c42c991b1e24eab68befc88b63"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/joint-backend-probe.py",
+      "bytes": 3480,
+      "sha256": "dbd13bae0498a98ba7fdc738beb2b2d7307d35fe0ae3fdf1ec1e67fb9501ed74"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/joint-backend.log",
+      "bytes": 1006,
+      "sha256": "2eb52516cd94afc471c039f78f6e11a502e703240b05c8fe12152bd621a99eee"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/nearest-sample-probe.json",
+      "bytes": 2398,
+      "sha256": "cbd08dca13c1e17d989270c296f4c91ddb0be469552f123a5556730b6f42eb8c"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/oracle-clean-context-windows.json",
+      "bytes": 1736240,
+      "sha256": "f7cd7e7819f1cbfade801c9a9aad0df3d15b1647f11bd1d9962d5ba117d7dcdb"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/red.json",
+      "bytes": 222,
+      "sha256": "233aaf301a9eb82bd21fb5c2c7c2f60b86b364e55c4c153a640fc5a28bd833a8"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/reextraction-audit.json",
+      "bytes": 651,
+      "sha256": "a3d6866c427939cde0057e2127febfd682bd1ea08d576e51c4d0b3bc4d496ad4"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/reextraction-audit.py",
+      "bytes": 2801,
+      "sha256": "0e2283d1af823df1c0fb234ebbc816ac47e0609c34c1f38999a8ae248ae8a19d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/state-driver.mts",
+      "bytes": 24220,
+      "sha256": "6ad2051163040f8c931ac9ef038b623934981272df32df9cb5f05396ee7973f9"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/unique-weight-driver.mts",
+      "bytes": 24984,
+      "sha256": "0fc28aa42be9b2c60bdd1db143af2c38642427afa43b58546fc4e3c71a922c76"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/unique-weight-evaluation.json",
+      "bytes": 1869,
+      "sha256": "6ee1a8240796181b3c00b2a41d3e9218b5db581c8736d94f79d793b69ef6c00f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/identity-enrollment-fix-24_cwef9/unique-weight-state.json",
+      "bytes": 11750535,
+      "sha256": "45a3683e6375c1983a44ee015ea491af786213c86262386f50585d5bdfb2b526"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/candidate-device-windows.json",
+      "bytes": 46493,
+      "sha256": "c93b0069c4559d5fa09a8ff2eec84f928dfe749602c1d8afa28ec6669920b4c2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/host/L_R003S01C02/current-windows.json",
+      "bytes": 1734952,
+      "sha256": "883502cd82133d207070bfe37b95ad487947eb5874420f48aac96c7297bfa149"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/moss-annotation-audit-8cqlfeo8/inputs.jsonl",
+      "bytes": 6238,
+      "sha256": "8b6881768ffe35d61e26b492b30e4e70d5ddff3e2c05ae71bd7bcd289e141d5b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/moss-annotation-audit-8cqlfeo8/speaker-alignment.json",
+      "bytes": 7487,
+      "sha256": "380104b962fae1052db6d77d5c24795de95126424f38bb3f2bdd97df6d0275ad"
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/eres2net.onnx",
+      "bytes": 39593761,
+      "sha256": "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b"
+    }
+  ],
+  "runtimeSources": [
+    {
+      "path": "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationSession.ets",
+      "sha256": "a424d4bb83db707d456a2e370ae55acebe0ea085b6f9b32b99ec9c8cf5988816"
+    },
+    {
+      "path": "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/OnlineSpeakerRegistry.ts",
+      "sha256": "3211673ebe4931e62506315efc330ddcbf3082c19800f37e7396c8ff0e4cd69c"
+    },
+    {
+      "path": "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationGlobalClusterer.ts",
+      "sha256": "b6711f78aa6cf851a5b826b43e83491cde0302206c8607305cb8dd72b851a0a3"
+    }
+  ]
+}
