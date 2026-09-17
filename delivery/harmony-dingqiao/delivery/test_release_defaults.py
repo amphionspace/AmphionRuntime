@@ -29,11 +29,11 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("onStart", upgrade)
 
         version_files = {
-            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.15"',
-            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.15"',
-            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.15"',
-            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.15"',
-            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.15'",
+            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.16"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.16"',
+            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.16"',
+            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.16"',
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.16'",
         }
         for relative, expected in version_files.items():
             with self.subTest(relative=relative):
@@ -46,19 +46,18 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("UPGRADE_0.3.15.md", pack_script)
+        self.assertIn("UPGRADE_0.3.16.md", pack_script)
         validator = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"docs/UPGRADE_0.3.15.md"', validator)
+        self.assertIn('"docs/UPGRADE_0.3.16.md"', validator)
 
-    def test_usb_carrier_preserves_the_installed_0315_version(self) -> None:
-        # The test carrier must replace the installed 315 HAP without uninstalling device data.
-        # SDK/package versions above advance with this customer release.
+    def test_usb_carrier_matches_the_current_delivery_version(self) -> None:
+        # The test carrier advances with the SDK and replaces the installed HAP without removing data.
         app = json.loads((REPO_ROOT / "delivery/harmony-dingqiao/AppScope/app.json5").read_text())["app"]
-        self.assertEqual("0.3.15", app["versionName"])
-        self.assertEqual(315, app["versionCode"])
+        self.assertEqual("0.3.16", app["versionName"])
+        self.assertEqual(316, app["versionCode"])
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
