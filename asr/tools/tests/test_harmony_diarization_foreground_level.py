@@ -5,6 +5,48 @@ from asr.tools.tests.test_harmony_diarization_identity_stability import run_sess
 
 
 class HarmonyDiarizationForegroundLevelTest(unittest.TestCase):
+    def test_unknown_diagnostics_are_observational_and_explain_filtering(self):
+        run_session("""
+          function replay(diagnostic) {
+            const s=new SpeakerDiarizationSession({},'',4,{
+              onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}},diagnostic);
+            s.totalSamples=256000;
+            for(let i=0;i<4;i++) {
+              const begin=i*64000, embedding=i===3?[.65,Math.sqrt(1-.65**2)]:[1,0];
+              s.onWindow({jobId:`w${i}`,windowStartSample:begin,contentStartInWindowSample:0,
+                realEndSample:begin+64000,commitStartSample:begin,stableEndSample:begin+64000,
+                finalWindow:false,result:{inferenceMs:0,
+                  segments:[{startSample:0,endSample:64000,speaker:0,speakerMask:1}],
+                  embeddings:i===2?[]:[{localSpeaker:0,speechSamples:64000,embedding,
+                    queryEmbedding:i===0?embedding:undefined,speechRms:i===1?.04:.1}]}});
+            }
+            const result=s.commitWindow(16000,Infinity,true);
+            return {result,registry:s.committedRegistry.snapshot()};
+          }
+          const events=[], baseline=replay(undefined);
+          assert.deepEqual(replay((event,fields)=>events.push({event,fields})),baseline,
+            'diagnostics must not alter identities, profiles or public turns');
+          assert.equal(events.length,1);
+          assert.equal(events[0].event,'DIARIZATION_UNKNOWN');
+          const rows=events[0].fields.unknownTurns;
+          const quiet=rows.find(x=>x.beginTime===4000);
+          assert.ok(quiet.reasons.includes('RELATIVE_LEVEL_FILTERED'));
+          assert.equal(quiet.relativeLevel,.04/.1);
+          assert.equal(quiet.relativeThreshold,.5);
+          assert.equal(quiet.contextEmbeddingAvailable,true);
+          assert.equal(quiet.queryEmbeddingAvailable,false);
+          const missing=rows.find(x=>x.beginTime===8000);
+          assert.ok(missing.reasons.includes('NO_VALID_CONTEXT_EMBEDDING'));
+          assert.equal(missing.relativeLevel,-1,'missing evidence is not quiet background');
+          const uncertain=rows.find(x=>x.beginTime===12000);
+          assert.ok(uncertain.reasons.includes('IDENTITY_UNCERTAIN'));
+          assert.equal(uncertain.contextEmbeddingAvailable,true);
+          assert.deepEqual(replay(()=>{throw new Error('diagnostic sink unavailable')}),baseline,
+            'diagnostic failures cannot affect finalization');
+          assert.equal(JSON.stringify(events).includes('centroid'),false);
+          assert.equal(JSON.stringify(events).includes('"embedding"'),false);
+        """)
+
     def test_later_louder_speech_revises_only_uncommitted_quiet_evidence(self):
         run_session("""
           const s=session();s.totalSamples=160000;

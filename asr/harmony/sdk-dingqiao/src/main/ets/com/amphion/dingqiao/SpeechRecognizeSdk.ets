@@ -600,7 +600,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             this.context,
             SpeechRecognizeSdk.getWorkPath(),
             maxSpeakers,
-            diarizationObserver);
+            diarizationObserver,
+            DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
+              this.diagnostic(diarizationSessionId, event, fields);
+            } : undefined);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,

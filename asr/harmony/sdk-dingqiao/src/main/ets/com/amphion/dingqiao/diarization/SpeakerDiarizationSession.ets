@@ -83,10 +83,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private finished: boolean = false;
   private finalSpeakerCount: number = 0;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
+  private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
-    observer: SpeakerDiarizationSessionObserver) {
+    observer: SpeakerDiarizationSessionObserver,
+    diagnostic?: (event: string, fields: Record<string, Object>) => void) {
     this.observer = observer;
+    this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
     this.registry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
     this.committedRegistry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
@@ -390,6 +393,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         queryConfidences[query.evidenceKey] = match.confidence;
       }
     }
+    this.recordUnknownDiagnostics(beginTime, endTime, windowObservations, turnQueries, remap);
     this.transcript.applyEvidenceRemap(remap, 0, queryConfidences);
     this.finalSpeakerCount = this.committedRegistry.speakerIds().length;
     this.registry = this.committedRegistry.fork();
@@ -407,6 +411,48 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(item =>
       (item.endTimeMs ?? 0) > endTime || needed.has(item.evidenceKey ?? ''));
     return result;
+  }
+
+  private recordUnknownDiagnostics(beginTime: number, endTime: number,
+    observations: SpeakerDiarizationEmbeddingObservation[], queries: SpeakerDiarizationTurnQuery[],
+    remap: Record<string, string>): void {
+    if (this.diagnostic === undefined) return;
+    try {
+      const unknownTurns: Record<string, Object>[] = [];
+      for (const turn of this.transcript.allTurns()) {
+        if (turn.endTime <= beginTime || turn.beginTime >= endTime) continue;
+        const key = turn.evidenceKey ?? '';
+        if ((remap[key] ?? turn.speakerId) !== 'UNKNOWN') continue;
+        const query = queries.find(item => item.evidenceKey === key);
+        const contextKey = query?.contextEvidenceKey ?? key;
+        const observation = observations.find(item => item.evidenceKey === contextKey);
+        const level = observation?.speechRms;
+        const filtered = observation !== undefined &&
+          ((level ?? 0) <= 0 || (level ?? 0) < this.speakerLevelReference * 0.5);
+        const queryAvailable = query !== undefined || observation?.queryEmbedding !== undefined;
+        const reasons: string[] = [];
+        if (filtered) reasons.push('RELATIVE_LEVEL_FILTERED');
+        if (observation === undefined) reasons.push('NO_VALID_CONTEXT_EMBEDDING');
+        if (!queryAvailable) reasons.push('NO_VALID_QUERY_EMBEDDING');
+        if (observation !== undefined && !filtered) reasons.push('IDENTITY_UNCERTAIN');
+        unknownTurns.push({
+          beginTime: Math.max(beginTime, turn.beginTime), endTime: Math.min(endTime, turn.endTime),
+          evidenceKey: key, contextEvidenceKey: contextKey, reasons,
+          speechRms: level ?? -1, referenceRms: this.speakerLevelReference,
+          relativeLevel: level !== undefined && this.speakerLevelReference > 0 ?
+            level / this.speakerLevelReference : -1,
+          relativeThreshold: 0.5, absoluteThreshold: this.speakerLevelReference * 0.5,
+          contextEmbeddingAvailable: observation !== undefined,
+          queryEmbeddingAvailable: queryAvailable,
+          channelQueryAvailable: observation?.queryEmbedding !== undefined,
+          runQueryAvailable: query !== undefined,
+        });
+      }
+      this.diagnostic('DIARIZATION_UNKNOWN', { windowBeginTime: beginTime,
+        windowEndTime: endTime, stage: 'WINDOW_FINAL', unknownTurns });
+    } catch (_ignored) {
+      // Diagnostics must not affect identity decisions or finalization.
+    }
   }
 
   private collectOutputSpeakerIds(beginTime: number, endTime: number,
