@@ -6,6 +6,7 @@ export interface SpeakerDiarizationEmbeddingObservation {
   evidenceKey?: string;
   anchorId?: string;
   queryEmbedding?: number[];
+  speechRms?: number;
 }
 
 export interface SpeakerDiarizationClusterResult {

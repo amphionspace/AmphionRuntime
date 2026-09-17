@@ -1,0 +1,379 @@
+{
+  "date": "2026-09-17",
+  "status": "OPEN_NO_ACCEPTED_IDENTITY_FIX",
+  "canonical": false,
+  "sourceCommit": "afe6d9e5c383f9f54cc3f7be9127f273eeed6ed9",
+  "runtimeBaselineCommit": "e7a1acefce8091ce004dba4d968b96b24a156306",
+  "scope": "Same-input host state forks, independent acoustic exemplars, experimental backend comparison. No production source change or new device run.",
+  "annotationStatus": "Original AISHELL4 reference, with MOSS cross-support in diagnostic spans; not human listening adjudication.",
+  "red": {
+    "canonical": false,
+    "samePublicTimelineAsDevice": true,
+    "expectedFirstWindowProfiles": 3,
+    "actual": 4,
+    "status": "FAIL",
+    "symptom": "same physical person duplicates S1/S4 before actual fourth person enters"
+  },
+  "metrics": {
+    "baseline": {
+      "speakerConfusionSeconds": 19.23,
+      "unknownTurnSeconds": 60.41,
+      "perSpeakerRecall": {
+        "002-F": 0.277297,
+        "003-F": 0.820513,
+        "004-M": 0.081081,
+        "005-M": 0.473435
+      },
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 0.6,
+            "missing": 0.25,
+            "1": 6.16
+          },
+          "003-F": {
+            "2": 8.4,
+            "missing": 0.19,
+            "unknown": 0.26
+          },
+          "004-M": {
+            "unknown": 16.48,
+            "missing": 0.06
+          },
+          "005-M": {
+            "0": 52.36,
+            "unknown": 22.61,
+            "missing": 7.0,
+            "3": 11.49
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 91.625,
+            "atSeconds": 122.195
+          }
+        ]
+      }
+    },
+    "clean-context": {
+      "speakerConfusionSeconds": 2.73,
+      "unknownTurnSeconds": 76.04,
+      "perSpeakerRecall": {
+        "002-F": 0.277297,
+        "003-F": 0.820513,
+        "004-M": 0.0,
+        "005-M": 0.473435
+      },
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 0.6,
+            "missing": 0.25,
+            "1": 6.16
+          },
+          "003-F": {
+            "2": 8.4,
+            "missing": 0.19,
+            "unknown": 0.26
+          },
+          "004-M": {
+            "unknown": 16.48,
+            "missing": 0.06
+          },
+          "005-M": {
+            "0": 52.36,
+            "unknown": 31.88,
+            "missing": 7.0,
+            "3": 2.22
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 4,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 71.265,
+            "atSeconds": 74.545
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 76.895,
+            "atSeconds": 76.905
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 77.285,
+            "atSeconds": 77.295
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 77.365,
+            "atSeconds": 77.375
+          }
+        ]
+      }
+    },
+    "unique-weight": {
+      "speakerConfusionSeconds": 19.23,
+      "unknownTurnSeconds": 60.41,
+      "perSpeakerRecall": {
+        "002-F": 0.277297,
+        "003-F": 0.820513,
+        "004-M": 0.081081,
+        "005-M": 0.473435
+      },
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 0.6,
+            "missing": 0.25,
+            "1": 6.16
+          },
+          "003-F": {
+            "3": 8.4,
+            "missing": 0.19,
+            "unknown": 0.26
+          },
+          "004-M": {
+            "unknown": 16.48,
+            "missing": 0.06
+          },
+          "005-M": {
+            "0": 52.36,
+            "unknown": 22.61,
+            "missing": 7.0,
+            "2": 11.49
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 91.625,
+            "atSeconds": 122.195
+          }
+        ]
+      }
+    },
+    "capacity-oracle": {
+      "speakerConfusionSeconds": 2.34,
+      "unknownTurnSeconds": 60.44,
+      "perSpeakerRecall": {
+        "002-F": 0.277297,
+        "003-F": 0.820513,
+        "004-M": 0.77595,
+        "005-M": 0.473435
+      },
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 0.6,
+            "missing": 0.25,
+            "1": 6.16
+          },
+          "003-F": {
+            "2": 8.4,
+            "missing": 0.19,
+            "unknown": 0.26
+          },
+          "004-M": {
+            "3": 15.96,
+            "missing": 0.06,
+            "unknown": 0.52
+          },
+          "005-M": {
+            "0": 52.36,
+            "unknown": 32.75,
+            "missing": 7.0,
+            "3": 1.35
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 91.625,
+            "atSeconds": 153.505
+          }
+        ]
+      }
+    }
+  },
+  "reextractionAudit": [
+    {
+      "key": "w00000004:1",
+      "samples": 89305,
+      "storedSamples": 89305,
+      "reextractionCosine": 1.0000000000000009
+    },
+    {
+      "key": "w00000017:2",
+      "samples": 58255,
+      "storedSamples": 58255,
+      "reextractionCosine": 1.000000000000002
+    },
+    {
+      "key": "w00000031:2",
+      "samples": 49885,
+      "storedSamples": 49885,
+      "reextractionCosine": 1.0000000000000007
+    },
+    {
+      "key": "w00000050:1",
+      "samples": 87415,
+      "storedSamples": 87415,
+      "reextractionCosine": 1.0000000000000007
+    },
+    {
+      "key": "w00000051:1",
+      "samples": 96000,
+      "storedSamples": 96000,
+      "reextractionCosine": 1.0000000000000004
+    }
+  ],
+  "admissionCandidate": {
+    "status": "REJECTED",
+    "onlyChange": "New-identity boundary .59 -> .54; known/query acceptance unchanged; no oracle reference labels",
+    "reason": "Another duplicate cluster w00000010:2 / w00000011:2 consumes S4 at cosine .46722697. No threshold sweep."
+  },
+  "independentExemplars": {
+    "count": 21,
+    "minSeconds": 2,
+    "maxSeconds": 6,
+    "sameSpeakerPairsAtLeast3Seconds": 91,
+    "differentSpeakerPairsAtLeast3Seconds": 45,
+    "currentModelSameMinimum": 0.3197535728302361,
+    "currentModelDifferentMaximum": 0.37406255265172195,
+    "alternativeSameMinimum": 0.2569942423948842,
+    "alternativeDifferentMaximum": 0.3227770133245756,
+    "limitations": [
+      "Most exemplars belong to one speaker; two speakers have only one eligible exemplar each.",
+      "Overlapping score distributions on these samples do not establish population-level model quality.",
+      "Model scores are not interchangeable; no shared acceptance threshold evaluated."
+    ]
+  },
+  "alternativeModel": {
+    "canonical": false,
+    "model": "/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/speaker-clustering/community/upstream/embedding/pytorch_model.bin",
+    "model_sha256": "6f10ff60898a1d185fa22e1d11e0bfa8a92efec811f11bca48cb8cafebefd929",
+    "audio_sha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+    "extractor": "<class 'pyannote.audio.models.embedding.wespeaker.WeSpeakerResNet34'>",
+    "versions": {
+      "torch": "2.8.0",
+      "pyannote.audio": "4.0.7"
+    },
+    "seconds": 1.2828861828893423
+  },
+  "jointBackend": {
+    "canonical": false,
+    "verdict": "REJECTED",
+    "summary": [
+      {
+        "name": "S_R003S01C01",
+        "expectedCount": 2,
+        "cohort": {
+          "endMs": 180000,
+          "initialClusters": 5,
+          "keptClusters": 2,
+          "assignedClusters": 2
+        },
+        "dominantReferenceByClusterObservationCounts": {
+          "005-M": {
+            "0": 30
+          },
+          "001-M": {
+            "1": 40
+          }
+        },
+        "mixedOrUnlabelledExcludedObservations": 3,
+        "countingUnit": "overlapping context observations, not independent examples or speech duration",
+        "seconds": 6.3505259258672595
+      },
+      {
+        "name": "M_R003S02C01",
+        "expectedCount": 3,
+        "cohort": {
+          "endMs": 180000,
+          "initialClusters": 14,
+          "keptClusters": 2,
+          "assignedClusters": 2
+        },
+        "dominantReferenceByClusterObservationCounts": {
+          "006-F": {
+            "1": 56
+          },
+          "001-M": {
+            "0": 17
+          }
+        },
+        "mixedOrUnlabelledExcludedObservations": 5,
+        "countingUnit": "overlapping context observations, not independent examples or speech duration",
+        "seconds": 5.73220110218972
+      },
+      {
+        "name": "L_R003S01C02",
+        "expectedCount": 4,
+        "cohort": {
+          "endMs": 180000,
+          "initialClusters": 33,
+          "keptClusters": 2,
+          "assignedClusters": 2
+        },
+        "dominantReferenceByClusterObservationCounts": {
+          "005-M": {
+            "1": 50
+          },
+          "002-F": {
+            "1": 5
+          },
+          "003-F": {
+            "1": 6
+          },
+          "004-M": {
+            "0": 9
+          }
+        },
+        "mixedOrUnlabelledExcludedObservations": 4,
+        "countingUnit": "overlapping context observations, not independent examples or speech duration",
+        "seconds": 5.120465393876657
+      }
+    ],
+    "excludedPrefixResult": "The 124800 prefix in original raw output incorrectly filters evidence at public end instead of original available evidence end 127500. It is non-comparable and not used; full 180-second 3/4-person collapse already falsifies this candidate, so no extra inference was run."
+  },
+  "nextDecision": "Validate separate known-speaker acceptance and new-speaker confirmation on speaker-disjoint far-field development data; keep these diagnostic recordings as fixed regression inputs."
+}

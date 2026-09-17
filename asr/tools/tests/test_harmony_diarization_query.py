@@ -87,7 +87,10 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
           consumed.length=0;
           const short=await inference.process(samples,136000,144000);
           assert.equal(short.embeddings[0].queryEmbedding,undefined);
-          assert.equal(consumed.length,2,'sub-second queries must not borrow context or pad silence');
+          // Channel queries still require one second inside the owned slice.
+          // The separate run query may use this run's real contiguous context.
+          assert.deepEqual(short.segments[3].queryEmbedding,[48000,samples[96000]]);
+          assert.deepEqual(consumed.at(-1),samples.slice(96000,144000));
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / 'query.mts'
@@ -166,7 +169,7 @@ class HarmonyDiarizationQueryTest(unittest.TestCase):
             s.onWindow({jobId:'handoff',windowStartSample:0,contentStartInWindowSample:0,
               realEndSample:32000,commitStartSample:0,stableEndSample:32000,finalWindow:true,
               result:{inferenceMs:0,segments:[{startSample:0,endSample:32000,speaker:0,speakerMask:1}],
-                embeddings:[{localSpeaker:0,speechSamples:96000,embedding:context,
+                embeddings:[{localSpeaker:0,speechRms:0.1,speechSamples:96000,embedding:context,
                   queryEmbedding:useQuery?outputQuery:undefined}]}});
             const result=s.commitWindow(2000,2000,true);
             return {s,result,profile:s.committedRegistry.snapshot()};

@@ -1,5 +1,11 @@
 # HarmonyOS Demo 故障排查
 
+## 真实录音的文字或角色结果不可信
+
+无标注录音先按 [MOSS 辅助标注与复核流程](MOSS_ANNOTATION_WORKFLOW.md) 生成独立转写和说话人时间线，核对输入、时间偏移及争议区间，再分析 SDK。不要直接把 SDK 编号或评估器编号映射当成真实人物。
+
+当前采样、重复建档和角色容量问题的优化顺序见 [角色分离优化计划](SPEAKER_DIARIZATION_OPTIMIZATION_PLAN_20260917.md)。
+
 ## 先运行自动检查
 
 ```bash

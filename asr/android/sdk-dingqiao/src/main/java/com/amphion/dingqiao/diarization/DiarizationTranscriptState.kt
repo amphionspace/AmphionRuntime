@@ -37,6 +37,7 @@ internal data class DiarizedTranscriptUtterance(
     val confidence: Float,
     val overlap: Boolean,
     val sourceUtteranceId: String = utteranceId,
+    val speakerInferred: Boolean = false,
 )
 
 private data class StoredUtterance(
@@ -278,13 +279,21 @@ internal class DiarizationTranscriptState {
         for (index in 1..utterance.tokens.size) {
             val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) ?: unanimous else null
             val same = index < utterance.tokens.size &&
-                (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN") &&
-                (next?.secondarySpeakerIds ?: emptyList<String>()) ==
-                (active?.secondarySpeakerIds ?: emptyList<String>())
+                (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN")
             if (same) continue
             val begin = if (groupStart == 0) utterance.beginTime else utterance.tokenTimesMs[groupStart]
             val end = if (index < utterance.tokens.size) utterance.tokenTimesMs[index] else utterance.endTime
-            val secondary = active?.secondarySpeakerIds?.toList() ?: emptyList()
+            // Secondary changes annotate speech instead of splitting the primary
+            // speaker's words. allTurns() retains their exact time intervals.
+            val secondary = (active?.secondarySpeakerIds ?: emptyList()).toMutableSet()
+            var overlap = active?.overlap ?: secondary.isNotEmpty()
+            for (turn in turns) {
+                if (overlapMs(begin, end, turn.beginTime, turn.endTime) <= 0) continue
+                secondary.addAll(turn.secondarySpeakerIds.filter {
+                    it != (active?.speakerId ?: "UNKNOWN") || (active?.speakerId ?: "UNKNOWN") == "UNKNOWN"
+                })
+                overlap = overlap || turn.overlap || turn.secondarySpeakerIds.isNotEmpty()
+            }
             val text = utterance.tokens.subList(groupStart, index).joinToString("")
             result += DiarizedTranscriptUtterance(
                 utteranceId = if (result.isEmpty()) utterance.utteranceId else "${utterance.utteranceId}.${result.size + 1}",
@@ -294,15 +303,68 @@ internal class DiarizationTranscriptState {
                 beginTime = begin,
                 endTime = end,
                 speakerId = active?.speakerId ?: "UNKNOWN",
-                secondarySpeakerIds = secondary,
+                secondarySpeakerIds = secondary.toList(),
                 confidence = active?.confidence ?: 0f,
-                overlap = active?.overlap ?: secondary.isNotEmpty(),
+                overlap = overlap,
             )
             groupStart = index
             active = next
         }
-        return result
+        return backfillUnknown(result)
     }
+
+    private fun backfillUnknown(parts: List<DiarizedTranscriptUtterance>): List<DiarizedTranscriptUtterance> {
+        // One current inference hop; operating points are recorded in
+        // delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
+        val resolved = parts.mapIndexed { index, part ->
+            val duration = part.endTime - part.beginTime
+            if (part.speakerId != "UNKNOWN" || duration !in 0..2_500 ||
+                blocksBackfill(part.secondarySpeakerIds, part.overlap)) return@mapIndexed part
+            val previous = parts.getOrNull(index - 1)
+            val next = parts.getOrNull(index + 1)
+            if (previous != null && next != null && previous.speakerId != next.speakerId) return@mapIndexed part
+            if (listOfNotNull(previous, next).any { blocksBackfill(it.secondarySpeakerIds, it.overlap) }) {
+                return@mapIndexed part
+            }
+            val speakerId = previous?.speakerId ?: next?.speakerId ?: return@mapIndexed part
+            if (speakerId == "UNKNOWN") return@mapIndexed part
+            var evidenceBegin = part.beginTime
+            if (duration == 0) {
+                // A terminal token may start at the public end timestamp. Only
+                // recent acoustic support can attach this text to its neighbour.
+                if (next != null || previous == null || previous.endTime != part.beginTime) return@mapIndexed part
+                evidenceBegin = max(previous.beginTime, part.beginTime - 2_500)
+                if (turns.none { it.speakerId == speakerId &&
+                    overlapMs(evidenceBegin, part.endTime, it.beginTime, it.endTime) > 0 }) return@mapIndexed part
+            }
+            if (turns.any { overlapMs(evidenceBegin, part.endTime, it.beginTime, it.endTime) > 0 &&
+                ((it.speakerId != "UNKNOWN" && it.speakerId != speakerId) ||
+                    blocksBackfill(it.secondarySpeakerIds, it.overlap)) }) return@mapIndexed part
+            part.copy(speakerId = speakerId, confidence = 0f, speakerInferred = true)
+        }
+        val merged = mutableListOf<DiarizedTranscriptUtterance>()
+        for (part in resolved) {
+            val previous = merged.lastOrNull()
+            if (previous != null && previous.speakerId == part.speakerId) {
+                merged[merged.lastIndex] = previous.copy(
+                    rawText = previous.rawText + part.rawText,
+                    text = previous.text + part.text,
+                    endTime = part.endTime,
+                    confidence = min(previous.confidence, part.confidence),
+                    speakerInferred = previous.speakerInferred || part.speakerInferred,
+                    overlap = previous.overlap || part.overlap,
+                    secondarySpeakerIds = (previous.secondarySpeakerIds + part.secondarySpeakerIds).distinct(),
+                )
+            } else {
+                merged += part.copy(utteranceId = if (merged.isEmpty()) part.sourceUtteranceId
+                    else "${part.sourceUtteranceId}.${merged.size + 1}")
+            }
+        }
+        return merged
+    }
+
+    private fun blocksBackfill(secondary: List<String>, overlap: Boolean): Boolean =
+        secondary.any { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" } || (overlap && secondary.isEmpty())
 
     private fun unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn? {
         var candidate: SpeakerTimelineTurn? = null

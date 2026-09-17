@@ -134,7 +134,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         rows = source.split("ForEach(this.finalSegments,", 1)[1].split("\n      }", 1)[0]
         key = rows.rsplit("}, ", 1)[1].rstrip().removesuffix(")")
         label = rows.split("Span(", 1)[1].split("\n", 1)[0].rstrip().removesuffix(")")
-        label = label.replace("this.speakerLabel", "page.speakerLabel")
+        label = label.replace("this.segmentSpeakerLabel", "page.segmentSpeakerLabel")
         script = f"""
             import assert from 'node:assert/strict';
             class FinalSegment {{{segment}
@@ -189,6 +189,41 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
                 text:'丁句', endTime:15000, speakerIndex:1}}],
             }});
             assert.equal(render().at(-1), '说话人 2（最终结果）');
+            const mixed = new Page();
+            const parts = [
+              {{sourceUtteranceId:'u1',utteranceId:'u1',text:'张',beginTime:0,endTime:200,
+                speakerIndex:0,secondarySpeakerIndexes:[],overlap:false}},
+              {{sourceUtteranceId:'u1',utteranceId:'u1.2',text:'三。',beginTime:200,endTime:400,
+                speakerIndex:-1,secondarySpeakerIndexes:[1],overlap:true}},
+              {{sourceUtteranceId:'u2',utteranceId:'u2',text:'你好。',beginTime:500,endTime:1000,
+                speakerIndex:1,secondarySpeakerIndexes:[],overlap:false}},
+            ];
+            mixed.handleSpeakerDiarizationResult('live', {{
+              windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
+            }});
+            assert.deepEqual(mixed.finalSegments.map(x=>x.text),['张三。','你好。'],
+              'one source sentence must stay readable despite uncertain role fragments');
+            assert.deepEqual(mixed.finalSegments.map(x=>x.speakerIndex),[-1,1],
+              'readability must not assign the uncertain character to its neighbour');
+            assert.deepEqual(mixed.finalSegments[0].speakerParts,parts.slice(0,2),
+              'exact known/unknown text, times and overlap remain inspectable');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[0]),
+              '说话人 1 · 部分待确认 · 含重叠发言');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[1]),'说话人 2');
+            const multi = new FinalSegment('甲乙',undefined,'both',-1,1000,true,true);
+            multi.speakerParts = [parts[0],parts[2]];
+            assert.equal(mixed.segmentSpeakerLabel(multi),'多位说话人',
+              'do not relabel a multi-speaker paragraph using its majority speaker');
+            const inferred = new FinalSegment('张三',undefined,'inferred',0,1000,true,true);
+            inferred.speakerParts = [{{...parts[0],text:'张三',confidence:0,speakerInferred:true}}];
+            assert.equal(mixed.segmentSpeakerLabel(inferred),'说话人 1 · 含推断补全',
+              'bounded UNKNOWN backfill must be visible as an inference');
+            mixed.handleSpeakerDiarizationUpdate('live',{{utteranceId:'u1',revision:99,speakerIndex:2}});
+            assert.equal(mixed.finalSegments[0].speakerIndex,-1);
+            mixed.handleSpeakerDiarizationResult('live', {{
+              windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
+            }});
+            assert.equal(mixed.finalSegments.length,2,'a repeated window must not duplicate paragraphs');
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / "speaker-display.mts"

@@ -14,6 +14,74 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun independentOutputQueriesPreserveTheSecondPersonAtFinalization() {
+        for (queryCount in listOf(2, 1)) mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-query-consensus").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+                })
+            try {
+                session.append(ByteArray(640000))
+                val context = floatArrayOf(.61f, kotlin.math.sqrt(1f - .61f * .61f))
+                val query = floatArrayOf(.45f, kotlin.math.sqrt(1f - .45f * .45f))
+                for (i in 0..3) {
+                    val begin = i * 80000L
+                    val embedding = if (i < 2) floatArrayOf(1f, 0f) else context
+                    val owned = if (i < 2) embedding else if (i - 2 < queryCount) query else null
+                    session.onWindow(DiarizationLocalWindowResult("w$i", begin, 0,
+                        begin + 80000, begin, begin + 80000, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(0, 80000, 0, 1)),
+                            listOf(DiarizationEmbedding(0, if (i < 2) 80000 else 64000,
+                                embedding, owned, .1)), 0)))
+                }
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true), AsrResult("", isLast = true))
+                session.onDrained()
+                assertEquals(if (queryCount == 2) 2 else 1, results.single().speakerCount)
+                assertEquals(if (queryCount == 2) listOf(0, 0, 1, 1) else listOf(0, 0, -1, -1),
+                    results.single().speakerTurns.map { it.speakerIndex })
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
+    @Test fun separateRunsOnOneChannelUseTheirOwnQueryAcrossACommitBoundary() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-run-query").toFile()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) = Unit
+                })
+            try {
+                session.append(ByteArray(320000))
+                val committed = session.javaClass.getDeclaredField("committedRegistry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                committed.assignBatch(listOf(floatArrayOf(1f, 0f), floatArrayOf(0f, 1f)), listOf(6000, 6000), 0)
+                session.javaClass.getDeclaredField("registry").apply { isAccessible = true }.set(session, committed.fork())
+                @Suppress("UNCHECKED_CAST")
+                val published = session.javaClass.getDeclaredField("publishedSpeakerIds")
+                    .apply { isAccessible = true }.get(session) as MutableSet<String>
+                published.addAll(listOf("S1", "S2"))
+                session.onWindow(DiarizationLocalWindowResult("mixed-channel", 0, 0, 160000, 0, 160000, true,
+                    DiarizationWindowInferenceResult(listOf(
+                        SpeakerSegmentationSegment(0, 32000, 0, 1, floatArrayOf(1f, 0f)),
+                        SpeakerSegmentationSegment(64000, 96000, 0, 1, floatArrayOf(0f, 1f))),
+                        listOf(DiarizationEmbedding(0, 64000, floatArrayOf(1f, 0f), floatArrayOf(1f, 0f), .1)), 0)))
+                val commit = session.javaClass.getDeclaredMethod("commitWindowLocked", Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                    .apply { isAccessible = true }
+                val first = commit.invoke(session, 3000, 10000, false, 0) as SpeakerDiarizationResult
+                val second = commit.invoke(session, 10000, Int.MAX_VALUE, true, 3000) as SpeakerDiarizationResult
+                assertEquals(listOf(0), first.speakerTurns.map { it.speakerIndex })
+                assertEquals(listOf(1), second.speakerTurns.map { it.speakerIndex })
+                assertEquals(2, committed.speakerIds().size)
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
     @Test fun contextOnlyCandidateLeavesCapacityForASupportedFourthSpeaker() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-fourth-speaker-test").toFile()
@@ -37,7 +105,7 @@ class DiarizationWindowFinalizationTest {
                         begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
                             listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
                             listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, vector(index),
-                                if (hasQuery) vector(index) else null)), 0)))
+                                if (hasQuery) vector(index) else null, speechRms = 0.1)), 0)))
                 }
                 // A longer historical mixture must not take the last available identity.
                 window("mixed-context", 4000, 4600, 1000, 3, false)
@@ -78,7 +146,7 @@ class DiarizationWindowFinalizationTest {
                         begin * 16L, end * 16L, false, DiarizationWindowInferenceResult(
                             listOf(SpeakerSegmentationSegment(contextBegin * 16, end * 16, 0, 1)),
                             listOf(DiarizationEmbedding(0, (end - contextBegin) * 16, embedding,
-                                outputQuery)), 0)))
+                                outputQuery, speechRms = 0.1)), 0)))
                 }
                 window("supported", 6000, 10000, 6000, voice, voice)
                 window("query", 10000, 12000, 8000, voice, query)
@@ -118,7 +186,7 @@ class DiarizationWindowFinalizationTest {
                             DiarizationWindowInferenceResult(listOf(
                                 SpeakerSegmentationSegment(start * 16, start * 16 + durationSamples, 0, 1)),
                                 listOf(DiarizationEmbedding(0, durationSamples, vector,
-                                    if (index < 2) vector else null)), 0)))
+                                    if (index < 2) vector else null, speechRms = 0.1)), 0)))
                     }
                     val registry = session.javaClass.getDeclaredField("registry")
                         .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
@@ -181,8 +249,8 @@ class DiarizationWindowFinalizationTest {
                         listOf(SpeakerSegmentationSegment(0, 51200, 0, 1),
                             SpeakerSegmentationSegment(51200, 102400, 1, 2),
                             SpeakerSegmentationSegment(102400, 153600, 0, 3)),
-                        listOf(DiarizationEmbedding(0, 51200, vector(4), vector(4)),
-                            DiarizationEmbedding(1, 51200, vector(5), vector(5))), 0)))
+                        listOf(DiarizationEmbedding(0, 51200, vector(4), vector(4), speechRms = 0.1),
+                            DiarizationEmbedding(1, 51200, vector(5), vector(5), speechRms = 0.1)), 0)))
                 session.finish()
                 session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true),
                     AsrResult("", isLast = true))
@@ -212,8 +280,8 @@ class DiarizationWindowFinalizationTest {
                     136000, false, DiarizationWindowInferenceResult(listOf(
                         SpeakerSegmentationSegment(32000, 96000, 0, 1),
                         SpeakerSegmentationSegment(121600, 160000, 1, 2)), listOf(
-                        DiarizationEmbedding(0, 32000, floatArrayOf(1f, 0f)),
-                        DiarizationEmbedding(1, 38400, current)), 0)))
+                        DiarizationEmbedding(0, 32000, floatArrayOf(1f, 0f), speechRms = 0.1),
+                        DiarizationEmbedding(1, 38400, current, speechRms = 0.1)), 0)))
                 val transcript = session.javaClass.getDeclaredField("transcript")
                     .apply { isAccessible = true }.get(session) as DiarizationTranscriptState
                 assertEquals(listOf("S1"), transcript.allTurns()
@@ -428,6 +496,6 @@ class DiarizationWindowFinalizationTest {
             DiarizationWindowInferenceResult(
                 listOf(SpeakerSegmentationSegment(padding, 160_000, 0, 1)),
                 listOf(DiarizationEmbedding(0, minOf(realCount, 96_000), embedding,
-                    if (realCount >= 40_000) embedding else null)), 1))
+                    if (realCount >= 40_000) embedding else null, speechRms = 0.1)), 1))
     }
 }

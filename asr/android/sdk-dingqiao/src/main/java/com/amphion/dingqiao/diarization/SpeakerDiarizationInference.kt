@@ -9,6 +9,7 @@ internal data class DiarizationEmbedding(
     val speechSamples: Int,
     val embedding: FloatArray,
     val queryEmbedding: FloatArray? = null,
+    val speechRms: Double = 0.0,
 )
 
 internal data class DiarizationWindowInferenceResult(
@@ -39,10 +40,22 @@ internal class SpeakerDiarizationInference(
             val embedding = computeEmbedding(channelSamples) ?: return@mapNotNull null
             val querySamples = collectQuerySamples(samples, segments, localSpeaker,
                 queryStartSample, queryEndSample)
-            DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples))
+            var squaredLevel = 0.0
+            for (sample in channelSamples) squaredLevel += sample.toDouble() * sample
+            DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples),
+                kotlin.math.sqrt(squaredLevel / channelSamples.size))
         }
         return DiarizationWindowInferenceResult(
-            segments,
+            segments.map { segment ->
+                if (segment.speakerMask != (1 shl segment.speaker) ||
+                    maxOf(segment.startSample, queryStartSample) >= minOf(segment.endSample, queryEndSample)) {
+                    segment
+                } else {
+                    // Separate runs on one channel must not share a mixed query.
+                    val end = minOf(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES)
+                    segment.copy(queryEmbedding = computeEmbedding(samples.copyOfRange(segment.startSample, end)))
+                }
+            },
             embeddings,
             (System.nanoTime() - started) / 1_000_000,
         )
