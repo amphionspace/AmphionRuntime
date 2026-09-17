@@ -1,0 +1,347 @@
+{
+  "status": "PASS_SCOPED_PR_MERGE_GATE",
+  "runtimeCommit": "c19db6d55d0e834c03238246fed4e2ac1df6541c",
+  "device": "device-9d33cec60055",
+  "hapSha256": "cd66f2e5ace509f6442324a8bc2d048e8392771869029a34e4ade519d3ec194f",
+  "scope": "Main statements in two-speaker phone input and four louder principal speakers in customer meeting; short interjections explicitly deferred by user",
+  "phone": {
+    "status": "PASS_WITH_DEFERRED_SHORT_INTERJECTIONS",
+    "reportStatus": "PASS",
+    "finalSpeakerCount": 2,
+    "mainAnchorsPassed": [
+      [
+        2,
+        1
+      ],
+      [
+        12,
+        0
+      ],
+      [
+        18,
+        1
+      ],
+      [
+        30,
+        1
+      ],
+      [
+        36,
+        0
+      ],
+      [
+        41,
+        1
+      ],
+      [
+        49,
+        0
+      ],
+      [
+        52,
+        1
+      ],
+      [
+        56,
+        0
+      ],
+      [
+        63,
+        1
+      ],
+      [
+        68,
+        0
+      ],
+      [
+        72,
+        1
+      ]
+    ],
+    "hostDeviceAcousticCoreParity": true,
+    "textParts": 23,
+    "inferenceMs": 53641,
+    "rtf": 0.601626289816061,
+    "finishToCompleteMs": 1159,
+    "deferred": "User confirmed B at59.3/73.4 seconds; latest user instruction explicitly defers these short interjections; no optimization added for them.",
+    "tail": "Relative volume filtering leaves last quiet phrase unknown; ASR tail text/time issue remains separate."
+  },
+  "customer": {
+    "status": "PASS_SCOPED_FOUR_PRINCIPAL_SPEAKERS",
+    "reportSha256": "b257750e7a1a5ca9fb2c0f0c8c63ae986e7ac85397993e643aa4632e65f6fe2c",
+    "hapSha256": "cd66f2e5ace509f6442324a8bc2d048e8392771869029a34e4ade519d3ec194f",
+    "finalSpeakerCount": 4,
+    "mainAnchors": [
+      [
+        4.5,
+        0
+      ],
+      [
+        18.5,
+        1
+      ],
+      [
+        28,
+        2
+      ],
+      [
+        40,
+        3
+      ],
+      [
+        48,
+        0
+      ],
+      [
+        57,
+        0
+      ]
+    ],
+    "textConserved": true,
+    "wholeWords": [
+      "角色",
+      "HELLO",
+      "张三"
+    ],
+    "sourceUtterances": 21,
+    "textParts": 22,
+    "hostDeviceAcousticCoreParity": true,
+    "committedWindows": 2,
+    "frozenWindowContract": "PASS in SDK carrier",
+    "rtf": 0.45512868801004397,
+    "inferenceMs": 72502,
+    "finishToCompleteMs": 3178,
+    "scope": "Four louder principal speakers; background UNKNOWN accepted by user; not universal accuracy approval"
+  },
+  "controls": [
+    {
+      "name": "S_R003S01C01",
+      "newWrongSpeakerSecondsOnReferenceSpeech": 0.0,
+      "lostCorrectSpeakerSeconds": 0.0,
+      "scope": "10ms frames with fixed per-recording mapping; including overlap"
+    },
+    {
+      "name": "M_R003S02C01",
+      "newWrongSpeakerSecondsOnReferenceSpeech": 0.0,
+      "lostCorrectSpeakerSeconds": 0.0,
+      "scope": "10ms frames with fixed per-recording mapping; including overlap"
+    },
+    {
+      "name": "L_R003S01C02",
+      "newWrongSpeakerSecondsOnReferenceSpeech": 0.0,
+      "lostCorrectSpeakerSeconds": 0.0,
+      "scope": "10ms frames with fixed per-recording mapping; including overlap"
+    }
+  ],
+  "android": {
+    "sourceCommit": "c19db6d55d0e834c03238246fed4e2ac1df6541c",
+    "suites": [
+      {
+        "module": "sdk",
+        "variant": "debug",
+        "tests": 60,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "sdk",
+        "variant": "release",
+        "tests": 59,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "sdk-dingqiao",
+        "variant": "debug",
+        "tests": 117,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      {
+        "module": "sdk-dingqiao",
+        "variant": "release",
+        "tests": 117,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    ],
+    "commands": [
+      ":sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest",
+      ":sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest"
+    ],
+    "gradleRerunTasks": false,
+    "limitation": "Unit tests and CI compilation; no Android device validation"
+  },
+  "sdkMatrix": [
+    {
+      "mode": "burst",
+      "cycles": 3,
+      "status": "PASS",
+      "runId": "20260917-165417-burst-fbe0d4ef",
+      "rawReportSha256": "cd12e03bb561c1c5bd31ecf0c3e2ea95f909d9d5a96eb4bf3b78596f66d21416",
+      "elapsedMs": 5622
+    },
+    {
+      "mode": "paced",
+      "cycles": 12,
+      "status": "PASS",
+      "runId": "20260917-165433-paced-eb650a3f",
+      "rawReportSha256": "97e7496e447be7e784eefae681f4fb3e4e4e27916800a6406eacb8bc8a6008f5",
+      "elapsedMs": 62162
+    },
+    {
+      "mode": "vad-begin",
+      "cycles": 3,
+      "status": "PASS",
+      "runId": "20260917-165544-vad-begin-78f5977b",
+      "rawReportSha256": "0528b8f085fa29ee433aadd239f537459851897f88635f58d70b4e273041d318",
+      "elapsedMs": 5622
+    },
+    {
+      "mode": "vad-begin-silence",
+      "cycles": 1,
+      "status": "PASS",
+      "runId": "20260917-165559-vad-begin-silence-71aedc57",
+      "rawReportSha256": "405f731cbd614fffaf4e2d4e6c94605bc45fc9ee12a1dfa7be55454f89b043b4",
+      "elapsedMs": 1154
+    },
+    {
+      "mode": "voiceprint",
+      "cycles": 7,
+      "status": "PASS",
+      "runId": "20260917-165710-voiceprint-0a1d5004",
+      "rawReportSha256": "394ba0cd1d0022a90fb5f643824b575a3b6c22018eee1884a9e31dbd0a48b6e3",
+      "elapsedMs": 13545
+    },
+    {
+      "mode": "voiceprint-fallback",
+      "cycles": 8,
+      "status": "PASS",
+      "runId": "20260917-165901-voiceprint-fallback-6ef0d6a6",
+      "rawReportSha256": "6fa544dff4c2fb0de392999baa55aa95eb2d10c019fa8e987e97e84411207df1",
+      "elapsedMs": 82600
+    },
+    {
+      "mode": "voiceprint-vad-begin",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-170118-voiceprint-vad-begin-356dd2e4",
+      "rawReportSha256": "0bbb9762571d68b6d0ed0d5cf4b135a50386742faaeb766f0b1ae6cec3194e8f",
+      "elapsedMs": 11867
+    },
+    {
+      "mode": "voiceprint-vad-begin-idle",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170140-voiceprint-vad-begin-idle-7364f1c8",
+      "rawReportSha256": "877fbad74a99a1c377834bd79ff377ba51d5f4f942057814465a4536dfd6f705",
+      "elapsedMs": 5154
+    },
+    {
+      "mode": "cancel",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170154-cancel-1501cf4d",
+      "rawReportSha256": "ad56015ee1c3a24b37fd5e80904e2269182cbb2cf71bc472aac9738224b1332b",
+      "elapsedMs": 884
+    },
+    {
+      "mode": "cancel-full",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170204-cancel-full-b5c82a11",
+      "rawReportSha256": "3f040c46bb48be763ca59d4decd003577b182cfad456bf1210be02025919e276",
+      "elapsedMs": 1012
+    },
+    {
+      "mode": "max-duration",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170213-max-duration-bc5765c2",
+      "rawReportSha256": "ae3889e1c129a3b14321cd61592d118641fb48eef9059d72345094a1c5c3e7a6",
+      "elapsedMs": 12033
+    },
+    {
+      "mode": "edge",
+      "cycles": 1,
+      "status": "PASS",
+      "runId": "20260917-170234-edge-64c1d4cc",
+      "rawReportSha256": "a13281dfbbffd15c22faab7166b87c3a722d29bfaff1f64f9d2def87d90bf885",
+      "elapsedMs": 1164
+    },
+    {
+      "mode": "reentrant",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170244-reentrant-05538f30",
+      "rawReportSha256": "16f75a78dc938db071266ffcffdaa75b1db5040fc2c4a5b45f4732b2d590f857",
+      "elapsedMs": 2776
+    },
+    {
+      "mode": "start-cancel",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170256-start-cancel-44ba6abb",
+      "rawReportSha256": "7cb7b15667e6c1509b0a7912aa7f7d15967ca9c98d6a281aa5fa6a661fb702a2",
+      "elapsedMs": 909
+    },
+    {
+      "mode": "start-write",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-170307-start-write-5cbe646b",
+      "rawReportSha256": "306a48b460e7156581321884fedb06e3ea66e132670eec803b6b5a258ceea942",
+      "elapsedMs": 3636
+    },
+    {
+      "mode": "start-write-reload",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-170320-start-write-reload-73c9bf38",
+      "rawReportSha256": "d6fcb89a4c5aceee9035e5832f3cbb40769c59738e91f4ec92ce4b021980526a",
+      "elapsedMs": 6410
+    },
+    {
+      "mode": "user-sequence",
+      "cycles": 6,
+      "status": "PASS",
+      "runId": "20260917-170335-user-sequence-ef0b9bb9",
+      "rawReportSha256": "90f1662bf2dac918e1ae6d5ee63327ab5df123efc9a36861af4aad57bf87064b",
+      "elapsedMs": 13952
+    },
+    {
+      "mode": "numeric-edge",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-170358-numeric-edge-e3877f85",
+      "rawReportSha256": "b05de19562895659a3866082228c7c54f713e3712eb7200e7f58d445c4d82699",
+      "elapsedMs": 19269
+    }
+  ],
+  "canonicalCycles": 67,
+  "nonCanonical": [
+    {
+      "mode": "voiceprint-fallback",
+      "runId": "20260917-165733-voiceprint-fallback-f72d27cd",
+      "status": "FAIL",
+      "reason": "27-second cold/warm run RSS growth 77.936MiB exceeds unchanged 64MiB threshold; SDK passed",
+      "retained": true
+    }
+  ],
+  "limitations": [
+    "Eight-cycle fallback diagnostic passes unchanged limits, but RSS slope remains positive: long-term leak status INCONCLUSIVE, not claimed fixed",
+    "MOSS remains auxiliary; tail coverage INCONCLUSIVE and separate ASR tail timestamp issue remains open",
+    "Quiet/background speech may remain UNKNOWN; independent controls retain pre-existing identity errors",
+    "No Android device test in this change",
+    "This is PR validation, not a new SDK delivery or full release-package acceptance"
+  ],
+  "review": {
+    "localFullDiff": "No actionable findings",
+    "allReviewThreadsFetched": true,
+    "copilot": "Quota exhausted; not counted as passed review"
+  }
+}
