@@ -623,7 +623,7 @@ internal object LitsTtsFrontend {
         wordsPerSegment: Int = 7,
         targetCharsPerSegment: Int = 50,
     ): List<String> {
-        val normalized = text.trim()
+        val normalized = TtsLineBreaks.normalize(text).trim()
         if (normalized.isEmpty()) return emptyList()
         val segmentTarget = targetCharsPerSegment.coerceAtLeast(1)
         val segments = mutableListOf<String>()
