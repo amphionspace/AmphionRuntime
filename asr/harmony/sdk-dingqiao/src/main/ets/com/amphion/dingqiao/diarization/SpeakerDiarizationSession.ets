@@ -435,22 +435,29 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         if (observation === undefined) reasons.push('NO_VALID_CONTEXT_EMBEDDING');
         if (!queryAvailable) reasons.push('NO_VALID_QUERY_EMBEDDING');
         if (observation !== undefined && !filtered) reasons.push('IDENTITY_UNCERTAIN');
-        const diagnosticTurn: Record<string, Object> = {
-          beginTime: Math.max(beginTime, turn.beginTime), endTime: Math.min(endTime, turn.endTime),
-          evidenceKey: key, contextEvidenceKey: contextKey, reasons,
-          speechRms: level ?? -1, referenceRms: this.speakerLevelReference,
-          relativeLevel: level !== undefined && this.speakerLevelReference > 0 ?
-            level / this.speakerLevelReference : -1,
-          relativeThreshold: 0.5, absoluteThreshold: this.speakerLevelReference * 0.5,
-          contextEmbeddingAvailable: observation !== undefined,
-          queryEmbeddingAvailable: queryAvailable,
-          channelQueryAvailable: observation?.queryEmbedding !== undefined,
-          runQueryAvailable: query !== undefined,
-        };
+        const diagnosticTurn: Record<string, Object> = {};
+        diagnosticTurn['beginTime'] = Math.max(beginTime, turn.beginTime);
+        diagnosticTurn['endTime'] = Math.min(endTime, turn.endTime);
+        diagnosticTurn['evidenceKey'] = key;
+        diagnosticTurn['contextEvidenceKey'] = contextKey;
+        diagnosticTurn['reasons'] = reasons;
+        diagnosticTurn['speechRms'] = level ?? -1;
+        diagnosticTurn['referenceRms'] = this.speakerLevelReference;
+        diagnosticTurn['relativeLevel'] = level !== undefined && this.speakerLevelReference > 0 ?
+          level / this.speakerLevelReference : -1;
+        diagnosticTurn['relativeThreshold'] = 0.5;
+        diagnosticTurn['absoluteThreshold'] = this.speakerLevelReference * 0.5;
+        diagnosticTurn['contextEmbeddingAvailable'] = observation !== undefined;
+        diagnosticTurn['queryEmbeddingAvailable'] = queryAvailable;
+        diagnosticTurn['channelQueryAvailable'] = observation?.queryEmbedding !== undefined;
+        diagnosticTurn['runQueryAvailable'] = query !== undefined;
         unknownTurns.push(diagnosticTurn);
       }
-      const fields: Record<string, Object> = { windowBeginTime: beginTime,
-        windowEndTime: endTime, stage: 'WINDOW_FINAL', unknownTurns };
+      const fields: Record<string, Object> = {};
+      fields['windowBeginTime'] = beginTime;
+      fields['windowEndTime'] = endTime;
+      fields['stage'] = 'WINDOW_FINAL';
+      fields['unknownTurns'] = unknownTurns;
       this.diagnostic('DIARIZATION_UNKNOWN', fields);
     } catch (_ignored) {
       // Diagnostics must not affect identity decisions or finalization.
