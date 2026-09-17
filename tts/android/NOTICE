@@ -65,6 +65,6 @@ API surface delivered to Android applications.
 ================================================================================
 
 The bundled ONNX model files and Chinese/English frontend resources under
-external-resources/tts are project delivery
+assets/lits-models/tts inside the AAR/APK are project delivery
 artifacts. Their use is governed by the SDK provider's separate written
 agreement described in LICENSE.

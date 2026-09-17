@@ -17,10 +17,6 @@
 ```text
 lits-dingqiao-tts-android-sdk-vocos24k-<版本>/
 ├── lits-dingqiao-tts-sdk-vocos24k-<版本>.aar
-├── external-resources/
-│   └── tts/<model_id>/<模型资源版本>/
-│       ├── manifest.json
-│       └── 模型、词典、音素表、TN 规则及其余必需运行资源
 ├── docs/
 │   ├── API.md
 │   ├── INTEGRATION.md
@@ -32,7 +28,7 @@ lits-dingqiao-tts-android-sdk-vocos24k-<版本>/
 └── CHECKSUMS.txt
 ```
 
-- AAR 包含 SDK 代码和必需原生库；模型使用 `external-resources` 外置交付。
+- AAR 包含 SDK 代码、必需原生库和完整运行资源。资源路径为 AAR 内的 `assets/lits-models/tts/<model_id>/<模型资源版本>/`，包含 manifest、模型、词典、173 音素表及 TN 规则。SDK 首次加载时自动解包；不再另附 `external-resources/` 副本。
 - 接入示例沿用 `INTEGRATION.md` 和 `PSEUDOCODE.md`，不另加重复示例工程。
 - 包根 README 使用 [SDK_README.md](../SDK_README.md)，只写接入方需要的内容。
 - CHANGELOG 只放当前版本更新；完整历史保留在仓库。
@@ -70,7 +66,6 @@ lits-dingqiao-tts-android-demo-vocos24k-<版本>/
 │   ├── build.gradle.kts
 │   ├── gradle.properties
 │   └── .gitignore
-├── external-resources/tts/      # 与 SDK 包相同的运行资源
 ├── tools/install_demo.py
 ├── README.md
 ├── LICENSE
@@ -81,7 +76,8 @@ lits-dingqiao-tts-android-demo-vocos24k-<版本>/
 - 源码来自现有 `sample`，保留大小屏布局、生命周期处理及内存显示。
 - 独立工程直接依赖 `app/libs` 中的 Release AAR；不要求接入方取得 SDK 引擎或训练源码。
 - APK 必须从随包源码构建；包名、显示名、版本号、ABI 和构建类型写清楚。当前 3.1 使用独立包名 `com.lits.tts.demo31`、显示名 `Lits TTS Demo 3.1`、Debug 构建。
-- 安装脚本负责安装 APK、部署随包资源、配置使用方提供的 license 和真实 SN。不得内置本机测试授权或测试 SN。
+- 安装脚本负责安装 APK、配置使用方提供的 license 和真实 SN。模型由 SDK 从 APK 内自动解包。升级旧 Demo 时脚本可清理该 Demo 工作目录中的旧模型，以免旧外置模型优先加载；必须在 README 说明。不得内置本机测试授权或测试 SN。
+- 包根 README 使用 [DEMO_README.md](../DEMO_README.md)，安装脚本来自 [install_demo.py](../../../tools/android/install_demo.py)。
 - README 说明安装、授权配置、Android Studio / Gradle 编译、APK 输出位置及调试签名差异。
 - 独立工程应能执行 `./gradlew :app:assembleDebug`；构建缓存与本机 Android SDK 路径不随包提供。
 
@@ -93,11 +89,13 @@ lits-dingqiao-tts-android-demo-vocos24k-<版本>/
 - 训练 checkpoint、训练源码、未使用的旧模型或重复资源副本。
 - 旧源码构建文档、历史交付过程、失效链接、与当前版本无关的说明和校验值。
 
+构建通过 `stageBundledTtsResources` 从只读模型目录生成 assets；按 manifest 筛选资源，为各文件写入 SHA-256。组包脚本校验 AAR 内资源与指定源模型完全对应，拒绝不含模型的旧 AAR。
+
 资源按实际运行依赖清理，不能只看文件名：当前 `frontend_golden.json` 被 SDK 加载检查引用，必须保留；`export_report.json` 不参与运行，不进入客户包。删除资源时同步修改 manifest 清单，保持文件名和大小一致。
 
 ## 5. 兼容与准确性要求
 
-- 保持之前公开 API、参数、回调及调用结果的兼容性；整理包和文档不能改变 SDK 行为。
+- 保持之前公开 API、参数、回调及推理结果的兼容性。本次资源加载增加自动解包；既有外置部署仍优先生效。
 - 已知模型分块边界差异：常规 `chunkSize` 正数覆盖值不得低于 **40**；`100` 等已支持值保持可用。句尾不足 40 帧由 SDK 处理。
 - 原有能力限制如实说明，不把既有问题写成此次新增的不兼容，也不把未实现的能力写成已支持。
 - 版本号、AAR 文件名、文档示例、资源路径和输出格式必须一致；当前为 24 kHz / PCM16 / mono。
@@ -105,9 +103,9 @@ lits-dingqiao-tts-android-demo-vocos24k-<版本>/
 
 ## 6. 打包完成前核对
 
-1. 两包的 AAR SHA-256 一致；相同运行资源逐文件一致；Demo APK 与随包源码对应。
+1. 两包的 AAR SHA-256 一致；APK 中的运行资源与 AAR 逐文件一致；Demo APK 与随包源码对应。
 2. 接入示例能编译，Demo 独立工程能构建。
-3. 用最终资源验证实际 AAR 的关键调用、分块和播放；Demo 验证大小屏、页面重建及播放。
+3. 用最终资源验证实际 AAR 的关键调用、分块和播放；Demo 验证大小屏、页面重建及播放。资源加载有变更时，必须从无外置模型的工作目录验证首次解包、再次复用、缺失文件恢复和实际播放。
 4. 没有授权/私钥/SN、构建垃圾、旧模型、内部报告或本地绝对路径。
 5. 包内本地文档链接有效；manifest、CHECKSUMS.txt、ZIP CRC 和 ZIP SHA-256 正确。
 6. 已有同一 AAR/资源的有效验证结果可以复用。只有文档或归档名称变化时，不重复运行音频测试；结果不能覆盖本次实际变化时再补相应验证。

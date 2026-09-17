@@ -24,7 +24,7 @@ val sourceDirName = "dingqiao_lits"
 val tnPackageDirName = "Dingqiao_Multilingual_Text_Normalization_for_TTS"
 val litsSourceRoot = rootDir.resolve("../training/$sourceDirName")
 val tnSourceRoot = litsSourceRoot.resolve(tnPackageDirName)
-val bundledAssetRoot = rootDir.resolve("sdk/src/main/assets/lits-models/tts")
+val bundledAssetRoot = rootDir.resolve("build/generated/tts-assets")
 
 fun ByteArray.replacingAscii(oldValue: String, newValue: String): ByteArray {
     require(oldValue.length == newValue.length)
@@ -219,10 +219,15 @@ val stageExternalTtsResources = tasks.register<Copy>("stageExternalTtsResources"
     }
 }
 
-val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources") {
+val stageBundledTtsResources = tasks.register<Exec>("stageBundledTtsResources") {
     group = "build"
-    description = "Remove bundled TTS model/frontend resources so the AAR stays SDK-only."
-    delete(bundledAssetRoot)
+    description = "Bundle the selected model and frontend in the SDK AAR."
+    val packager = rootDir.resolve("../tools/android/pack_sdk_only.py")
+    inputs.dir(litsModelDir)
+    inputs.file(packager)
+    outputs.dir(bundledAssetRoot)
+    commandLine("python3", packager.absolutePath, "--stage-assets",
+        "--model-dir", litsModelDir.absolutePath, "--output", bundledAssetRoot.absolutePath)
 }
 
 subprojects {
@@ -231,7 +236,7 @@ subprojects {
         systemProperty("lits.tts.studentFrontendRoot", studentFrontendDir.absolutePath)
     }
     tasks.matching { it.name == "preBuild" }.configureEach {
-        dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
+        dependsOn(stageBundledTtsResources)
     }
 }
 

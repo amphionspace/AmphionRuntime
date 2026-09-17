@@ -13,12 +13,7 @@ def sha256(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def build(aar, model, android_root, output, version):
-    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
-        raise ValueError('Invalid delivery version')
-    name = f'lits-dingqiao-tts-android-sdk-vocos24k-{version}'
-    if output.name != name or output.resolve() in (model.resolve(), android_root.resolve()):
-        raise ValueError('Output must be a dedicated versioned delivery directory')
+def runtime_manifest(model):
     manifest = json.loads((model / 'manifest.json').read_text())
     model_id = manifest['model_id']
     model_version = manifest['version']
@@ -36,23 +31,54 @@ def build(aar, model, android_root, output, version):
             raise ValueError(f'Unexpected resource: {p}')
         if not (model / p).is_file() or (model / p).is_symlink():
             raise ValueError(f'Missing or linked resource: {p}')
+    manifest['files'] = [{'name': n, 'size_bytes': (model / n).stat().st_size, 'sha256': sha256(model / n)} for n in sorted(names)]
+    return manifest, names
+
+
+def stage_assets(model, output):
+    manifest, names = runtime_manifest(model)
+    if output.resolve() == model.resolve() or output.resolve() in model.resolve().parents or model.resolve() in output.resolve().parents:
+        raise ValueError('Asset staging must be separate from the source model')
+    if output.exists():
+        shutil.rmtree(output)
+    resources = output / 'lits-models' / 'tts' / manifest['model_id'] / manifest['version']
+    resources.mkdir(parents=True)
+    for name in sorted(names):
+        dest = resources / name
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(model / name, dest)
+    (resources / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+
+
+def build(aar, model, android_root, output, version):
+    if not re.fullmatch(r'\d+\.\d+(?:\.\d+)?', version):
+        raise ValueError('Invalid delivery version')
+    name = f'lits-dingqiao-tts-android-sdk-vocos24k-{version}'
+    if output.name != name or output.resolve() in (model.resolve(), android_root.resolve()):
+        raise ValueError('Output must be a dedicated versioned delivery directory')
+    manifest, names = runtime_manifest(model)
+    model_id, model_version = manifest['model_id'], manifest['version']
     with zipfile.ZipFile(aar) as z:
         if z.testzip() or 'classes.jar' not in z.namelist():
             raise ValueError('Invalid AAR')
         if any(n.lower().endswith(('.lic', '.pem', '.p12', '.jks')) for n in z.namelist()):
             raise ValueError('Authorization/signing material inside AAR')
+        prefix = f'assets/lits-models/tts/{model_id}/{model_version}/'
+        if any(n.startswith('assets/lits-models/tts/') and not n.startswith(prefix) and not n.endswith('/') for n in z.namelist()):
+            raise ValueError('Unexpected additional model inside AAR')
+        expected = {'manifest.json', *names}
+        actual = {n.removeprefix(prefix) for n in z.namelist() if n.startswith(prefix) and not n.endswith('/')}
+        if actual != expected:
+            raise ValueError('AAR bundled resource list does not match model')
+        if json.loads(z.read(prefix + 'manifest.json')) != manifest:
+            raise ValueError('AAR bundled manifest does not match model')
+        for entry in manifest['files']:
+            if hashlib.sha256(z.read(prefix + entry['name'])).hexdigest() != entry['sha256']:
+                raise ValueError('AAR bundled resource hash mismatch: ' + entry['name'])
     if output.exists():
         shutil.rmtree(output)
     output.mkdir(parents=True)
     shutil.copy2(aar, output / f'lits-dingqiao-tts-sdk-vocos24k-{version}.aar')
-    resources = output / 'external-resources' / 'tts' / model_id / model_version
-    resources.mkdir(parents=True)
-    for filename in sorted(names):
-        dest = resources / filename
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(model / filename, dest)
-    manifest['files'] = [{'name': n, 'size_bytes': (resources / n).stat().st_size} for n in sorted(names)]
-    (resources / 'manifest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
     for filename in ('LICENSE', 'NOTICE'):
         shutil.copy2(android_root / filename, output / filename)
     shutil.copy2(android_root / 'docs/SDK_README.md', output / 'README.md')
@@ -90,8 +116,16 @@ def build(aar, model, android_root, output, version):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    for arg in ('aar', 'model-dir', 'android-root', 'output'):
+    parser.add_argument('--stage-assets', action='store_true')
+    parser.add_argument('--aar', type=Path)
+    parser.add_argument('--android-root', type=Path)
+    for arg in ('model-dir', 'output'):
         parser.add_argument('--' + arg, type=Path, required=True)
-    parser.add_argument('--version', required=True)
+    parser.add_argument('--version')
     args = parser.parse_args()
-    print(build(args.aar, args.model_dir, args.android_root, args.output, args.version))
+    if args.stage_assets:
+        stage_assets(args.model_dir, args.output)
+    else:
+        if not all((args.aar, args.android_root, args.version)):
+            parser.error('--aar, --android-root and --version are required for packaging')
+        print(build(args.aar, args.model_dir, args.android_root, args.output, args.version))

@@ -30,8 +30,13 @@ class PackageTest(unittest.TestCase):
             {'name': n, 'size_bytes': 7} for n in ('frontend_golden.json', 'export_report.json', 'model.onnx')]}
         self.write_manifest()
         self.aar = self.root / 'sdk.aar'
+        assets = self.root / 'assets'
+        pack.stage_assets(self.model, assets)
         with zipfile.ZipFile(self.aar, 'w') as z:
             z.writestr('classes.jar', b'fixture')
+            for path in assets.rglob('*'):
+                if path.is_file():
+                    z.write(path, 'assets/' + path.relative_to(assets).as_posix())
         self.output = self.root / 'lits-dingqiao-tts-android-sdk-vocos24k-3.1'
 
     def write_manifest(self):
@@ -44,13 +49,33 @@ class PackageTest(unittest.TestCase):
         archive = self.build()
         with zipfile.ZipFile(archive) as z:
             names = z.namelist()
-            self.assertTrue(any(n.endswith('/frontend_golden.json') for n in names))
+            self.assertFalse(any('/external-resources/' in n for n in names))
             self.assertFalse(any(n.endswith('/export_report.json') for n in names))
             self.assertFalse(any('/validation/' in n for n in names))
             self.assertNotIn('Obsolete', z.read(self.output.name + '/CHANGELOG.md').decode())
-        manifest = json.loads(next(self.output.rglob('manifest.json')).read_text())
+        with zipfile.ZipFile(self.aar) as z:
+            manifest = json.loads(z.read('assets/lits-models/tts/fixture/0.1.0/manifest.json'))
+            self.assertIn('assets/lits-models/tts/fixture/0.1.0/frontend_golden.json', z.namelist())
         self.assertNotIn('export_report.json', [x['name'] for x in manifest['files']])
         self.assertEqual(pack.sha256(self.aar), pack.sha256(next(self.output.glob('*.aar'))))
+
+    def test_thin_aar_rejected(self):
+        with zipfile.ZipFile(self.aar, 'w') as z:
+            z.writestr('classes.jar', b'fixture')
+        with self.assertRaisesRegex(ValueError, 'bundled resource list'):
+            self.build()
+
+    def test_same_size_model_change_rejected(self):
+        (self.model / 'model.onnx').write_bytes(b'changed')
+        with self.assertRaisesRegex(ValueError, 'bundled manifest'):
+            self.build()
+
+    def test_staging_removes_previous_model(self):
+        target = self.root / 'staging'
+        pack.stage_assets(self.model, target)
+        (target / 'stale.onnx').write_bytes(b'old')
+        pack.stage_assets(self.model, target)
+        self.assertFalse((target / 'stale.onnx').exists())
 
     def test_resource_traversal_rejected(self):
         self.manifest['files'].append({'name': '../secret.txt'})

@@ -1,19 +1,11 @@
 # Android TTS Demo 3.1 交付记录
 
-独立交付包：lits-dingqiao-tts-android-demo-vocos24k-3.1.zip。SHA-256 和构建信息见 [JSON](demo-3.1-20260917.json)。
+2026-09-17 资源内置修订。SHA-256 和历史包见 [JSON](demo-3.1-20260917.json)。仅本地打包，未上传。
 
-包含 Debug APK、可独立打开编译的 Android Studio 工程、同 SDK 3.1 的 AAR 和外置 IMF 170000 资源、安装配置脚本、说明及校验文件。不包含授权文件、私钥、SN、Gradle 缓存、构建目录或测试 APK。
+独立 ZIP 包含 Debug APK、可编译 Demo 源码、相同版本的内置资源 Release AAR、安装脚本和说明。不再附 external-resources，不含授权文件、私钥、SN、构建缓存或测试 APK。
 
-Demo main 源码原样来自当前 sample，保留大小屏界面、ViewModel 生命周期和 RSS 显示。独立工程仅调整 Gradle 依赖为本地 Release AAR、包名/应用名/版本号及 ABI；不需要 SDK 引擎或训练源码。
+包名 `com.lits.tts.demo31`，显示名 `Lits TTS Demo 3.1`；默认中英哲学文本和大小屏页面不变。默认分块仍为 50；100 仅在测试中临时输入。安装脚本配置用户授权/SN，清理旧 Demo 模型目录后由 SDK 从 APK 自动解包。
 
-包名 com.lits.tts.demo31，显示名 Lits TTS Demo 3.1；使用调试签名，不覆盖已有 IMF/student 对比 App。用户提供自己的 license 和真实设备 SN，安装脚本写入 Demo 私有目录后启动。用于当前手机验证的测试授权未进入交付包。
+最终 APK 使用随包 main 源码构建；与仓库 sample 一致。Release AAR 与 SDK 包逐字节一致，APK/AAR 内资源逐文件一致。无外置模型的预热、100 帧播放、默认文本和两种布局通过；页面重建因熄屏首次失败，唤醒后补测通过。ZIP CRC 和逐文件 SHA-256 校验通过。
 
-初版已通过独立工程构建；分发源码与实际编译 main 源码一致，AAR 与 SDK 3.1 相同。TECNO KI8 / Android 13：两种布局控件、页面重建保留合成请求及结果、界面 SDK 流式播放 3 项测试通过。模型信息确认 IMF 170000。原始证据位于本地 outputs/tts-demo31-validation-20260917，不随包交付。最终 ZIP 已做 CRC 和逐文件 SHA-256 校验。
-
-未把 Debug 演示工程宣称为生产签名 APK；未新增完整语料或长期压力验收。
-
-## 默认文本一致性修订
-
-去掉 SampleTexts 对 applicationId 的判断，所有 Demo 中英模式统一使用“清晨醒来”开头的哲学长文，英文模式保留原短句。已同步重建 APK 与随包源码，并更新校验值；SDK AAR、模型和 SDK ZIP 均未改变。
-
-新 UI 回归在旧 APK 上因默认文本错误失败，在更新 APK 上通过；独立源码编译及仓库版本检查通过。本轮只验证默认文本变化，不重复未修改的布局/播放矩阵。前一份归档身份和验收范围保留在 JSON 的 superseded_deliveries 中。修订证据位于本地 outputs/tts-demo31-default-text-20260917，不随包交付。
+证据在本地 `outputs/tts31-embedded-validation-20260917`。不宣称执行完整语料、长期压力或生产签名验收。详见 [SDK 记录](3.1-20260917.md) 与 [固定交付清单](../delivery/README.md)。

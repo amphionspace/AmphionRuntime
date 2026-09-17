@@ -10,7 +10,7 @@
 | 模式 | 离线 `RunMode.OFFLINE` |
 | 网络权限 | 不需要 |
 
-SDK AAR 包含 ONNX Runtime Java 类和 arm64 native 库。模型和前端资源随包放在 `external-resources/`，接入方需在创建引擎前部署到工作目录。
+SDK AAR 包含 ONNX Runtime Java 类、arm64 native 库及完整模型和前端资源。Gradle 会将 AAR assets 自动合并到宿主 APK，无需另行部署模型。
 
 ## 2. Gradle 接入
 
@@ -27,7 +27,7 @@ dependencies {
 
 说明：AAR 使用 Kotlin 编译，本地 `files(...)` 方式接入时不会自动携带 Maven 传递依赖。宿主 App 如果已经通过 Kotlin Android 插件引入 `kotlin-stdlib`，可使用项目内已有版本。
 
-如果宿主将外置模型放入自己的 APK assets，建议避免压缩 ONNX 文件；创建引擎前仍需由宿主复制到工作目录：
+建议宿主避免压缩内置 ONNX 文件：
 
 ```kotlin
 android {
@@ -39,7 +39,9 @@ android {
 
 ## 3. 工作目录
 
-创建引擎前，将随包 `external-resources/tts/` 完整复制到 `<filesDir>/lits-tts/tts/`，再从文件路径加载模型。`setWorkPath` 指向 `lits-tts`，不要指向具体模型目录。
+首次创建引擎时，SDK 自动从 APK assets 解包模型到 `<workPath>/tts/<model_id>/<version>/`，逐文件校验 SHA-256 后加载；以后复用，随包模型变化时自动刷新。`setWorkPath` 指向 `lits-tts`，不要指向具体模型目录。请预留 APK 本身和解包资源所需的磁盘空间；首次预加载包含解包耗时。
+
+兼容既有部署：工作目录中有效的外置模型仍优先于内置模型。希望切换为当前内置模型时，先关闭所有引擎，移走原外置 `tts/` 目录后再创建引擎。
 
 ```kotlin
 TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
@@ -53,7 +55,7 @@ TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
 
 ## 4. 创建与预加载
 
-先完成第 3 节资源部署和第 12 节授权初始化，再创建引擎。`createEngine` 会同时加载模型。建议 App 打开后立即调用 callback 版接口做预加载，不要等用户点击合成时才加载。
+先完成第 3 节工作目录设置和第 12 节授权初始化，再创建引擎。`createEngine` 会同时加载模型。建议 App 打开后立即调用 callback 版接口做预加载，不要等用户点击合成时才加载。
 
 ```kotlin
 TextToSpeechSdk.createEngine(

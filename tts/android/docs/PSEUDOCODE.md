@@ -5,7 +5,7 @@
 ## 1. 完整流程
 
 ```pseudocode
-// 前置：将 external-resources/tts 完整复制到 <filesDir>/lits-tts/tts
+// 模型已内置于 AAR，首次创建引擎时自动解包到工作目录
 // 使用客户自有 license；默认从 assets/amphion-license.lic 读取并获取系统 SN
 // 若宿主没有系统 SN 权限，通过 TtsLicenseOptions.deviceIdProvider 提供真实设备 SN
 TextToSpeechSdk.init(context)
@@ -89,7 +89,7 @@ engine.shutdown()
 Android App 推荐优先使用 callback 版 `createEngine` 做预加载，不要在主线程调用同步版创建接口。
 
 ```pseudocode
-// 已完成第 1 节的资源部署和授权初始化
+// 已完成第 1 节的工作目录设置和授权初始化
 TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
 
 TextToSpeechSdk.createEngine(params, Callback {
