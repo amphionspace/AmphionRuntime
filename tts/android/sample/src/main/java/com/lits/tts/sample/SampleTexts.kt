@@ -4,20 +4,11 @@ internal object SampleTexts {
     fun forLanguage(language: String): String {
         return if (language == "en-US") {
             "Welcome to the Lits delivery TTS sample. Room 204 is ready."
-        } else if (BuildConfig.APPLICATION_ID == "com.lits.tts.imfdemo" || BuildConfig.APPLICATION_ID == "com.lits.tts.studentdemo") {
-            philosophyText
         } else {
-            """
-                计算机视觉领域，历年顶会和业界征战数千余场，是非曲直难以论说，但研究者无不注意到，正是在各类赛道上，决定了多少代模型架构和范式的盛衰兴亡、此兴彼落，所以向来就有问鼎智能核心之说。
-
-                当年AlexNet领革命军分三路会师ImageNet，兴师北上，拿下图像分类榜首的第二天，SIFT和HOG 等传统手工特征见大势已去，宣告无法成为主流。2018年之后，也正是在自监督赛场，恺明系列工作携数百万研究者征讨目标检测、实例分割、表征分类，斩获数篇最佳论文，大获全胜！
-
-                我不明白，为什么大家都在谈论着 GPT-astra 横扫AI圈，仿佛这计算机视觉的未来注定了凶多吉少。十年前，我们从深度视觉赛道踏上征途，开始了通用感知浪潮，CV黄金版图遂归于一统。本领域所到之处，SOTA悉数刷新，真可谓占尽天时，那种勃勃生机、万物竞发的境界，犹在眼前。短短十年之后，这里竟至于一变而成为我们的葬身之地了么？
-
-                无论怎么讲，会战兵力，是多模态生成、3D、多模态理解、具身智能，四大赛道对单一文本，优势在我！
-            """.trimIndent()
+            philosophyText
         }
     }
+
     private val philosophyText = """
         清晨醒来，我们常常以为，生活从睁开眼睛的那一刻才开始。其实，在意识到自己之前，光已经落在窗沿上，风已经穿过树叶，世界也已经继续运行了很久。这使人想到 consciousness，一个既亲近又难以解释的词。我们能够感到疼痛、喜悦和孤独，却很难完整地说明，为什么这些经验会成为我的经验。也许认识自己，并不是找到一句最终的定义，而是学会认真倾听那些尚未被命名的感受。
 
