@@ -139,7 +139,7 @@ bash asr/tools/07_sync_kotlin_from_upstream.sh   # 同步 Kotlin 桥接文件
 | ASR Android | `0.3.4` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
 | ASR HarmonyOS | `0.3.13` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
 | ASR iOS 预览版 | `0.3.4-alpha.1` | [asr/ios/AmphionRuntime.podspec](asr/ios/AmphionRuntime.podspec) `s.version` |
-| TTS Android | `3.0` | [tts/android/build.gradle.kts](tts/android/build.gradle.kts) `sdkVersion` |
+| TTS Android | `3.1` | [tts/android/build.gradle.kts](tts/android/build.gradle.kts) `sdkVersion` |
 | TTS HarmonyOS | `3.0.0` | [tts/harmony/sdk/oh-package.json5](tts/harmony/sdk/oh-package.json5) `version` |
 
 模型资产使用独立版本。例如 TTS 模型目录中的 `0.1.0` 是模型包版本，不代表 SDK 或仓库版本，不能随 SDK 发版自动修改。版本规则与发版步骤见 [shared/docs/RELEASE_PROCESS.md](shared/docs/RELEASE_PROCESS.md)。
