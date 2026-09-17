@@ -7,7 +7,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
-    def test_0314_versions_and_historical_upgrade_contract_are_consistent(self) -> None:
+    def test_0315_versions_and_historical_upgrade_contract_are_consistent(self) -> None:
         changelog = (
             REPO_ROOT / "delivery/harmony-dingqiao/docs/CHANGELOG.md"
         ).read_text(encoding="utf-8")
@@ -29,11 +29,11 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("onStart", upgrade)
 
         version_files = {
-            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.14"',
-            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.14"',
-            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.14"',
-            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.14"',
-            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.14'",
+            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.15"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.15"',
+            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.15"',
+            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.15"',
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.15'",
         }
         for relative, expected in version_files.items():
             with self.subTest(relative=relative):
@@ -46,12 +46,12 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("UPGRADE_0.3.14.md", pack_script)
+        self.assertIn("UPGRADE_0.3.15.md", pack_script)
         validator = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"docs/UPGRADE_0.3.14.md"', validator)
+        self.assertIn('"docs/UPGRADE_0.3.15.md"', validator)
 
     def test_usb_carrier_preserves_the_installed_0315_version(self) -> None:
         # The test carrier must replace the installed 315 HAP without uninstalling device data.
