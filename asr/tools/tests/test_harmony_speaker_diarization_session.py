@@ -521,7 +521,146 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
-    def test_unanimous_speaker_fills_acoustic_gaps_but_not_explicit_unknown(self) -> None:
+    def test_secondary_changes_do_not_fragment_primary_speech(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const state=new SpeakerDiarizationTranscriptState();
+          state.addUtterance({{rawText:'你叫什么名字',text:'你叫什么名字。',
+            tokens:['你','叫','什','么','名','字'],tokenTimesMs:[100,300,500,700,900,1100],
+            beginTime:0,endTime:1200}});
+          const turns=[
+            {{beginTime:0,endTime:250,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:250,endTime:450,speakerId:'S1',secondarySpeakerIds:['UNKNOWN_SECONDARY'],overlap:true}},
+            {{beginTime:450,endTime:650,speakerId:'S1',secondarySpeakerIds:['S2'],overlap:true}},
+            {{beginTime:650,endTime:1200,speakerId:'S1',secondarySpeakerIds:[]}}
+          ];
+          state.applySpeakerTurns(turns);
+          const before=state.allTurns();
+          const result=state.finalUtterances();
+          assert.deepEqual(result.map(x=>x.text),['你叫什么名字。'],
+            'a secondary identity change must not split a word spoken by the same primary speaker');
+          assert.equal(result[0].speakerId,'S1');
+          assert.deepEqual(result[0].secondarySpeakerIds,['UNKNOWN_SECONDARY','S2']);
+          assert.equal(result[0].overlap,true);
+          assert.deepEqual(state.allTurns(),before,'exact overlap intervals must remain available');
+
+          // Brief overlap between token timestamps must also survive paragraph grouping.
+          const short=new SpeakerDiarizationTranscriptState();
+          short.addUtterance({{rawText:'嗯好',text:'嗯，好。',tokens:['嗯','好'],
+            tokenTimesMs:[100,700],beginTime:0,endTime:1000}});
+          short.applySpeakerTurns([
+            {{beginTime:0,endTime:250,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:250,endTime:300,speakerId:'S1',secondarySpeakerIds:['S2'],overlap:true}},
+            {{beginTime:300,endTime:600,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:600,endTime:1000,speakerId:'S2',secondarySpeakerIds:[]}}
+          ]);
+          const split=short.commitThrough(1000);
+          assert.deepEqual(split.map(x=>[x.text,x.speakerId]),[['嗯，','S1'],['好。','S2']],
+            'a real short answer by a different primary speaker must stay separate');
+          assert.deepEqual(split[0].secondarySpeakerIds,['S2']);
+          assert.equal(split[0].overlap,true);
+          assert.deepEqual(short.finalUtterances(),[]);
+        """)
+
+    def test_bounded_unknown_backfill_preserves_real_changes_and_acoustic_evidence(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:0.9,...extra}});
+          function state(text,times,endTime,turns) {{
+            const s=new SpeakerDiarizationTranscriptState();
+            s.addUtterance({{rawText:text,text:text+'。',tokens:[...text],tokenTimesMs:times,
+              beginTime:0,endTime}});
+            s.applySpeakerTurns(turns); return s;
+          }}
+          const s=state('张三',[100,500],900,[turn(0,500,'S1'),turn(500,900,'UNKNOWN')]);
+          const before=s.allTurns();
+          const fixed=s.commitThrough(900);
+          assert.deepEqual(fixed.map(x=>[x.text,x.speakerId]),[['张三。','S1']],
+            'a short uncertain name ending should stay with its adjacent speaker');
+          assert.equal(fixed[0].speakerInferred,true);
+          assert.equal(fixed[0].confidence,0,'backfill must not inherit acoustic confidence');
+          assert.equal(before[1].speakerId,'UNKNOWN');
+          assert.deepEqual(s.finalUtterances(),[],'committed text must not be emitted again');
+          for (const turns of [
+            [turn(0,500,'UNKNOWN'),turn(500,900,'S1')],
+            [turn(0,200,'S1'),turn(200,500,'UNKNOWN'),turn(500,900,'S1')]
+          ]) {{
+            const sample=state('你好啊',[100,300,600],900,turns);
+            const original=sample.allTurns();
+            assert.deepEqual(sample.finalUtterances().map(x=>x.speakerId),['S1']);
+            assert.equal(sample.finalUtterances()[0].speakerInferred,true);
+            assert.deepEqual(sample.allTurns(),original);
+          }}
+          for (const tail of [2500,2501]) {{
+            const sample=state('甲乙',[100,500],500+tail,
+              [turn(0,500,'S1'),turn(500,500+tail,'UNKNOWN')]);
+            assert.deepEqual(sample.finalUtterances().map(x=>x.speakerId),
+              tail===2500?['S1']:['S1','UNKNOWN'],'do not propagate identity through long unknown speech');
+          }}
+          const between=state('甲嗯乙',[100,500,900],1200,
+            [turn(0,500,'S1'),turn(500,900,'UNKNOWN'),turn(900,1200,'S2')]);
+          assert.deepEqual(between.finalUtterances().map(x=>x.speakerId),['S1','UNKNOWN','S2']);
+          for (const extra of [{{overlap:true}},{{secondarySpeakerIds:['S2']}}]) {{
+            const overlap=state('甲乙',[100,500],900,
+              [turn(0,500,'S1'),turn(500,900,'UNKNOWN',extra)]);
+            assert.deepEqual(overlap.finalUtterances().map(x=>x.speakerId),['S1','UNKNOWN']);
+          }}
+          const brief=state('甲乙',[100,500],900,[turn(0,500,'S1'),
+            turn(500,600,'UNKNOWN'),turn(600,650,'S2'),turn(650,900,'UNKNOWN')]);
+          assert.deepEqual(brief.finalUtterances().map(x=>x.speakerId),['S1','UNKNOWN'],
+            'a real short turn between token timestamps blocks backfill');
+          const alone=state('甲',[100],900,[turn(0,900,'UNKNOWN')]);
+          alone.addUtterance({{rawText:'乙',text:'乙',tokens:['乙'],tokenTimesMs:[1000],
+            beginTime:900,endTime:1200}});
+          alone.applySpeakerTurns([turn(900,1200,'S1')]);
+          assert.deepEqual(alone.finalUtterances().map(x=>x.speakerId),['UNKNOWN','S1']);
+        """)
+
+    def test_unknown_background_and_endpoint_tokens_do_not_split_words(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,secondarySpeakerIds=[])=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds,overlap:secondarySpeakerIds.length>0}});
+          function split(times,endTime,turns) {{
+            const s=new SpeakerDiarizationTranscriptState();
+            s.addUtterance({{rawText:'角色',text:'角色。',tokens:['角','色'],tokenTimesMs:times,
+              beginTime:0,endTime}});
+            s.applySpeakerTurns(turns);
+            const before=s.allTurns(), result=s.finalUtterances();
+            assert.deepEqual(s.allTurns(),before,'text inference must not rewrite acoustic evidence');
+            return result;
+          }}
+          for (const turns of [
+            [turn(0,400,'S1'),turn(400,700,'UNKNOWN')],
+            [turn(0,400,'S1',['UNKNOWN_SECONDARY']),turn(400,700,'UNKNOWN')]
+          ]) {{
+            const result=split([100,500],500,turns);
+            assert.deepEqual(result.map(x=>[x.text,x.speakerId]),[['角色。','S1']]);
+            assert.equal(result[0].speakerInferred,true);
+            assert.equal(result[0].confidence,0);
+            assert.equal(result[0].overlap,turns[0].overlap);
+          }}
+          const head=split([100,500],800,[turn(0,150,'UNKNOWN'),
+            turn(150,800,'S1',['UNKNOWN'])]);
+          assert.deepEqual(head.map(x=>x.text),['角色。']);
+          assert.equal(head[0].speakerInferred,true);
+          assert.equal(head[0].overlap,true);
+          assert.deepEqual(head[0].secondarySpeakerIds,['UNKNOWN']);
+          for (const turns of [
+            [turn(0,400,'S1',['S2']),turn(400,700,'UNKNOWN')],
+            [turn(0,300,'S1'),turn(300,350,'S2'),turn(350,700,'UNKNOWN')],
+            [turn(0,400,'S1'),turn(400,700,'S2')]
+          ]) assert.equal(split([100,500],500,turns).length,2,
+            'a real known speaker or overlap must still block inferred merging');
+          assert.equal(split([100,3001],3001,[turn(0,400,'S1'),turn(400,3200,'UNKNOWN')]).length,2,
+            'zero-duration endpoint must not bridge an arbitrarily long acoustic gap');
+        """)
+
+    def test_unanimous_speaker_and_bounded_backfill_keep_conflicting_or_overlapping_turns(self) -> None:
         run_node(f"""
           import assert from 'node:assert/strict';
           import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
@@ -536,7 +675,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
           const second={{beginTime:700,endTime:1000,speakerId:'S1',secondarySpeakerIds:[]}};
           assert.deepEqual(split([first,second]).map(x=>x.speakerId),['S1']);
           const unknown={{beginTime:500,endTime:1200,speakerId:'UNKNOWN',secondarySpeakerIds:[]}};
-          assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1','UNKNOWN']);
+          assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1']);
           assert.deepEqual(split([first,{{...second,speakerId:'S2'}}]).map(x=>x.speakerId),
             ['S1','UNKNOWN']);
           // Overlap does not establish a unanimous single speaker for uncovered tokens.

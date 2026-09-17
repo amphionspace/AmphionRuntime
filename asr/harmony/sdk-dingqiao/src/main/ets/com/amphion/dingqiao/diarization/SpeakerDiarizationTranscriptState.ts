@@ -33,6 +33,7 @@ export interface DiarizedTranscriptUtterance extends SpeakerTimelineTurn {
   rawText: string;
   text: string;
   overlap: boolean;
+  speakerInferred?: boolean;
 }
 
 interface StoredUtterance extends DiarizationTranscriptInput {
@@ -43,6 +44,9 @@ interface StoredUtterance extends DiarizationTranscriptInput {
 }
 
 const UNKNOWN_SPEAKER = 'UNKNOWN';
+// One current inference hop. See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
+// measured bounded/unbounded comparison; this is not an identity threshold.
+const MAX_UNKNOWN_BACKFILL_MS = 2_500;
 
 function overlapMs(beginA: number, endA: number, beginB: number, endB: number): number {
   return Math.max(0, Math.min(endA, endB) - Math.max(beginA, beginB));
@@ -403,13 +407,24 @@ export class SpeakerDiarizationTranscriptState {
       const next = index < utterance.tokens.length ?
         (this.turnAt(utterance.tokenTimesMs[index]) ?? unanimous) : undefined;
       const same = index < utterance.tokens.length &&
-        (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER) &&
-        sameStrings(next?.secondarySpeakerIds ?? [], active?.secondarySpeakerIds ?? []);
+        (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER);
       if (same) continue;
       const beginTime = groupStart === 0 ? utterance.beginTime : utterance.tokenTimesMs[groupStart];
       const endTime = index < utterance.tokens.length ?
         utterance.tokenTimesMs[index] : utterance.endTime;
-      const secondarySpeakerIds = active?.secondarySpeakerIds.slice() ?? [];
+      // Secondary/overlap changes annotate speech; they are not primary speaker
+      // boundaries. Keep the exact intervals in allTurns() and summarize every
+      // overlapping interval here, including those between token timestamps.
+      const secondarySpeakerIds = new Set<string>(active?.secondarySpeakerIds ?? []);
+      let overlap = active?.overlap ?? secondarySpeakerIds.size > 0;
+      for (const turn of this.turns) {
+        if (overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) <= 0) continue;
+        for (const id of turn.secondarySpeakerIds) {
+          if (id !== (active?.speakerId ?? UNKNOWN_SPEAKER) ||
+            (active?.speakerId ?? UNKNOWN_SPEAKER) === UNKNOWN_SPEAKER) secondarySpeakerIds.add(id);
+        }
+        overlap = overlap || (turn.overlap ?? turn.secondarySpeakerIds.length > 0);
+      }
       result.push({
         utteranceId: result.length === 0 ? utterance.utteranceId :
           `${utterance.utteranceId}.${result.length + 1}`,
@@ -419,14 +434,70 @@ export class SpeakerDiarizationTranscriptState {
         beginTime,
         endTime,
         speakerId: active?.speakerId ?? UNKNOWN_SPEAKER,
-        secondarySpeakerIds,
+        secondarySpeakerIds: Array.from(secondarySpeakerIds),
         confidence: active?.confidence ?? 0,
-        overlap: active?.overlap ?? secondarySpeakerIds.length > 0,
+        overlap,
       });
       groupStart = index;
       active = next;
     }
-    return result;
+    return this.backfillUnknown(result);
+  }
+
+  private backfillUnknown(parts: DiarizedTranscriptUtterance[]): DiarizedTranscriptUtterance[] {
+    const resolved = parts.map((part, index): DiarizedTranscriptUtterance => {
+      const duration = part.endTime - part.beginTime;
+      if (part.speakerId !== UNKNOWN_SPEAKER || duration < 0 || duration > MAX_UNKNOWN_BACKFILL_MS ||
+        this.blocksBackfill(part)) return part;
+      const previous = index > 0 ? parts[index - 1] : undefined;
+      const next = index + 1 < parts.length ? parts[index + 1] : undefined;
+      if (previous !== undefined && next !== undefined && previous.speakerId !== next.speakerId) return part;
+      if ([previous, next].some(neighbour => neighbour !== undefined &&
+        this.blocksBackfill(neighbour))) return part;
+      const speakerId = previous?.speakerId ?? next?.speakerId;
+      if (speakerId === undefined || speakerId === UNKNOWN_SPEAKER) return part;
+      let evidenceBegin = part.beginTime;
+      if (duration === 0) {
+        // The last token's start can equal the public end timestamp. It has no
+        // interval of its own; require recent acoustic support, not just an old
+        // paragraph label, before keeping this terminal text with its neighbour.
+        if (next !== undefined || previous === undefined || previous.endTime !== part.beginTime) return part;
+        evidenceBegin = Math.max(previous.beginTime, part.beginTime - MAX_UNKNOWN_BACKFILL_MS);
+        if (!this.turns.some(turn => turn.speakerId === speakerId &&
+          overlapMs(evidenceBegin, part.endTime, turn.beginTime, turn.endTime) > 0)) return part;
+      }
+      // Preserve real short turns even when no token timestamp landed in them.
+      if (this.turns.some(turn => overlapMs(evidenceBegin, part.endTime, turn.beginTime, turn.endTime) > 0 &&
+        ((turn.speakerId !== UNKNOWN_SPEAKER && turn.speakerId !== speakerId) ||
+          this.blocksBackfill(turn)))) return part;
+      return { ...part, speakerId, confidence: 0, speakerInferred: true };
+    });
+    const merged: DiarizedTranscriptUtterance[] = [];
+    for (const part of resolved) {
+      const previous = merged[merged.length - 1];
+      if (previous !== undefined && previous.speakerId === part.speakerId) {
+        previous.rawText += part.rawText;
+        previous.text += part.text;
+        previous.endTime = part.endTime;
+        previous.confidence = Math.min(previous.confidence ?? 0, part.confidence ?? 0);
+        previous.speakerInferred = previous.speakerInferred || part.speakerInferred;
+        previous.overlap = previous.overlap || part.overlap;
+        previous.secondarySpeakerIds = Array.from(new Set([...previous.secondarySpeakerIds,
+          ...part.secondarySpeakerIds]));
+      } else {
+        merged.push({ ...part, secondarySpeakerIds: part.secondarySpeakerIds.slice(),
+          utteranceId: merged.length === 0 ? part.sourceUtteranceId :
+            `${part.sourceUtteranceId}.${merged.length + 1}` });
+      }
+    }
+    return merged;
+  }
+
+  private blocksBackfill(part: SpeakerTimelineTurn): boolean {
+    // An unidentified secondary voice does not establish a different primary
+    // identity. Preserve that uncertainty in the merged text and raw timeline.
+    return part.secondarySpeakerIds.some(id => id !== 'UNKNOWN' && id !== 'UNKNOWN_SECONDARY') ||
+      ((part.overlap ?? false) && part.secondarySpeakerIds.length === 0);
   }
 
   private unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn | undefined {

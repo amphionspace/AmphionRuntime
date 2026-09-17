@@ -99,6 +99,7 @@ internal class OnlineSpeakerRegistry(
         speechDurationsMs: List<Int>,
         atMs: Int,
         allowAdditionalSpeaker: List<Boolean>? = null,
+        enrollmentQueries: List<List<FloatArray>>? = null,
     ): List<SpeakerAssignment> {
         require(rawEmbeddings.size == speechDurationsMs.size)
         val embeddings = rawEmbeddings.mapIndexed { index, value ->
@@ -136,7 +137,8 @@ internal class OnlineSpeakerRegistry(
                 )
             } else if (entries.size < maxSpeakers && (entries.isEmpty() || (allowAdditionalSpeaker?.get(observation) ?: true)) &&
                 (best == null || !mutual ||
-                best.second < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD))) {
+                best.second < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD) ||
+                confirmsNovelty(embedding, enrollmentQueries?.getOrNull(observation)))) {
                 // An uncertain known speaker is not evidence of a new person.
                 val entry = MutableSpeakerEntry(
                     speakerId = "S${entries.size + 1}",
@@ -151,6 +153,21 @@ internal class OnlineSpeakerRegistry(
             }
         }
         return result
+    }
+
+    private fun confirmsNovelty(embedding: FloatArray, queries: List<FloatArray>?): Boolean {
+        if (queries == null || queries.size < 2) return false
+        // Independent owned slices can prove novelty despite mixed context.
+        val sum = FloatArray(embedding.size)
+        for (query in queries) {
+            val normalized = normalize(query) ?: return false
+            if (normalized.size != sum.size) return false
+            for (i in sum.indices) sum[i] += normalized[i]
+        }
+        val consensus = normalize(sum) ?: return false
+        return cosine(consensus, embedding) >= similarityThreshold && entries.all {
+            cosine(consensus, it.centroid) < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD)
+        }
     }
 
     fun fork(): OnlineSpeakerRegistry = OnlineSpeakerRegistry(maxSpeakers, similarityThreshold, topMargin).also { copy ->
@@ -204,6 +221,7 @@ internal data class SpeakerEmbeddingObservation(
     val evidenceKey: String,
     val anchorId: String? = null,
     val queryEmbedding: FloatArray? = null,
+    val speechRms: Double = 0.0,
 )
 
 internal data class SpeakerClusterResult(

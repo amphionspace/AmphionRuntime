@@ -76,13 +76,15 @@ export class OnlineSpeakerRegistry {
     speechDurationMs: number,
     atMs: number,
     allowAdditionalSpeaker: boolean = true,
+    enrollmentQueries?: number[][],
   ): SpeakerAssignment {
-    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs, [allowAdditionalSpeaker])[0];
+    return this.assignBatch([rawEmbedding], [speechDurationMs], atMs, [allowAdditionalSpeaker],
+      [enrollmentQueries ?? []])[0];
   }
 
   /** Assigns one window jointly so an existing centroid and observation must be mutual top-1. */
   assignBatch(rawEmbeddings: (Float32Array | undefined)[], speechDurationsMs: number[],
-    atMs: number, allowAdditionalSpeaker?: boolean[]): SpeakerAssignment[] {
+    atMs: number, allowAdditionalSpeaker?: boolean[], enrollmentQueries?: number[][][]): SpeakerAssignment[] {
     if (rawEmbeddings.length !== speechDurationsMs.length) {
       throw new Error('embedding and duration counts must match');
     }
@@ -133,7 +135,8 @@ export class OnlineSpeakerRegistry {
       // A plausible known speaker with insufficient certainty is not a new person.
       // Distinct current channels still compete for different identities.
       const novel = best === undefined || !mutual ||
-        best.score < Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD);
+        best.score < Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD) ||
+        this.confirmsNovelty(embedding, enrollmentQueries?.[observation]);
       if (this.entries.length < this.maxSpeakers && novel &&
         (this.entries.length === 0 || (allowAdditionalSpeaker?.[observation] ?? true))) {
         const entry: MutableSpeakerEntry = {
@@ -149,6 +152,22 @@ export class OnlineSpeakerRegistry {
       }
     }
     return assignments;
+  }
+
+  private confirmsNovelty(embedding: Float32Array, queries?: number[][]): boolean {
+    if (queries === undefined || queries.length < 2) return false;
+    // Final clusters may contain mixed historical context. Independent owned
+    // output slices must agree with that cluster and reject every known person.
+    const sum = new Float32Array(embedding.length);
+    for (const query of queries) {
+      const normalized = normalize(new Float32Array(query));
+      if (normalized === undefined || normalized.length !== sum.length) return false;
+      for (let i = 0; i < sum.length; i++) sum[i] += normalized[i];
+    }
+    const consensus = normalize(sum);
+    return consensus !== undefined && cosine(consensus, embedding) >= this.similarityThreshold &&
+      this.entries.every(entry => cosine(consensus, entry.centroid) <
+        Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD));
   }
 
   fork(): OnlineSpeakerRegistry {
