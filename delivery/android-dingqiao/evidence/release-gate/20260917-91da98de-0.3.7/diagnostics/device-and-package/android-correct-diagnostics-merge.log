@@ -1,0 +1,24 @@
+[OK] AAR provenance verified: dingqiao-asr-diagnostics-v0.3.7.aar
+[OK] AAR native lib present: jni/arm64-v8a/libamphion_audio_processing.so (1449648 bytes)
+[OK] AAR native lib present: jni/arm64-v8a/libamphion_diarization_jni.so (501104 bytes)
+[OK] AAR native lib present: jni/arm64-v8a/libamphion_police_jni.so (1204040 bytes)
+[OK] AAR native lib present: jni/arm64-v8a/libsherpa-onnx-jni.so (3565920 bytes)
+[OK] AAR native lib present: jni/arm64-v8a/libonnxruntime.so (25831632 bytes)
+[OK] AAR enhancement asset present: assets/amphion-dingqiao/eres2net.onnx (39593761 bytes)
+[OK] AAR enhancement asset present: assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx (5986908 bytes)
+[OK] AAR enhancement asset present: assets/lac/v1/lac_encoder.onnx (31855093 bytes)
+[OK] AAR enhancement asset present: assets/lac/v1/lac_crf_transitions.npy (14052 bytes)
+[OK] AAR enhancement asset present: assets/lac/v1/word.dic (763135 bytes)
+[OK] AAR enhancement asset present: assets/lac/v1/tag.dic (425 bytes)
+[OK] pinned Android ITN verbalizer SHA-256 verified
+[OK] AAR ASR model asset present: assets/amphion-models/manifest.json (4710 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/itn-zh/v1/zh_itn_tagger.fst (1189122 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/punct-zhen/v1/model.int8.ort.mp3 (75527168 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/vad/v1/silero_vad.onnx (643854 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3 (162022600 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/zh-en/v1/decoder.ort.mp3 (17458784 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/zh-en/v1/joiner.int8.ort.mp3 (16418864 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/zh-en/v1/tokens.txt (115253 bytes)
+[OK] AAR ASR model asset present: assets/amphion-models/zh-en/v1/bbpe.vocab (232130 bytes)
+[OK] verified manifest v2 with 9 model assets in <LOCAL_PATH>
+[OK] <LOCAL_PATH> (289 MB) sdk=0.3.7 git=91da98de35c1
