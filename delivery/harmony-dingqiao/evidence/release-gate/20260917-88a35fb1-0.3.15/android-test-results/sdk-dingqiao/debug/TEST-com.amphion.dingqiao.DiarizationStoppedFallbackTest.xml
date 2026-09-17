@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.DiarizationStoppedFallbackTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-09-17T10:04:55" hostname="redacted" time="3.75">
+  <properties/>
+  <testcase name="stoppedFallbackStillCompletesWhenNoAsrTailWasProduced" classname="com.amphion.dingqiao.DiarizationStoppedFallbackTest" time="2.133"/>
+  <testcase name="stoppedFallbackCannotReplaceRealTailWhileSpeakerWorkIsPending" classname="com.amphion.dingqiao.DiarizationStoppedFallbackTest" time="1.617"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[WARNING: A Java agent has been loaded dynamically (<LOCAL_PATH>
+WARNING: If a serviceability tool is in use, please run with -XX:+EnableDynamicAgentLoading to hide this warning
+WARNING: If a serviceability tool is not in use, please run with -Djdk.instrument.traceUsage for more information
+WARNING: Dynamic loading of agents will be disallowed by default in a future release
+]]></system-err>
+</testsuite>

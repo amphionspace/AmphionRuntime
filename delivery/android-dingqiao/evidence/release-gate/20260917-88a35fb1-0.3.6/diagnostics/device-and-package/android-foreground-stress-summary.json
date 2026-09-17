@@ -1,0 +1,24 @@
+{
+  "overall_status": "PASS",
+  "methods": [
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a13_userSequenceStress_300Cycles"
+  ],
+  "elapsed_seconds": 227.21,
+  "foreground_events": [
+    {
+      "elapsed_seconds": 1.079,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 222.469,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 224.659,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    }
+  ],
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "test_assertions_unchanged": true,
+  "public_aar_from_final_zip": true
+}

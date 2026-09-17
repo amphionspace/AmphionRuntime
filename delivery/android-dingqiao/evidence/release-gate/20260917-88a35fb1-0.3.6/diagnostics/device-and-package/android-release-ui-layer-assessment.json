@@ -1,0 +1,24 @@
+{
+  "asr_original_sentence_count": 15,
+  "visible_role_segment_count": 23,
+  "full_text_conserved": true,
+  "asr_original_text_sha256": "71b0f137f5e10402a7bec7d8f2c3775ad978f3c8532df05f6f26d18fafe1e1a2",
+  "visible_flat_text_sha256": "71b0f137f5e10402a7bec7d8f2c3775ad978f3c8532df05f6f26d18fafe1e1a2",
+  "role_readability_status": "FAIL",
+  "examples": [
+    "说两 / 句",
+    "跟 / 谁"
+  ],
+  "first_divergence": "Role-labelled fragments are already present in Android public SDK utterances; R8 Demo preserves their text and primary speaker labels.",
+  "root_cause_status": "NOT_ESTABLISHED",
+  "regression_attribution": "NOT_ESTABLISHED: no previous-version Android differential.",
+  "general_diarization_delivery": "BLOCKED",
+  "asr_contract_gate": "PASS separately in public SDK matrix",
+  "android_public_sdk_phone_status": "PASS",
+  "android_phone_last_before_finish": 0,
+  "android_phone_last": 1,
+  "android_phone_complete": 1,
+  "android_phone_errors": 0,
+  "visible_equals_android_sdk_text_and_primary_speaker": true,
+  "relationship_to_main_release": "Separate role readability blocker; baseline ASR text conservation and lifecycle remain passed. No root-cause fix added to frozen delivery."
+}
