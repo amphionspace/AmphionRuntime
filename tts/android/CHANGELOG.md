@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1] - 2026-09-17
+
+- 交付 IMF 170000 模型及配套 24 kHz Vocos、173 token 前端资源，默认 speaker 1、温度 0、两步、50 帧流式。
+- 沿用 stageSdkDelivery 的交付结构、原有 API / INTEGRATION / PSEUDOCODE 接入示例，包含 Release AAR 和外置资源；不含授权文件或内部 validation 材料。
+- 本次整理交付版本和命名，复用已验收的 AAR 和模型；license 兼容主版本仍为 1。
+- 产物身份、验证范围和限制见 [3.1 交付记录](docs/releases/3.1-20260917.md)。
+
 ## [0.1.0] - 2026-06
 
 ### Added

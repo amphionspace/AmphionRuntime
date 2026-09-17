@@ -1,0 +1,46 @@
+{
+  "delivery_date": "2026-09-17",
+  "sdk_git_commit": "ffb1332b0f35ce7e6684931886e04a1412dd4d50",
+  "sdk_production_sources_match_commit": true,
+  "working_tree_note": "Existing sample text and device test edits were present; delivery validation used temporary AAR consumer test and example compile check.",
+  "aar_sha256": "68c3d19146d8dd55c15018677f51916f85bb004d58cc89233775b37d301aac8d",
+  "license_files_included": false,
+  "authorization_public_key_text_sha256": "767520ee2fa6244f797b142636a818d5d258aee48c884e74cdbed042fce429fb",
+  "platform": {
+    "abi": "arm64-v8a",
+    "min_sdk": 24
+  },
+  "model": {
+    "id": "dingqiao_imf_step00170000_streaming_vocos24k",
+    "checkpoint": "step_step=00169999.ckpt",
+    "global_step": 170000,
+    "checkpoint_sha256": "fbaf5c4f7f96cf5864164c66b371f68994da54472b3e67fa1005df7a61c50c8a",
+    "precision": "FP32",
+    "sample_rate": 24000,
+    "temperature": 0,
+    "speaker_id": 1,
+    "streaming_chunk_frames": 50,
+    "flow_steps": 2,
+    "phoneme_tokens": 173,
+    "training_source_commit": "206539cc333224989a2a640160de4d3da2916990"
+  },
+  "onnx_sha256": {
+    "lits_hidden_encoder.onnx": "9f5ab237e6312fefe3fb18f33e903e92e9c069c8eab926302b641f8922ca09f9",
+    "lits_stream_condition_chunk.onnx": "7020b66ac7849a180edb6080aa6039a71850f0cbfc8202853a31c61222e636d3",
+    "lits_stream_decoder_cache_init.onnx": "9a62896e1fd9fd9af651d88e33cdc17a3cbacd64f980a64938c40504f56a17c6",
+    "lits_stream_decoder_cache_step.onnx": "21bc6f56277875b5288d4aa094a45f191e205cdc8fbf6a43e7ddca0f7f1ecf7f",
+    "vocos_vocoder.onnx": "56ba27c96c59a7c16534f1ebec038c4fedfa59104ea1aa074dd27626b9a1752c"
+  },
+  "delivery_version": "3.1",
+  "aar_filename": "lits-dingqiao-tts-sdk-vocos24k-3.1.aar",
+  "archive_filename": "lits-dingqiao-tts-android-sdk-vocos24k-3.1.zip",
+  "archive_sha256": "1717e07bf04ca2fd248a7c8c27ca16072ed906e730a8b0a98790d9487b28ed5d",
+  "archive_size_bytes": 222239312,
+  "customer_validation_files_included": false,
+  "packaging_only": true,
+  "layout_basis": "tts/android/build.gradle.kts: stageSdkDelivery",
+  "examples": "Original docs/INTEGRATION.md and docs/PSEUDOCODE.md; 11 Kotlin snippets compiled against actual Release AAR",
+  "customer_build_info_included": false,
+  "resource_directory": "external-resources",
+  "checksum_file": "CHECKSUMS.txt"
+}

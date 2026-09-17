@@ -5,6 +5,12 @@
 ## 1. 完整流程
 
 ```pseudocode
+// 前置：将 external-resources/tts 完整复制到 <filesDir>/lits-tts/tts
+// 使用客户自有 license；默认从 assets/amphion-license.lic 读取并获取系统 SN
+// 若宿主没有系统 SN 权限，通过 TtsLicenseOptions.deviceIdProvider 提供真实设备 SN
+TextToSpeechSdk.init(context)
+TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
+
 // 0. 可选：查询可用音色
 voices = TextToSpeechSdk.listVoices(VoiceQuery {
     requestId: "voices-001",
@@ -12,7 +18,7 @@ voices = TextToSpeechSdk.listVoices(VoiceQuery {
     language: "zh-en"
 })
 
-// 1. 可选：指定 SDK 工作目录
+// 1. 工作目录应与上述资源部署位置一致
 TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
 
 // 2. 创建引擎并在 createEngine 阶段加载模型
