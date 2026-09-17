@@ -90,5 +90,5 @@ USB原音运行 `20260917-154629-diarization-windows-0ce3a455` 已 PASS。四人
 
 完整原音、日志、转写、字幕和逐句对照只保存在私有目录：
 `~/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/customer-meeting-0917-6qzr422q/`。
-用户可读副本位于 `/Users/boxp/Downloads/会议0917-MOSS复核-20260917/`。
-远端为 `amphion-42:/home/ubuntu/workspace/audiollm-go/.local-test-runs/customer-meeting-0917-6qzr422q/`。
+用户可读副本位于 `~/Downloads/会议0917-MOSS复核-20260917/`。
+远端为 `amphion-42:~/workspace/audiollm-go/.local-test-runs/customer-meeting-0917-6qzr422q/`。

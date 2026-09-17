@@ -28,9 +28,9 @@ MOSS 是研发标注工具，不接入端侧 SDK；它的输出不能自动成�
 
 | 项目 | 路径或版本 |
 |---|---|
-| 工具仓库 | `/home/ubuntu/workspace/audiollm-go` |
-| Python 环境 | `/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/venv/bin/python` |
-| 模型目录 | `/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/model` |
+| 工具仓库 | `~/workspace/audiollm-go` |
+| Python 环境 | `~/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/venv/bin/python` |
+| 模型目录 | `~/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/model` |
 | 模型锁 | 仓库内 `docs/evaluations/community-diarization/acceptance/moss/model-lock.json` |
 | 模型 | `OpenMOSS-Team/MOSS-Transcribe-Diarize`，revision `704aa4a9c304e8520be88901e0d1960158ef5b15` |
 | 官方 helper revision | `61bc29cd4120be7b5d3b761b64cd5dff57263642` |
@@ -44,9 +44,9 @@ MOSS 是研发标注工具，不接入端侧 SDK；它的输出不能自动成�
 在 amphion-42 上执行，先将 `moss_input` 改为已准备的实际输入绝对路径：
 
 ```bash
-cd /home/ubuntu/workspace/audiollm-go
-moss_python=/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/venv/bin/python
-moss_model=/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/model
+cd "$HOME/workspace/audiollm-go"
+moss_python="$HOME/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/venv/bin/python"
+moss_model="$HOME/workspace/audiollm-go-speaker-clustering/.local-test-runs/moss-diarization/model"
 moss_input=/absolute/path/to/input.wav
 moss_run=$(mktemp -d "$PWD/.local-test-runs/moss-annotation-XXXXXXXX")
 HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 \
@@ -81,6 +81,6 @@ HF_HUB_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1 \
 
 四人片段中，MOSS 支持原标注在 121–123 秒的主要人物仍为前面的同一个人。SDK S4 的初始建档样本也主要来自此人；将计分映射的 S4 当成另一真实人物，再据相似度推断模型能力不足，是错误的归因方式，应撤回该推断。另有约 0.99 秒换人边界分歧和约 1.164 秒纯 `<$>` 标记未进入 RTTM，均保留为待裁定。
 
-私有证据目录：`~/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/moss-annotation-audit-8cqlfeo8/`；远端：`/home/ubuntu/workspace/audiollm-go/.local-test-runs/harmony-annotation-audit-20260917-8cqlfeo8/`。证据清单为 `evidence-manifest.json`，结论为 `标注复核与归因更正.md`。原音和完整转写不入库。
+私有证据目录：`~/.cache/amphion-runtime/diagnostics/customer-video-diarization-20260917-d3w2c6q2/moss-annotation-audit-8cqlfeo8/`；远端：`~/workspace/audiollm-go/.local-test-runs/harmony-annotation-audit-20260917-8cqlfeo8/`。证据清单为 `evidence-manifest.json`，结论为 `标注复核与归因更正.md`。原音和完整转写不入库。
 
 后续优化见 [角色分离优化计划](SPEAKER_DIARIZATION_OPTIMIZATION_PLAN_20260917.md)。
