@@ -1,0 +1,16 @@
+{
+  "Android": {
+    "version": "0.3.8",
+    "artifact": "Amphion-Android-ASR-Complete-0.3.8.zip",
+    "sha256": "00b1f760a31cf1e490b1a3776db0c939027a9549c2183e66c385ab2eeaa9141d",
+    "size_bytes": 1968780977,
+    "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4"
+  },
+  "Harmony": {
+    "version": "0.3.17",
+    "artifact": "Amphion-Harmony-ASR-Complete-0.3.17.zip",
+    "sha256": "f1ab1230c926fd5e8166ba82d1b5dddada7e6d7eeea8bb4000dac437c44c09a3",
+    "size_bytes": 1617389188,
+    "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4"
+  }
+}

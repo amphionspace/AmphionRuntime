@@ -1,0 +1,1805 @@
+{
+  "android_test_results": [
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "81aca117ebeed3e9318f4444906ca66da8bec1db4277e7c407c17f77df3ae0a5",
+      "size_bytes": 584
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "568da8e996074f749c3e3c0ff776c36359e3ecf9ceafe5cf8ec921cf68ddfdf1",
+      "size_bytes": 467
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "7c64e1e450267ce252839b15c462fbfd1282d7f3f404dea138f3328afeae2a4c",
+      "size_bytes": 728
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "2dcc9d452cf881d0a3bae9a1399a590f65316fed92efdba3a8c1e06b41c73a3a",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "edff327bffe68d63789debdf3da1cbbc55d0b08a6b6f498b65938f9430a93073",
+      "size_bytes": 644
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "77ea2f910a3b7a2fafb1e93e661a725767b352d35ef2b1f7f40a870dce140362",
+      "size_bytes": 1553
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "41a6022826a5c568f2a5f7ea88d93a065b2c7e600e6a6884bbd6f23f23135e19",
+      "size_bytes": 726
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "3afa40ee78e75826bd316a4b250f9bf92853cc0979ed8449d11746c651e4f98c",
+      "size_bytes": 1339
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "882cf7950f6096aa148b9c2bd0f8944302cf0178959755a1c9c4602eea7d3b61",
+      "size_bytes": 1398
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "2f7a5ceb0ef2611aa017342b3a19b83c907c5f7e405aef958e367c7411e3eb24",
+      "size_bytes": 824
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "1c64819aafe0aeb5547e6f53724c367ffa3f65b119617496d01b1f94d4400986",
+      "size_bytes": 482
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "fd06c5cc67271dea6a400f9540b8b33587b3837e9979487240a456e4d4a7ed82",
+      "size_bytes": 610
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "4cc4374a59e5cd0ba2c686a5387a817f1d8095da191b7e4de9db415694bf3210",
+      "size_bytes": 623
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "92c5a92f143d3883d78e0c9a6ef3d659ddf14114a967d7d47409eaa8abc89ab6",
+      "size_bytes": 449
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SessionTimestampTest.xml",
+      "sha256": "483668737b8839d7456ac46a259f71d8fda5d6b4abd38570158e69f05353153e",
+      "size_bytes": 839
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "8b0e32e692b1e5f638b6a305558db9b7f1e93b7df108fdecf1754f9442f59f03",
+      "size_bytes": 740
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "a16edb84621b736ebf2236ca71226b77e5ce1f957ae3232b059ccfb32d102883",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "9acc32f5ba066e5f20203b2fb9d4719606f9d97b78ac278cd56ee495b90d2263",
+      "size_bytes": 769
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "8533596176b609f89631d10b9a67431ba9349a259ab8a41e0b140eb4b8f45e65",
+      "size_bytes": 600
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "269761552c0151f6d3c682c3a49a1d4a6697a77a51c2aa8e07e336d1e6143ecb",
+      "size_bytes": 952
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "0d0d1a7fd09e8841915e6fbb44fb147399d0c1468825a1266b02938a56cba7f5",
+      "size_bytes": 584
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "eca6f1943fc10f15b35b5f2368a86c1e2a41eb61a8a32bd714149090ba64335d",
+      "size_bytes": 467
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "6bb2f68a1a4ee4c57ee85f6d58d895012740f8927799b3f91893f6a11955fef1",
+      "size_bytes": 730
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "a058e16a0fa601574cd01ac8bc72435cf0d0b5363a8c433a6add606a0a100cc8",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "143bd1335ce17affbbb7997dfd5564f8c17e3c958485ce59940bf698b799b307",
+      "size_bytes": 646
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "52fff3125d0aafc3766cf2d607793d41497b14163f719a041d5fa75df147072c",
+      "size_bytes": 1557
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "e7b2bae1e0039fda26444f695db9461f9ea1beb0277131372d9dca50f65849f8",
+      "size_bytes": 730
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "fc7df46550ea7fefe4b55b51901f8216a466f7e0ce20e524e3be3c333fad5d20",
+      "size_bytes": 1343
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "b289c68149f4abbfa31cc257cd0cff674011673836fb6db105d393888eab28a3",
+      "size_bytes": 1404
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "927f318f3ea445ffd1d979ae816b8422b509ed6611d0949fa9daf2f555485a17",
+      "size_bytes": 826
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "3838ec8f36c8f990948e278750eab66f0cc89f8962d1ab9643a1ad6604ec0328",
+      "size_bytes": 482
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "0cc44164a49fa9b9a552876eae825809cd46a74e8b896334b9a4d5982df0ee4e",
+      "size_bytes": 612
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "85f98f36beaa2f6bea6b6731a8f0de35e1b03be69ee44ec02689bda90a92c2c8",
+      "size_bytes": 623
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "8033ce0bf0b3510a3929b58845e4d079dfb3258bebf5ac72d91bf08a6dab94fa",
+      "size_bytes": 445
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "523d4171f07204f1bacdb654a0f32ecc96ca518cce5ffca2a77a1b3847b4cb0e",
+      "size_bytes": 740
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "e7b38bc77fbc523a274cde690b26fb61b6ae1bc1b31a8516edb1c7027b21697f",
+      "size_bytes": 624
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "23867cd71b4cb0bea7558c46c1afcc2829774eccd7b90a37d833aa0b07ba8458",
+      "size_bytes": 773
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "04c54c4f87271238d6d8bfd716c127bc1d141f2dc0304825bf0ac2a49d1bd351",
+      "size_bytes": 606
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "069bc4548fd8fe60c0536b0a896810d58301123739d6aa7d295e5e9a7a6c2e55",
+      "size_bytes": 954
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "3a8e89e1b0514384724264f9b52b6015f14a2ecb7b2c7277e9ac0a3715929905",
+      "size_bytes": 713
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "d899c4f61e4674f91f363f5aa7d46555163f725c467fba0615a8e47d0869365e",
+      "size_bytes": 642
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "10897f5d7a37d31cba7dd458db4131266fb382619cafdffc8a81ed4a17e1288f",
+      "size_bytes": 731
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DiarizationStoppedFallbackTest.xml",
+      "sha256": "1db6708fc38b3bff5b90a55307a4be06b246cf501905e61bde0ef779862e9f02",
+      "size_bytes": 1018
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "54aad5611b7650664d6147edeeeaab4f9c028b8e6d992414f5e32a81d5512214",
+      "size_bytes": 4801
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "9b5be9c30f8c44027e0ed75c3f0953344d5fe755a3bce00e9c591a8269e12192",
+      "size_bytes": 408
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "67346fa469679829839f3315cb94be8083a4a180e883808d8a234672ff017f66",
+      "size_bytes": 1319
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "0d601ef6cda1ec57c3c5f03f522143daceb9fcb1879741fc00513a8a6b87b7e4",
+      "size_bytes": 627
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "0142e0681d0173cf84e56a7926eea791388579a13db8f6c1d44bebf0d29597b5",
+      "size_bytes": 587
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.ResultTimestampParityTest.xml",
+      "sha256": "ccf2ef8e918a6cdf8e2f9fa35de2c88893d42f76328848c07c3f07bc804d8bc5",
+      "size_bytes": 483
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "7cfa438e0dc0e15b931f303f550b4dca7a1c98f4d23338b0da58b52041a0fd32",
+      "size_bytes": 3535
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "d26216832807c8db615fd88a83def54d720f216a9276e9d486d5e47244756de5",
+      "size_bytes": 780
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "c0b1faa70862fec5d9f12d231513ce8069c99792800f564d25b12a162b28fa64",
+      "size_bytes": 555
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest.xml",
+      "sha256": "f68fac17c8ee0ac0c8d95c9ecf70be69d888a79a25ff4b582952807a13ebc62d",
+      "size_bytes": 832
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "5d0f7aab1a962a6ebc3010eb531ad7a3e103dde449969899a0bd014782724a9f",
+      "size_bytes": 1859
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationSentenceOutputTest.xml",
+      "sha256": "ee29558f250af0c1eb5c82e375e664ff9b96f051629521ea6902073bb2afd672",
+      "size_bytes": 666
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "babbee36dcb34f8e68b174021f1ac4125698a76f3b3f5ebfae36527cf3bf19a2",
+      "size_bytes": 3109
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "700ddc51c8bbac9e48fbb4bbdbfee41c64d09e8f3f14b2068854deb9826e5646",
+      "size_bytes": 2687
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "2e77f5c636db90d10398ef6943eb2dd13f00e0e396e4160d28f2ecb211aac38a",
+      "size_bytes": 687
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "16486d79c80b19507629ae4ee1753c4fff828876b9e9775b9ae05753fc1abee5",
+      "size_bytes": 713
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "2ceda5393a55fd0180d55d276351f31c07cd91d11f99017173cb1a5537a560a8",
+      "size_bytes": 642
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "4f7cde9a67431e34cba92094d910ef9d020a73973e227b2fd68eca1d03d3c561",
+      "size_bytes": 731
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DiarizationStoppedFallbackTest.xml",
+      "sha256": "918238e8d4c1059428cd9148275a24dc2b2bb52d874dbb4a9db35044941b87f3",
+      "size_bytes": 1018
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "956f8175c6d3cdb103ff39c8b8e8f246410e6f94f042acd62868a2690f9800d1",
+      "size_bytes": 4813
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "6e8858a695f65ef91921d0a68f7ebb12c257ca40f9d5fd112ac1d394279beb4d",
+      "size_bytes": 408
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "1eb9f673aa3fc308ccdea9c1955dc55638797e4bbc25af18035ac1f90e3c4627",
+      "size_bytes": 1320
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "1ebac65cfcddf6a762e7aeb6f59eda2b9b2faba460a650c61aa089a708542919",
+      "size_bytes": 631
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "e90955ee181cd0ff7d7a15b2c99abfc968ce0d3dc2c3913d972d849acfa427c3",
+      "size_bytes": 587
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.ResultTimestampParityTest.xml",
+      "sha256": "919c6f8e267298742f256a39cc9b157505720788c81f636f7d7da64f0af440f0",
+      "size_bytes": 483
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "064a5e26e3ddc48ddbbcd7d7b7e4ef2c48aec0b9cb0de785024db3065215bfa2",
+      "size_bytes": 3539
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "b306ecc6f8e66a6d517a56bd4e7df5428fa6d3e061a2291a8b2074ac0fe71960",
+      "size_bytes": 780
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "688cdc41ba761e86a546785cabdfa04b16589cc7b0ab27747e3e357c6b6f4fd3",
+      "size_bytes": 555
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest.xml",
+      "sha256": "3b6bbc0e33f99001774b6a133259834cde90430f58ba1472a6fa9a3cd1750d8c",
+      "size_bytes": 832
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "b061b57e9964344960996caaea33b2b2199ef002696a4cb831f58007ddd4defa",
+      "size_bytes": 1865
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationSentenceOutputTest.xml",
+      "sha256": "d337f73254c3d2ea1bca113056323efd18292d25295cfa06832ce5da6d476f8c",
+      "size_bytes": 668
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "9f48904417773656c571d5463bfa81a0caacfb761a822e68586282430838ac78",
+      "size_bytes": 3110
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "3bc79a5e30fd26b67ed63b8b48a0acb77b055b3aa5113402dea3fefec34d9963",
+      "size_bytes": 2695
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "4caee42d21d4b6078e37e441a0bb063a042853271b00deb05cf5fad69e873d67",
+      "size_bytes": 687
+    }
+  ],
+  "android_tests": {
+    "overall_status": "PASS",
+    "rerun_tasks": true,
+    "sherpa_submodule_commit": "f3b1a9da8d6e0e6cdb21387d41d25f8c8e10d3cc",
+    "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+    "suites": [
+      {
+        "errors": 0,
+        "failures": 0,
+        "module": "sdk",
+        "skipped": 0,
+        "tests": 60,
+        "variant": "debug"
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "module": "sdk",
+        "skipped": 0,
+        "tests": 59,
+        "variant": "release"
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "module": "sdk-dingqiao",
+        "skipped": 0,
+        "tests": 127,
+        "variant": "debug"
+      },
+      {
+        "errors": 0,
+        "failures": 0,
+        "module": "sdk-dingqiao",
+        "skipped": 0,
+        "tests": 127,
+        "variant": "release"
+      }
+    ],
+    "total_errors": 0,
+    "total_failures": 0,
+    "total_skipped": 0,
+    "total_tests": 373
+  },
+  "android_tests_artifact": {
+    "path": "android-tests.json",
+    "sha256": "abcb2186807566532133313f029668a7cbf2efc364f3dcdd2f3eeaf9b9264318",
+    "size_bytes": 880
+  },
+  "build_identity": {
+    "delivery_har_sha256": "42aa163655864ed5a124f90100b89f935d70fffaeeae85180279adfffcf8d925",
+    "hap_sha256": "8ad8c5918d13f0c1770d1996a39298a20a8035aa1f887cc4279c60485a4cbd58"
+  },
+  "device_alias": "device-9d33cec60055",
+  "diagnostics": [
+    {
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "34cba0d24a2820f0297c9318386cd1f8e5331282a7ed9f2795ab20b9529fce27",
+          "size_bytes": 7545
+        },
+        {
+          "path": "result.txt",
+          "sha256": "8876d6db32a7f2b64e640e699b031b2c258383a422999c85427ace56b7da4621",
+          "size_bytes": 1663
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "5a3a3144af2b3515049daf15855c34310bf911d151000562e0eda5d0325212e9",
+          "size_bytes": 298
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "6ce160714777ccb72f35803f14f30e2978897e267990f3ed79b10ec58e1812cd",
+          "size_bytes": 3999
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "9f480990524258ef6b7002f39aad90a77e565117f6f27102444f454fbd3ccc05",
+          "size_bytes": 345
+        }
+      ],
+      "mode": "finish-shutdown-relicense",
+      "note": "non-canonical run retained for audit",
+      "path": "diagnostics/20260918-191240-finish-shutdown-relicense-1cbb2d34",
+      "run_id": "20260918-191240-finish-shutdown-relicense-1cbb2d34",
+      "status": "PASS"
+    },
+    {
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "73e2e153499b89443a3ef75204c60f884f3308fd6c0044922b058d1379d86867",
+          "size_bytes": 10795
+        },
+        {
+          "path": "result.txt",
+          "sha256": "5728e9df7ab713f28abc46577e8eed9a05fddd84e2c71ef5ccf978093cc7930a",
+          "size_bytes": 3548
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "da3ea5894ddb177b1585865960d28ef04734927abe3bb9df96e4e6cd0b158fc8",
+          "size_bytes": 1046
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "689fabeb5c0fead2e55b96c1a5d3ec97af277c93967b8de0bae5544e7b2ea9af",
+          "size_bytes": 14950
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "b0b1f1071714fc3bacee3c47348f593b1691d1668b425e86933f22fb4013bc99",
+          "size_bytes": 202
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "a783ae3f99331d53182377c7c2fc4f6926e97951c947cca965a86a185de9fdcf",
+          "size_bytes": 728
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "edb53a81d737b48287fbeefdda00b1cb94a6ff0ffe3f2b2b564055ebe25c512e",
+          "size_bytes": 212
+        }
+      ],
+      "mode": "speaker-vad-turn",
+      "note": "non-canonical run retained for audit",
+      "path": "diagnostics/20260918-191340-speaker-vad-turn-e7a9fc2c",
+      "run_id": "20260918-191340-speaker-vad-turn-e7a9fc2c",
+      "status": "PASS"
+    },
+    {
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "99395d05c5801e4ebc925d37d822d508d5b0a47ec23b154d4eab18f6d2433947",
+          "size_bytes": 9638
+        },
+        {
+          "path": "result.txt",
+          "sha256": "a56175d671804323d739a2595c482e676261580624b9a31be970d47a001b6798",
+          "size_bytes": 3047
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "e8e580c3d5d38ca337334107bab6d08e1f3a09c0531f4c566817ca4d7dd35dc0",
+          "size_bytes": 482
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "88c7791216fcc3e96250a65f987bc43739629b9989b0d5257809081d0fcbd16e",
+          "size_bytes": 5072
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "dbfd8f8b850805706aa3c9d0716df5279d036b407c2229b71b011aca0cfcbe83",
+          "size_bytes": 306
+        }
+      ],
+      "mode": "customer-ptt",
+      "note": "non-canonical run retained for audit",
+      "path": "diagnostics/20260918-191402-customer-ptt-97f0c7a8",
+      "run_id": "20260918-191402-customer-ptt-97f0c7a8",
+      "status": "PASS"
+    }
+  ],
+  "finish_compat_runs": [
+    {
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "880d3e8b6c228ee4efbf2f82a6e5eee4f9bfac53cd79b252443a037b64090e21",
+          "size_bytes": 11889
+        },
+        {
+          "path": "result.txt",
+          "sha256": "44d0da7f4f3ea4cbefea3eb0a7cc563feb40150335d3a2699696230401d858bb",
+          "size_bytes": 4609
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "39b1d62b11de1797984732c84d3745135e6f2cbd8279d47139e2e3d529e73691",
+          "size_bytes": 360
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "7e66c8256dfd80f5418868f0b6c3ef16f48fe823f1ff858f007566b51e4a2979",
+          "size_bytes": 8284
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "e683dd6846de6237a76bfcf5360b4904a7f3eae81cef5b03bb5125bb61452a7e",
+          "size_bytes": 336
+        }
+      ],
+      "mode": "callback-api-reentrant",
+      "report": "finish-compat-runs/callback-api-reentrant/report.json",
+      "run_id": "20260918-191511-callback-api-reentrant-1cbd43a9"
+    },
+    {
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "90d48552ad604769120fdd3758971745018ad16d28a7cf980f402ecdc91bc93e",
+          "size_bytes": 9555
+        },
+        {
+          "path": "result.txt",
+          "sha256": "4d8f611834c57b02866873a020c6d2ab5e300ea22be798fbf7f8b88731804d1f",
+          "size_bytes": 2991
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "1d471c03b679be26e2a4bc988b10c3a5ea394fb715bb14c03e101415910b271a",
+          "size_bytes": 298
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "b0e489a5f7e5908b610c8c4aaf473921c30a164a0bdb5bae8f00ab309f20d9c1",
+          "size_bytes": 5235
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "eadeb575104f71d0e6d91114d3e5b890538c9eba52af37ffecb0707fe3be7a31",
+          "size_bytes": 315
+        }
+      ],
+      "mode": "finish-shutdown",
+      "report": "finish-compat-runs/finish-shutdown/report.json",
+      "run_id": "20260918-191518-finish-shutdown-020c000a"
+    }
+  ],
+  "finish_compat_summary": {
+    "path": "finish-compat-report.json",
+    "sha256": "15b6aa8a633665dc6ae41598decbe794f422941ae81da06e1f0d4bd5e79ed10d",
+    "size_bytes": 3520
+  },
+  "limitations": [
+    "Generic identity accuracy remains blocked; scoped customer benefit only.",
+    "Speaker VAD turn checks lifecycle, not target-content precision.",
+    "Short memory observations do not establish long-meeting stability; no full network trace or external-fault injection."
+  ],
+  "long_run": {
+    "duration_seconds": 83.725,
+    "mode": "voiceprint-fallback"
+  },
+  "modes": [
+    {
+      "completed": "3",
+      "cycles": 3,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "cc3827b2442c221dc0c9c0e60e5c84d0c55f391edda1dc63427210c2ed16bf1b",
+          "size_bytes": 11548
+        },
+        {
+          "path": "result.txt",
+          "sha256": "928251dd26bff3f13d7b00f13628355b094cbff8046b4c39d00b9a048d94aa96",
+          "size_bytes": 4268
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "124f0cb6768416368f39a31855bc0b1aec817eda5581ff164f3ed992213abdf6",
+          "size_bytes": 483
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "09e88172ea833075220999ce6ed38b5ffdee7c8ba3ddf52d5c1c3746722c8bf6",
+          "size_bytes": 7818
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "06c7a930a46b480dee4d9ff9da0deab18a72c0249539971b993e4183a337e3a4",
+          "size_bytes": 285
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "burst",
+      "report": "modes/burst/report.json",
+      "run_id": "20260918-190809-burst-c7f37e73"
+    },
+    {
+      "completed": "6",
+      "cycles": 6,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "e866fd5a9775dd6149ce0ebd9146c8c77e1682fd2958aa996d778a731c741022",
+          "size_bytes": 18701
+        },
+        {
+          "path": "result.txt",
+          "sha256": "4d18250dcc510ff6e16488389f9121b71ef6db6f7c7b63c669a2f38ae6f1a44f",
+          "size_bytes": 8807
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "e5acbb03ea08eee51caf99ccf1af44692ade9e80786b8190d7fa5bf9f64e878d",
+          "size_bytes": 1673
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "a0a1eab0783b9416cebce3afa81c8570c90e3819bf810ae40e04e30a221eef37",
+          "size_bytes": 14923
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "9a52f263bd72ecd9c30b8d8e21b26abe061949224f4d28357c101e2605931d47",
+          "size_bytes": 285
+        }
+      ],
+      "memory_status": "PASS",
+      "mode": "paced",
+      "report": "modes/paced/report.json",
+      "run_id": "20260918-190819-paced-e9464870"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "61708e94fefd2eba072e4283c03a44029448790bb21ba278da89dc7b4f7e6608",
+          "size_bytes": 9495
+        },
+        {
+          "path": "result.txt",
+          "sha256": "de7cbad43ca9245b60020ec86f7e203e940b8ee7f5382ba4546b389b7d492fcd",
+          "size_bytes": 2944
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "490195fa4e69759e2c403ead6a58d55471e16412f49dbe7e8f5c3640e3c097cd",
+          "size_bytes": 297
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "e3d60b63e566656abe5f999b752c5d9bb0829d0b4eaac3ff24cc718d7142be05",
+          "size_bytes": 4960
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "7923903b2a71d5e4548c77442694bdac6f2b091146f6cf57541af61a5d8202a4",
+          "size_bytes": 297
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "vad-begin",
+      "report": "modes/vad-begin/report.json",
+      "run_id": "20260918-190855-vad-begin-a8544f0b"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "3547b7b37402c76e0e3d53c5b54a7255864b034d6028a4c8dd3f9fb8725c544d",
+          "size_bytes": 9535
+        },
+        {
+          "path": "result.txt",
+          "sha256": "5d1ba4ee25adfd823a7d2b7469d53a9f09ae477e9e576ed37358b6b9e7c594d0",
+          "size_bytes": 2947
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "481fee43b1789ea4905e3fed1a6fac6e48cded28e59960f8fb41e7d68b74da43",
+          "size_bytes": 297
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "f84b4d6f2bfafa33fefe04c2ccc597a30679e55e5c5c0b5704a0887308f2104f",
+          "size_bytes": 4987
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "15d5d268942d340ce9ae4531c68e25986f7902a6f9dfcc1446de476a98734666",
+          "size_bytes": 321
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "vad-begin-silence",
+      "report": "modes/vad-begin-silence/report.json",
+      "run_id": "20260918-190901-vad-begin-silence-b18d083d"
+    },
+    {
+      "completed": "3",
+      "cycles": 3,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "7597fa5927f24a086a420ce10b575594eb00cf8b655e013d75a0fefdfc556376",
+          "size_bytes": 11625
+        },
+        {
+          "path": "result.txt",
+          "sha256": "58131ec2812d019ec6750b76813abdcead29e9c7d11ebd7e77ad3e64ac26c474",
+          "size_bytes": 4373
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "8403a77ef06275280974b609126bb4337381a68214c4fc71b9437ab0e6151279",
+          "size_bytes": 359
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "f1fd0f951b57984a956187f8ffd576a53f38148ddbbbbfd23e6c0a10c6444f97",
+          "size_bytes": 6953
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "a7fd636dd797afef7583adee6e3f53db885243c9defa138cee2135d45e74e299",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "9f5a1c6a065f028d9f260c4fbee03aa2b2e1af66393396282b840fcf911d3568",
+          "size_bytes": 1131
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "8913385aadabdd47739940717f0ee903bb3e43ccdefa3f8432f289af7fe6b1c8",
+          "size_bytes": 300
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "voiceprint",
+      "report": "modes/voiceprint/report.json",
+      "run_id": "20260918-190906-voiceprint-f2e9745f"
+    },
+    {
+      "completed": "8",
+      "cycles": 8,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "b8bedfaf8cabf462b43e1cf700e74e7e443bdb7a4f3449b8cdbd07eea8a71133",
+          "size_bytes": 25376
+        },
+        {
+          "path": "result.txt",
+          "sha256": "38a7483e0615f43f23b314569b875ba40f2fc48bac8d7c780c6e3a019b245e59",
+          "size_bytes": 14063
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "3b627bdea5ce1223b76d9be7395d3d4e9210509db964a4182677bd07c6132db4",
+          "size_bytes": 4154
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "63951aa5244d931e9e24093753c5025bc5d05767816ba2753ef2876bde23348b",
+          "size_bytes": 27306
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "aedbbe2a1ffe3a5f496f2f5627fb5d1869ae7651246d64a9ccad0a599d758f17",
+          "size_bytes": 202
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "f28547282b3bd47f3959d7a5b38001dc0125690cfc7e50d10db8cfbb31ac7e21",
+          "size_bytes": 723
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "bb56769565bc375c47b3ef063be992c9f50bbba6ca6f9e45e675a6e48d24625f",
+          "size_bytes": 218
+        }
+      ],
+      "memory_status": "PASS",
+      "mode": "voiceprint-fallback",
+      "report": "modes/voiceprint-fallback/report.json",
+      "run_id": "20260918-190913-voiceprint-fallback-f29662eb"
+    },
+    {
+      "completed": "4",
+      "cycles": 4,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "36be3b38f5702f52efc6cb7309e12293dc207d275029d142cb54dd0e44a0f084",
+          "size_bytes": 14643
+        },
+        {
+          "path": "result.txt",
+          "sha256": "cb0c77ce37bfd70b88b59ec5211da60863d95a59b9d281cb8e0ca659d9c68ad4",
+          "size_bytes": 5928
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "3ab33d89d3ead8fa11657389779caccd9fc3ff712b48035f628cf59d97869342",
+          "size_bytes": 793
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "eb454d745dd25ad1cf7d4e0623f87ef0199052be18787c5a70b9b568ecf16705",
+          "size_bytes": 9101
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "274c67135bcac32b9af9d2e455f8116b56c5e1b49339624ebe933f127acaef3c",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b26d8f774d6d51962d31676e5d895d2d372f0382228b63f15f320c36be2ebaf",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "aad0da64111f79897c8337e1a38bb754c4fec164230b02ae0132bce49508d96b",
+          "size_bytes": 330
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "voiceprint-vad-begin",
+      "report": "modes/voiceprint-vad-begin/report.json",
+      "run_id": "20260918-191043-voiceprint-vad-begin-674b569f"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "fa47af6ef9c1d5a794dd6c1ae529d45858afa54cedd57513ecfa4b79428b0197",
+          "size_bytes": 9625
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d18937a22d635724f2212f67559e5644f4b5e7c58eed17f02e231c5ba2263021",
+          "size_bytes": 3022
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "8aa786962ff93f886f5cebee251339121bc32f3b32f6b13743c8c3e71224781c",
+          "size_bytes": 420
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "82ae98f1f7e4934318d731cf393f001266f1faaab4cc60da4f70787993475d58",
+          "size_bytes": 5084
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "cd368349e15a556f74d72019f37beebbd1c0468871a0035d37ebbc8f56c934ad",
+          "size_bytes": 209
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "cb8df29a7a959586449224e1b4fad2f46e2018504ba4585f2d66265341597bef",
+          "size_bytes": 380
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "ed83a1ad3a7a7b1b8d72405bef1b9e7862ef2a3eb1352bb5f608a79ea85af504",
+          "size_bytes": 115
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "voiceprint-vad-begin-idle",
+      "report": "modes/voiceprint-vad-begin-idle/report.json",
+      "run_id": "20260918-191101-voiceprint-vad-begin-idle-c8ab6dcb"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "c1099c05b24b1e01ca88c8cb3d70d81d49c7389505ef82bc86f06d8f6b1b2a76",
+          "size_bytes": 9296
+        },
+        {
+          "path": "result.txt",
+          "sha256": "70cf28481fd7be306cf43237a7c3112973bea01a3dbf439bdb46efb8ef10948f",
+          "size_bytes": 2738
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "f5d17a7d7f4f60f84d035fd5740d996a587dd1b5ba2115f5d44a504756421f3e",
+          "size_bytes": 237
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "fb09a55dd5add18be1e2318a673291b63504baab3fed183c5cce5dbe71c4e903",
+          "size_bytes": 4257
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "87cc308185000a7d4d3ff0d398e629744a0184a8fd6defc628b972d8b73ef1b3",
+          "size_bytes": 288
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "cancel",
+      "report": "modes/cancel/report.json",
+      "run_id": "20260918-191109-cancel-52c005ae"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "920035c01cbaf11e1fa41e072447fa10b786bd47d9624a2ea46b4ed7c20a92cf",
+          "size_bytes": 9322
+        },
+        {
+          "path": "result.txt",
+          "sha256": "a88306f0c06da08f9cb6c51fc2a35bebc7cc096527e96e6152412d73703243fa",
+          "size_bytes": 2758
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "b5d2de663b13cf261979ea1e8f6acc32855621dc777d365b13f1f033448e9fdf",
+          "size_bytes": 237
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "7d7e5f7c4f190583bfb7aebac78a3b53e25f9d6dcca2e03b27a57e476b62cec2",
+          "size_bytes": 4297
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "2c23ee63f6befa9bbe75a2ec7782d237e7993198926a514d83e684963a946521",
+          "size_bytes": 303
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "cancel-full",
+      "report": "modes/cancel-full/report.json",
+      "run_id": "20260918-191113-cancel-full-26476515"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "81e5cafeb20fbf081d87aa323497ff1b4c2110767feeab5bc6145e5607dbc4f4",
+          "size_bytes": 9430
+        },
+        {
+          "path": "result.txt",
+          "sha256": "2d83b357d78e08386005c1582d71f7842d26c145ed23c71ace81ca543b47df1c",
+          "size_bytes": 2880
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "d8d7d214e4b55b6cb60936830370557eec81d883c66e5ef7834efdd3e214a301",
+          "size_bytes": 298
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "855c55f9f0319b34f08c80e1605db08b49429948803199f7c211becfcd82eeda",
+          "size_bytes": 5105
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "9985ec395f891c5ce368063547a0cf93b37ce8501ae9034835c2ea010e28fbe0",
+          "size_bytes": 294
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "recreate",
+      "report": "modes/recreate/report.json",
+      "run_id": "20260918-191118-recreate-84d85e46"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "499a89ab1a208c995f6257ff9d5391412f7339adda0acdedba4ffb74a4cbc54c",
+          "size_bytes": 9442
+        },
+        {
+          "path": "result.txt",
+          "sha256": "16b9131f0001678f31892cb929b307ebd36fe691848e22c809e90200ce96b1f9",
+          "size_bytes": 2886
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "29290b1f131f22c3b3587c4a5acd9059a231f08871fa1673170f6942b77a5340",
+          "size_bytes": 298
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "8c1878824cab9c279e3bfd4e28829c64e70be4146ea2260c6c633d1115879d37",
+          "size_bytes": 4908
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "791d7bb79c0e961636068be49ec72836e9e16c694c70ea005fc7ca35abb22be3",
+          "size_bytes": 303
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "reconfigure",
+      "report": "modes/reconfigure/report.json",
+      "run_id": "20260918-191123-reconfigure-d0d2ca37"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "81faea5c2ac551b132e41eccd2f6734d1dfc40237ddea5b45413b017a387b653",
+          "size_bytes": 9535
+        },
+        {
+          "path": "result.txt",
+          "sha256": "eb647855706422b07d8e6f7ab0c6bd1466dac71cc09b97c22c6fcb64aa7c3769",
+          "size_bytes": 2940
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "ba1c2dc56e2a04ff68ca6bc6bc64478154595f38c310539b4d4a53152c540977",
+          "size_bytes": 732
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "e1045930ee2ee90b8c308328497db89e6db997b2bdc03c94d788462124353407",
+          "size_bytes": 5949
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "8a37a165bc07434949978bace67d3a816bf0be8198cdd01fc6fea0c39a7ff055",
+          "size_bytes": 306
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "max-duration",
+      "report": "modes/max-duration/report.json",
+      "run_id": "20260918-191129-max-duration-18bebe32"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "d30d60a794bd3f3e055a9f2d95f85e7e4fb93ad2d2f58a7a89e1e65886ce60e4",
+          "size_bytes": 9830
+        },
+        {
+          "path": "result.txt",
+          "sha256": "acebaaa555527eef5afa77ea3511814d043544e67e79ab9134f2872686d55b6c",
+          "size_bytes": 3288
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "1df8e4f8e91fb616aed56f316903280c9116a42b7f35034094fe0d48a9671c47",
+          "size_bytes": 297
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "e2cd7aeddb1f96cee6c81842157fcfaf83773b355cf146a4b1badc99ff75f7ff",
+          "size_bytes": 5287
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "4df1801123f67c94cff930ee650f3e0256ce2eb7980b082d5d1ba4893bd65282",
+          "size_bytes": 282
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "edge",
+      "report": "modes/edge/report.json",
+      "run_id": "20260918-191145-edge-8853e70c"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "67aa22cd3e721390d46c7d8fb59a2961e63ac0f251bceb03509cc77033f05069",
+          "size_bytes": 9579
+        },
+        {
+          "path": "result.txt",
+          "sha256": "74e79104d7d16dd9758d64cf3b2eb4c8a6ef680814c02ed2cb0969915a25d770",
+          "size_bytes": 3007
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "a06c1403d3af6f8d9844da3dfdb963f75ea0dd229604d296bef88ae37bfa00b7",
+          "size_bytes": 359
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "bd7296f6db61a9c7b5254ce2275498c9dd1a7921704275b5e26576b8b69d6bdf",
+          "size_bytes": 5949
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "ac534ce85f5dd43e5f670691528c6eff1c04eabf890f99afd0d451de5d2c0974",
+          "size_bytes": 297
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "reentrant",
+      "report": "modes/reentrant/report.json",
+      "run_id": "20260918-191151-reentrant-d433dfd2"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "0f75c613711d0ebc9a521a0a2b0aea4ef773723cb3ea04dbb5a9790c86333df9",
+          "size_bytes": 9334
+        },
+        {
+          "path": "result.txt",
+          "sha256": "f11eb314518eef5f71d589a3f8b65fc43dad28c2f7682a8270d08a053e86b9e5",
+          "size_bytes": 2768
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "ef83ac8dd96ae5066173310349aed463c3a7b23786a30d109ba2b6a98026cd86",
+          "size_bytes": 237
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "f519b8256f399c50e11750a1af4ccdc9401d0dff375cef61a29caaae08cc6197",
+          "size_bytes": 4305
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "ba41f4d3ce43eb644cc4c8e4ce85e5f7d46e3f29bcd04b785570a176a499cd6c",
+          "size_bytes": 306
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "start-cancel",
+      "report": "modes/start-cancel/report.json",
+      "run_id": "20260918-191158-start-cancel-12bb8e89"
+    },
+    {
+      "completed": "4",
+      "cycles": 4,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "490e5f155a4f6e742d8b774e721a7bba4f4a9bb608ccfbaddacee9e631fdc766",
+          "size_bytes": 14068
+        },
+        {
+          "path": "result.txt",
+          "sha256": "6457249625ef86e40dafe0b351974e7bb935174dc76128c9933fb6b8e818d910",
+          "size_bytes": 5779
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "7371e46b364a44c027c999b050fe87570914d9d04c7b770aa1059160f81f4d2f",
+          "size_bytes": 358
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "842c407485c5d2ad3ce2237fab993cc982071cf77db022b435c9ab17571ed66d",
+          "size_bytes": 8925
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "62171316e1c0542ebd5022a62b4b9224bfd66c2aafad77a0149b9b2c221d50d7",
+          "size_bytes": 303
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "start-write",
+      "report": "modes/start-write/report.json",
+      "run_id": "20260918-191203-start-write-ac41d9ef"
+    },
+    {
+      "completed": "4",
+      "cycles": 4,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "e952b18fbcfddf9828828cac9e90dea4dd52cb9b3528d48e12d7cac8d394b2eb",
+          "size_bytes": 14127
+        },
+        {
+          "path": "result.txt",
+          "sha256": "190ff9a1cba14c07a8d326e1ad5a9dd16bbb6ea63ad412d634c1939e171f1697",
+          "size_bytes": 5793
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "468afb550d4426b669ac6d885aa79eb75ead66aa30c40294b2e34d4eba6a1612",
+          "size_bytes": 484
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "8b7e961eb3cca5723c199ff02ced5b7ad93c9c8e9b8500cdd3bd617e15cd0de4",
+          "size_bytes": 9614
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+          "size_bytes": 1129
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "5ee4a27c252a81e7bf3be245a08037fa3ea2208ee41c4cd239a306ba42890bdd",
+          "size_bytes": 324
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "start-write-reload",
+      "report": "modes/start-write-reload/report.json",
+      "run_id": "20260918-191210-start-write-reload-8635c700"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "628fac0bd7b64a446f666ee578eb89a20e79dba4ac3f1d7d455299aed69d3936",
+          "size_bytes": 10405
+        },
+        {
+          "path": "result.txt",
+          "sha256": "546096da54e240c2f8874642076d790f67e1b442bd9ce13d41a634d578cd25b4",
+          "size_bytes": 3357
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "1a37bad80c8cc122acd6a5eb7a09dba3c74a270bd7f11f18f9d1ed6c301aa310",
+          "size_bytes": 543
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "719c4fcb6c588b8cf2bb11661899fb755f3cf5625a98e04b8407fd38847f3352",
+          "size_bytes": 8133
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "e97be00951ce4d86a5f61bb3a00c98b313f09574e9b917d2451b5b96b35290f6",
+          "size_bytes": 209
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "7470c93f72c10fca0f6d597dd48b5030e92c39bb316f8e90f2636d1855e14714",
+          "size_bytes": 380
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "b0ccd4f71b0c819ac924a4a72fac4fa87641b4d3623ed3438057a49a947e8df4",
+          "size_bytes": 109
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "speaker-vad-onstart",
+      "report": "modes/speaker-vad-onstart/report.json",
+      "run_id": "20260918-191221-speaker-vad-onstart-df59589d"
+    },
+    {
+      "completed": "3",
+      "cycles": 3,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "880d3e8b6c228ee4efbf2f82a6e5eee4f9bfac53cd79b252443a037b64090e21",
+          "size_bytes": 11889
+        },
+        {
+          "path": "result.txt",
+          "sha256": "44d0da7f4f3ea4cbefea3eb0a7cc563feb40150335d3a2699696230401d858bb",
+          "size_bytes": 4609
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "39b1d62b11de1797984732c84d3745135e6f2cbd8279d47139e2e3d529e73691",
+          "size_bytes": 360
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "7e66c8256dfd80f5418868f0b6c3ef16f48fe823f1ff858f007566b51e4a2979",
+          "size_bytes": 8284
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "e683dd6846de6237a76bfcf5360b4904a7f3eae81cef5b03bb5125bb61452a7e",
+          "size_bytes": 336
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "callback-api-reentrant",
+      "report": "modes/callback-api-reentrant/report.json",
+      "run_id": "20260918-191511-callback-api-reentrant-1cbd43a9"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "0479f8c457b96ed065b4b934a53b02852fb5e8f0f9d6aa824e5dea829c5569dd",
+          "size_bytes": 9695
+        },
+        {
+          "path": "result.txt",
+          "sha256": "b0a5d61f3b9d6a19f8513f7483077972dda61e2ada67bdb1b751cc757e91b341",
+          "size_bytes": 3126
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "d876e0708b6e82aeba3c7b034a02180d53121260a4e98143bdbc54836706001d",
+          "size_bytes": 360
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "aa78703b9868e8a4d23956fce18b83aa88267ee4b7f418daa6fb5b061dd446b3",
+          "size_bytes": 6168
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "0d12537bf5de9c0da22f446cf9e4a1c371eaadc9876c94b51feb4f237d5dfd17",
+          "size_bytes": 324
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "endpoint-reentrant",
+      "report": "modes/endpoint-reentrant/report.json",
+      "run_id": "20260918-191233-endpoint-reentrant-2a15da11"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "90d48552ad604769120fdd3758971745018ad16d28a7cf980f402ecdc91bc93e",
+          "size_bytes": 9555
+        },
+        {
+          "path": "result.txt",
+          "sha256": "4d8f611834c57b02866873a020c6d2ab5e300ea22be798fbf7f8b88731804d1f",
+          "size_bytes": 2991
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "1d471c03b679be26e2a4bc988b10c3a5ea394fb715bb14c03e101415910b271a",
+          "size_bytes": 298
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "b0e489a5f7e5908b610c8c4aaf473921c30a164a0bdb5bae8f00ab309f20d9c1",
+          "size_bytes": 5235
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "eadeb575104f71d0e6d91114d3e5b890538c9eba52af37ffecb0707fe3be7a31",
+          "size_bytes": 315
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "finish-shutdown",
+      "report": "modes/finish-shutdown/report.json",
+      "run_id": "20260918-191518-finish-shutdown-020c000a"
+    },
+    {
+      "completed": "3",
+      "cycles": 3,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "4ca8dd6a208f56e6cf68b55d6801d07250111accf0ce8434e30011fa016ef988",
+          "size_bytes": 12520
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d620bc0da781bdd61973eb7ff2b7302391bebfe480294f7ba77680ca57a1db3c",
+          "size_bytes": 5226
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "7942ad8fc1a0240b4046a6fafde310e7e5882126c3bc3503e6e1f54d642c55e8",
+          "size_bytes": 546
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "bf00b7e3bc07087a9555d4f4c23b129cd49642fce46726a0a6aa2a11c43f75e9",
+          "size_bytes": 9872
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "6ebceea7dd965163c5bc0e9b4af3018ad76e16a4ca7dc23a81bee0490174a574",
+          "size_bytes": 309
+        }
+      ],
+      "memory_status": "INCONCLUSIVE",
+      "mode": "user-sequence",
+      "report": "modes/user-sequence/report.json",
+      "run_id": "20260918-191413-user-sequence-ec734ebf"
+    },
+    {
+      "completed": "2",
+      "cycles": 2,
+      "files": [
+        {
+          "path": "report.json",
+          "sha256": "90453c6d1834c54796c7c561c8b9537bb57945224910f0008dcf0211bb5030ae",
+          "size_bytes": 10134
+        },
+        {
+          "path": "result.txt",
+          "sha256": "7e77d231a834566ddc8fe501acfb29369c80b4530b57d12f3b0106aee0f4b3d7",
+          "size_bytes": 3040
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "b6e9d425663135a25ff1db59f5f4c8f7e8d2548d62c58cbbd6e6b9ce19949ad6",
+          "size_bytes": 1111
+        },
+        {
+          "path": "hilog.txt",
+          "sha256": "03a9c8421f675bcebfdad637233855abca64de961ee03a4ffdb7c89bbf2858ea",
+          "size_bytes": 6884
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "24967b01df0ae51b3954defd184554ebe4ae00504b8040a207c451821b59b334",
+          "size_bytes": 210
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "8277480693109a05e2e36168c0a255407863859f8d3e47d275736174a28c8633",
+          "size_bytes": 1133
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "2eb83d2d135fac9d459604e5054b269ef649db663bd8dd7cbc68f0b206f7a13b",
+          "size_bytes": 306
+        }
+      ],
+      "memory_status": "PASS",
+      "mode": "numeric-edge",
+      "report": "modes/numeric-edge/report.json",
+      "run_id": "20260918-191424-numeric-edge-b74c8849"
+    }
+  ],
+  "not_applicable": {},
+  "numeric_identity_gate": null,
+  "overall_status": "PASS",
+  "release_artifact": {
+    "name": "amphion-harmony-asr-sdk-v0.3.17-20260918.zip",
+    "provenance_sha256": "f062965fd10cf37747b81826ce375dd4a39e5a165b4731c8d83b90d3fa4073ee",
+    "sha256": "327a3e679c57244eb1f2113118a44b6ec87a58c1ebfee3d7a8d66b9aac18fafa",
+    "size_bytes": 325964502
+  },
+  "release_version": "0.3.17",
+  "required_modes": [
+    "burst",
+    "paced",
+    "vad-begin",
+    "vad-begin-silence",
+    "voiceprint",
+    "voiceprint-fallback",
+    "voiceprint-vad-begin",
+    "voiceprint-vad-begin-idle",
+    "cancel",
+    "cancel-full",
+    "recreate",
+    "reconfigure",
+    "max-duration",
+    "edge",
+    "reentrant",
+    "start-cancel",
+    "start-write",
+    "start-write-reload",
+    "speaker-vad-onstart",
+    "callback-api-reentrant",
+    "endpoint-reentrant",
+    "finish-shutdown",
+    "user-sequence",
+    "numeric-edge"
+  ],
+  "retention": {
+    "device_and_local_paths_redacted": true,
+    "failure_artifacts_retained": true,
+    "input_mapping_retained": true,
+    "raw_pcm_committed": false
+  },
+  "schema_version": 1,
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "source_fingerprint_sha256": "0476c84207f6dd8d5eadd09c10d85005de7b3e24bc21062700cf32330ab7b302",
+  "verified_at": ""
+}

@@ -1,0 +1,6 @@
+09-17 10:36:29.509  6597  6618 I TestRunner: run started: 2 tests
+09-17 10:36:29.510  6597  6618 I TestRunner: started: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 10:36:38.516  6597  6618 I TestRunner: finished: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 10:36:40.687  6597  6618 I TestRunner: started: fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 10:38:40.575  6597  6618 I TestRunner: finished: fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 10:38:41.189  6597  6618 I TestRunner: run finished: 2 tests, 0 failed, 0 ignored
