@@ -1,0 +1,15 @@
+{
+  "status": "FAIL",
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "apk_sha256": "ca44d17c1291241c6291f76dc0e744991b08e62c2c134426e11067d579e5124c",
+  "input_sha256": "180944f0fcbcce93cd41b2316345bbe79e68880e28b45674db9574916fdcfbc5",
+  "elapsed_seconds": 197.21,
+  "intermediate_labels_observed": true,
+  "final_only_labels": true,
+  "button_ready_for_next_session": true,
+  "visible_equal_to_android_diagnostics_public_results": false,
+  "visible_final_sha256": "0aebd6cf267681f954e32571a621a9ebe236aead07829b9a9eaed0015ee60b3a",
+  "utterance_count": 28,
+  "general_identity_status": "BLOCKED",
+  "scope": "Foreground final ZIP R8 Demo; customer sample sentence display and role4 recovery; not universal identity acceptance."
+}

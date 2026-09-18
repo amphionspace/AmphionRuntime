@@ -1,0 +1,29 @@
+{
+  "status": "FAIL",
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "checks": {
+    "unique_last_after_finish": true,
+    "unique_complete_after_last": true,
+    "no_errors": true,
+    "no_degraded": false,
+    "text_conserved": true,
+    "one_public_sentence_per_source": true,
+    "role4_present": false,
+    "role4_confirmed_playback_anchor": false,
+    "multi_speaker_sentence_unknown": true,
+    "overlap_is_uncertain": true
+  },
+  "raw_results_sha256": "77e9e16efcaf6c7d7aaf5510f5b1a8ebc0599e28654c27669099d8149f88ee55",
+  "input_sha256": "180944f0fcbcce93cd41b2316345bbe79e68880e28b45674db9574916fdcfbc5",
+  "windows": 2,
+  "utterances": 28,
+  "speaker_indexes": [
+    -1,
+    0,
+    1
+  ],
+  "multi_speaker_sentence_count": 1,
+  "finish_wait_ms": 476,
+  "general_identity_status": "BLOCKED",
+  "scope": "Final ZIP diagnostics public SDK on recording-a; role4 presence and sentence contract only. Previously identified customer identity errors remain; no new perfect-identity claim."
+}
