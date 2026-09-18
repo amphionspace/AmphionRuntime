@@ -571,7 +571,7 @@ struct Index {
   }
 
   private speakerLabel(speakerIndex: number): string {
-    return speakerIndex < 0 ? '未能区分说话人' : `说话人 ${speakerIndex + 1}`;
+    return speakerIndex < 0 ? '不确定' : `说话人 ${speakerIndex + 1}`;
   }
 
   private segmentSpeakerLabel(segment: FinalSegment): string {
@@ -582,13 +582,16 @@ struct Index {
     for (const part of segment.speakerParts) {
       if (part.speakerIndex >= 0) known.add(part.speakerIndex);
       else unknown = true;
+      for (const id of part.secondarySpeakerIndexes) {
+        if (id >= 0) known.add(id);
+      }
       overlap = overlap || part.overlap;
       inferred = inferred || part.speakerInferred;
     }
     let label = this.speakerLabel(segment.displaySpeakerIndex);
-    if (known.size > 1) label = '多位说话人';
+    if (known.size > 1) label = '多人／不确定';
+    else if (unknown || overlap) label = '不确定';
     else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
-    if (unknown && known.size > 0) label += ' · 部分待确认';
     if (inferred) label += ' · 含推断补全';
     if (overlap) label += ' · 含重叠发言';
     return label;
@@ -1500,7 +1503,8 @@ struct Index {
           }
           .width('100%')
           .fontSize(16)
-          if (item.speakerParts.length > 1 || item.speakerParts.some(part => part.overlap || part.speakerInferred)) {
+          if (item.speakerParts.length > 1 || item.speakerParts.some(part =>
+            part.overlap || part.speakerInferred || part.secondarySpeakerIndexes.length > 0)) {
             Button(item.showSpeakerParts ? '收起角色详情' : '查看角色详情')
               .fontSize(12)
               .onClick(() => {
@@ -1513,7 +1517,7 @@ struct Index {
                   `${this.speakerLabel(part.speakerIndex)}` +
                   `${part.speakerInferred ? ' · 含推断补全' : ''}` +
                   `${part.overlap ? ' · 含重叠发言' : ''}` +
-                  `${part.secondarySpeakerIndexes.length > 0 ? ' · 重叠角色：' +
+                  `${part.secondarySpeakerIndexes.length > 0 ? ' · 句内角色证据：' +
                     part.secondarySpeakerIndexes.map((id: number): string => this.speakerLabel(id)).join('、') : ''}` +
                   `\n${part.text}`)
                   .fontSize(12).fontColor(Color.Gray).width('100%')

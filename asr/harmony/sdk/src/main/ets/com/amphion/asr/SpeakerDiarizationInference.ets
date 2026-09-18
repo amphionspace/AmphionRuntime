@@ -21,6 +21,15 @@ export class SpeakerDiarizationSegment {
   speaker: number = 0;
   speakerMask: number = 0;
   queryEmbedding?: number[];
+  complementaryEmbedding?: number[];
+  localQueries: SpeakerDiarizationLocalIdentityQuery[] = [];
+}
+
+export interface SpeakerDiarizationLocalIdentityQuery {
+  startSample: number;
+  endSample: number;
+  embedding: number[];
+  complementaryEmbedding: number[];
 }
 
 export class SpeakerDiarizationEmbedding {
@@ -29,20 +38,35 @@ export class SpeakerDiarizationEmbedding {
   speechRms: number = 0;
   embedding: number[] = [];
   queryEmbedding?: number[];
+  complementaryEmbedding?: number[];
 }
 
 export class SpeakerDiarizationWindowResult {
   segments: SpeakerDiarizationSegment[] = [];
   embeddings: SpeakerDiarizationEmbedding[] = [];
+  refinements: SpeakerDiarizationBoundaryRefinement[] = [];
   inferenceMs: number = 0;
+}
+
+export interface SpeakerDiarizationBoundaryRefinement {
+  startSample: number;
+  cutSample: number;
+  endSample: number;
+  leftEmbedding: number[];
+  leftComplementaryEmbedding: number[];
+  rightEmbedding: number[];
+  rightComplementaryEmbedding: number[];
 }
 
 /** Session-owned offline diarization executor backed by SDK-bundled models. */
 export class SpeakerDiarizationInference {
   private extractor?: SpeakerEmbeddingExtractor;
+  private complementaryExtractor?: SpeakerEmbeddingExtractor;
   private closed: boolean = false;
+  private recentSingleSpeakerRuns: SpeakerTurnSegmentationSegment[] = [];
+  private speakerLevelReference: number = 0;
 
-  async load(context: Context, embeddingModelPath: string): Promise<void> {
+  async load(context: Context, embeddingModelPath: string, complementaryModelPath: string): Promise<void> {
     if (this.closed) throw new Error('speaker diarization inference is closed');
     await AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(context, embeddingModelPath);
     const config = new SpeakerEmbeddingExtractorConfig();
@@ -51,10 +75,21 @@ export class SpeakerDiarizationInference {
     config.debug = false;
     this.extractor = await SpeakerEmbeddingExtractor.createAsync(
       config, embeddingModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
+    const complementaryConfig = new SpeakerEmbeddingExtractorConfig();
+    complementaryConfig.model = complementaryModelPath;
+    complementaryConfig.numThreads = 1;
+    complementaryConfig.debug = false;
+    try {
+      this.complementaryExtractor = await SpeakerEmbeddingExtractor.createAsync(
+        complementaryConfig, complementaryModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
+    } catch (error) {
+      this.close();
+      throw new Error(`complementary speaker model load failed: ${error}`);
+    }
   }
 
   async process(samples: Float32Array, queryStartSample: number = 0,
-    queryEndSample: number = 0): Promise<SpeakerDiarizationWindowResult> {
+    queryEndSample: number = 0, windowOriginSample: number = 0): Promise<SpeakerDiarizationWindowResult> {
     if (this.closed || this.extractor === undefined) {
       throw new Error('speaker diarization inference is not loaded');
     }
@@ -84,6 +119,10 @@ export class SpeakerDiarizationInference {
       for (const sample of channelSamples) squaredLevel += sample * sample;
       value.speechRms = Math.sqrt(squaredLevel / channelSamples.length);
       value.embedding = Array.from(embedding);
+      if (this.complementaryExtractor !== undefined) {
+        const complementary = await this.computeEmbedding(channelSamples, this.complementaryExtractor);
+        if (complementary !== undefined) value.complementaryEmbedding = Array.from(complementary);
+      }
       const querySamples = this.collectQuerySamples(
         samples, nativeSegments, localSpeaker, queryStartSample, queryEndSample);
       if (querySamples.length >= MIN_EMBEDDING_SAMPLES) {
@@ -92,6 +131,7 @@ export class SpeakerDiarizationInference {
       }
       result.embeddings.push(value);
     }
+    for (const value of result.embeddings) this.speakerLevelReference = Math.max(this.speakerLevelReference, value.speechRms);
     for (const segment of result.segments) {
       if (segment.speakerMask !== (1 << segment.speaker) ||
         Math.max(segment.startSample, queryStartSample) >= Math.min(segment.endSample, queryEndSample)) continue;
@@ -99,11 +139,82 @@ export class SpeakerDiarizationInference {
       // enclosing speech run, including its available context, independently.
       const end = Math.min(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES);
       if (end - segment.startSample < MIN_EMBEDDING_SAMPLES) continue;
-      const query = await this.computeEmbedding(samples.slice(segment.startSample, end));
+      const runSamples = samples.slice(segment.startSample, end);
+      const query = await this.computeEmbedding(runSamples);
       if (query !== undefined) segment.queryEmbedding = Array.from(query);
+      if (this.complementaryExtractor !== undefined) {
+        const complementary = await this.computeEmbedding(runSamples, this.complementaryExtractor);
+        if (complementary !== undefined) segment.complementaryEmbedding = Array.from(complementary);
+      }
+      const context = result.embeddings.find(value => value.localSpeaker === segment.speaker);
+      if (context !== undefined && context.speechRms > 0 && context.speechRms < this.speakerLevelReference * 0.5 &&
+        segment.queryEmbedding !== undefined && segment.complementaryEmbedding !== undefined) {
+        segment.localQueries = await this.queryQuietLocalIdentity(samples, segment, queryStartSample, queryEndSample, windowOriginSample);
+      }
     }
+    result.refinements = await this.refineEarlierRuns(samples, nativeSegments, queryStartSample, windowOriginSample);
     result.inferenceMs = Date.now() - startedMs;
     return result;
+  }
+
+  private async queryQuietLocalIdentity(samples: Float32Array, segment: SpeakerTurnSegmentationSegment,
+    queryStartSample: number, queryEndSample: number, origin: number): Promise<SpeakerDiarizationLocalIdentityQuery[]> {
+    const queries: SpeakerDiarizationLocalIdentityQuery[] = [];
+    if (this.complementaryExtractor === undefined) return queries;
+    const start = origin + Math.max(segment.startSample, queryStartSample);
+    const end = origin + Math.min(segment.endSample, queryEndSample);
+    // Fixed 250-ms output cells use 1.3 seconds of real, continuous local PCM.
+    // The grid is absolute, independent of input framing and native window origin.
+    for (let cell = Math.floor(start / 4000); cell < Math.ceil(end / 4000); cell++) {
+      const center = cell * 4000 + 2000;
+      const from = center - 10400;
+      const through = center + 10400;
+      if (from < Math.max(0, origin) || through > origin + samples.length) continue;
+      const pcm = samples.slice(from - origin, through - origin);
+      const primary = await this.computeEmbedding(pcm);
+      const complementary = await this.computeEmbedding(pcm, this.complementaryExtractor);
+      if (primary === undefined || complementary === undefined) continue;
+      queries.push({ startSample: Math.max(start, cell * 4000), endSample: Math.min(end, (cell + 1) * 4000),
+        embedding: Array.from(primary), complementaryEmbedding: Array.from(complementary) });
+    }
+    return queries;
+  }
+
+  private async refineEarlierRuns(samples: Float32Array, segments: SpeakerTurnSegmentationSegment[],
+    queryStartSample: number, origin: number): Promise<SpeakerDiarizationBoundaryRefinement[]> {
+    const refinements: SpeakerDiarizationBoundaryRefinement[] = [];
+    for (let index = 1; index < segments.length; index++) {
+      const left = segments[index - 1];
+      const right = segments[index];
+      const cut = origin + right.startSample;
+      if (left.endSample !== right.startSample || left.speaker === right.speaker ||
+        left.speakerMask !== (1 << left.speaker) || right.speakerMask !== (1 << right.speaker) ||
+        right.startSample >= queryStartSample || right.endSample - right.startSample < MIN_EMBEDDING_SAMPLES) continue;
+      const parents = this.recentSingleSpeakerRuns.filter(run => run.startSample >= Math.max(0, origin) &&
+        run.startSample < cut && run.endSample > cut && cut - run.startSample >= MIN_EMBEDDING_SAMPLES);
+      if (parents.length === 0 || this.complementaryExtractor === undefined) continue;
+      const start = Math.min(...parents.map(run => run.startSample));
+      const leftSamples = samples.slice(Math.max(start - origin, right.startSample - MAX_EMBEDDING_SAMPLES), right.startSample);
+      const rightSamples = samples.slice(right.startSample, Math.min(right.endSample, right.startSample + MAX_EMBEDDING_SAMPLES));
+      const leftEmbedding = await this.computeEmbedding(leftSamples);
+      const leftComplementary = await this.computeEmbedding(leftSamples, this.complementaryExtractor);
+      const rightEmbedding = await this.computeEmbedding(rightSamples);
+      const rightComplementary = await this.computeEmbedding(rightSamples, this.complementaryExtractor);
+      if (leftEmbedding === undefined || leftComplementary === undefined ||
+        rightEmbedding === undefined || rightComplementary === undefined) continue;
+      refinements.push({ startSample: start, cutSample: cut,
+        endSample: origin + Math.min(right.endSample, queryStartSample),
+        leftEmbedding: Array.from(leftEmbedding), leftComplementaryEmbedding: Array.from(leftComplementary),
+        rightEmbedding: Array.from(rightEmbedding), rightComplementaryEmbedding: Array.from(rightComplementary) });
+    }
+    // Only retain native ranges still addressable by the next bounded PCM window.
+    this.recentSingleSpeakerRuns = this.recentSingleSpeakerRuns.filter(run => run.endSample > origin);
+    for (const segment of segments) {
+      if (segment.speakerMask !== (1 << segment.speaker)) continue;
+      this.recentSingleSpeakerRuns.push({ startSample: origin + segment.startSample,
+        endSample: origin + segment.endSample, speaker: segment.speaker, speakerMask: segment.speakerMask });
+    }
+    return refinements;
   }
 
   close(): void {
@@ -111,6 +222,8 @@ export class SpeakerDiarizationInference {
     this.closed = true;
     try { this.extractor?.close(); } catch (_ignored) {}
     this.extractor = undefined;
+    try { this.complementaryExtractor?.close(); } catch (_ignored) {}
+    this.complementaryExtractor = undefined;
   }
 
   private collectSingleSpeakerSamples(samples: Float32Array,
@@ -169,8 +282,8 @@ export class SpeakerDiarizationInference {
     return result;
   }
 
-  private async computeEmbedding(samples: Float32Array): Promise<Float32Array | undefined> {
-    const extractor = this.extractor;
+  private async computeEmbedding(samples: Float32Array,
+    extractor: SpeakerEmbeddingExtractor | undefined = this.extractor): Promise<Float32Array | undefined> {
     if (extractor === undefined) return undefined;
     const stream: OnlineStream = extractor.createStream();
     try {

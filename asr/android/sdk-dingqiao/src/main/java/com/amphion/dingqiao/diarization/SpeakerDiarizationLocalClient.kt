@@ -81,6 +81,7 @@ internal class SpeakerDiarizationLocalClient(
                 val loaded = SpeakerDiarizationInference(
                     segmentation.absolutePath,
                     embedding.absolutePath,
+                    DingqiaoSpeakerModelAssets.ensureComplementaryDiarizationInstalled(context, workPath).absolutePath,
                 )
                 synchronized(this) {
                     if (closed) loaded.close() else inference = loaded
@@ -191,7 +192,8 @@ internal class SpeakerDiarizationLocalClient(
             val result = checkNotNull(inference) { "speaker diarization inference is unavailable" }
                 .process(samples,
                     (job.commitStartSample - job.windowStartSample + job.contentStartInWindowSample).toInt(),
-                    (job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample).toInt())
+                    (job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample).toInt(),
+                    job.windowStartSample - job.contentStartInWindowSample)
             val deliver = synchronized(this) { !closed && !degraded }
             if (deliver) {
                 observer.onWindow(

@@ -1,0 +1,130 @@
+{
+  "schemaVersion": 1,
+  "scope": "Customer offline meeting improvement; sentence-level attribution; minor measured performance cost accepted by user.",
+  "scopeStatus": "CUSTOMER_BENEFIT_CONFIRMED",
+  "fullAccuracyPass": false,
+  "releaseGate": false,
+  "dataset": {
+    "bundle": "dingqiao-meeting-20260918",
+    "obsBucket": "cuhk-anfeiweng-benchmark",
+    "obsObject": "amphion-runtime/test-data/v1/dingqiao-meeting-20260918-e241c6b5ac202f5ce63eaeef1a9af733c1784b4790ec62ed850e6669173a9b8d.zip",
+    "archiveSha256": "e241c6b5ac202f5ce63eaeef1a9af733c1784b4790ec62ed850e6669173a9b8d",
+    "archiveBytes": 26011688,
+    "audioFiles": 5,
+    "durationSeconds": 1010.64,
+    "files": 63,
+    "uploadVerified": true,
+    "downloadAndFileHashesVerified": true,
+    "publicAclGrants": 0
+  },
+  "checks": {
+    "harmonyRelevantTests": 55,
+    "androidDebugTests": {
+      "sdk": {
+        "tests": 60,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-dingqiao": {
+        "tests": 127,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "harmonyZhEnBuildInstallSmoke": "PASS",
+    "latestAcousticDeviceContract": {
+      "lastBeforeFinish": 0,
+      "last": 1,
+      "complete": 1,
+      "errors": 0,
+      "liveStreams": 0,
+      "degraded": 0
+    },
+    "sentenceSourceTextPreserved": true,
+    "rawAcousticTurnsPreserved": true
+  },
+  "benefits": {
+    "offlineRoleCount": {
+      "before": 3,
+      "after": 4
+    },
+    "role4ConfirmedMs": [
+      8260,
+      15580
+    ],
+    "RRecoveredMs": 5336,
+    "SRecoveredMs": 1500,
+    "TCorrectedMs": 1574,
+    "sentencePieces": [
+      {
+        "name": "recording-a",
+        "beforePieces": 31,
+        "afterPieces": 27,
+        "textPreserved": true,
+        "rawTurnsUnchanged": true
+      },
+      {
+        "name": "095700-039",
+        "beforePieces": 6,
+        "afterPieces": 6,
+        "textPreserved": true,
+        "rawTurnsUnchanged": true
+      },
+      {
+        "name": "100350-257",
+        "beforePieces": 31,
+        "afterPieces": 27,
+        "textPreserved": true,
+        "rawTurnsUnchanged": true
+      },
+      {
+        "name": "102010-230",
+        "beforePieces": 21,
+        "afterPieces": 21,
+        "textPreserved": true,
+        "rawTurnsUnchanged": true
+      },
+      {
+        "name": "111223-816",
+        "beforePieces": 29,
+        "afterPieces": 27,
+        "textPreserved": true,
+        "rawTurnsUnchanged": true
+      }
+    ]
+  },
+  "remaining": {
+    "controlIdentityConfusionSeconds": {
+      "twoSpeakers": 0.82,
+      "threeSpeakers": 0.05,
+      "fourSpeakers": 13.86
+    },
+    "unresolved": [
+      "W interjection identity and target status",
+      "Some customer main speech remains unknown",
+      "ASR lexical disagreements and pre-existing timestamp issues"
+    ]
+  },
+  "cost": {
+    "rtfBefore": 0.6369797859690844,
+    "rtfAfter": 0.732705112960761,
+    "finishToCompleteMsBefore": 1594,
+    "finishToCompleteMsAfter": 2083,
+    "userAccepted": true
+  },
+  "evidenceBindings": {
+    "lastAcousticDeviceSourceFingerprint": "aec672d927e018df504201354bb525940fda82406e51b89cd97dccc5c70b0303",
+    "lastAcousticHapSha256": "e906830335cd9f9fc350b2c13b178f37bb02b84d7d5c3c7ae9650cf67c5d3091",
+    "lastAcousticDeviceReportSha256": "f36e9769e66a2cd7112474ef347695b5a4a38cdf0a9ad1adb94a0ee78f6f1ace",
+    "sentenceBuildSourceFingerprint": "fba1968102e81304b16e168ee3c85715514be5b58e52eb8aedb6af9b04cf5d11",
+    "sentenceHapSha256": "b295aa1d424c6ba254cd2c12db6ab4a6b6b7e1c2fb60b7facb4fc9672cb7fef1"
+  },
+  "limitations": [
+    "Cached sentence projection reuses original on-device token alignment because original token times were not recorded.",
+    "Four older customer sentence samples bind to their original verified device artifacts; latest quiet acoustic deltas are separate.",
+    "No release matrix, full sentence-build device replay, Android device run, or customer application render acceptance."
+  ],
+  "rawEvidenceLocation": "Internal-only OBS bundle. No customer PCM, transcripts or embeddings in Git."
+}

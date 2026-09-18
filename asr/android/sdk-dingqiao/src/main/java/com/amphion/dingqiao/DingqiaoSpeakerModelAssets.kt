@@ -29,6 +29,11 @@ internal object DingqiaoSpeakerModelAssets {
         return segmentation to embedding
     }
 
+    @Synchronized
+    fun ensureComplementaryDiarizationInstalled(context: Context, workPath: File): File =
+        ensureAssetInstalled(context, "amphion-dingqiao/campplus.onnx",
+            File(workPath, "campplus.onnx"), 20L * 1024L * 1024L)
+
     private fun ensureAssetInstalled(
         context: Context,
         assetPath: String,
