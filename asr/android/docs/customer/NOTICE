@@ -116,6 +116,19 @@ dictionaries and tags for gated person-name recognition. Provenance and the
 Apache-2.0 license are included under assets/lac/v1/.
 
 ================================================================================
+8. 3D-Speaker / CAMPPlus complementary diarization model
+================================================================================
+
+Project:     3D-Speaker (Alibaba DAMO Academy)
+Repository:  https://github.com/modelscope/3D-Speaker
+License:     Apache License 2.0
+Model:       3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+
+The AAR bundles this model as assets/amphion-dingqiao/campplus.onnx for
+offline complementary speaker identity evidence. Its Apache-2.0 license is
+included beside the model asset. Voiceprint verification still uses eres2net.
+
+================================================================================
 TRADEMARKS
 ================================================================================
 

@@ -1,0 +1,58 @@
+{
+  "status": "PASS",
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "zip_sha256": "f1ab1230c926fd5e8166ba82d1b5dddada7e6d7eeea8bb4000dac437c44c09a3",
+  "source_hap_sha256": "ebebc9ef1f48d6cfe732be3fae21ec8f1c3e5ca3974af28a18b31b9032f27c1e",
+  "generic_identity": "BLOCKED",
+  "customer_sentence_and_role4_contract": "PASS",
+  "customer_checks": {
+    "diagnostics": {
+      "status": "PASS",
+      "role4Sentences": 1,
+      "sentences": 27,
+      "multiOrUncertainSentences": 2,
+      "speakerCount": 4,
+      "degraded": false,
+      "lastBeforeFinish": 0,
+      "complete": 1,
+      "errors": 0,
+      "rtf": "0.8210998810939358",
+      "finishToCompleteMs": "8007",
+      "textSentencePreservation": true,
+      "sourceCommit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+      "identityAccuracyScope": "Customer benefit only; previously recorded unresolved cases remain.",
+      "raw_report_sha256": "bc2290a993be880990dfc46306db32e1d9df4e268479656760d8478b1bcd20bc",
+      "all_text_conserved": true
+    },
+    "release-source": {
+      "status": "PASS",
+      "role4Sentences": 1,
+      "sentences": 27,
+      "multiOrUncertainSentences": 2,
+      "speakerCount": 4,
+      "degraded": false,
+      "lastBeforeFinish": 0,
+      "complete": 1,
+      "errors": 0,
+      "rtf": "0.735332936979786",
+      "finishToCompleteMs": "2162",
+      "textSentencePreservation": true,
+      "sourceCommit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+      "identityAccuracyScope": "Customer benefit only; previously recorded unresolved cases remain.",
+      "raw_report_sha256": "cf0aa727570fd8f93345d34e223115379f8f17dad835decc2b5ef0fff8ec9346",
+      "all_text_conserved": true
+    }
+  },
+  "complete_zip_size_bytes": 1617389188,
+  "input_sha256": "180944f0fcbcce93cd41b2316345bbe79e68880e28b45674db9574916fdcfbc5",
+  "device_software": {
+    "product": "VYG-AL30",
+    "version_components": [
+      6,
+      1,
+      0,
+      135
+    ],
+    "build": "SP8C00E120R5P7"
+  }
+}
