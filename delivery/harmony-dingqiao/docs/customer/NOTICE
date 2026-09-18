@@ -12,6 +12,17 @@ Model:       3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx
 Licensed under the Apache License, Version 2.0. This ONNX model is
 redistributed for speaker embedding and voiceprint verification.
 
+3D-Speaker / CAMPPlus complementary diarization model
+Project:     3D-Speaker (Alibaba DAMO Academy)
+Repository:  https://github.com/modelscope/3D-Speaker
+License:     Apache License 2.0
+Model:       3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx
+             (distributed as amphion-dingqiao/campplus.onnx in the ASR HAR)
+
+This model supplies offline complementary speaker identity evidence.
+Its Apache-2.0 license is included beside the model; voiceprint verification
+still uses eres2net.
+
 WebRTC Audio Processing / Abseil
 Project:     WebRTC Audio Processing 2.1 / Abseil C++
 Repository:  https://gitlab.freedesktop.org/pulseaudio/webrtc-audio-processing
