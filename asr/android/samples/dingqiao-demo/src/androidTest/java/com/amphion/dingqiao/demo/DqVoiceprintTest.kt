@@ -71,12 +71,9 @@ class DqVoiceprintTest {
         ensureReady()
         val longMain = mainWavs(testCtx).maxByOrNull { readAssetPcm(testCtx, it).size }!!
         val path = stageAsset(testCtx, ctx, longMain, "vp_samples/long.wav")
-        var code: Int? = null
-        try {
-            SpeechRecognizeSdk.registerVoiceprint(VoiceprintRegisterParams(listOf(path), AudioInfo()))
-        } catch (t: Throwable) {
-            code = errCodeOf(t)
-        }
+        val code = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(listOf(path), AudioInfo()),
+        ).status
         DqReport.append(ctx, mapOf("case" to "v02_tooLong", "file" to longMain, "errorCode" to code))
         assertTrue("expected VOICEPRINT_SAMPLE_DURATION", code == DingqiaoErrorCode.VOICEPRINT_SAMPLE_DURATION)
     }
@@ -85,14 +82,9 @@ class DqVoiceprintTest {
     @Test
     fun v03_register_missingPath_rejected() {
         ensureReady()
-        var code: Int? = null
-        try {
-            SpeechRecognizeSdk.registerVoiceprint(
-                VoiceprintRegisterParams(listOf(File(ctx.filesDir, "nope.wav").absolutePath), AudioInfo()),
-            )
-        } catch (t: Throwable) {
-            code = errCodeOf(t)
-        }
+        val code = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(listOf(File(ctx.filesDir, "nope.wav").absolutePath), AudioInfo()),
+        ).status
         DqReport.append(ctx, mapOf("case" to "v03_missingPath", "errorCode" to code))
         assertTrue("expected VOICEPRINT_REGISTER_FAILED", code == DingqiaoErrorCode.VOICEPRINT_REGISTER_FAILED)
     }

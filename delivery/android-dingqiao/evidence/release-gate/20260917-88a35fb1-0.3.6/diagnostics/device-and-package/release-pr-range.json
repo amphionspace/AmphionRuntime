@@ -1,0 +1,28 @@
+{
+  "baseline": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "prs": [
+    {
+      "number": 212,
+      "title": "fix(asr): stabilize offline speaker diarization",
+      "merge_commit": "31dc66db19424fd0e3aa09c3ef44096ed2f0cbeb",
+      "url": "https://github.com/amphionspace/AmphionRuntime/pull/212",
+      "scope": [
+        "principal voice admission",
+        "bounded UNKNOWN inference metadata",
+        "supported final identity",
+        "diagnostic UNKNOWN reasons"
+      ],
+      "migration": [
+        "preserve speakerInferred=true and confidence=0 as uncertain inference",
+        "retain raw speakerTurns",
+        "continue accumulating window callbacks"
+      ],
+      "known_blockers": [
+        "general diarization identity precision",
+        "quiet main voices and short interjections",
+        "Android background reliability unchanged"
+      ]
+    }
+  ]
+}

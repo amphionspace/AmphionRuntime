@@ -1,0 +1,5 @@
+{
+  "status": "NON_CANONICAL_INTERRUPTED",
+  "cause": "Host resource sampler required a PID before Android process startup; absent PID raised an exception and stopped foreground management. No SDK assertion completed. Sampler now records missing process without terminating the test.",
+  "product_code_changed": false
+}

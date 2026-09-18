@@ -29,6 +29,12 @@
     <string name="diarization_final">（最终结果）</string>
     <string name="diarization_phase_hint">角色的中间结果可能调整；窗口结束后标为最终结果。</string>
     <string name="diarization_overlap">重叠说话</string>
+    <string name="diarization_multiple_speakers">多位说话人</string>
+    <string name="diarization_partly_unknown">部分待确认</string>
+    <string name="diarization_inferred">含推断补全</string>
+    <string name="diarization_details">查看角色详情</string>
+    <string name="diarization_part_time">%1$.2f–%2$.2f 秒</string>
+    <string name="diarization_secondary_speakers">重叠角色：%1$s</string>
     <string name="diarization_degraded">说话人分离已降级：%1$s</string>
     <string name="audio_source_mic">MIC（原始）</string>
     <string name="audio_source_recognition">VOICE_RECOGNITION</string>

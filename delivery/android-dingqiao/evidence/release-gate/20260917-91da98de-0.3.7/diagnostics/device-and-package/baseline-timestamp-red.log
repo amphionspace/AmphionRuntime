@@ -1,0 +1,71 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :sdk-police:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-dingqiao:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk-dingqiao:preBuild UP-TO-DATE
+> Task :sdk-police:preBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk-dingqiao:preDebugBuild UP-TO-DATE
+> Task :sdk-police:preDebugBuild UP-TO-DATE
+> Task :sdk-police:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugResValues UP-TO-DATE
+> Task :sdk-police:generateDebugResources UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk-police:packageDebugResources UP-TO-DATE
+> Task :sdk-dingqiao:packageDebugResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk-police:parseDebugLocalResources UP-TO-DATE
+> Task :sdk-dingqiao:parseDebugLocalResources UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugRFile UP-TO-DATE
+> Task :sdk-police:generateDebugRFile UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk-police:javaPreCompileDebug UP-TO-DATE
+> Task :sdk-dingqiao:javaPreCompileDebug UP-TO-DATE
+> Task :sdk-dingqiao:preDebugUnitTestBuild UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugUnitTestStubRFile UP-TO-DATE
+> Task :sdk-dingqiao:javaPreCompileDebugUnitTest UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-police:compileDebugKotlin UP-TO-DATE
+> Task :sdk-police:compileDebugJavaWithJavac NO-SOURCE
+> Task :sdk-police:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-police:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk-police:processDebugJavaRes UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugKotlin UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk-dingqiao:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk-dingqiao:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-dingqiao:processDebugJavaRes UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugUnitTestKotlin
+> Task :sdk-dingqiao:compileDebugUnitTestJavaWithJavac NO-SOURCE
+> Task :sdk-dingqiao:processDebugUnitTestJavaRes UP-TO-DATE
+
+> Task :sdk-dingqiao:testDebugUnitTest FAILED
+
+com.amphion.dingqiao.ResultTimestampParityTest > endpointTimestampMatchesTokenClockAndPreservesRealSpeakerChanges FAILED
+    java.lang.AssertionError at ResultTimestampParityTest.kt:35
+
+1 test completed, 1 failed
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':sdk-dingqiao:testDebugUnitTest'.
+> There were failing tests. See the report at: file://<LOCAL_PATH>
+
+* Try:
+> Run with --scan to get full insights.
+
+BUILD FAILED in 7s
+42 actionable tasks: 5 executed, 37 up-to-date

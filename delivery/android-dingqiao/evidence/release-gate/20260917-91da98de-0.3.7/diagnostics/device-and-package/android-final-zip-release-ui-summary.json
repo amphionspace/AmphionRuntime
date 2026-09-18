@@ -1,0 +1,21 @@
+{
+  "status": "PASS",
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "apk_sha256": "2f66116bebe3dc26864d55ea0c8e78f65cf55580b54682344b3372ac46ddf397",
+  "input_sha256": "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a",
+  "input_duration_ms": 89160,
+  "paragraph_count": 15,
+  "sdk_role_part_count": 22,
+  "same_android_sdk_text_and_role_details": true,
+  "role_readability_status": "PASS",
+  "asr_display_contract_status": "PASS",
+  "intermediate_observed": true,
+  "final_only_labels": true,
+  "ready_for_next_session": true,
+  "identity_accuracy": "UNCHANGED/BLOCKED",
+  "scope": "Complete original sentences with honest mixed/unknown/inferred/overlap labels; this does not fix identity accuracy.",
+  "role_details_dialog_opened": true,
+  "dialog_original_parts_matched": 4,
+  "dialog_unknown_overlap_and_inferred_preserved": true,
+  "dialog_xml_sha256": "543dd20e466cb53a22f327b0f309a2697c7d941d208dba59243f6585c9a20019"
+}

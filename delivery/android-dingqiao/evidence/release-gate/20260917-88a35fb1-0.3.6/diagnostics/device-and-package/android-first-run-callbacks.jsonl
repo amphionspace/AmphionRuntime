@@ -1,0 +1,319 @@
+{"ts": 1789639018014, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639018998, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639019002, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639019003, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639019003, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639019086, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639019087, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639019743, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789639019743, "case": "engine_create", "phase": "start"}
+{"ts": 1789639019810, "case": "engine_create", "phase": "complete"}
+{"ts": 1789639019820, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "START", "isLast": false}
+{"ts": 1789639019833, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "EVENT", "isLast": false}
+{"ts": 1789639019941, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639020023, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639020111, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639020112, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "EVENT", "isLast": false}
+{"ts": 1789639020128, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "FINAL", "isLast": false}
+{"ts": 1789639020493, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "FINAL", "isLast": true}
+{"ts": 1789639020493, "case": "callback", "sessionId": "pad-e144527e-0", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639020808, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "START", "isLast": false}
+{"ts": 1789639020813, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "EVENT", "isLast": false}
+{"ts": 1789639020886, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639020961, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639021110, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "FINAL", "isLast": true}
+{"ts": 1789639021110, "case": "callback", "sessionId": "abr-e144527e-1", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639021413, "case": "a01_tailFrame", "file": "000_target.wav", "padded_text": {"redacted": true, "sha256": "f86563e73e408659f79ad924aa080ef19a5e1a35fbd949b413031a43ba458ee8"}, "abrupt_text": {"redacted": true, "sha256": "f86563e73e408659f79ad924aa080ef19a5e1a35fbd949b413031a43ba458ee8"}, "padded_len": 6, "abrupt_len": 6, "len_ratio": 1, "padded_finalCount": 2, "abrupt_finalCount": 1, "abrupt_completed": true, "abrupt_lastIsLast": true, "abrupt_errors": "[]"}
+{"ts": 1789639021442, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "START", "isLast": false}
+{"ts": 1789639021529, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "EVENT", "isLast": false}
+{"ts": 1789639021777, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639021777, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639021777, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639021855, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639021858, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "EVENT", "isLast": false}
+{"ts": 1789639021882, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "FINAL", "isLast": false}
+{"ts": 1789639021943, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "EVENT", "isLast": false}
+{"ts": 1789639022014, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022088, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022162, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022239, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022321, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022392, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022473, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022560, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639022640, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "EVENT", "isLast": false}
+{"ts": 1789639022657, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "FINAL", "isLast": false}
+{"ts": 1789639223576, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "FINAL", "isLast": true}
+{"ts": 1789639223577, "case": "callback", "sessionId": "pad-1c627fe-2", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639223599, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "START", "isLast": false}
+{"ts": 1789639223692, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "EVENT", "isLast": false}
+{"ts": 1789639223747, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639223829, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639223891, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639223963, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639223966, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "EVENT", "isLast": false}
+{"ts": 1789639223986, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "FINAL", "isLast": false}
+{"ts": 1789639224023, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "EVENT", "isLast": false}
+{"ts": 1789639224083, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224137, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224193, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224248, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224308, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224365, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224419, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224475, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639224556, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "EVENT", "isLast": false}
+{"ts": 1789639224572, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "FINAL", "isLast": false}
+{"ts": 1789639224817, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "FINAL", "isLast": true}
+{"ts": 1789639224817, "case": "callback", "sessionId": "abr-1c627fe-3", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639225118, "case": "a01_tailFrame", "file": "001_recognize.wav", "padded_text": {"redacted": true, "sha256": "b21053e2d0892d3a2bc80fe05723c913f9c51796a1ab63d90d231c23c0ca7a52"}, "abrupt_text": {"redacted": true, "sha256": "b21053e2d0892d3a2bc80fe05723c913f9c51796a1ab63d90d231c23c0ca7a52"}, "padded_len": 31, "abrupt_len": 31, "len_ratio": 1, "padded_finalCount": 3, "abrupt_finalCount": 3, "abrupt_completed": true, "abrupt_lastIsLast": true, "abrupt_errors": "[]"}
+{"ts": 1789639225124, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "START", "isLast": false}
+{"ts": 1789639225185, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639225670, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639225739, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": false}
+{"ts": 1789639225742, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226152, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226152, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226153, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226225, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226306, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226448, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": false}
+{"ts": 1789639226448, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226529, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226595, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639226665, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226737, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226813, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226959, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639226960, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227029, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227183, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227338, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227555, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639227555, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": false}
+{"ts": 1789639227555, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227556, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639227627, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227699, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227925, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639227925, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639227926, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": false}
+{"ts": 1789639228301, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639228451, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228528, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228681, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228774, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228849, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228925, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639228997, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639229076, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "EVENT", "isLast": false}
+{"ts": 1789639229096, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": false}
+{"ts": 1789639229305, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "FINAL", "isLast": true}
+{"ts": 1789639229305, "case": "callback", "sessionId": "pad-b7650537-4", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639229615, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "START", "isLast": false}
+{"ts": 1789639229714, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639229784, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639230233, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "FINAL", "isLast": false}
+{"ts": 1789639230376, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639230377, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639230525, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639230675, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639230675, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639230823, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639230970, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "FINAL", "isLast": false}
+{"ts": 1789639230970, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639231111, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639231112, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639231112, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231183, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231256, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231404, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231544, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231544, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231697, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231889, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639231960, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639232110, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "FINAL", "isLast": false}
+{"ts": 1789639232110, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639232110, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639232110, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639232182, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639232256, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639232257, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639232266, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "FINAL", "isLast": false}
+{"ts": 1789639232773, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "EVENT", "isLast": false}
+{"ts": 1789639232941, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233016, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233157, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233229, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233304, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233375, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639233541, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "FINAL", "isLast": true}
+{"ts": 1789639233541, "case": "callback", "sessionId": "abr-b7650537-5", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639233842, "case": "a01_tailFrame", "file": "900_重叠.wav", "padded_text": {"redacted": true, "sha256": "200921dd7b850298b8fa49d45ba08d3ca774c2472505de18d2f3fd2bf6500894"}, "abrupt_text": {"redacted": true, "sha256": "200921dd7b850298b8fa49d45ba08d3ca774c2472505de18d2f3fd2bf6500894"}, "padded_len": 52, "abrupt_len": 52, "len_ratio": 1, "padded_finalCount": 6, "abrupt_finalCount": 5, "abrupt_completed": true, "abrupt_lastIsLast": true, "abrupt_errors": "[]"}
+{"ts": 1789639233843, "case": "a01_tailFrame_summary", "files": 3, "avg_len_ratio": 1}
+{"ts": 1789639234642, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639234642, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639234642, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639234642, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639234643, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639234646, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639234646, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639235543, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789639235543, "case": "engine_create", "phase": "start"}
+{"ts": 1789639235611, "case": "engine_create", "phase": "complete"}
+{"ts": 1789639235623, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "START", "isLast": false}
+{"ts": 1789639235629, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "EVENT", "isLast": false}
+{"ts": 1789639235751, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639235863, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639235945, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "FINAL", "isLast": true}
+{"ts": 1789639235945, "case": "callback", "sessionId": "start-write-reload-1789639235613", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639235945, "case": "a10g_startWriteReload", "completed": true, "completeCount": 1, "lastCount": 1, "errorCodes": "[]"}
+{"ts": 1789639235958, "case": "callback", "sessionId": "start-cancel-1789639235946", "kind": "START", "isLast": false}
+{"ts": 1789639236037, "case": "callback", "sessionId": "start-cancel-1789639235946", "kind": "FINAL", "isLast": true}
+{"ts": 1789639236037, "case": "callback", "sessionId": "start-cancel-1789639235946", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639236037, "case": "a10ga_onStartCancelReplacement", "replacementCompleteCount": 1, "replacementLastCount": 1, "replacementErrors": "[]", "oldErrors": "[]"}
+{"ts": 1789639236044, "case": "callback", "sessionId": "callback-worker-0-1789639236038", "kind": "START", "isLast": false}
+{"ts": 1789639236121, "case": "callback", "sessionId": "callback-worker-0-1789639236038", "kind": "FINAL", "isLast": true}
+{"ts": 1789639236121, "case": "callback", "sessionId": "callback-worker-0-1789639236038", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639236121, "case": "a10gb_callbackWorkerWrite", "round": 0, "completeCount": 1, "lastCount": 1, "errorCodes": "[]"}
+{"ts": 1789639236127, "case": "callback", "sessionId": "callback-worker-1-1789639236121", "kind": "START", "isLast": false}
+{"ts": 1789639236205, "case": "callback", "sessionId": "callback-worker-1-1789639236121", "kind": "FINAL", "isLast": true}
+{"ts": 1789639236205, "case": "callback", "sessionId": "callback-worker-1-1789639236121", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639236205, "case": "a10gb_callbackWorkerWrite", "round": 1, "completeCount": 1, "lastCount": 1, "errorCodes": "[]"}
+{"ts": 1789639236212, "case": "callback", "sessionId": "late-write-old-1789639236206", "kind": "START", "isLast": false}
+{"ts": 1789639236296, "case": "callback", "sessionId": "late-finish-old-1789639236291", "kind": "START", "isLast": false}
+{"ts": 1789639236380, "case": "callback", "sessionId": "late-cancel-old-1789639236374", "kind": "START", "isLast": false}
+{"ts": 1789639236489, "case": "a11_unsupportedLanguage", "thrown": "DingqiaoEngineException", "errorCode": 1002200001}
+{"ts": 1789639236492, "case": "a11_vadBegin", "phase": "start_listening"}
+{"ts": 1789639236507, "case": "a11_vadBegin", "phase": "start_returned"}
+{"ts": 1789639236507, "case": "callback", "sessionId": "vadbegin-1789639236492", "kind": "START", "isLast": false}
+{"ts": 1789639236664, "case": "callback", "sessionId": "vadbegin-1789639236492", "kind": "FINAL", "isLast": true}
+{"ts": 1789639236664, "case": "callback", "sessionId": "vadbegin-1789639236492", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639236671, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "START", "isLast": false}
+{"ts": 1789639237063, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "EVENT", "isLast": false}
+{"ts": 1789639237064, "case": "vad_end_event", "sessionId": "vad-end-1789639236666", "eventCode": 1}
+{"ts": 1789639237554, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639238199, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639238547, "case": "vad_tail_start", "sessionId": "vad-end-1789639236666", "speechPcmBytes": 58880, "vadEndMs": 800}
+{"ts": 1789639238868, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639238915, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "EVENT", "isLast": false}
+{"ts": 1789639238915, "case": "vad_end_event", "sessionId": "vad-end-1789639236666", "eventCode": 3}
+{"ts": 1789639238929, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "FINAL", "isLast": false}
+{"ts": 1789639437233, "case": "vad_tail_before_finish", "sessionId": "vad-end-1789639236666", "begins": 1, "ends": 1, "lasts": 0}
+{"ts": 1789639437422, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "FINAL", "isLast": true}
+{"ts": 1789639437422, "case": "callback", "sessionId": "vad-end-1789639236666", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639439856, "case": "a12_postShutdown", "thrown": "DingqiaoEngineException", "thrownMsg": {"redacted": true, "sha256": "f2f0c4cbdadca503dee8e340a7d9daa5d4cf61d19ab64132bcc4a9d5ff45d015"}, "callbackErrors": "[]"}
+{"ts": 1789639439858, "case": "runtime_release", "phase": "start"}
+{"ts": 1789639439929, "case": "runtime_release", "phase": "complete"}
+{"ts": 1789639439930, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639439931, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639439933, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639439933, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639439933, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639439935, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639439935, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639440578, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789639440579, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789639440919, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789639440919, "case": "v01_register", "sample": "000_enroll.wav", "voiceprintId": {"redacted": true, "sha256": "5f266679153a5caf7c6c828ada966f4e3ce84ffe9583e9d167f8eaa6d9af4bd2"}, "persisted": true}
+{"ts": 1789639440924, "case": "v02_tooLong", "file": "900_重叠.wav", "errorCode": 1002200022}
+{"ts": 1789639440927, "case": "v03_missingPath", "errorCode": 1002200020}
+{"ts": 1789639440930, "case": "voiceprint_register", "phase": "start", "sample": "000_声纹.wav"}
+{"ts": 1789639441232, "case": "voiceprint_register", "phase": "complete", "sample": "000_声纹.wav", "idCount": 1}
+{"ts": 1789639441232, "case": "engine_create", "phase": "start"}
+{"ts": 1789639441429, "case": "engine_create", "phase": "complete"}
+{"ts": 1789639441437, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "START", "isLast": false}
+{"ts": 1789639441445, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "EVENT", "isLast": false}
+{"ts": 1789639441560, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639441640, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639441728, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639441729, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "EVENT", "isLast": false}
+{"ts": 1789639441730, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "EVENT", "isLast": false}
+{"ts": 1789639441859, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "FINAL", "isLast": false}
+{"ts": 1789639442003, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "FINAL", "isLast": true}
+{"ts": 1789639442003, "case": "callback", "sessionId": "vp-verify-1789639441429", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639442305, "case": "v04_verification", "main": "000_target.wav", "sample": "000_声纹.wav", "finalCount": 2, "similarities": "[0.6341662]", "finalText": {"redacted": true, "sha256": "f86563e73e408659f79ad924aa080ef19a5e1a35fbd949b413031a43ba458ee8"}}
+{"ts": 1789639442316, "case": "voiceprint_register", "phase": "start", "sample": "000_声纹.wav"}
+{"ts": 1789639442677, "case": "voiceprint_register", "phase": "complete", "sample": "000_声纹.wav", "idCount": 1}
+{"ts": 1789639442677, "case": "v04b_voiceprintVadBegin", "phase": "start_listening"}
+{"ts": 1789639442683, "case": "v04b_voiceprintVadBegin", "phase": "start_returned"}
+{"ts": 1789639442683, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "START", "isLast": false}
+{"ts": 1789639443007, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "EVENT", "isLast": false}
+{"ts": 1789639443916, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639465691, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639465700, "case": "finish_requested", "sessionId": "vp-vadbegin-1789639442677", "enableVoiceprintVerification": true, "enableSpeakerVad": false, "voiceprintIdCount": 1, "vadBeginMs": 1000, "frontSilenceMs": 300, "pcmDurationMs": 1840, "lastBeforeFinish": 0}
+{"ts": 1789639465766, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "EVENT", "isLast": false}
+{"ts": 1789639465858, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "FINAL", "isLast": true}
+{"ts": 1789639465858, "case": "callback", "sessionId": "vp-vadbegin-1789639442677", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639465858, "case": "v04b_voiceprintVadBegin", "main": "000_target.wav", "completed": true, "lastCount": 1, "scoredFinalCount": 1, "speakerSimilarities": "[0.63850164]", "errorCodes": "[]"}
+{"ts": 1789639466915, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789639467300, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789639467300, "case": "engine_create", "phase": "start"}
+{"ts": 1789639468313, "case": "engine_create", "phase": "complete"}
+{"ts": 1789639468320, "case": "callback", "sessionId": "vp-fallback-0-1789639468313", "kind": "START", "isLast": false}
+{"ts": 1789639468931, "case": "callback", "sessionId": "vp-fallback-0-1789639468313", "kind": "EVENT", "isLast": false}
+{"ts": 1789639468974, "case": "callback", "sessionId": "vp-fallback-0-1789639468313", "kind": "FINAL", "isLast": true}
+{"ts": 1789639468975, "case": "callback", "sessionId": "vp-fallback-0-1789639468313", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639468975, "case": "v04c_voiceprintFallback", "round": 0, "registrationAsset": "000_enroll.wav", "recognitionAsset": "001_recognize.wav", "completed": true, "finalText": {"redacted": true, "sha256": "8fbfad92797f0241d44723a425f00d4eb9bfa9f89e5ace5e16ef7626d101727b"}, "speakerSimilarity": 0.027368993, "errorCodes": "[]"}
+{"ts": 1789639468983, "case": "callback", "sessionId": "vp-fallback-1-1789639468975", "kind": "START", "isLast": false}
+{"ts": 1789639469561, "case": "callback", "sessionId": "vp-fallback-1-1789639468975", "kind": "EVENT", "isLast": false}
+{"ts": 1789639469606, "case": "callback", "sessionId": "vp-fallback-1-1789639468975", "kind": "FINAL", "isLast": true}
+{"ts": 1789639469606, "case": "callback", "sessionId": "vp-fallback-1-1789639468975", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639469606, "case": "v04c_voiceprintFallback", "round": 1, "registrationAsset": "000_enroll.wav", "recognitionAsset": "001_recognize.wav", "completed": true, "finalText": {"redacted": true, "sha256": "8fbfad92797f0241d44723a425f00d4eb9bfa9f89e5ace5e16ef7626d101727b"}, "speakerSimilarity": 0.027368993, "errorCodes": "[]"}
+{"ts": 1789639469611, "case": "voiceprint_register", "phase": "start", "sample": "000_声纹.wav"}
+{"ts": 1789639469909, "case": "voiceprint_register", "phase": "complete", "sample": "000_声纹.wav", "idCount": 1}
+{"ts": 1789639469916, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "START", "isLast": false}
+{"ts": 1789639469916, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "EVENT", "isLast": false}
+{"ts": 1789639470245, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "EVENT", "isLast": false}
+{"ts": 1789639471136, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639471221, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "EVENT", "isLast": false}
+{"ts": 1789639471718, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "EVENT", "isLast": false}
+{"ts": 1789639471791, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "PARTIAL", "isLast": false}
+{"ts": 1789639471944, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "EVENT", "isLast": false}
+{"ts": 1789639472031, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "FINAL", "isLast": true}
+{"ts": 1789639472031, "case": "callback", "sessionId": "vp-onstart-svad-1789639469909", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639472031, "case": "v04d_onStartSpeakerVad", "main": "000_target.wav", "completed": true, "lastCount": 1, "scoredFinalCount": 1, "errorCodes": "[]"}
+{"ts": 1789639472033, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789639472318, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789639472325, "case": "callback", "sessionId": "vp-vadbegin-silence-1789639472318", "kind": "START", "isLast": false}
+{"ts": 1789639555488, "case": "callback", "sessionId": "vp-vadbegin-silence-1789639472318", "kind": "FINAL", "isLast": true}
+{"ts": 1789639555489, "case": "callback", "sessionId": "vp-vadbegin-silence-1789639472318", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789639555496, "case": "v04e_voiceprintVadBeginSilence", "completed": false, "completeCount": 1, "lastCount": 1, "errorCodes": "[]"}
+{"ts": 1789639557009, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789639557452, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789639557456, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789639557840, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789639558206, "case": "v09_register_async", "callerThread": "Instr: androidx.test.runner.AndroidJUnitRunner", "callbackThread": "dingqiao-engine", "voiceprintId": {"redacted": true, "sha256": "d065451325fb472d032b5ffeeab804ff493a58f5d5be64e5409ee30c4172839e"}, "err": ""}
+{"ts": 1789639558207, "case": "runtime_release", "phase": "start"}
+{"ts": 1789639558208, "case": "runtime_release", "phase": "complete"}
+{"ts": 1789639558208, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639558209, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639558209, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639558210, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639558210, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639558211, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639558211, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639558927, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789639558966, "case": "L01_infoReadableWhileAssetLicensed", "infoStatus": 0, "infoFeatures": "[ASR]"}
+{"ts": 1789639559047, "case": "L10_valid", "code": 0, "remainingDays": 58, "features": "[ASR]", "infoStatus": 0, "infoFeatures": "[ASR]"}
+{"ts": 1789639559050, "case": "L20_expired", "code": 1002200032, "msg": {"redacted": true, "sha256": "9f98865ca37766f6741b3cd333f1025da2b30b075587cbe66020ed7d2b663bdb"}}
+{"ts": 1789639559051, "case": "L80_malformed", "code": 1002200031, "msg": {"redacted": true, "sha256": "3aba82f01200ccb4de5e9a973e942cecf61ae2892136ab52c5b4ed68583c72d2"}}
+{"ts": 1789639559052, "case": "L85_missingPath", "code": 1002200030, "msg": {"redacted": true, "sha256": "9b3e2253f8ecbe3ff6b808e49f4c9691a716c13528b9d4436994b51a63468327"}}
+{"ts": 1789639559053, "case": "L90_restoreValid", "code": 0}
+{"ts": 1789639559054, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639559054, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639559055, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639559055, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639559055, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639559055, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639559056, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639559675, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789639559725, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789639559725, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789639559725, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789639559725, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789639559725, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789639559801, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789639559801, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789639560464, "case": "runtime_prepare", "phase": "prepare_complete"}

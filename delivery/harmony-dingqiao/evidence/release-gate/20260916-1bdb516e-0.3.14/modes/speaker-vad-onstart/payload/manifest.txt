@@ -1,0 +1,1 @@
+000000	/data/storage/el2/base/files/asr-stress/20260916-175353-speaker-vad-onstart-36817ef3/audio/000000.pcm

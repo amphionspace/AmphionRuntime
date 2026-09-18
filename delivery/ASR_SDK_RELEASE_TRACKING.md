@@ -14,6 +14,14 @@
 3. 对最终交付物执行平台终检，不要从中间目录登记。
 4. 用最终 ZIP 登记交付，再单独提交台账更新：
 
+Android 新版本先用 `pack_dingqiao_customer_delivery.sh --stage-release /绝对路径/新的私有目录`
+生成待验收 ZIP。该入口只解决“最终 ZIP 尚不存在，无法预先登记”的顺序问题；目录中的
+`NOT-ACCEPTED.txt` 表示不可分发，包内 FORMAL 仅表示目标发布渠道。现有默认入口仍要求
+版本和 source commit 已精确登记，`--preview` 仍保留所有预览标记。
+对 staged ZIP 完成真机、独立源码构建及最终 ZIP 哈希验收后，必须使用 `record-evidence`
+原子登记产物及证据，再运行 `verify-evidence`，成功后才可将同一 ZIP 复制到交付目录。
+不得只调用 `record` 将未验收 staged ZIP 转成正式交付。
+
 ```bash
 python3 tools/delivery/asr_release_tracker.py record \
   --platform android \

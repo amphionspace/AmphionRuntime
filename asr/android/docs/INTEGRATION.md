@@ -1,6 +1,6 @@
 # AmphionRuntime 集成指南
 
-适用 SDK 版本：0.3.4
+适用 SDK 版本：0.3.7
 
 > 0.2.0 是一次破坏性升级：所有模型已经打进 AAR、API 收敛到 4 个公开类。如果你之前接的是 0.1.x，请先看 [CHANGELOG](CHANGELOG.md) 的 Breaking 段。
 
