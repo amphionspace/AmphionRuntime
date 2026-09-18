@@ -13,7 +13,7 @@
 | 源码提交 | `1bdb516e708d0c939fe199dddee554af4fb9a6f8` |
 | 交付分支 | `build/asr-delivery-20260916` |
 | 能力及架构 | 中英 ZH_EN、ASR、arm64-v8a，模型内置 |
-| 真机 | PSN-AL00，OpenHarmony 6.0.2.130 |
+| 真机 | 鸿蒙验收设备（型号已脱敏），OpenHarmony 6.0.2.130 |
 | 签名与授权 | 沿用现有测试签名；Demo 授权到期 2026-11-04，有设备绑定 |
 
 五目录完整交付：Release SDK、Diagnostics SDK、已签名 Diagnostics Demo、独立 Demo 源码、文档及组包前证据。源码不含私钥或授权；本地构建测试仅补入既有授权及签名。客户应用需使用自身有效授权及签名。
