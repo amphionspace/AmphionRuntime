@@ -32,8 +32,10 @@ can resume from their checkpoint files.
 
 ## Publishing policy
 
-- Never put credentials, licenses, signing material, device logs, raw evidence,
-  voiceprint embeddings, or customer recordings in a test-data bundle.
+- Never put credentials, SDK licenses, signing material, device logs, or
+  voiceprint embeddings in a test-data bundle. Customer recordings and their
+  annotation evidence require explicit user authorization and internal-only OBS
+  access; they must not be committed to Git or redistributed publicly.
 - Each bundle must record its origin and redistribution status in the manifest.
 - `publish` refuses an object that already exists with a different size. A new
   payload requires a new dataset version or object key.
@@ -41,3 +43,26 @@ can resume from their checkpoint files.
   AudioSet release contains labels and derived features, not raw audio.
 - The withdrawn aidatatang corpus and derived subsets require an explicit data
   owner approval before they may be shared beyond the existing authorized team.
+
+## Customer meeting acceptance, 2026-09-18
+
+`dingqiao-meeting-20260918` contains the five explicitly authorized offline
+customer recordings (1,010.64 seconds), original MOSS auxiliary annotations,
+human adjudication history and final decisions, and source-bound comparison
+evidence. The cloud-recognition recording is excluded. This bundle is internal
+evaluation data, not an openly licensed corpus or fully labeled DER benchmark.
+
+```bash
+python3 asr/tools/test_data.py fetch dingqiao-meeting-20260918
+python3 tools/assets/sync.py verify dingqiao-meeting-20260918
+```
+
+Read `SOURCE.md`, `samples.json` and `annotations/human-final.json` after fetching.
+The manifest pins the archive and each file. Original WAV bytes are preserved;
+MOSS labels are auxiliary and historical listening decisions can be superseded
+by later user adjudication. Do not force four speakers in every recording.
+
+The accepted scope is customer-audio improvement with intact sentence output;
+minor measured performance cost is accepted. See the
+[scoped wrap-up](../../delivery/harmony-dingqiao/docs/CUSTOMER_MEETING_SENTENCE_WRAPUP_20260918.md)
+for benefits, remaining errors and evidence limits.

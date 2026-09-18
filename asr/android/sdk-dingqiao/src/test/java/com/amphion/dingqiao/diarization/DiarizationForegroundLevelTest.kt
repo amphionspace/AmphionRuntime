@@ -6,12 +6,47 @@ import com.amphion.dingqiao.SpeakerDiarizationResult
 import com.amphion.dingqiao.SpeakerDiarizationUpdate
 import com.amphion.dingqiao.SpeechRecognitionResult
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.mockito.Mockito.mockConstruction
 import org.mockito.kotlin.mock
 import java.nio.file.Files
 
 class DiarizationForegroundLevelTest {
+    @Test fun laterLoudVoicePreservesAnIndependentlyAdmittedNewPerson() {
+        mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val directory = Files.createTempDirectory("diarization-admitted-person").toFile()
+            val results = mutableListOf<SpeakerDiarizationResult>()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) { results += result }
+                })
+            try {
+                session.append(ByteArray(30000 * 32))
+                val cases = listOf(0 to .1, 1 to .06, 0 to .06, 2 to .15, 3 to .02)
+                cases.forEachIndexed { i, (person, rms) ->
+                    val begin = i * 96000L
+                    val vector = FloatArray(4) { if (it == person) 1f else 0f }
+                    session.onWindow(DiarizationLocalWindowResult("w$i", begin, 0, begin + 96000,
+                        begin, begin + 96000, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(0, 96000, 0, 1, vector)),
+                            listOf(DiarizationEmbedding(0, 96000, vector, vector, rms)), 0)))
+                }
+                session.finish()
+                session.observeAsrFinal(SpeechRecognitionResult(isFinal = true, isLast = true), AsrResult("", isLast = true))
+                session.onDrained()
+                val result = results.single()
+                val ids = result.speakerTurns.map { it.speakerIndex }
+                assertTrue("Later loud speech must not erase an admitted new person", ids[1] >= 0)
+                assertEquals(3, setOf(ids[0], ids[1], ids[3]).size)
+                assertEquals(3, result.speakerCount)
+                assertEquals("Existing quiet identity recovery must stay unchanged", -1, ids[2])
+                assertEquals("Never-admitted background cannot enroll", -1, ids[4])
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
     @Test fun laterLouderSpeechRevisesOnlyUncommittedQuietEvidence() {
         mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-later-foreground-test").toFile()

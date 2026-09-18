@@ -24,7 +24,12 @@ constexpr int32_t ClassToSpeakerMask(int32_t klass) {
   return klass >= 0 && klass < kClasses ? kMasks[klass] : 0;
 }
 
-constexpr int32_t PrimarySpeaker(int32_t speaker_mask) {
+constexpr int32_t PrimarySpeaker(int32_t speaker_mask, int32_t previous = -1) {
+  // A newly active channel annotates overlap; its arbitrary local index does
+  // not establish a primary-speaker change while the previous voice continues.
+  if (previous >= 0 && previous < 3 && (speaker_mask & (1 << previous)) != 0) {
+    return previous;
+  }
   if ((speaker_mask & 1) != 0) return 0;
   if ((speaker_mask & 2) != 0) return 1;
   if ((speaker_mask & 4) != 0) return 2;
@@ -95,12 +100,14 @@ class SpeakerTurnSegmenter {
     const float* logits = output[0].GetTensorData<float>();
     std::vector<Segment> result;
     int32_t active_mask = 0;
+    int32_t active_speaker = -1;
     int32_t active_start = 0;
     auto finish = [&](int32_t end) {
       if (active_mask != 0 && end > active_start) {
-        result.push_back({active_start, end, PrimarySpeaker(active_mask), active_mask});
+        result.push_back({active_start, end, active_speaker, active_mask});
       }
       active_mask = 0;
+      active_speaker = -1;
     };
     for (int32_t frame = 0; frame < kFrames; ++frame) {
       const float* row = logits + frame * kClasses;
@@ -111,9 +118,11 @@ class SpeakerTurnSegmenter {
           source_offset + kReceptiveFieldSize / 2 + frame * kReceptiveFieldShift,
           0, static_cast<int32_t>(samples.size()));
       if (speaker_mask == active_mask) continue;
+      const int32_t next_speaker = PrimarySpeaker(speaker_mask, active_speaker);
       finish(boundary);
       if (speaker_mask != 0) {
         active_mask = speaker_mask;
+        active_speaker = next_speaker;
         active_start = boundary;
       }
     }

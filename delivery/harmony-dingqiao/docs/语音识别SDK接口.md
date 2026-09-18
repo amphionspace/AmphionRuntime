@@ -365,7 +365,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项的 `sourceUtteranceId` 指向原 ASR final，安全拆句时多个片段可共享该 ID；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项完整保留一条原 ASR final，`utteranceId` 与 `sourceUtteranceId` 相同；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
 | `speakerTurns` | `SpeakerTurn[]` | 本窗口 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
 | `windowIndex` | `number` | session 内从 0 开始递增；用于批次去重 |
 | `windowBeginTime` / `windowEndTime` | `number` | 本批音频起止位置，session-global 毫秒 |
@@ -377,18 +377,21 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `inferenceMs` | `number` | 累计分人推理耗时 |
 | `rtf` | `number` | 分人处理实时率 |
 
-同一主说话人的副角色或重叠状态变化不会单独拆开文本；`DiarizedUtterance` 的
-`secondarySpeakerIndexes` 汇总该文本区间内出现的副角色，`overlap` 表示其中存在重叠。
+句级标注不按 token 角色拆开文本，也不假定一条 ASR final 只有一个人。
+同一句内出现多个已知角色、重叠或未解决的不确定性时，`speakerIndex=-1`、`confidence=0`，
+`secondarySpeakerIndexes` 汇总句内观察到的角色（可含 `-1`），不表示谁拥有整句文字。
+`overlap` 只表示实际观察到重叠，先后换人不会被伪装成重叠。
 精确的角色及重叠起止位置以 `speakerTurns` 为准，不能把汇总字段解释为整段同时发言。
 
-展示时建议按 `sourceUtteranceId` 将同一原句的文字连成一个段落，并保留各子区间供查看。
+调用方直接展示完整 `text`；多个已知角色显示“多人／不确定”，其余 `-1` 显示“不确定”。
+迁移时停止依赖句内子片段 ID 或按时长多数决定整句身份；原始声学时间线仍可供核查。
 同一原句中最多 2500 ms 的 UNKNOWN 段允许有限邻接补全：首尾只有一个相邻已知角色，或前后角色一致，
 且相关段没有重叠、副角色或相反的时间线证据。补全后同角色文字合并，`speakerInferred=true`、
 `confidence=0`；`speakerTurns` 保留原始 UNKNOWN，不修改已确认的声学角色。全未知、跨角色、
 长未知段及跨原句不补全。调用方应显示“含推断补全”，不能把 0 分替换成相邻段分数。
 `speakerInferred` 是新增字段，默认 `false`；应重新编译调用方，并同时升级展示逻辑以区别补全与直接归属。
-包含多位主说话人或未知区间时，应明确标注“多位说话人”或“部分待确认”，不能按多数角色
-给整句确定身份。原句可读不代表角色精度通过；`-1`、短插话及重叠信息均不得丢弃。
+该句级规则同样约束 ASR final 中的临时角色及角色 update；临时结果仍可修正。
+原句可读不代表角色精度通过；`-1`、短插话及重叠信息均不得丢弃。
 
 `SpeakerDiarizationDegradedReason` 包含 `NONE`、`INFERENCE_UNAVAILABLE`、
 `MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`

@@ -222,6 +222,8 @@ export class SpeakerDiarizationTranscriptState {
     return updates;
   }
 
+  // Internal alignment evidence for the existing bounded UNKNOWN backfill.
+  // Public output uses sentenceUtterances; these pieces are never published.
   finalUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
@@ -245,8 +247,54 @@ export class SpeakerDiarizationTranscriptState {
     return result;
   }
 
+  sentenceUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
+    const aligned = this.finalUtterances(throughTime);
+    return this.utterances.filter(utterance =>
+      (utterance.audioEndTime ?? utterance.endTime) <= throughTime).map(utterance => {
+      const parts = aligned.filter(part => part.sourceUtteranceId === utterance.utteranceId);
+      const turns = this.turns.filter(turn =>
+        overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) > 0);
+      const participants = new Set<string>();
+      for (const turn of turns) {
+        participants.add(turn.speakerId);
+        for (const id of turn.secondarySpeakerIds) participants.add(id);
+      }
+      const known = Array.from(participants).filter(id => id !== UNKNOWN_SPEAKER && id !== 'UNKNOWN_SECONDARY');
+      const overlap = turns.some(turn => turn.overlap || turn.secondarySpeakerIds.length > 0);
+      // Check actual acoustic UNKNOWN spans too: token timestamps may skip one.
+      const unknown = turns.filter(turn => turn.speakerId === UNKNOWN_SPEAKER)
+        .sort((a, b) => a.beginTime - b.beginTime);
+      let unknownBegin = -1;
+      let unknownEnd = -1;
+      let bounded = true;
+      for (const turn of unknown) {
+        const begin = Math.max(utterance.beginTime, turn.beginTime);
+        const end = Math.min(utterance.endTime, turn.endTime);
+        if (begin > unknownEnd) unknownBegin = begin;
+        unknownEnd = Math.max(unknownEnd, end);
+        if (unknownEnd - unknownBegin > MAX_UNKNOWN_BACKFILL_MS) bounded = false;
+      }
+      const single = known.length === 1 && !overlap && bounded && parts.length > 0 &&
+        parts.every(part => part.speakerId === known[0]);
+      const inferred = single && (unknown.length > 0 || parts.some(part => part.speakerInferred));
+      return {
+        utteranceId: utterance.utteranceId,
+        sourceUtteranceId: utterance.utteranceId,
+        rawText: utterance.rawText,
+        text: utterance.text,
+        beginTime: utterance.beginTime,
+        endTime: utterance.endTime,
+        speakerId: single ? known[0] : UNKNOWN_SPEAKER,
+        secondarySpeakerIds: single ? [] : Array.from(participants).sort(),
+        confidence: single && !inferred ? Math.min(...parts.map(part => part.confidence ?? 0)) : 0,
+        overlap,
+        speakerInferred: inferred,
+      };
+    });
+  }
+
   commitThrough(endTime: number): DiarizedTranscriptUtterance[] {
-    const result = this.finalUtterances(endTime);
+    const result = this.sentenceUtterances(endTime);
     for (let i = this.utterances.length - 1; i >= 0; i--) {
       if ((this.utterances[i].audioEndTime ?? this.utterances[i].endTime) <= endTime) {
         this.utterances.splice(i, 1);
@@ -308,6 +356,57 @@ export class SpeakerDiarizationTranscriptState {
     return updates;
   }
 
+  resolveUnknownSpan(evidenceKey: string, beginTime: number, endTime: number, speakerId: string,
+    confidence: number, remap: Record<string, string>): void {
+    if (endTime <= beginTime) return;
+    const revised: SpeakerTimelineTurn[] = [];
+    for (const turn of this.turns) {
+      if (turn.evidenceKey !== evidenceKey || (remap[evidenceKey] ?? turn.speakerId) !== UNKNOWN_SPEAKER ||
+        turn.overlap || (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds).length > 0 ||
+        overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) <= 0) {
+        revised.push(turn);
+        continue;
+      }
+      const start = Math.max(beginTime, turn.beginTime);
+      const end = Math.min(endTime, turn.endTime);
+      if (turn.beginTime < start) revised.push({ ...turn, endTime: start });
+      revised.push({ ...turn, beginTime: start, endTime: end, speakerId, confidence, evidenceKey: undefined });
+      if (end < turn.endTime) revised.push({ ...turn, beginTime: end });
+    }
+    this.turns.splice(0, this.turns.length, ...revised);
+  }
+
+  // Used only at commit, after identity resolution and before the final remap.
+  // A new native boundary may split a mistaken single identity; it must not erase
+  // UNKNOWN, overlap, or even a brief already-distinct known speaker.
+  refineSingleSpeakerSpan(beginTime: number, cutTime: number, endTime: number,
+    leftId: string, rightId: string, leftConfidence: number, rightConfidence: number,
+    remap: Record<string, string>): void {
+    if (cutTime <= beginTime || cutTime >= endTime || leftId === rightId) return;
+    const covered = this.turns.filter(turn => overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) > 0);
+    const ids = new Set(covered.map(turn => remap[turn.evidenceKey ?? ''] ?? turn.speakerId));
+    if (ids.size !== 1 || (!ids.has(leftId) && !ids.has(rightId)) || ids.has(UNKNOWN_SPEAKER) ||
+      covered.some(turn => turn.overlap || (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds).length > 0)) return;
+    const revised: SpeakerTimelineTurn[] = [];
+    for (const turn of this.turns) {
+      const cuts = [turn.beginTime, ...[beginTime, cutTime, endTime].filter(time =>
+        time > turn.beginTime && time < turn.endTime), turn.endTime].sort((a, b) => a - b);
+      for (let index = 1; index < cuts.length; index++) {
+        const start = cuts[index - 1];
+        const end = cuts[index];
+        const part: SpeakerTimelineTurn = { ...turn, beginTime: start, endTime: end };
+        if (start >= beginTime && end <= endTime) {
+          part.speakerId = start < cutTime ? leftId : rightId;
+          part.confidence = start < cutTime ? leftConfidence : rightConfidence;
+          // This committed child is supported by its own PCM, not the old parent.
+          part.evidenceKey = undefined;
+        }
+        revised.push(part);
+      }
+    }
+    this.turns.splice(0, this.turns.length, ...revised);
+  }
+
   applyEvidenceRemap(remap: Record<string, string>, fromTime: number = 0,
     confidences: Record<string, number> = {}): DiarizationTranscriptUpdate[] {
     for (let index = 0; index < this.turns.length; index++) {
@@ -359,32 +458,27 @@ export class SpeakerDiarizationTranscriptState {
     secondarySpeakerIds: string[];
     confidence: number;
   } {
-    const durations = new Map<string, number>();
-    const secondary = new Set<string>();
-    let coveredMs = 0;
+    const participants = new Set<string>();
+    let overlap = false;
+    let confidence = 1;
     for (let i = 0; i < this.turns.length; i++) {
       const turn = this.turns[i];
       const duration = overlapMs(beginTime, endTime, turn.beginTime, turn.endTime);
       if (duration <= 0) continue;
-      durations.set(turn.speakerId, (durations.get(turn.speakerId) ?? 0) + duration);
-      coveredMs += duration;
+      participants.add(turn.speakerId);
+      overlap = overlap || !!turn.overlap || turn.secondarySpeakerIds.length > 0;
+      confidence = Math.min(confidence, turn.confidence ?? 0);
       for (let j = 0; j < turn.secondarySpeakerIds.length; j++) {
-        secondary.add(turn.secondarySpeakerIds[j]);
+        participants.add(turn.secondarySpeakerIds[j]);
       }
     }
-    let speakerId = UNKNOWN_SPEAKER;
-    let bestDuration = 0;
-    durations.forEach((duration: number, candidate: string): void => {
-      if (duration > bestDuration) {
-        bestDuration = duration;
-        speakerId = candidate;
-      }
-    });
-    secondary.delete(speakerId);
+    const single = participants.size === 1 && !participants.has(UNKNOWN_SPEAKER) &&
+      !participants.has('UNKNOWN_SECONDARY') && !overlap;
+    const speakerId = single ? Array.from(participants)[0] : UNKNOWN_SPEAKER;
     return {
       speakerId,
-      secondarySpeakerIds: Array.from(secondary).sort(),
-      confidence: coveredMs <= 0 ? 0 : Math.min(1, bestDuration / coveredMs),
+      secondarySpeakerIds: single ? [] : Array.from(participants).sort(),
+      confidence: single ? confidence : 0,
     };
   }
 
