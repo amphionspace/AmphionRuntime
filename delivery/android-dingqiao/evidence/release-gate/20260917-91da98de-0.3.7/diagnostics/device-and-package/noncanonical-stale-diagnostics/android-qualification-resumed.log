@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "<LOCAL_PATH>", line 6, in <module>
+    windows=[r for r in rows if r['kind']=='window'];parts=[u for w in windows for u in w['utterances']];assert all(u['endTime']>=u['beginTime'] for u in parts);assert not any(w['degraded'] for w in windows)
+AssertionError

@@ -1,0 +1,18 @@
+{
+  "cause": "collector shadowed case name with device filename; completed traces retained and mapped in chronological case order",
+  "sdk_replayed": false,
+  "mapping": [
+    {
+      "case": "phone",
+      "original_artifact": "android-final-zip-diagnostics-diarization-vad-800-1789643804073.jsonl-callbacks.jsonl",
+      "canonical_artifact": "android-final-zip-diagnostics-phone-callbacks.jsonl",
+      "sha256": "a82a1305c424841062fe4706a161df7d9d73611d2c57adcb6db0c0fe1f85cabb"
+    },
+    {
+      "case": "customer",
+      "original_artifact": "android-final-zip-diagnostics-diarization-vad-800-1789643901575.jsonl-callbacks.jsonl",
+      "canonical_artifact": "android-final-zip-diagnostics-customer-callbacks.jsonl",
+      "sha256": "06b1034db150b353311a711b99a721e870742fb861c6d0d399050366a99eeb04"
+    }
+  ]
+}

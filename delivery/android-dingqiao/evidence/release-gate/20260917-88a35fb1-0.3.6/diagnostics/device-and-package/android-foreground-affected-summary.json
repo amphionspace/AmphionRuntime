@@ -1,0 +1,161 @@
+{
+  "overall_status": "PASS",
+  "methods": [
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a03_writeBeforeStart_notListening",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a04_doubleStart_busy",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a05_finishWhenIdle_finishFailed",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a06_cancel_noFinalNoComplete",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a07_invalidSessionId_rejected",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a08_writeWrongSessionId_mismatch",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09_maxAudioDuration_explicitShortLimitAutoFinishes",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09b_maxAudioDuration_nonFiniteValuesStayDisabled",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10_maxAudioDuration_autoFinish",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10b_autoFinishWindow_ignoresLateFrames",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10c_finishIdempotent_singleComplete",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10d_terminalCallback_reentrantReplacementOwnsCompletion",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10e_onStartSynchronousWrite_thenContinue",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10f_onStartSynchronousWrite_thenImmediateFinish",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v05_speakerVad_requiresVoiceprintIds",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v06_speakerVad_overlapRuns",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v07_delete_thenNotFound",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v08_setSpeakerVadEnabled_noVoiceprint_error"
+  ],
+  "elapsed_seconds": 89.16,
+  "foreground_events": [
+    {
+      "elapsed_seconds": 1.096,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 2.191,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 4.375,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 6.555,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 8.761,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 10.962,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 12.074,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 16.41,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 18.58,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 20.725,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 22.909,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 25.078,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 26.191,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 29.456,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 31.654,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 34.876,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 37.045,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 40.278,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 42.463,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 47.834,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 50.029,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 54.355,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 56.519,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 58.686,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 60.88,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 63.049,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 65.218,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 67.388,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 69.591,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 72.84,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 75.008,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 86.757,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 87.859,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    }
+  ],
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "test_assertions_unchanged": true,
+  "public_aar_from_final_zip": true
+}

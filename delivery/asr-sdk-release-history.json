@@ -151,6 +151,78 @@
       "provenance_sha256": "5ddd623feebbf324fb5418d28a56d3e5dc4038aba373412bc413efa999971caa",
       "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260908-0aa5622e-0.3.13-vyg/report.json",
       "evidence_sha256": "a2f41689da51e8256f95393705048a3f95d8f45bea591806ffdba1ab6ee07c66"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.3.14",
+      "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+      "delivered_at": "2026-09-16",
+      "artifact": "amphion-harmony-asr-sdk-v0.3.14-20260916.zip",
+      "artifact_sha256": "5150c8461fbbe31e5b1e5a85071b37d35315554eb1de9fe16f1fde3387260b5c",
+      "artifact_size_bytes": 300169830,
+      "provenance_sha256": "f7e1db9bf7dd628d1cb3de9d43bfff93391fec8a2bad31d128837de74b32d79a",
+      "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260916-1bdb516e-0.3.14/report.json",
+      "evidence_sha256": "e80ee97c27d17edabae1770d70ffe57506b0379808bdf45c239ac528b53afc25"
+    },
+    {
+      "platform": "android",
+      "version": "0.3.5",
+      "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+      "delivered_at": "2026-09-16",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.5-20260916.zip",
+      "artifact_sha256": "db76289cd5568339bad15d5c08f7c950c485230c576224f90abd41011c73853f",
+      "artifact_size_bytes": 299178742,
+      "provenance_sha256": "f80f7a4802d887d53ad3960c9ed6d2d63e2f812adb103f06b37d79c03444b565",
+      "evidence_report": "delivery/android-dingqiao/evidence/release-gate/20260916-1bdb516e-0.3.5/report.json",
+      "evidence_sha256": "3282bfc34b2273bd7ccd80ac7290b62d3cd6a0e14a7b4d3388030b0c3473e1a9"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.3.15",
+      "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+      "delivered_at": "2026-09-17",
+      "artifact": "amphion-harmony-asr-sdk-v0.3.15-20260917.zip",
+      "artifact_sha256": "d550324db540fd7a22899636e8fcf1c0e55d00c6fa97e35d08f955e6a2baae39",
+      "artifact_size_bytes": 300172411,
+      "provenance_sha256": "143f7ba6402c0951db1ed5612e03579d63d09477258f2cb525cadef8a0123fa5",
+      "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260917-88a35fb1-0.3.15/report.json",
+      "evidence_sha256": "659cbde3232e3c53382a2724460594ce0b0b2c9090b46f0a61a2d7b2ed53d966"
+    },
+    {
+      "platform": "android",
+      "version": "0.3.6",
+      "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+      "delivered_at": "2026-09-17",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.6-20260917.zip",
+      "artifact_sha256": "e71b7700553a816daf0aa66a4c19ccd549b63765d76250168bb76c846c904589",
+      "artifact_size_bytes": 299185145,
+      "provenance_sha256": "64485a4ad1d3b088f54c7cd29047ae15a3f597472d978f6844fa7be5551a93d3",
+      "evidence_report": "delivery/android-dingqiao/evidence/release-gate/20260917-88a35fb1-0.3.6/report.json",
+      "evidence_sha256": "e6faa5047539fb25ac4fdadb458749752b7e7b572ae5de72bb2a7b1e887b8547"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.3.16",
+      "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+      "delivered_at": "2026-09-17",
+      "artifact": "amphion-harmony-asr-sdk-v0.3.16-20260917.zip",
+      "artifact_sha256": "0ce9ca7c5804cb2ee3c69f738b5d028ca9cdd08fea194cdf1c315bd6c99eea91",
+      "artifact_size_bytes": 300171192,
+      "provenance_sha256": "9d71fb7d5a12fed0b3531188f5ad3db0e4669d220f1740c4c53415e4573543b1",
+      "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260917-91da98de-0.3.16/report.json",
+      "evidence_sha256": "0afcc912cd49c455d9b574dd4823998cd30f7327a554704d9c48e8a7ed5450d1"
+    },
+    {
+      "platform": "android",
+      "version": "0.3.7",
+      "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+      "delivered_at": "2026-09-17",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.7-20260917.zip",
+      "artifact_sha256": "3b1e4b0429b2b676618da6fb2d50d4a0265037abe6dd470e51a8a1ab1d2c9708",
+      "artifact_size_bytes": 299184636,
+      "provenance_sha256": "0307e75e6e104adb553dfec8104faa42c4b4a6d694cf98bc636e86382777b43b",
+      "evidence_report": "delivery/android-dingqiao/evidence/release-gate/20260917-91da98de-0.3.7/report.json",
+      "evidence_sha256": "036e9d59a20b8e8d9e2a95fa445d71fc2d397f7590a434b954c48c8aab3fb841"
     }
   ]
 }

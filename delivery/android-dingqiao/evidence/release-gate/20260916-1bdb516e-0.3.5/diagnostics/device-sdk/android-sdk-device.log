@@ -1,0 +1,635 @@
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqSdkCornerCaseTest:
+INSTRUMENTATION_STATUS: test=a01_tailFrame_abruptFinish_keepsTail
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a01_tailFrame_abruptFinish_keepsTail
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a03_writeBeforeStart_notListening
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a03_writeBeforeStart_notListening
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a04_doubleStart_busy
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a04_doubleStart_busy
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a05_finishWhenIdle_finishFailed
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a05_finishWhenIdle_finishFailed
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a06_cancel_noFinalNoComplete
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a06_cancel_noFinalNoComplete
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a07_invalidSessionId_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a07_invalidSessionId_rejected
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a08_writeWrongSessionId_mismatch
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a08_writeWrongSessionId_mismatch
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a09_maxAudioDuration_explicitShortLimitAutoFinishes
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a09_maxAudioDuration_explicitShortLimitAutoFinishes
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a09b_maxAudioDuration_nonFiniteValuesStayDisabled
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a09b_maxAudioDuration_nonFiniteValuesStayDisabled
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10_maxAudioDuration_autoFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10_maxAudioDuration_autoFinish
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10b_autoFinishWindow_ignoresLateFrames
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10b_autoFinishWindow_ignoresLateFrames
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10c_finishIdempotent_singleComplete
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10c_finishIdempotent_singleComplete
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10d_terminalCallback_reentrantReplacementOwnsCompletion
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10d_terminalCallback_reentrantReplacementOwnsCompletion
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10e_onStartSynchronousWrite_thenContinue
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10e_onStartSynchronousWrite_thenContinue
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10f_onStartSynchronousWrite_thenImmediateFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10f_onStartSynchronousWrite_thenImmediateFinish
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10g_onStartSynchronousWrite_afterEngineReload
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10g_onStartSynchronousWrite_afterEngineReload
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10ga_onStartCancel_sameIdReplacementOwnsCallbacks
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10ga_onStartCancel_sameIdReplacementOwnsCallbacks
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10gb_onStartCanWaitForOtherThreadWriteAudio
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10gb_onStartCanWaitForOtherThreadWriteAudio
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10h_lateOldWrite_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10h_lateOldWrite_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10i_lateOldFinish_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10i_lateOldFinish_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10j_lateOldCancel_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10j_lateOldCancel_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11_unsupportedLanguage_createFails
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a11_unsupportedLanguage_createFails
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11_vadBegin_initialSilenceAutoFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a11_vadBegin_initialSilenceAutoFinish
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: real speech must produce one begin expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(DqSdkCornerCaseTest.kt:929)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+java.lang.AssertionError: real speech must produce one begin expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(DqSdkCornerCaseTest.kt:929)
+
+INSTRUMENTATION_STATUS: test=a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a12_postShutdown_throwsInsteadOfCallback
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a12_postShutdown_throwsInsteadOfCallback
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqVoiceprintTest:
+INSTRUMENTATION_STATUS: test=v01_register_fromSample_ok
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v01_register_fromSample_ok
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v02_register_tooLong_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: expected VOICEPRINT_SAMPLE_DURATION
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v02_register_tooLong_rejected(DqVoiceprintTest.kt:81)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.lang.AssertionError: expected VOICEPRINT_SAMPLE_DURATION
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v02_register_tooLong_rejected(DqVoiceprintTest.kt:81)
+
+INSTRUMENTATION_STATUS: test=v02_register_tooLong_rejected
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v03_register_missingPath_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: expected VOICEPRINT_REGISTER_FAILED
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v03_register_missingPath_rejected(DqVoiceprintTest.kt:97)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.lang.AssertionError: expected VOICEPRINT_REGISTER_FAILED
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v03_register_missingPath_rejected(DqVoiceprintTest.kt:97)
+
+INSTRUMENTATION_STATUS: test=v03_register_missingPath_rejected
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04_verification_similarityReturned
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04_verification_similarityReturned
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: runtime Speaker VAD corpus must produce a non-empty final
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(DqVoiceprintTest.kt:279)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.lang.AssertionError: runtime Speaker VAD corpus must produce a non-empty final
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(DqVoiceprintTest.kt:279)
+
+INSTRUMENTATION_STATUS: test=v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04e_voiceprintVadBegin_pureSilenceEndsOnce
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04e_voiceprintVadBegin_pureSilenceEndsOnce
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v05_speakerVad_requiresVoiceprintIds
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v05_speakerVad_requiresVoiceprintIds
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v06_speakerVad_overlapRuns
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stack=java.util.NoSuchElementException: Collection contains no element matching the predicate.
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:661)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.util.NoSuchElementException: Collection contains no element matching the predicate.
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:661)
+
+INSTRUMENTATION_STATUS: test=v06_speakerVad_overlapRuns
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v07_delete_thenNotFound
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v07_delete_thenNotFound
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v08_setSpeakerVadEnabled_noVoiceprint_error
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v08_setSpeakerVadEnabled_noVoiceprint_error
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v09_register_async_offCallerThread_ok
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=39
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v09_register_async_offCallerThread_ok
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 125.323
+There were 5 failures:
+1) a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+java.lang.AssertionError: real speech must produce one begin expected:<1> but was:<2>
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.failNotEquals(Assert.java:835)
+	at org.junit.Assert.assertEquals(Assert.java:120)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(DqSdkCornerCaseTest.kt:929)
+2) v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.lang.AssertionError: expected VOICEPRINT_SAMPLE_DURATION
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v02_register_tooLong_rejected(DqVoiceprintTest.kt:81)
+3) v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.lang.AssertionError: expected VOICEPRINT_REGISTER_FAILED
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v03_register_missingPath_rejected(DqVoiceprintTest.kt:97)
+4) v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.lang.AssertionError: runtime Speaker VAD corpus must produce a non-empty final
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(DqVoiceprintTest.kt:279)
+5) v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.util.NoSuchElementException: Collection contains no element matching the predicate.
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:661)
+
+FAILURES!!!
+Tests run: 39,  Failures: 5
+
+
+INSTRUMENTATION_CODE: -1

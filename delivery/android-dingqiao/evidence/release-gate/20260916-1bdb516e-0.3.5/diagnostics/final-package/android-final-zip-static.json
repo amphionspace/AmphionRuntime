@@ -1,0 +1,18 @@
+{
+  "overall_status": "PASS",
+  "zip_sha256": "0b52b99b8f8f89919f269cbcdd0adee54bce56516bbbfd0e3c3b90dff8c3499a",
+  "checked_files": 131,
+  "same_binary_payloads": [
+    "demo/dingqiao-demo-diagnostics.apk",
+    "demo/dingqiao-demo-release.apk",
+    "diagnostics-sdk/dingqiao-asr-diagnostics-v0.3.5.aar",
+    "demo-source/demo/sample-dingqiao-demo-release.apk",
+    "demo-source/libs/dingqiao-asr-v0.3.5.aar"
+  ],
+  "source_matches_independently_built_tree": true,
+  "local_additions": [
+    "local.properties SDK path",
+    "executable permission for gradlew"
+  ],
+  "independent_build_log": "android-independent-source-build-corrected.log"
+}

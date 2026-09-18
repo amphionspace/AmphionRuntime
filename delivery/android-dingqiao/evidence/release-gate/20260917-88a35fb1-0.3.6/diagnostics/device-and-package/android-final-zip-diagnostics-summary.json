@@ -1,0 +1,49 @@
+{
+  "asr_contract_status": "PASS",
+  "principal_speaker_anchors": "PASS",
+  "general_diarization_identity_status": "BLOCKED",
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "apk_sha256": "a0fea27eb1b7b7183c77b614a08f69348122e3b87716d544897792e1955dc642",
+  "input_sha256": "3c263893ebed15454918ee670840f0ba47c218d5e08a4f5f5ffe6e4399ce681b",
+  "windows": 2,
+  "anchors": [
+    {
+      "begin_ms": 3900,
+      "end_ms": 5300,
+      "expected_speaker_index": 0,
+      "observed_speaker_indexes": [
+        0
+      ]
+    },
+    {
+      "begin_ms": 17900,
+      "end_ms": 21500,
+      "expected_speaker_index": 1,
+      "observed_speaker_indexes": [
+        1
+      ]
+    },
+    {
+      "begin_ms": 27400,
+      "end_ms": 29300,
+      "expected_speaker_index": 2,
+      "observed_speaker_indexes": [
+        2
+      ]
+    },
+    {
+      "begin_ms": 39450,
+      "end_ms": 40600,
+      "expected_speaker_index": 3,
+      "observed_speaker_indexes": [
+        3
+      ]
+    }
+  ],
+  "last": 1,
+  "complete": 1,
+  "errors": 0,
+  "no_last_before_finish": true,
+  "instrumentation_elapsed_seconds": 164.164,
+  "audio_start_to_complete_ms": 159927
+}
