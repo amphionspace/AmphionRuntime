@@ -19,6 +19,13 @@
   },
   "checks": {
     "harmonyRelevantTests": 55,
+    "reviewFollowup": {
+      "harmonyDemoChecks": 12,
+      "harmonyDemoStatus": "PASS",
+      "androidDingqiaoDemoCompile": "PASS",
+      "change": "Do not infer simultaneous overlap from sentence participants; preserve multiple or uncertain attribution.",
+      "acousticAlgorithmChanged": false
+    },
     "androidDebugTests": {
       "sdk": {
         "tests": 60,

@@ -163,30 +163,31 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
               }});
             }}
             assert.deepEqual(render(), ['说话人 1（中间结果）', '说话人 2（中间结果）',
-              '未能区分说话人（中间结果）']);
+              '不确定（中间结果）']);
             const utterances = page.finalSegments.map((item, index) => ({{
               text: item.text, sourceUtteranceId: item.utteranceId,
               utteranceId: item.utteranceId + '-final', endTime: item.endTime,
-              speakerIndex: index === 2 ? -1 : 0,
+              speakerIndex: index === 2 ? -1 : 0, secondarySpeakerIndexes: [], overlap: false,
             }}));
             page.handleSpeakerDiarizationResult('live', {{
               windowIndex: 0, utterances, isSessionFinal: false, degraded: false,
             }});
             assert.deepEqual(page.finalSegments.map(item => item.speakerIndex), [0, 0, -1]);
             assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
-              '未能区分说话人（最终结果）'],
+              '不确定（最终结果）'],
               'a committed window must refresh phase and identity before the session ends');
             // Late provisional updates cannot overwrite published assignments.
             page.handleSpeakerDiarizationUpdate('live', {{
               utteranceId: 'u2-final', revision: 99, speakerIndex: 1,
             }});
             assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
-              '未能区分说话人（最终结果）']);
+              '不确定（最终结果）']);
             // A real second speaker must remain distinct.
             page.handleSpeakerDiarizationResult('live', {{
               windowIndex: 1, isSessionFinal: true, degraded: false,
               utterances: [{{sourceUtteranceId:'u4', utteranceId:'u4-final',
-                text:'丁句', endTime:15000, speakerIndex:1}}],
+                text:'丁句', endTime:15000, speakerIndex:1, secondarySpeakerIndexes:[],
+                overlap:false}}],
             }});
             assert.equal(render().at(-1), '说话人 2（最终结果）');
             const mixed = new Page();
@@ -208,11 +209,11 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             assert.deepEqual(mixed.finalSegments[0].speakerParts,parts.slice(0,2),
               'exact known/unknown text, times and overlap remain inspectable');
             assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[0]),
-              '说话人 1 · 部分待确认 · 含重叠发言');
+              '多人／不确定 · 含重叠发言');
             assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[1]),'说话人 2');
             const multi = new FinalSegment('甲乙',undefined,'both',-1,1000,true,true);
             multi.speakerParts = [parts[0],parts[2]];
-            assert.equal(mixed.segmentSpeakerLabel(multi),'多位说话人',
+            assert.equal(mixed.segmentSpeakerLabel(multi),'多人／不确定',
               'do not relabel a multi-speaker paragraph using its majority speaker');
             const inferred = new FinalSegment('张三',undefined,'inferred',0,1000,true,true);
             inferred.speakerParts = [{{...parts[0],text:'张三',confidence:0,speakerInferred:true}}];
@@ -398,7 +399,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("显示为“说话人 + 数字编号”", source)
         self.assertIn("`说话人 ${speakerIndex + 1}`", source)
         self.assertNotIn("return speakerIndex < 0 ? '说话人'", source)
-        self.assertIn("return speakerIndex < 0 ? '未能区分说话人'", source)
+        self.assertIn("return speakerIndex < 0 ? '不确定'", source)
         self.assertIn("if (item.speakerDiarization)", source)
         self.assertIn("item.speakerAssignmentFinal ? '最终结果' : '中间结果'", source)
         self.assertIn("next[i].endTime, true, next[i].speakerAssignmentFinal", source)
