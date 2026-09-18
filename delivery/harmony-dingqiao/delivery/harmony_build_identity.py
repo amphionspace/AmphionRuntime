@@ -40,6 +40,8 @@ NATIVE_LIBRARIES = {
     / "asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so",
 }
 OPTIONAL_HAP_MODELS = {
+    "speaker_complementary_embedding":
+        "resources/rawfile/amphion-dingqiao/campplus.onnx",
     "target_speaker_separator":
         "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
     "speaker_turn_segmentation":

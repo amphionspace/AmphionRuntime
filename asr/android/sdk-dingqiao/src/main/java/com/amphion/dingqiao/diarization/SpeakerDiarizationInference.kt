@@ -10,19 +10,36 @@ internal data class DiarizationEmbedding(
     val embedding: FloatArray,
     val queryEmbedding: FloatArray? = null,
     val speechRms: Double = 0.0,
+    val complementaryEmbedding: FloatArray? = null,
 )
 
 internal data class DiarizationWindowInferenceResult(
     val segments: List<SpeakerSegmentationSegment>,
     val embeddings: List<DiarizationEmbedding>,
     val inferenceMs: Long,
+    val refinements: List<DiarizationBoundaryRefinement> = emptyList(),
 )
 
-/** Session-owned, fully offline inference using the same two models as HarmonyOS. */
+internal data class DiarizationBoundaryRefinement(
+    val startSample: Long, val cutSample: Long, val endSample: Long,
+    val leftEmbedding: FloatArray, val leftComplementaryEmbedding: FloatArray,
+    val rightEmbedding: FloatArray, val rightComplementaryEmbedding: FloatArray,
+)
+
+internal data class DiarizationLocalIdentityQuery(
+    val startSample: Long, val endSample: Long,
+    val embedding: FloatArray, val complementaryEmbedding: FloatArray,
+)
+
+/** Session-owned, fully offline inference using the same models as HarmonyOS. */
 internal class SpeakerDiarizationInference(
     segmentationModelPath: String,
     embeddingModelPath: String,
+    complementaryModelPath: String,
 ) : AutoCloseable {
+    private data class SingleSpeakerRun(val startSample: Long, val endSample: Long)
+    private val recentSingleSpeakerRuns = mutableListOf<SingleSpeakerRun>()
+    private var speakerLevelReference = 0.0
     private val segmenter = SpeakerTurnSegmenter(segmentationModelPath)
     private val extractor = SpeakerEmbeddingExtractor(
         config = SpeakerEmbeddingExtractorConfig(
@@ -31,8 +48,18 @@ internal class SpeakerDiarizationInference(
             debug = false,
         ),
     )
+    private val complementaryExtractor = try {
+        SpeakerEmbeddingExtractor(config = SpeakerEmbeddingExtractorConfig(
+            model = complementaryModelPath, numThreads = 1, debug = false,
+        ))
+    } catch (t: Throwable) {
+        runCatching { extractor.release() }
+        runCatching { segmenter.close() }
+        throw t
+    }
 
-    fun process(samples: FloatArray, queryStartSample: Int = 0, queryEndSample: Int = 0): DiarizationWindowInferenceResult {
+    fun process(samples: FloatArray, queryStartSample: Int = 0, queryEndSample: Int = 0,
+        windowOriginSample: Long = 0): DiarizationWindowInferenceResult {
         val started = System.nanoTime()
         val segments = segmenter.process(samples)
         val embeddings = (0 until LOCAL_SPEAKER_COUNT).mapNotNull { localSpeaker ->
@@ -43,30 +70,92 @@ internal class SpeakerDiarizationInference(
             var squaredLevel = 0.0
             for (sample in channelSamples) squaredLevel += sample.toDouble() * sample
             DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples),
-                kotlin.math.sqrt(squaredLevel / channelSamples.size))
+                kotlin.math.sqrt(squaredLevel / channelSamples.size),
+                computeEmbedding(channelSamples, complementaryExtractor))
         }
-        return DiarizationWindowInferenceResult(
-            segments.map { segment ->
+        embeddings.forEach { speakerLevelReference = maxOf(speakerLevelReference, it.speechRms) }
+        val queriedSegments = segments.map { segment ->
                 if (segment.speakerMask != (1 shl segment.speaker) ||
                     maxOf(segment.startSample, queryStartSample) >= minOf(segment.endSample, queryEndSample)) {
                     segment
                 } else {
                     // Separate runs on one channel must not share a mixed query.
                     val end = minOf(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES)
-                    segment.copy(queryEmbedding = computeEmbedding(samples.copyOfRange(segment.startSample, end)))
+                    val runSamples = samples.copyOfRange(segment.startSample, end)
+                    val query = computeEmbedding(runSamples)
+                    val complementary = computeEmbedding(runSamples, complementaryExtractor)
+                    val context = embeddings.find { it.localSpeaker == segment.speaker }
+                    val local = if (context != null && context.speechRms > 0 && context.speechRms < speakerLevelReference * .5 &&
+                        query != null && complementary != null)
+                        queryQuietLocalIdentity(samples, segment, queryStartSample, queryEndSample, windowOriginSample)
+                    else emptyList()
+                    segment.copy(queryEmbedding = query, complementaryEmbedding = complementary, localQueries = local)
                 }
-            },
-            embeddings,
-            (System.nanoTime() - started) / 1_000_000,
-        )
+            }
+        val refinements = refineEarlierRuns(samples, segments, queryStartSample, windowOriginSample)
+        return DiarizationWindowInferenceResult(queriedSegments, embeddings,
+            (System.nanoTime() - started) / 1_000_000, refinements)
+    }
+
+    private fun queryQuietLocalIdentity(samples: FloatArray, segment: SpeakerSegmentationSegment,
+        queryStartSample: Int, queryEndSample: Int, origin: Long): List<DiarizationLocalIdentityQuery> {
+        val queries = mutableListOf<DiarizationLocalIdentityQuery>()
+        val start = origin + maxOf(segment.startSample, queryStartSample)
+        val end = origin + minOf(segment.endSample, queryEndSample)
+        // Absolute 250-ms cells, each verified with 1.3 seconds of real local PCM.
+        var cell = Math.floorDiv(start, 4000L)
+        while (cell * 4000 < end) {
+            val center = cell * 4000 + 2000
+            val from = center - 10400
+            val through = center + 10400
+            if (from >= maxOf(0, origin) && through <= origin + samples.size) {
+                val pcm = samples.copyOfRange((from - origin).toInt(), (through - origin).toInt())
+                val primary = computeEmbedding(pcm)
+                val complementary = computeEmbedding(pcm, complementaryExtractor)
+                if (primary != null && complementary != null)
+                    queries += DiarizationLocalIdentityQuery(maxOf(start, cell * 4000), minOf(end, (cell + 1) * 4000), primary, complementary)
+            }
+            cell++
+        }
+        return queries
+    }
+
+    private fun refineEarlierRuns(samples: FloatArray, segments: List<SpeakerSegmentationSegment>,
+        queryStartSample: Int, origin: Long): List<DiarizationBoundaryRefinement> {
+        val refinements = mutableListOf<DiarizationBoundaryRefinement>()
+        for (index in 1 until segments.size) {
+            val left = segments[index - 1]
+            val right = segments[index]
+            val cut = origin + right.startSample
+            if (left.endSample != right.startSample || left.speaker == right.speaker ||
+                left.speakerMask != (1 shl left.speaker) || right.speakerMask != (1 shl right.speaker) ||
+                right.startSample >= queryStartSample || right.endSample - right.startSample < MIN_EMBEDDING_SAMPLES) continue
+            val start = recentSingleSpeakerRuns.filter { it.startSample >= maxOf(0, origin) &&
+                it.startSample < cut && it.endSample > cut && cut - it.startSample >= MIN_EMBEDDING_SAMPLES }
+                .minOfOrNull { it.startSample } ?: continue
+            val leftSamples = samples.copyOfRange(maxOf((start - origin).toInt(), right.startSample - MAX_EMBEDDING_SAMPLES), right.startSample)
+            val rightSamples = samples.copyOfRange(right.startSample, minOf(right.endSample, right.startSample + MAX_EMBEDDING_SAMPLES))
+            val leftEmbedding = computeEmbedding(leftSamples) ?: continue
+            val leftComplementary = computeEmbedding(leftSamples, complementaryExtractor) ?: continue
+            val rightEmbedding = computeEmbedding(rightSamples) ?: continue
+            val rightComplementary = computeEmbedding(rightSamples, complementaryExtractor) ?: continue
+            refinements += DiarizationBoundaryRefinement(start, cut, origin + minOf(right.endSample, queryStartSample),
+                leftEmbedding, leftComplementary, rightEmbedding, rightComplementary)
+        }
+        recentSingleSpeakerRuns.removeAll { it.endSample <= origin }
+        segments.filter { it.speakerMask == (1 shl it.speaker) }.forEach {
+            recentSingleSpeakerRuns += SingleSpeakerRun(origin + it.startSample, origin + it.endSample)
+        }
+        return refinements
     }
 
     override fun close() {
         runCatching { extractor.release() }
+        runCatching { complementaryExtractor.release() }
         runCatching { segmenter.close() }
     }
 
-    private fun computeEmbedding(samples: FloatArray): FloatArray? {
+    private fun computeEmbedding(samples: FloatArray, extractor: SpeakerEmbeddingExtractor = this.extractor): FloatArray? {
         if (samples.size < MIN_EMBEDDING_SAMPLES) return null
         val stream = extractor.createStream()
         try {

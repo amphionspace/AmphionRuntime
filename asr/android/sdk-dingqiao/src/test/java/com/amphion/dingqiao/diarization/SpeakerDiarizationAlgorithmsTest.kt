@@ -131,8 +131,8 @@ class SpeakerDiarizationAlgorithmsTest {
             SpeakerTimelineTurn(600, 1000, "S2", emptyList()),
         ))
         val split = short.commitThrough(1000)
-        assertEquals(listOf("嗯，" to "S1", "好。" to "S2"), split.map { it.text to it.speakerId })
-        assertEquals(listOf("S2"), split.first().secondarySpeakerIds)
+        assertEquals(listOf("嗯，好。" to "UNKNOWN"), split.map { it.text to it.speakerId })
+        assertEquals(listOf("S1", "S2"), split.first().secondarySpeakerIds)
         assertTrue(split.first().overlap)
         assertTrue(short.finalUtterances().isEmpty())
     }
@@ -191,14 +191,14 @@ class SpeakerDiarizationAlgorithmsTest {
                 SpeakerTimelineTurn(900, 2000, "UNKNOWN", listOf("S2"), overlap = true),
             ))
             val split = state.commitThrough(2000)
-            assertEquals(listOf("S1", "UNKNOWN"), split.map { it.speakerId })
+            assertEquals(listOf("UNKNOWN"), split.map { it.speakerId })
             assertEquals(text, split.joinToString("") { it.text })
             assertEquals("甲乙丙丁", split.joinToString("") { it.rawText })
-            assertEquals(listOf(0 to 1000, 1000 to 2000), split.map { it.beginTime to it.endTime })
-            assertEquals(listOf("u1", "u1"), split.map { it.sourceUtteranceId })
+            assertEquals(listOf(0 to 2000), split.map { it.beginTime to it.endTime })
+            assertEquals(listOf("u1"), split.map { it.sourceUtteranceId })
             assertTrue(split.last().overlap)
             assertTrue(state.finalUtterances().isEmpty())
-            if (text == "甲乙，丙丁。") assertEquals(listOf("甲乙，", "丙丁。"), split.map { it.text })
+            assertEquals(listOf(text), split.map { it.text })
         }
         for (text in listOf("23。", "甲戊，丙丁。")) {
             val state = DiarizationTranscriptState()
@@ -346,9 +346,9 @@ class SpeakerDiarizationAlgorithmsTest {
         val updates = transcript.applySpeakerRemap(mapOf("S1" to "S3", "S2" to "S4"))
         assertEquals(id, updates.single().utteranceId)
         assertEquals(2, updates.single().revision)
-        assertEquals("S3", updates.single().speakerId)
-        assertEquals(listOf("S4"), updates.single().secondarySpeakerIds)
-        assertEquals("S3", transcript.finalUtterances().single().speakerId)
+        assertEquals("UNKNOWN", updates.single().speakerId)
+        assertEquals(listOf("S3", "S4"), updates.single().secondarySpeakerIds)
+        assertEquals("UNKNOWN", transcript.sentenceUtterances().single().speakerId)
     }
 
     @Test

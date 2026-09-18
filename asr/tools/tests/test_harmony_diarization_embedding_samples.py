@@ -9,6 +9,44 @@ SOURCE = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarization
 
 
 class HarmonyDiarizationEmbeddingSamplesTest(unittest.TestCase):
+    def test_complementary_model_uses_identical_context_and_run_pcm_and_closes(self):
+        source = SOURCE.read_text()
+        source = source[source.index('const SAMPLE_RATE:'):]
+        driver = """
+        import assert from 'node:assert/strict';
+        const samples=Float32Array.from({length:160000},(_,i)=>i/160000);
+        const segments=[{startSample:0,endSample:48000,speaker:0,speakerMask:1},
+          {startSample:64000,endSample:104000,speaker:0,speakerMask:1},
+          {startSample:112000,endSample:144000,speaker:0,speakerMask:3}];
+        async function processSpeakerTurnSegmentationAsync(){return segments;}
+        const primary=[],complementary=[];let closed=0,streams=0;
+        function extractor(consumed,vector){return {
+          createStream(){streams++;return {acceptWaveform(w){this.samples=w.samples;},close(){streams--;}};},
+          isReady(){return true;},
+          async computeAsync(stream){consumed.push(stream.samples);return new Float32Array(vector);},
+          close(){closed++;}
+        };}
+        const inference=new SpeakerDiarizationInference();
+        inference.extractor=extractor(primary,[1,0]);
+        inference.complementaryExtractor=extractor(complementary,[0,1]);
+        const result=await inference.process(samples,80000,144000);
+        assert.equal(primary.length,3,'primary context, owned query and run query');
+        assert.equal(complementary.length,2,'complementary context and run query only');
+        assert.deepEqual(complementary[0],primary[0]);
+        assert.deepEqual(complementary[1],primary[2]);
+        assert.deepEqual(complementary[1],samples.slice(64000,104000));
+        assert.deepEqual(result.embeddings[0].complementaryEmbedding,[0,1]);
+        assert.deepEqual(result.segments[1].complementaryEmbedding,[0,1]);
+        assert.equal(result.segments[0].complementaryEmbedding,undefined);
+        assert.equal(result.segments[2].complementaryEmbedding,undefined,'overlap cannot acquire a single-person query');
+        assert.equal(streams,0);
+        inference.close();inference.close();assert.equal(closed,2);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'complementary-samples.mts'
+            harness.write_text(source + driver)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
     def test_owned_fragments_query_their_complete_speech_run_without_mixing_other_runs(self):
         source = SOURCE.read_text()
         source = source[source.index('const SAMPLE_RATE:'):]

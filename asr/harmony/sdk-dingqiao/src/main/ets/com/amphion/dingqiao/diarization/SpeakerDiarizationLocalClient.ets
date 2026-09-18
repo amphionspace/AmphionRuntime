@@ -71,7 +71,8 @@ export class SpeakerDiarizationLocalClient {
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
-    this.inferenceLoad = this.inference.load(context, DingqiaoSpeakerModelAssets.bundledPath());
+    this.inferenceLoad = this.inference.load(context, DingqiaoSpeakerModelAssets.bundledPath(),
+      DingqiaoSpeakerModelAssets.complementaryDiarizationPath());
     this.inferenceLoad.then((): void => {
       this.loadSettled = true;
       this.closeWhenQuiescent();
@@ -171,7 +172,8 @@ export class SpeakerDiarizationLocalClient {
       inferencePromise = this.inferenceLoad.then(
         (): Promise<SpeakerDiarizationWindowResult> => this.inference.process(samples,
           job.commitStartSample - job.windowStartSample + job.contentStartInWindowSample,
-          job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample));
+          job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample,
+          job.windowStartSample - job.contentStartInWindowSample));
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;

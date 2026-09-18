@@ -6,6 +6,8 @@ internal data class SpeakerSegmentationSegment(
     val speaker: Int,
     val speakerMask: Int,
     val queryEmbedding: FloatArray? = null,
+    val complementaryEmbedding: FloatArray? = null,
+    val localQueries: List<DiarizationLocalIdentityQuery> = emptyList(),
 )
 
 /** JNI wrapper around the same pyannote powerset decoder used by HarmonyOS. */

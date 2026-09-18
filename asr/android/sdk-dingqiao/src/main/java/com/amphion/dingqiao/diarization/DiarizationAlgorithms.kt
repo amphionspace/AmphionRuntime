@@ -75,11 +75,18 @@ internal data class SpeakerAssignment(
     val created: Boolean,
 )
 
+internal data class SpeakerIdentitySupport(val embedding: FloatArray, val queryEmbedding: FloatArray)
+
+private data class SupportedIdentityMatch(val assignment: SpeakerAssignment, val retainAlternative: Boolean)
+
 private data class MutableSpeakerEntry(
     val speakerId: String,
     var centroid: FloatArray,
     var speechDurationMs: Int,
     var lastSeenMs: Int,
+    var alternateCentroid: FloatArray? = null,
+    var complementaryCentroid: FloatArray? = null,
+    var complementaryReferences: List<FloatArray> = emptyList(),
 )
 
 internal class OnlineSpeakerRegistry(
@@ -100,6 +107,7 @@ internal class OnlineSpeakerRegistry(
         atMs: Int,
         allowAdditionalSpeaker: List<Boolean>? = null,
         enrollmentQueries: List<List<FloatArray>>? = null,
+        identitySupport: List<SpeakerIdentitySupport> = emptyList(),
     ): List<SpeakerAssignment> {
         require(rawEmbeddings.size == speechDurationsMs.size)
         val embeddings = rawEmbeddings.mapIndexed { index, value ->
@@ -139,7 +147,16 @@ internal class OnlineSpeakerRegistry(
                 (best == null || !mutual ||
                 best.second < minOf(similarityThreshold, QUERY_SIMILARITY_THRESHOLD) ||
                 confirmsNovelty(embedding, enrollmentQueries?.getOrNull(observation)))) {
-                // An uncertain known speaker is not evidence of a new person.
+                // Only intercept a new identity; preserve ordinary UNKNOWN decisions.
+                val supported = matchSupportedIdentity(embedding, identitySupport,
+                    enrollmentQueries?.getOrNull(observation).orEmpty())
+                if (supported != null) {
+                    if (supported.retainAlternative) entries.first {
+                        it.speakerId == supported.assignment.speakerId
+                    }.alternateCentroid = embedding.copyOf()
+                    result[observation] = supported.assignment
+                    return@forEachIndexed
+                }
                 val entry = MutableSpeakerEntry(
                     speakerId = "S${entries.size + 1}",
                     centroid = embedding,
@@ -153,6 +170,47 @@ internal class OnlineSpeakerRegistry(
             }
         }
         return result
+    }
+
+    private fun matchSupportedIdentity(embedding: FloatArray, support: List<SpeakerIdentitySupport>,
+        ownedQueries: List<FloatArray>): SupportedIdentityMatch? {
+        if (ownedQueries.isEmpty()) return null
+        val sum = FloatArray(embedding.size)
+        for (raw in ownedQueries) {
+            val query = normalize(raw) ?: return null
+            if (query.size != sum.size) return null
+            for (i in sum.indices) sum[i] += query[i]
+        }
+        val owned = normalize(sum) ?: return null
+        val alternativeMatch = matchExisting(embedding, QUERY_SIMILARITY_THRESHOLD, includeAlternate = true)
+        val alternative = entries.find { it.speakerId == alternativeMatch?.speakerId }?.alternateCentroid
+        if (alternativeMatch != null && alternative != null &&
+            cosine(embedding, alternative) >= QUERY_SIMILARITY_THRESHOLD &&
+            cosine(owned, alternative) >= QUERY_SIMILARITY_THRESHOLD) {
+            // Reuse the fixed reference without recursively extending it.
+            return SupportedIdentityMatch(alternativeMatch, false)
+        }
+        val scores = entries.map { cosine(it.centroid, embedding) }.toMutableList()
+        val supportedScores = FloatArray(entries.size) { Float.NEGATIVE_INFINITY }
+        for (item in support) {
+            val context = normalize(item.embedding) ?: continue
+            val query = normalize(item.queryEmbedding) ?: continue
+            if (cosine(context, query) < similarityThreshold ||
+                maxOf(cosine(owned, context), cosine(owned, query)) < QUERY_SIMILARITY_THRESHOLD) continue
+            // Primary centroids only: alternative references cannot qualify support.
+            val contextMatch = matchExisting(context, QUERY_SIMILARITY_THRESHOLD) ?: continue
+            val queryMatch = matchExisting(query, QUERY_SIMILARITY_THRESHOLD) ?: continue
+            if (contextMatch.speakerId != queryMatch.speakerId) continue
+            val index = entries.indexOfFirst { it.speakerId == contextMatch.speakerId }
+            supportedScores[index] = maxOf(supportedScores[index], cosine(embedding, query))
+            scores[index] = maxOf(scores[index], supportedScores[index])
+        }
+        val ranked = entries.indices.sortedByDescending { scores[it] }
+        val best = ranked.firstOrNull() ?: return null
+        if (supportedScores[best] < QUERY_SIMILARITY_THRESHOLD ||
+            (ranked.size > 1 && scores[best] - scores[ranked[1]] < topMargin)) return null
+        return SupportedIdentityMatch(SpeakerAssignment(entries[best].speakerId,
+            scores[best].coerceIn(0f, 1f), false), true)
     }
 
     private fun confirmsNovelty(embedding: FloatArray, queries: List<FloatArray>?): Boolean {
@@ -171,7 +229,9 @@ internal class OnlineSpeakerRegistry(
     }
 
     fun fork(): OnlineSpeakerRegistry = OnlineSpeakerRegistry(maxSpeakers, similarityThreshold, topMargin).also { copy ->
-        entries.forEach { copy.entries += it.copy(centroid = it.centroid.copyOf()) }
+        entries.forEach { copy.entries += it.copy(centroid = it.centroid.copyOf(),
+            alternateCentroid = it.alternateCentroid?.copyOf(), complementaryCentroid = it.complementaryCentroid?.copyOf(),
+            complementaryReferences = it.complementaryReferences.map { reference -> reference.copyOf() }) }
     }
 
     fun matchKnown(raw: FloatArray): String? {
@@ -182,12 +242,81 @@ internal class OnlineSpeakerRegistry(
     fun matchQuery(raw: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
         // Independent AISHELL3 calibration: maximum impostor cosine .5392 + .05 margin.
         return matchExisting(raw, QUERY_SIMILARITY_THRESHOLD, establishedIds)
+            ?: matchExisting(raw, QUERY_SIMILARITY_THRESHOLD, establishedIds, true)
     }
 
-    private fun matchExisting(raw: FloatArray, threshold: Float, allowedIds: Set<String>? = null): SpeakerAssignment? {
+    /** Quiet output needs strong agreement with an independently established alternative. */
+    fun matchQuietQuery(raw: FloatArray, context: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
+        val contextMatch = matchExisting(context, similarityThreshold, establishedIds, true) ?: return null
+        val queryMatch = matchExisting(raw, similarityThreshold, establishedIds, true) ?: return null
+        if (contextMatch.speakerId != queryMatch.speakerId) return null
+        val alternative = entries.find { it.speakerId == queryMatch.speakerId }?.alternateCentroid ?: return null
+        val embedding = normalize(raw) ?: return null
+        val contextEmbedding = normalize(context) ?: return null
+        val confidence = minOf(minOf(cosine(embedding, alternative), cosine(contextEmbedding, alternative)),
+            minOf(contextMatch.confidence, queryMatch.confidence))
+        if (confidence < similarityThreshold) return null
+        return SpeakerAssignment(queryMatch.speakerId, confidence, false)
+    }
+
+    fun bindComplementaryProfile(id: String, embeddings: List<FloatArray?>, durations: List<Int>) {
+        val entry = entries.find { it.speakerId == id } ?: return
+        if (entry.complementaryCentroid != null || embeddings.isEmpty() || embeddings.size != durations.size) return
+        val sum = FloatArray(embeddings.first()?.size ?: return)
+        val references = mutableListOf<FloatArray>()
+        embeddings.forEachIndexed { index, raw ->
+            val value = raw?.let { normalize(it) } ?: return
+            if (value.size != sum.size || durations[index] <= 0) return
+            for (j in sum.indices) sum[j] += value[j] * durations[index]
+            if (references.size < 8) references += value
+        }
+        entry.complementaryCentroid = normalize(sum)
+        if (entry.complementaryCentroid != null) entry.complementaryReferences = references
+    }
+
+    fun matchComplementaryQuery(query: FloatArray, context: FloatArray, complementaryQuery: FloatArray,
+        complementaryContext: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
+        val primaryQuery = matchExisting(query, -1f, establishedIds) ?: return null
+        val primaryContext = matchExisting(context, -1f, establishedIds) ?: return null
+        if (primaryQuery.speakerId != primaryContext.speakerId) return null
+        val secondaryQuery = matchExisting(complementaryQuery, 0.64f, establishedIds, false, true)
+        val secondaryContext = matchExisting(complementaryContext, 0.64f, establishedIds, false, true)
+        if (secondaryQuery?.speakerId == primaryQuery.speakerId && secondaryContext?.speakerId == primaryQuery.speakerId) {
+            return SpeakerAssignment(primaryQuery.speakerId, minOf(secondaryQuery.confidence, secondaryContext.confidence), false)
+        }
+        // Fixed original enrollment references use a separately calibrated,
+        // higher threshold; context and query must agree on the same reference.
+        val normalizedQuery = normalize(complementaryQuery) ?: return null
+        val normalizedContext = normalize(complementaryContext) ?: return null
+        val ranked = entries.filter { it.speakerId in establishedIds }.map { entry ->
+            entry.speakerId to (entry.complementaryReferences.maxOfOrNull { reference ->
+                minOf(cosine(normalizedQuery, reference), cosine(normalizedContext, reference))
+            } ?: Float.NEGATIVE_INFINITY)
+        }.sortedByDescending { it.second }
+        val best = ranked.firstOrNull() ?: return null
+        val second = ranked.getOrNull(1)
+        if (best.first != primaryQuery.speakerId || best.second < 0.68f ||
+            (second != null && best.second - second.second < topMargin)) return null
+        return SpeakerAssignment(primaryQuery.speakerId, minOf(1f, best.second), false)
+    }
+
+    fun matchLocalQuery(query: FloatArray, complementaryQuery: FloatArray, establishedIds: Set<String>): SpeakerAssignment? {
+        val primary = matchExisting(query, .59f, establishedIds) ?: return null
+        val complementary = matchExisting(complementaryQuery, .64f, establishedIds, useComplementary = true) ?: return null
+        if (complementary.speakerId != primary.speakerId) return null
+        return SpeakerAssignment(primary.speakerId, minOf(primary.confidence, complementary.confidence), false)
+    }
+
+    private fun matchExisting(raw: FloatArray, threshold: Float, allowedIds: Set<String>? = null,
+        includeAlternate: Boolean = false, useComplementary: Boolean = false): SpeakerAssignment? {
         val embedding = normalize(raw) ?: return null
         val ranked = entries.filter { allowedIds == null || it.speakerId in allowedIds }
-            .map { it.speakerId to cosine(it.centroid, embedding) }.sortedByDescending { it.second }
+            .filter { !useComplementary || it.complementaryCentroid != null }
+            .map { entry -> entry.speakerId to if (useComplementary) cosine(entry.complementaryCentroid!!, embedding)
+                else maxOf(cosine(entry.centroid, embedding),
+                if (includeAlternate) entry.alternateCentroid?.let { cosine(it, embedding) }
+                    ?: Float.NEGATIVE_INFINITY else Float.NEGATIVE_INFINITY)
+            }.sortedByDescending { it.second }
         val best = ranked.firstOrNull() ?: return null
         return if (best.second >= threshold &&
             (ranked.size < 2 || best.second - ranked[1].second >= topMargin))
@@ -222,6 +351,8 @@ internal data class SpeakerEmbeddingObservation(
     val anchorId: String? = null,
     val queryEmbedding: FloatArray? = null,
     val speechRms: Double = 0.0,
+    val complementaryEmbedding: FloatArray? = null,
+    val levelEligibleAtObservation: Boolean = false,
 )
 
 internal data class SpeakerClusterResult(

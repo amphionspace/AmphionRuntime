@@ -55,6 +55,8 @@ internal class SpeakerDiarizationSession(
     private var decoratedTerminalPayload: SpeechRecognitionResult? = null
     private var recentObservations = mutableListOf<SpeakerEmbeddingObservation>()
     private val recentTurnQueries = mutableListOf<SpeakerTurnQuery>()
+    private data class PendingBoundaryRefinement(val value: DiarizationBoundaryRefinement, val evidenceEndTimeMs: Int)
+    private val recentRefinements = mutableListOf<PendingBoundaryRefinement>()
     private val publishedSpeakerIds = mutableSetOf<String>()
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
@@ -77,6 +79,8 @@ internal class SpeakerDiarizationSession(
         val contextEvidenceKey: String,
         val embedding: FloatArray,
         val endTimeMs: Int,
+        val complementaryEmbedding: FloatArray? = null,
+        val localQueries: List<DiarizationLocalIdentityQuery> = emptyList(),
     )
 
     init { require(maxSpeakers in 1..4) }
@@ -178,6 +182,7 @@ internal class SpeakerDiarizationSession(
         if (finished) return
         inferenceMs += window.result.inferenceMs
         inferenceEndMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt()
+        window.result.refinements.forEach { recentRefinements += PendingBoundaryRefinement(it, inferenceEndMs) }
         val channelIds = mutableMapOf<Int, String>()
         val channelConfidences = mutableMapOf<Int, Float>()
         val ownedStart = window.commitStartSample - window.windowStartSample + window.contentStartInWindowSample
@@ -210,11 +215,13 @@ internal class SpeakerDiarizationSession(
             val observation = SpeakerEmbeddingObservation(
                 embedding = embedding.embedding.copyOf(),
                 speechRms = embedding.speechRms,
+                levelEligibleAtObservation = embedding.speechRms > 0 && embedding.speechRms >= speakerLevelReference * 0.5,
                 durationMs = embedding.speechSamples * 1000 / SAMPLE_RATE,
                 onlineSpeakerId = assignment?.speakerId ?: "UNKNOWN",
                 endTimeMs = (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
                 evidenceKey = "${window.jobId}:${embedding.localSpeaker}",
                 queryEmbedding = embedding.queryEmbedding?.copyOf(),
+                complementaryEmbedding = embedding.complementaryEmbedding?.copyOf(),
             )
             recentObservations += observation
         }
@@ -231,7 +238,8 @@ internal class SpeakerDiarizationSession(
             val evidenceKey = if (segment.queryEmbedding == null) contextEvidenceKey else {
                 val key = "$contextEvidenceKey:t$segmentIndex"
                 recentTurnQueries += SpeakerTurnQuery(key, contextEvidenceKey,
-                    segment.queryEmbedding.copyOf(), (window.realEndSample * 1000 / SAMPLE_RATE).toInt())
+                    segment.queryEmbedding.copyOf(), (window.realEndSample * 1000 / SAMPLE_RATE).toInt(),
+                    segment.complementaryEmbedding?.copyOf(), segment.localQueries)
                 key
             }
             val primary = channelIds[segment.speaker] ?: "UNKNOWN"
@@ -309,6 +317,10 @@ internal class SpeakerDiarizationSession(
             it.speechRms > 0 && it.speechRms >= speakerLevelReference * 0.5 }
             .map { it.copy(onlineSpeakerId = "UNKNOWN", anchorId = committedRegistry.matchKnown(it.embedding)) }
         val clustered = globalClusterer.cluster(observations)
+        // Quiet evidence can corroborate identity without enrolling or labeling quiet speech.
+        val identitySupport = windowObservations.mapNotNull { observation ->
+            observation.queryEmbedding?.let { SpeakerIdentitySupport(observation.embedding, it) }
+        }
         val turnQueries = recentTurnQueries.filter { it.endTimeMs <= evidenceEndTime && it.endTimeMs > beginTime }
         val clusters = clustered.clusters.toMutableList()
         if (committedRegistry.speakerIds().isEmpty()) {
@@ -316,7 +328,12 @@ internal class SpeakerDiarizationSession(
             val firstSupported = clusters.indexOfFirst { cluster ->
                 cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs }
             }
-            if (firstSupported > 0) clusters.add(0, clusters.removeAt(firstSupported))
+            val firstOwnedIndex = observations.indexOfFirst { it.queryEmbedding != null }
+            // Retain an initial voice that also leads coherent evidence; later
+            // repeated short contexts must not take the first-role exemption.
+            val leadingOwnsFirst = firstOwnedIndex >= 0 &&
+                clusters.firstOrNull()?.indexes?.contains(firstOwnedIndex) == true
+            if (firstSupported > 0 && !leadingOwnsFirst) clusters.add(0, clusters.removeAt(firstSupported))
         }
         val remap = mutableMapOf<String, String>()
         // Clear ineligible evidence instead of retaining an earlier provisional ID.
@@ -334,11 +351,47 @@ internal class SpeakerDiarizationSession(
                 // evidence from an owned output slice before becoming a query target.
                 val canEnroll = cluster.indexes.any { observations[it].durationMs >= minAdditionalSpeakerSpeechMs } &&
                     cluster.indexes.any { observations[it].queryEmbedding != null }
-                committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs),
+                val assignment = committedRegistry.assignBatch(listOf(cluster.centroid), listOf(cluster.durationMs),
                     endTime, listOf(canEnroll),
-                    listOf(cluster.indexes.mapNotNull { observations[it].queryEmbedding }))[0].speakerId
+                    listOf(cluster.indexes.mapNotNull { observations[it].queryEmbedding }), identitySupport)[0]
+                if (assignment.created) committedRegistry.bindComplementaryProfile(assignment.speakerId,
+                    cluster.indexes.map { observations[it].complementaryEmbedding },
+                    cluster.indexes.map { observations[it].durationMs })
+                assignment.speakerId
             }
             cluster.indexes.forEach { remap[observations[it].evidenceKey] = id }
+        }
+        // Preserve independently admitted new voices when a later loud person
+        // raises the reference. Existing profiles cannot change through this path.
+        val recoveredNovelKeys = mutableSetOf<String>()
+        val firstReference = observations.firstOrNull {
+            it.queryEmbedding != null && remap[it.evidenceKey] != "UNKNOWN"
+        }
+        val referenceEstablishedAt = if (publishedSpeakerIds.isNotEmpty()) beginTime
+            else firstReference?.endTimeMs ?: Int.MAX_VALUE
+        val historicalEligible = windowObservations.filter {
+            it.levelEligibleAtObservation && it.endTimeMs >= referenceEstablishedAt &&
+                it.speechRms < speakerLevelReference * 0.5
+        }
+        if (historicalEligible.isNotEmpty() && committedRegistry.speakerIds().size < maxSpeakers) {
+            val historicalClusters = globalClusterer.cluster(historicalEligible)
+            for (cluster in historicalClusters.clusters) {
+                val members = cluster.indexes.map { historicalEligible[it] }
+                val queries = members.mapNotNull { it.queryEmbedding }
+                if (members.none { it.durationMs >= minAdditionalSpeakerSpeechMs } || queries.isEmpty()) continue
+                val preview = committedRegistry.fork().assignBatch(listOf(cluster.centroid),
+                    listOf(cluster.durationMs), endTime, listOf(true), listOf(queries), identitySupport)[0]
+                if (!preview.created) continue
+                val assignment = committedRegistry.assignBatch(listOf(cluster.centroid),
+                    listOf(cluster.durationMs), endTime, listOf(true), listOf(queries), identitySupport)[0]
+                if (!assignment.created) continue
+                committedRegistry.bindComplementaryProfile(assignment.speakerId,
+                    members.map { it.complementaryEmbedding }, members.map { it.durationMs })
+                members.forEach {
+                    remap[it.evidenceKey] = assignment.speakerId
+                    recoveredNovelKeys += it.evidenceKey
+                }
+            }
         }
         turnQueries.forEach { remap[it.evidenceKey] = remap[it.contextEvidenceKey] ?: "UNKNOWN" }
         val established = publishedSpeakerIds.toMutableSet()
@@ -352,14 +405,62 @@ internal class SpeakerDiarizationSession(
                 queryConfidences[observation.evidenceKey] = match.confidence
             }
         }
-        val eligibleKeys = observations.map { it.evidenceKey }.toSet()
+        val eligibleKeys = observations.map { it.evidenceKey }.toSet() + recoveredNovelKeys
         for (query in turnQueries) {
             remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?: "UNKNOWN"
             queryConfidences[query.contextEvidenceKey]?.let { queryConfidences[query.evidenceKey] = it }
-            if (query.contextEvidenceKey !in eligibleKeys) continue
+            if (query.contextEvidenceKey !in eligibleKeys) {
+                val context = windowObservations.find { it.evidenceKey == query.contextEvidenceKey }
+                val match = context?.let { committedRegistry.matchQuietQuery(query.embedding, it.embedding, established) }
+                if (match != null) {
+                    remap[query.evidenceKey] = match.speakerId
+                    queryConfidences[query.evidenceKey] = match.confidence
+                }
+                continue
+            }
             val match = committedRegistry.matchQuery(query.embedding, established) ?: continue
             remap[query.evidenceKey] = match.speakerId
             queryConfidences[query.evidenceKey] = match.confidence
+        }
+        for (query in turnQueries) {
+            if (remap[query.evidenceKey] != "UNKNOWN" || query.contextEvidenceKey !in eligibleKeys) continue
+            val secondaryQuery = query.complementaryEmbedding ?: continue
+            val context = windowObservations.find { it.evidenceKey == query.contextEvidenceKey } ?: continue
+            val secondaryContext = context.complementaryEmbedding ?: continue
+            val match = committedRegistry.matchComplementaryQuery(query.embedding, context.embedding,
+                secondaryQuery, secondaryContext, established) ?: continue
+            remap[query.evidenceKey] = match.speakerId
+            queryConfidences[query.evidenceKey] = match.confidence
+        }
+        // The long quiet context only proposes a known identity. Local PCM must
+        // independently confirm every newly named output slice.
+        for (query in turnQueries) {
+            if (remap[query.evidenceKey] != "UNKNOWN" || query.contextEvidenceKey in eligibleKeys ||
+                query.complementaryEmbedding == null || query.localQueries.isEmpty()) continue
+            val context = windowObservations.find { it.evidenceKey == query.contextEvidenceKey } ?: continue
+            val complementaryContext = context.complementaryEmbedding ?: continue
+            val proposed = committedRegistry.matchComplementaryQuery(query.embedding, context.embedding,
+                query.complementaryEmbedding, complementaryContext, established) ?: continue
+            for (local in query.localQueries) {
+                val match = committedRegistry.matchLocalQuery(local.embedding, local.complementaryEmbedding, established) ?: continue
+                if (match.speakerId != proposed.speakerId) continue
+                val from = maxOf(beginTime, (local.startSample * 1000.0 / SAMPLE_RATE).roundToInt())
+                val through = minOf(endTime, (local.endSample * 1000.0 / SAMPLE_RATE).roundToInt())
+                transcript.resolveUnknownSpan(query.evidenceKey, from, through, match.speakerId, match.confidence, remap)
+            }
+        }
+        for ((refinement, evidenceThrough) in recentRefinements) {
+            val start = (refinement.startSample * 1000.0 / SAMPLE_RATE).roundToInt()
+            val cut = (refinement.cutSample * 1000.0 / SAMPLE_RATE).roundToInt()
+            val end = (refinement.endSample * 1000.0 / SAMPLE_RATE).roundToInt()
+            if (start < beginTime || end > endTime || evidenceThrough > evidenceEndTime) continue
+            val left = committedRegistry.matchComplementaryQuery(refinement.leftEmbedding, refinement.leftEmbedding,
+                refinement.leftComplementaryEmbedding, refinement.leftComplementaryEmbedding, established) ?: continue
+            val right = committedRegistry.matchComplementaryQuery(refinement.rightEmbedding, refinement.rightEmbedding,
+                refinement.rightComplementaryEmbedding, refinement.rightComplementaryEmbedding, established) ?: continue
+            if (left.speakerId == right.speakerId) continue
+            transcript.refineSingleSpeakerSpan(start, cut, end, left.speakerId, right.speakerId,
+                left.confidence, right.confidence, remap)
         }
         transcript.applyEvidenceRemap(remap, 0, queryConfidences)
         finalSpeakerCount = committedRegistry.speakerIds().size
@@ -368,6 +469,7 @@ internal class SpeakerDiarizationSession(
         val result = buildResultLocked(degradedReason, degradedMessage, endTime, beginTime).copy(isSessionFinal = isSessionFinal)
         collectOutputSpeakerIds(beginTime, endTime, emptyMap(), publishedSpeakerIds)
         transcript.commitThrough(endTime)
+        recentRefinements.removeAll { it.value.startSample * 1000.0 / SAMPLE_RATE < endTime }
         val needed = transcript.allTurns().flatMap { listOfNotNull(it.evidenceKey) + it.secondaryEvidenceKeys }.toMutableSet()
         recentTurnQueries.removeAll { it.endTimeMs <= endTime && it.evidenceKey !in needed }
         recentTurnQueries.forEach { needed += it.contextEvidenceKey }
@@ -400,7 +502,7 @@ internal class SpeakerDiarizationSession(
         endTime: Int = (totalSamples * 1000 / SAMPLE_RATE).toInt(),
         beginTime: Int = commitClock.beginTime(),
     ): SpeakerDiarizationResult {
-        val utterances = transcript.finalUtterances(endTime).map {
+        val utterances = transcript.sentenceUtterances(endTime).map {
             DiarizedUtterance(
                 it.utteranceId,
                 it.rawText,
@@ -560,7 +662,7 @@ internal class DegradedSpeakerDiarizationSession(
         beginTime: Int = commitClock.beginTime(),
     ) = SpeakerDiarizationResult(
         windowIndex = windowIndex, windowBeginTime = beginTime, windowEndTime = endTime,
-        utterances = transcript.finalUtterances(endTime).map {
+        utterances = transcript.sentenceUtterances(endTime).map {
             DiarizedUtterance(
                 it.utteranceId,
                 it.rawText,

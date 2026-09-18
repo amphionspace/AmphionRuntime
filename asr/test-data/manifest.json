@@ -27,6 +27,344 @@
         "aishell3_test_hotwords_500_supervisions_punc_hotwords.jsonl.gz",
         "audio"
       ]
+    },
+    "dingqiao-meeting-20260918": {
+      "description": "Five customer-authorized offline meeting recordings with MOSS, human adjudication and scoped sentence-level acceptance evidence",
+      "license": "customer-authorized-internal-evaluation-only",
+      "source": "User-provided recordings; explicit OBS acceptance-data upload authorization on 2026-09-18",
+      "redistribution": "team-internal-only; no public redistribution",
+      "object": "dingqiao-meeting-20260918-e241c6b5ac202f5ce63eaeef1a9af733c1784b4790ec62ed850e6669173a9b8d.zip",
+      "archive_type": "zip",
+      "archive_root": "dingqiao-meeting-20260918",
+      "destination": "dingqiao-meeting-20260918",
+      "size": 26011688,
+      "sha256": "e241c6b5ac202f5ce63eaeef1a9af733c1784b4790ec62ed850e6669173a9b8d",
+      "required_paths": [
+        "SOURCE.md",
+        "samples.json",
+        "files.json",
+        "audio",
+        "annotations/human-final.json",
+        "annotations/moss",
+        "evidence"
+      ],
+      "files": [
+        {
+          "path": "SOURCE.md",
+          "size": 1575,
+          "sha256": "d149edf029616ccdb40411eba2ea73fb2eb0f11bfd536ef5ddbd9940b5fb2718"
+        },
+        {
+          "path": "annotations/control-reference-correction/V-adjudication.json",
+          "size": 1224,
+          "sha256": "3f5973dcc332bb43d4387e13ff0db4e00d180e68e2abd8e9411052f50355fb4b"
+        },
+        {
+          "path": "annotations/control-reference-correction/V-manifest.json",
+          "size": 1254,
+          "sha256": "ec093493d77c7b2fd5c65dc99c698156bd8dc5b1d6d528103d8643a0ba01aae8"
+        },
+        {
+          "path": "annotations/human-final.json",
+          "size": 4835,
+          "sha256": "af34773a53c16b6c18c66d11f1b6bf1f4e182b85419b611f8604a123b737e782"
+        },
+        {
+          "path": "annotations/human-history/new-offline/Q-R-S-T-adjudication.json",
+          "size": 1727,
+          "sha256": "f8ccddf89727b076f3d941cd676c50d00d905ffcd0574bd0e7a006ec6c15a78c"
+        },
+        {
+          "path": "annotations/human-history/new-offline/U-adjudication.json",
+          "size": 625,
+          "sha256": "fe9e680e2fea285014c42b7346def7afc73b6162122876db6f06cb73ad88c74a"
+        },
+        {
+          "path": "annotations/human-history/new-offline/W-adjudication.json",
+          "size": 778,
+          "sha256": "980c5c7f440c27913d6a59549cc3b745ea025c05999a97a9cd24437d110beb3b"
+        },
+        {
+          "path": "annotations/human-history/original-four/G-adjudication-v2.json",
+          "size": 473,
+          "sha256": "f354d4973e5e0cd3999f76a74bf225a2d663227a4b4e7b4747090b9d3b21fe8e"
+        },
+        {
+          "path": "annotations/human-history/original-four/G-adjudication.json",
+          "size": 465,
+          "sha256": "5ff87e7946da62ba1f40914c0a604b4d18bba8b297b9c4a8165d436fbb320487"
+        },
+        {
+          "path": "annotations/human-history/original-four/H-I-adjudication.json",
+          "size": 500,
+          "sha256": "41e1c3dd976d063aaa8d62c471c5177defbe74857a6d307f79f5cf6e3279f117"
+        },
+        {
+          "path": "annotations/human-history/original-four/J-adjudication.json",
+          "size": 198,
+          "sha256": "7d9a108aa6e17d3edf03c3f080e13c0fe9a6a4beb70c4e818a8ea66546a018db"
+        },
+        {
+          "path": "annotations/human-history/original-four/K-L-M-adjudication.json",
+          "size": 378,
+          "sha256": "ac7a327c0a5a2a8afe2c13867eb3436a102caf6f3c1141c03b66d6049772ceae"
+        },
+        {
+          "path": "annotations/human-history/original-four/N-adjudication.json",
+          "size": 217,
+          "sha256": "e5f82bbc51f1d0570786c68545ee36650f349b4718ff874bf88583cd3ae81726"
+        },
+        {
+          "path": "annotations/human-history/original-four/O-adjudication.json",
+          "size": 188,
+          "sha256": "a811baa298555a20df49a879db7881aa1dad342ee26860f5f9ead92d5e31411c"
+        },
+        {
+          "path": "annotations/human-history/original-four/P-adjudication.json",
+          "size": 1610,
+          "sha256": "7e300b3317785b866bb45177763adb85191dae78f0a494d0ef8056e99eb88e28"
+        },
+        {
+          "path": "annotations/human-history/original-four/adjudication-followup.json",
+          "size": 472,
+          "sha256": "6394299c96464dc0708f14b7aa94d415f5680d98113a8acf6e67fd7b94b9147e"
+        },
+        {
+          "path": "annotations/human-history/original-four/adjudication.json",
+          "size": 1498,
+          "sha256": "48f1b03a1d25e9e6c8d556e61e6815c5af978b35bfecfe1c43559ff2f3602285"
+        },
+        {
+          "path": "annotations/human-history/original-four/initial-identity.json",
+          "size": 323,
+          "sha256": "b155b1202b359a41507fbbddf693da11aaf8ca4e9648e20d89f177ab81ea597d"
+        },
+        {
+          "path": "annotations/moss/095700-039/raw_transcript.txt",
+          "size": 475,
+          "sha256": "c37b84e419c3022225ec1d22866342441864eef4d8205b5f1809210e0e921892"
+        },
+        {
+          "path": "annotations/moss/095700-039/run.json",
+          "size": 725,
+          "sha256": "ba5c15b5e090154b136d776e0d6843af02c8a8b86eb4485fefa2b854f6f71dda"
+        },
+        {
+          "path": "annotations/moss/095700-039/segments.json",
+          "size": 1522,
+          "sha256": "127d5cdf6ef03f0c2e9c01641389096e2ff07f4b528cf4cbbe4321e30d15cfe0"
+        },
+        {
+          "path": "annotations/moss/095700-039/summary.json",
+          "size": 909,
+          "sha256": "4fc5348297380ebf90ae0d820ab8ed700c4ba59375153f1f1ea29f05b0e17a23"
+        },
+        {
+          "path": "annotations/moss/100350-257/raw_transcript.txt",
+          "size": 2383,
+          "sha256": "6e690d89f0be5b948c0861196049e54035b6d8abd862655fc37ec36608148aeb"
+        },
+        {
+          "path": "annotations/moss/100350-257/run.json",
+          "size": 727,
+          "sha256": "8cced6224c235de3f28e9e772b270fc94d69bb07b77577bf8ca2efa2e1e84138"
+        },
+        {
+          "path": "annotations/moss/100350-257/segments.json",
+          "size": 6388,
+          "sha256": "493e70fc9c59c49f91b1c952b15dfa7d936967ece79fed816131de3043a262dc"
+        },
+        {
+          "path": "annotations/moss/100350-257/summary.json",
+          "size": 2818,
+          "sha256": "0becd6ca57cd9c999324e5f93c71422f9ffe2026555f042fc646f1913dde7293"
+        },
+        {
+          "path": "annotations/moss/102010-230/raw_transcript.txt",
+          "size": 564,
+          "sha256": "86d281ebb693ba0959635328c6e7eefcce08b2f88c1013534b57a5edc3369dbd"
+        },
+        {
+          "path": "annotations/moss/102010-230/run.json",
+          "size": 723,
+          "sha256": "5f2ef418167698760e1d141dc8e84014f8fddf6d1d633ba39cf11c4722ae1b11"
+        },
+        {
+          "path": "annotations/moss/102010-230/segments.json",
+          "size": 1872,
+          "sha256": "e40dc3c70d8921a83aa6b367df34de7522e696994332f09bc48547362445dc9a"
+        },
+        {
+          "path": "annotations/moss/102010-230/summary.json",
+          "size": 996,
+          "sha256": "d5418d9232537e9a4bf366703da00ca9b5f390104d40d54af632fa3de65645e8"
+        },
+        {
+          "path": "annotations/moss/111223-816/raw_transcript.txt",
+          "size": 1251,
+          "sha256": "fdac9cc9a5344cdfa18804c72b6668415e6e983b71df6782ce4a0df0ebb1195e"
+        },
+        {
+          "path": "annotations/moss/111223-816/run.json",
+          "size": 725,
+          "sha256": "1296ddd10f848330c15aeb3da67af8f7651cc6507fad8f1eeb91889df5cae48a"
+        },
+        {
+          "path": "annotations/moss/111223-816/segments.json",
+          "size": 3081,
+          "sha256": "7f12d7355302671c2e820a4a1720c70b59687661e719edb73e07387ab1941f7d"
+        },
+        {
+          "path": "annotations/moss/111223-816/summary.json",
+          "size": 1685,
+          "sha256": "1f2c8947b53bcf00cff93a9bbba89c105b57e00734b1ff0c0e424f49076f97bd"
+        },
+        {
+          "path": "annotations/moss/new-offline-environment.json",
+          "size": 7283,
+          "sha256": "26af832e1baac4d028d010e6ad3e047cb5cd8de97f79d9c6242c55e8e7a63d8d"
+        },
+        {
+          "path": "annotations/moss/original-four-environment.json",
+          "size": 7283,
+          "sha256": "26af832e1baac4d028d010e6ad3e047cb5cd8de97f79d9c6242c55e8e7a63d8d"
+        },
+        {
+          "path": "annotations/moss/recording-a/raw_transcript.txt",
+          "size": 2453,
+          "sha256": "613c29a237f1a30f73eff865e99ee1833a72daf11f7e1ef0d7e850cdb9574ae5"
+        },
+        {
+          "path": "annotations/moss/recording-a/run.json",
+          "size": 606,
+          "sha256": "592ba1cca1b19a2bc72e7e7bdf0fc7320dced236e6e8d29572248458fb5dcf60"
+        },
+        {
+          "path": "annotations/moss/recording-a/segments.json",
+          "size": 5327,
+          "sha256": "becb159a6dba137bc7197546a54a138156c988b09624fbd6adadc0b991ddddde"
+        },
+        {
+          "path": "annotations/moss/recording-a/summary.json",
+          "size": 2874,
+          "sha256": "b9a5d2c0dfefbcd3c9d46170154a94c8daa5c5e44486b82d16710982ba41ce68"
+        },
+        {
+          "path": "audio/meetingMinutes-20260918-095700-039.wav",
+          "size": 3471404,
+          "sha256": "39f9c84b4948953b5a696a0aea7749f79283d10829f76630383831fe9be1066e"
+        },
+        {
+          "path": "audio/meetingMinutes-20260918-100350-257.wav",
+          "size": 11809964,
+          "sha256": "926d4a80d7ce4f6c47f671d2200033fe8f57f1934b4ab83011551e64e8f12a83"
+        },
+        {
+          "path": "audio/meetingMinutes-20260918-102010-230.wav",
+          "size": 6424364,
+          "sha256": "696814b2254cb1c62eca2adb515a2c3a06be26eddfdaf35293c6bbf54a44d8dc"
+        },
+        {
+          "path": "audio/meetingMinutes-20260918-111223-816.wav",
+          "size": 5252524,
+          "sha256": "3cfc8ad95755ce6190d41e543f23615d11e34f8ae450320d3514fcc1a94d73b4"
+        },
+        {
+          "path": "audio/会议-离线-无角色4.wav",
+          "size": 5382444,
+          "sha256": "180944f0fcbcce93cd41b2316345bbe79e68880e28b45674db9574916fdcfbc5"
+        },
+        {
+          "path": "evidence/acoustic-candidate/095700-039.json",
+          "size": 8180,
+          "sha256": "aa281dc0d5564e32911b65c9e0127c40d4eb7edd96ac105c3e173ae00bf8722e"
+        },
+        {
+          "path": "evidence/acoustic-candidate/100350-257.json",
+          "size": 32401,
+          "sha256": "bedac38aa9067c66920750275a16a5199376cb76d199bbc4dcad0d15f209f39a"
+        },
+        {
+          "path": "evidence/acoustic-candidate/102010-230.json",
+          "size": 12725,
+          "sha256": "16659a885baaecf4c73dde7c4267cbf58549c7de9b1614fb4dc3a5c3621717dc"
+        },
+        {
+          "path": "evidence/acoustic-candidate/111223-816.json",
+          "size": 22649,
+          "sha256": "dad8c5653d4d2d783c8eef901eccf0ecd0e58188a13142b07020373fa1158995"
+        },
+        {
+          "path": "evidence/acoustic-candidate/recording-a.json",
+          "size": 29989,
+          "sha256": "276e53bc48071495edf75c0a1f2ff07b89c84793ce3450f53c8e923ca45dedfc"
+        },
+        {
+          "path": "evidence/acoustic-provenance.json",
+          "size": 2239,
+          "sha256": "d73c25b6aeff691b26f9d7399a7c5ad39f75e12c1a28986517ab6f9b46b6960b"
+        },
+        {
+          "path": "evidence/cached-controls-assessment.json",
+          "size": 17728,
+          "sha256": "25a4472f1f7bf73c10d790a93054b8ae307f133c5a1b8c4416452ee62da53808"
+        },
+        {
+          "path": "evidence/new-offline-device-assessment.json",
+          "size": 5290,
+          "sha256": "42f803e43777fd035152e1e25ee8d46e114b0aefdc0937c8f7b14e50667b2b79"
+        },
+        {
+          "path": "evidence/sentence-build-identity.json",
+          "size": 2576,
+          "sha256": "616395a019f1a34574cc8309186261e4a2dfc347adc293e2d936f9d3d6e92d72"
+        },
+        {
+          "path": "evidence/sentence-comparison.json",
+          "size": 3637,
+          "sha256": "3867b5103f07d0cca9506b8adc61e58c135d21892bd1db4ef14b6e525418dc5e"
+        },
+        {
+          "path": "evidence/sentence-projection/095700-039.json",
+          "size": 3001,
+          "sha256": "dec76202352389ee67738edd17bc70503d825b3f4c9da4a14a2df3ad2fd96d82"
+        },
+        {
+          "path": "evidence/sentence-projection/100350-257.json",
+          "size": 11980,
+          "sha256": "c1a488d979a7695425c76e04dc0053d44a89b0836b89a9e7a8498268bc70b49f"
+        },
+        {
+          "path": "evidence/sentence-projection/102010-230.json",
+          "size": 8775,
+          "sha256": "74af1d3859581f59ffdd4fca3fe3d51f48863190fce7a1f6f0962197c075e98b"
+        },
+        {
+          "path": "evidence/sentence-projection/111223-816.json",
+          "size": 11619,
+          "sha256": "9beb52084e33a43bccd6c7e7d3070d4ddf5ae70a35b0bfa2cfe3ea882bea75e2"
+        },
+        {
+          "path": "evidence/sentence-projection/recording-a.json",
+          "size": 12831,
+          "sha256": "aefad81e0e60209e4c7bc78cc070700e5a5c057a2b124813ea32b8f70ca486d0"
+        },
+        {
+          "path": "history/investigation-private.md",
+          "size": 77519,
+          "sha256": "89d3857e7945b4759b94806ee9d8e13660c0bdce64d2877dc4df6cf915c55494"
+        },
+        {
+          "path": "samples.json",
+          "size": 2140,
+          "sha256": "1f5108b02fb9f99136be44e7efa40be4c1abacf8e2cfe8951a3ec6bf7e2c94d0"
+        },
+        {
+          "path": "files.json",
+          "size": 10478,
+          "sha256": "2911785916a001b1b0e16a8eea808e2d057d16f68464f98fd3fd2d6ad92e0296"
+        }
+      ]
     }
   }
 }

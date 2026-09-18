@@ -96,6 +96,51 @@ internal class DiarizationTranscriptState {
         }
     }
 
+    fun resolveUnknownSpan(evidenceKey: String, beginTime: Int, endTime: Int, speakerId: String,
+        confidence: Float, remap: Map<String, String>) {
+        if (endTime <= beginTime) return
+        val revised = turns.flatMap { turn ->
+            if (turn.evidenceKey != evidenceKey || (remap[evidenceKey] ?: turn.speakerId) != "UNKNOWN" ||
+                turn.overlap || turn.secondaryEvidenceSpeakerIds.isNotEmpty() ||
+                overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) <= 0) listOf(turn)
+            else {
+                val start = maxOf(beginTime, turn.beginTime)
+                val end = minOf(endTime, turn.endTime)
+                buildList {
+                    if (turn.beginTime < start) add(turn.copy(endTime = start))
+                    add(turn.copy(beginTime = start, endTime = end, speakerId = speakerId, confidence = confidence, evidenceKey = null))
+                    if (end < turn.endTime) add(turn.copy(beginTime = end))
+                }
+            }
+        }
+        turns.clear()
+        turns.addAll(revised)
+    }
+
+    // Only called for evidence available before this unpublished window commits.
+    fun refineSingleSpeakerSpan(beginTime: Int, cutTime: Int, endTime: Int,
+        leftId: String, rightId: String, leftConfidence: Float, rightConfidence: Float,
+        remap: Map<String, String>) {
+        if (cutTime <= beginTime || cutTime >= endTime || leftId == rightId) return
+        val covered = turns.filter { overlapMs(beginTime, endTime, it.beginTime, it.endTime) > 0 }
+        val ids = covered.map { remap[it.evidenceKey] ?: it.speakerId }.toSet()
+        if (ids.size != 1 || (leftId !in ids && rightId !in ids) || "UNKNOWN" in ids ||
+            covered.any { it.overlap || it.secondaryEvidenceSpeakerIds.isNotEmpty() }) return
+        val revised = turns.flatMap { turn ->
+            val cuts = (listOf(turn.beginTime, turn.endTime) + listOf(beginTime, cutTime, endTime)
+                .filter { it > turn.beginTime && it < turn.endTime }).sorted()
+            cuts.zipWithNext { start, end ->
+                if (start >= beginTime && end <= endTime) turn.copy(beginTime = start, endTime = end,
+                    speakerId = if (start < cutTime) leftId else rightId,
+                    confidence = if (start < cutTime) leftConfidence else rightConfidence,
+                    evidenceKey = null)
+                else turn.copy(beginTime = start, endTime = end)
+            }
+        }
+        turns.clear()
+        turns.addAll(revised)
+    }
+
     fun applyEvidenceRemap(remap: Map<String, String>, fromTime: Int = 0,
         confidences: Map<String, Float> = emptyMap()): List<DiarizationTranscriptUpdate> {
         turns.filter { it.endTime >= fromTime }.forEach { turn ->
@@ -120,6 +165,7 @@ internal class DiarizationTranscriptState {
         return refreshUtterances { it.endTime >= fromTime }
     }
 
+    // Internal alignment evidence for bounded UNKNOWN backfill, never public pieces.
     fun finalUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> = utterances.filter { it.audioEndTime <= throughTime }.flatMap { utterance ->
         val boundaries = if (utterance.tokens.isNotEmpty() &&
             utterance.tokens.size == utterance.tokenTimesMs.size
@@ -132,8 +178,42 @@ internal class DiarizationTranscriptState {
         }
     }
 
+    fun sentenceUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> {
+        val aligned = finalUtterances(throughTime)
+        return utterances.filter { it.audioEndTime <= throughTime }.map { utterance ->
+            val parts = aligned.filter { it.sourceUtteranceId == utterance.utteranceId }
+            val covered = turns.filter { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
+            val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
+            val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
+            val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
+            val unknown = covered.filter { it.speakerId == "UNKNOWN" }.sortedBy { it.beginTime }
+            var unknownBegin = -1
+            var unknownEnd = -1
+            var bounded = true
+            for (turn in unknown) {
+                val begin = maxOf(utterance.beginTime, turn.beginTime)
+                val end = minOf(utterance.endTime, turn.endTime)
+                if (begin > unknownEnd) unknownBegin = begin
+                unknownEnd = maxOf(unknownEnd, end)
+                if (unknownEnd - unknownBegin > 2_500) bounded = false
+            }
+            val single = known.size == 1 && !overlap && bounded && parts.isNotEmpty() &&
+                parts.all { it.speakerId == known.single() }
+            val inferred = single && (unknown.isNotEmpty() || parts.any { it.speakerInferred })
+            DiarizedTranscriptUtterance(
+                utteranceId = utterance.utteranceId, sourceUtteranceId = utterance.utteranceId,
+                rawText = utterance.rawText, text = utterance.text,
+                beginTime = utterance.beginTime, endTime = utterance.endTime,
+                speakerId = if (single) known.single() else "UNKNOWN",
+                secondarySpeakerIds = if (single) emptyList() else participants.toList(),
+                confidence = if (single && !inferred) parts.minOf { it.confidence } else 0f,
+                overlap = overlap, speakerInferred = inferred,
+            )
+        }
+    }
+
     fun commitThrough(endTime: Int): List<DiarizedTranscriptUtterance> {
-        val result = finalUtterances(endTime)
+        val result = sentenceUtterances(endTime)
         utterances.removeAll { it.audioEndTime <= endTime }
         val retainFrom = minOf(endTime, utterances.minOfOrNull { it.beginTime } ?: endTime)
         val retained = turns.filter { it.endTime > retainFrom }.map {
@@ -157,23 +237,23 @@ internal class DiarizationTranscriptState {
     )
 
     private fun assignmentFor(beginTime: Int, endTime: Int): Assignment {
-        val durations = linkedMapOf<String, Int>()
-        val secondary = sortedSetOf<String>()
-        var covered = 0
+        val participants = sortedSetOf<String>()
+        var overlap = false
+        var confidence = 1f
         turns.forEach { turn ->
             val duration = overlapMs(beginTime, endTime, turn.beginTime, turn.endTime)
             if (duration <= 0) return@forEach
-            durations[turn.speakerId] = (durations[turn.speakerId] ?: 0) + duration
-            covered += duration
-            secondary += turn.secondarySpeakerIds
+            participants += turn.speakerId
+            participants += turn.secondarySpeakerIds
+            overlap = overlap || turn.overlap || turn.secondarySpeakerIds.isNotEmpty()
+            confidence = minOf(confidence, turn.confidence)
         }
-        val best = durations.maxByOrNull { it.value }
-        val speakerId = best?.key ?: "UNKNOWN"
-        secondary.remove(speakerId)
+        val single = participants.size == 1 && "UNKNOWN" !in participants && "UNKNOWN_SECONDARY" !in participants && !overlap
+        val speakerId = if (single) participants.single() else "UNKNOWN"
         return Assignment(
             speakerId,
-            secondary.toList(),
-            if (covered <= 0) 0f else (best?.value ?: 0).toFloat().div(covered).coerceIn(0f, 1f),
+            if (single) emptyList() else participants.toList(),
+            if (single) confidence else 0f,
         )
     }
 

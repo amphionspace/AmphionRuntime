@@ -448,7 +448,7 @@ class MainActivity : AppCompatActivity() {
                                 result.speakerIndex,
                                 result.secondarySpeakerIndexes,
                                 result.speakerConfidence,
-                                result.secondarySpeakerIndexes.isNotEmpty(),
+                                false, // A sentence participant list does not prove simultaneous speech.
                                 meetingBeginTime,
                             )
                             renderMeetingLines()
@@ -477,7 +477,7 @@ class MainActivity : AppCompatActivity() {
                     speakerIndex = update.speakerIndex,
                     secondarySpeakerIndexes = update.secondarySpeakerIndexes,
                     confidence = update.confidence,
-                    overlap = update.secondarySpeakerIndexes.isNotEmpty(),
+                    overlap = false, // Only the finalized acoustic overlap flag establishes overlap.
                 )
                 renderMeetingLines()
             }
@@ -1092,9 +1092,11 @@ class MainActivity : AppCompatActivity() {
         lines.forEach { line ->
             if (finalLines.isNotEmpty()) finalLines.append('\n')
             val labelStart = finalLines.length
-            val known = line.speakerParts.map { it.speakerIndex }.filter { it >= 0 }.distinct()
+            val known = (listOf(line.speakerIndex) + line.secondarySpeakerIndexes +
+                line.speakerParts.map { it.speakerIndex }).filter { it >= 0 }.distinct()
             val speaker = when {
                 known.size > 1 -> getString(R.string.diarization_multiple_speakers)
+                line.speakerIndex < 0 || line.overlap -> speakerLabel(-1)
                 known.size == 1 -> speakerLabel(known.single())
                 else -> speakerLabel(line.speakerIndex)
             }
@@ -1105,7 +1107,7 @@ class MainActivity : AppCompatActivity() {
             if (line.speakerParts.any { it.speakerInferred }) {
                 finalLines.append(" · ").append(getString(R.string.diarization_inferred))
             }
-            if (line.overlap || line.secondarySpeakerIndexes.isNotEmpty()) {
+            if (line.overlap) {
                 finalLines.append(" · ").append(getString(R.string.diarization_overlap))
             }
             val finalSpeaker = line.utteranceId in finalizedUtteranceIds

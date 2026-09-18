@@ -64,6 +64,9 @@ data class SpeakerDiarizationUpdate(
     val confidence: Float = 0f,
 )
 
+/** One intact ASR final, potentially with multiple speakers. When speakerIndex is -1,
+ * secondarySpeakerIndexes lists observed participants, not a confirmed text owner.
+ * Multiple speakers or overlap keep confidence 0; speakerTurns retains acoustic intervals. */
 data class DiarizedUtterance(
     val utteranceId: String = "",
     val rawText: String = "",
