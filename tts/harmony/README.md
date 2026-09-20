@@ -78,17 +78,19 @@ LitsTtsSdk\HarmonyOS\AmphionRuntime
 node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-export\dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop\0.1.0 --out-dir .\verification\out --text "Hello world." --mode en-US
 ```
 
-4. 设置构建环境：
+4. 按 [工具链说明](../../asr/tools/HARMONY_TOOLCHAIN.md) 安装 DevEco CLI、独立 CLT 与 JDK 17，再设置构建环境：
 
 ```powershell
-$env:DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk"
-$env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
+$env:DEVECO_CLI_CLT_PATH="C:\Tools\command-line-tools"
+$env:DEVECO_CLI_STUDIO_PATH=$null
+$env:JAVA_HOME="C:\Tools\jdk-17"
+$env:DEVECO_CLI_DISABLE_TELEMETRY="1"
 ```
 
 5. 构建 HAR：
 
 ```powershell
-& "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat" --mode module -p product=default -p module=sdk@default assembleHar --analyze=normal --parallel --incremental --no-daemon
+devecocli build --product default --modules sdk@default --build-mode debug
 ```
 
 成功后产物在：

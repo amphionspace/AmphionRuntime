@@ -19,12 +19,13 @@ if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
   exit 1
 fi
 
+source "$SCRIPT_DIR/harmony_env.sh"
+
 _resolve_ohos_native() {
   local d
   for d in \
     "${OHOS_SDK_NATIVE_DIR:-}" \
     "${DEVECO_SDK_HOME:-}/default/openharmony/native" \
-    "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native" \
     "$HOME/Library/Huawei/Sdk/default/openharmony/native" \
     "$HOME/Library/OpenHarmony/Sdk/default/openharmony/native" \
     ; do

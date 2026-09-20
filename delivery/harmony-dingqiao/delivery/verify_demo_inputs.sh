@@ -15,10 +15,7 @@ BUNDLE_NAME="com.amphion.asr.harmony.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 ZH_EN_ONLY=false
-DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
-HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
-JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
-JAVA_BIN="${JAVA_BIN:-$DEVECO_HOME/jbr/Contents/Home/bin/java}"
+source "$REPO_ROOT/asr/tools/harmony_env.sh"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 VERIFY_DIR=""
 ZH_EN_ONLY=false
