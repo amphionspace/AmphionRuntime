@@ -26,11 +26,7 @@ if [[ -n "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" &&
   echo "[ERROR] approved target-speaker model SHA-256 must be 64 hexadecimal characters" >&2
   exit 2
 fi
-DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
-NODE="$DEVECO_HOME/tools/node/bin/node"
-HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
-OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
-JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
+source "$REPO_ROOT/asr/tools/harmony_env.sh"
 WORK=""
 
 cleanup() {
@@ -296,9 +292,6 @@ fi
 }
 
 if ! (
-  export PATH="$DEVECO_HOME/tools/node/bin:$PATH"
-  export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
-  export JAVA_HOME="$JAVA_HOME_VALUE"
   cd "$CUSTOMER_PROJECT"
   "$NODE" "$HVIGOR" assembleHap --mode module \
     -p product=default \

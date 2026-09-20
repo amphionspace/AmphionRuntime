@@ -1,5 +1,11 @@
 # AmphionRuntime Agent Instructions
 
+## HarmonyOS 开发工具链
+
+- 日常开发使用 DevEco CLI，构建、签名与设备验收使用独立 Command Line Tools（CLT）和 JDK；不再启动或依赖 DevEco Studio，也不把它的安装目录作为工具缺失时的回退。
+- 工具链配置统一使用 `DEVECO_CLI_CLT_PATH` 和 `asr/tools/harmony_env.sh`，日常 CLI 入口为 `asr/tools/deveco_cli.sh`。安装、登录重开命令及使用方式见 `asr/tools/HARMONY_TOOLCHAIN.md`。
+- CLI 的构建成功或自带冒烟检查不能替代本仓库的签名、构建身份和真机 SDK 门禁。
+
 ## 用户体验与交付标准
 
 - 验收首先回答用户能否读懂、能否信任和使用结果。ASR 与角色分离的目标是：句子可读、真实换人可区分、不确定时诚实表达、定稿后结果稳定可信。接口成功、文字守恒、生命周期正确、性能或聚合精度指标通过，都不能单独证明产品可用。
