@@ -15,7 +15,12 @@ demo 通过 `oh-package.json5` 的 `file:` 相对路径跨工程引用上述四�
 
 ## 构建顺序
 
+先按 [命令行工具链说明](../../asr/tools/HARMONY_TOOLCHAIN.md) 安装 DevEco CLI、独立 CLT 和 JDK 17。
+
 ```bash
+# 0) 选择独立命令行工具链（JAVA_HOME 指向独立 JDK）
+source asr/tools/harmony_env.sh
+
 # 1) native（AGC2 + ASR/TTS 共用的 sherpa_onnx .so）
 bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
@@ -25,8 +30,9 @@ bash asr/tools/05_package_har_libs.sh
 bash asr/tools/08_pack_harmony_assets.sh          # ASR 模型 -> asr/harmony
 bash tts/tools/harmony/pack_harmony_tts_assets.sh # TTS 模型 -> tts/harmony（可选）
 
-# 3) 用 DevEco Studio 打开本目录 delivery/harmony-dingqiao/，构建 amphion_asr_demo HAP
-#    （会自动按 file: 依赖构建 asr/harmony 与 tts/harmony 的 HAR）
+# 3) 命令行构建 HAP（自动处理模块依赖；真机安装仍需本地签名）
+cd delivery/harmony-dingqiao
+../../asr/tools/deveco_cli.sh build --modules amphion_asr_demo@default --build-mode debug
 ```
 
 鼎桥交付额外使用
@@ -89,7 +95,7 @@ PR 合入后，`main` 分支包含完整源码、交付工程、声纹模型和 
 - 执行 `bash asr/tools/04_build_harmony_so.sh`；该脚本会通过 `asr/tools/prepare_sherpa_source.sh` 在 `third_party/.derived/` 创建隔离 checkout 并应用 patch，受 Git 管理的 `third_party/sherpa-onnx` 保持只读。
 - 执行 `bash asr/tools/05_package_har_libs.sh`，把已构建的 AArch64 native 库同步到 Harmony HAR 源目录。
 - 执行 `bash asr/tools/08_pack_harmony_assets.sh`；默认直接读取 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并用固定 ORT 1.16.3 构建环境预优化中英三图与标点图，不再依赖 Android assets。
-- 配置 DevEco 签名后构建 `amphion_asr_demo`；无签名配置时只能得到未签名或调试产物。
+- 按本地签名配置构建 `amphion_asr_demo`；无签名配置时只能得到未签名或调试产物。
 - 声纹模型 `eres2net.onnx` 已内置在 `amphion_dingqiao` HAR，SDK 直接从包内加载，无需 Demo 或宿主导入。
 
 在相同模型、签名和 SDK 环境下，`main` 可以编译出功能一致的应用；但 HAP 二进制不承诺字节级一致，签名、时间戳和构建元数据都会影响 hash。
