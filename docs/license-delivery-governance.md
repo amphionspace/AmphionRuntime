@@ -1,4 +1,4 @@
-# 密钥与 SDK 固定约束下的 License 交付机制 v1
+# 端侧离线 License 交付机制 v2
 
 ## 1. 目标与边界
 
@@ -7,7 +7,7 @@
 v1 的硬约束：
 
 - 不更换私钥、私钥位置、ECDSA P-256 签名算法、SDK 内置公钥、盐值或 SN 哈希规则。
-- 不修改 Android/HarmonyOS ASR/TTS SDK，不实现设备端 `licenseGeneration` 防回退。
+- Android/HarmonyOS ASR/TTS 使用同一组签名 claims；多包限制仅对支持 `applicationBindingMode=allowlist` 的新 SDK 生效。
 - 正式商用流程必须绑定设备；demo/eval 的无设备绑定授权继续使用原脚本。
 - 单人可以完成全流程，但计划、warning 确认、各阶段操作者和产物摘要必须留痕。
 - License 私钥只签 License，不签交付 attestation。v1 依赖 checksum、独立验收回执和 Git 历史，并明确保留“有仓库管理权限者可以改写记录”的风险。
@@ -50,7 +50,7 @@ flowchart LR
 - `customerId`、`projectId`、`reason`、`issuedAt`。
 - 每个源文件的基名、SHA-256、工作表和明确 SN 列名。
 - `policy.features`、`policy.sdkMajor`、可选 `policy.installTier`。
-- `policy.applicationRecord.mode`：`none` 或 `record-only`。当前 SDK 不按包名限制。
+- `policy.applicationRecord.mode`：`none`、`record-only`、`bound` 或 `allowlist`。`allowlist` 每个平台制品只能填 Android `applicationIds` 或 HarmonyOS `bundleNames` 其中一组，最多 50 个。
 - `policy.certificateBinding.mode`：`none` 或 `sha256`。
 - `policy.runtimeExpiry`：`perpetual` 或明确日期。
 - `policy.maintenance`：`unlimited` 或明确日期。

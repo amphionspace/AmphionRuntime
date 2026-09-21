@@ -103,7 +103,12 @@ internal object LicenseVerifier {
             return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
 
-        // 6. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
+        // 6. 应用包白名单。旧 license 没有策略字段，继续按原有 ASR 语义仅记录。
+        if (!applicationMatches(claims.applicationBindingMode, claims.boundApplicationId, claims.applicationIds, pkg)) {
+            return failWith(claims, AsrErrorCode.LICENSE_APP_MISMATCH, "license application policy rejected host=$pkg")
+        }
+
+        // 7. 签名证书绑定（signingCertDigest 非空时才校验；兼容旧 certSha256）。
         if (claims.boundSigningCertDigest.isNotBlank()) {
             val want = normalizeHex(claims.boundSigningCertDigest)
             val have = hostCertSha256Set(ctx)
@@ -240,6 +245,8 @@ internal object LicenseVerifier {
             customer = o.optString("customer", ""),
             applicationId = o.optString("applicationId", ""),
             bundleName = o.optString("bundleName", ""),
+            applicationBindingMode = o.optString("applicationBindingMode", ""),
+            applicationIds = parseStringArray(o, "applicationIds").toSet(),
             signingCertDigest = o.optString("signingCertDigest", ""),
             certSha256 = o.optString("certSha256", ""),
             deviceIdHashAlg = o.optString("deviceIdHashAlg", "SHA-256"),
@@ -260,6 +267,14 @@ internal object LicenseVerifier {
 
     internal fun sdkMajorMatches(licensedMajor: Int, runtimeMajor: Int): Boolean =
         licensedMajor <= 0 || runtimeMajor <= 0 || licensedMajor == runtimeMajor
+
+    internal fun applicationMatches(mode: String, licensedApp: String, applicationIds: Set<String>, runtimeApp: String): Boolean =
+        when (mode.trim().lowercase(Locale.ROOT)) {
+            "", "none", "record-only" -> true
+            "bound" -> licensedApp.isNotBlank() && licensedApp == runtimeApp
+            "allowlist" -> applicationIds.isNotEmpty() && applicationIds.contains(runtimeApp)
+            else -> false
+        }
 
     private fun parseStringArray(o: JSONObject, key: String): List<String> {
         val arr = o.optJSONArray(key) ?: return emptyList()
