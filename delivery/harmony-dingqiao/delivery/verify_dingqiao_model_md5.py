@@ -14,7 +14,7 @@ import zipfile
 
 DEFAULT_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
 RUNTIME_TO_ONNX_SOURCE = {
-    "encoder.int8.ort": "encoder.int8.onnx",
+    "encoder.int8.ort": "encoder.onnx",
     "decoder.ort": "decoder.onnx",
     "joiner.int8.ort": "joiner.onnx",
 }
@@ -56,7 +56,7 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[str, dict[str, str]]:
     source_bundle = policy.get("source_bundle")
     if (
         not isinstance(source_bundle, dict)
-        or source_bundle.get("name") != "bundle.tar.gz"
+        or source_bundle.get("name") != "transducer-fp32-chunk32-lc256-1.4.0.tar.gz"
         or not isinstance(source_bundle.get("md5"), str)
         or MD5_RE.fullmatch(source_bundle["md5"]) is None
     ):

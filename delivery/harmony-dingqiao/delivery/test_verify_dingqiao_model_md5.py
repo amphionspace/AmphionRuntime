@@ -40,18 +40,18 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            "police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
+            "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32",
             model_id,
         )
         self.assertEqual(
-            "6fd85a43dd226d7aa6f0db5b84be8c92",
+            "c0a03e66892ce076c1e16130dfd2a1fa",
             policy["source_bundle"]["md5"],
         )
         self.assertEqual(
             {
-                "encoder.int8.onnx": "0bcad6878250a88261de9d4ca1129047",
-                "decoder.onnx": "5eda4a3e47144bcea5b110e3ebf2469e",
-                "joiner.onnx": "5d408055735dd5275076a099d8c505f0",
+                "encoder.onnx": "3b3ab642d3741f88a074c9adacbfe7bb",
+                "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
+                "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
             },
             expected,
         )
@@ -139,6 +139,18 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
             manifest = self._manifest(wrong_source_md5=True)
             (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
             with self.assertRaisesRegex(MODULE.ModelIdentityError, "ONNX MD5 mismatch"):
+                MODULE.verify_root(root, self.expected)
+
+    def test_rejects_previous_int8_encoder_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            self._write_root(root)
+            manifest = self._manifest()
+            encoder = manifest["bundles"]["zh-en/v1"][0]
+            encoder["source_name"] = "encoder.int8.onnx"
+            encoder["source_md5"] = "0bcad6878250a88261de9d4ca1129047"
+            (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(MODULE.ModelIdentityError, "source name mismatch"):
                 MODULE.verify_root(root, self.expected)
 
     def test_accepts_har_and_hap_from_manifest_identity(self) -> None:

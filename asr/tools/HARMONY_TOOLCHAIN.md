@@ -100,14 +100,14 @@ bash asr/tools/08_pack_harmony_assets.sh
 
 该脚本不依赖 Android assets，会直接从以下默认目录组装五类模型：
 
-- 中英：`asr/tools/demo-model/zhen`
+- 中英：`asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32`（[恢复说明](demo-model/README.md)）
 - 粤英：`asr/tools/demo-model/yueen`
 - 标点：`asr/tools/punct-model/...-int8`
 - ITN：`asr/tools/weitn-fsts-v2`（保留“啊、呃”）
 - VAD：`asr/tools/vad-model/silero_vad.onnx`
 
-中英模型接受 `decoder.int8.onnx`，并兼容旧的 `decoder.onnx`。构建时会并行把中英
-encoder / decoder / joiner 和标点图转换成 ORT FlatBuffer：
+当前中英模型使用 FP32 `encoder.onnx`、`decoder.onnx` 和 `joiner.onnx`。构建时会并行把
+三张图和标点图转换成 ORT FlatBuffer；运行期沿用历史文件名，名称中的 `int8` 不代表当前模型精度：
 
 ```text
 zh-en/v1/{encoder.int8.ort,decoder.ort,joiner.int8.ort}

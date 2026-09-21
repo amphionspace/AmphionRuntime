@@ -182,7 +182,7 @@
       "status": "current"
     },
     "asr-zhen-police-179m-v1-1-v1.1.0": {
-      "description": "Police-domain ZH_EN streaming Zipformer2r model pinned for Dingqiao packaging; desktop A/B shows a small general-domain regression, so it is not an unconditional general-domain upgrade",
+      "description": "Historical Police 1.1.0 INT8-encoder model for A/B replay; current Police 1.4.0 FP32 source is restored manually per asr/tools/demo-model/README.md",
       "license": "internal-controlled-model",
       "source": "amphion-119 controlled model pipeline 260904",
       "source_archive_sha256": "5bfe142b429a99d09cabd9789f67fd029e44848e23b2e04624f7a7630f4d778a",
@@ -230,7 +230,7 @@
           "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
         }
       ],
-      "status": "current",
+      "status": "historical",
       "model_id": "police-179m-v1-1",
       "model_version": "1.1.0"
     },
