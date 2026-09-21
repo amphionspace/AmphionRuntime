@@ -37,10 +37,11 @@
           "size": 87098,
           "sha256": "89d1b765d526fab21b1ba3402221baa28edb4b380e9b799d764042e842cecf98"
         }
-      ]
+      ],
+      "status": "current"
     },
     "asr-itn-zh-v1": {
-      "description": "WeTextProcessing 1.0.4.1 Chinese inverse text normalization FSTs",
+      "description": "Historical WeTextProcessing 1.0.4.1 Chinese ITN rules; use asr-itn-zh-v2 for new builds",
       "license": "Apache-2.0",
       "source": "https://github.com/wenet-e2e/WeTextProcessing",
       "redistribution": "team-internal",
@@ -61,7 +62,9 @@
           "size": 119018,
           "sha256": "a475d151fce5b365265b04e61c785898158cbac21f5a953723b230c5e4639f6f"
         }
-      ]
+      ],
+      "status": "historical",
+      "superseded_by": "asr-itn-zh-v2"
     },
     "asr-punctuation-zhen-v1": {
       "description": "sherpa-onnx CT-Transformer Chinese-English punctuation model",
@@ -110,7 +113,8 @@
           "size": 4207480,
           "sha256": "c960ab87bccea4aa15cf49a59f71973c2c330b46668048cd8da253749ec71ee3"
         }
-      ]
+      ],
+      "status": "current"
     },
     "asr-vad-silero-v1": {
       "description": "Silero VAD ONNX model used by ASR packaging",
@@ -129,7 +133,8 @@
           "size": 643854,
           "sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6"
         }
-      ]
+      ],
+      "status": "current"
     },
     "asr-zhen-v1": {
       "description": "Controlled ZH_EN streaming Zipformer source model used by SDK packaging",
@@ -173,7 +178,8 @@
           "size": 115277,
           "sha256": "29a20d469f044011706d9720ff31770e5dcd6c30714943282e9563a55c6918f5"
         }
-      ]
+      ],
+      "status": "current"
     },
     "asr-zhen-police-179m-v1-1-v1.1.0": {
       "description": "Police-domain ZH_EN streaming Zipformer2r model pinned for Dingqiao packaging; desktop A/B shows a small general-domain regression, so it is not an unconditional general-domain upgrade",
@@ -223,7 +229,10 @@
           "size": 115253,
           "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
         }
-      ]
+      ],
+      "status": "current",
+      "model_id": "police-179m-v1-1",
+      "model_version": "1.1.0"
     },
     "harmony-demo-license-v1": {
       "description": "Current Harmony Dingqiao demo runtime license",
@@ -246,7 +255,8 @@
           "sha256": "72d38c1631c89b4166a2f334753b3095d38442ed0335fd179b0d694680b2338d",
           "mode": "0644"
         }
-      ]
+      ],
+      "status": "current"
     },
     "tts-checkpoints-v3-20260806": {
       "description": "Dingqiao v3 LITS, MeanFlow step2, and Vocos 24 kHz training checkpoints",
@@ -280,7 +290,10 @@
         }
       ],
       "merge_destination": true,
-      "allow_extra_files": true
+      "allow_extra_files": true,
+      "status": "current",
+      "pipeline_generation": "v3",
+      "snapshot_date": "2026-08-06"
     },
     "tts-runtime-zhen-v1": {
       "description": "Dingqiao v3 ZH-EN external-loop ONNX runtime model and frontend resources",
@@ -450,7 +463,11 @@
           "sha256": "444d43250d9ea0dcb3fa1bd3afdfaf2fdd94ded066ead021abf0fd788992904d",
           "mode": "0644"
         }
-      ]
+      ],
+      "status": "current",
+      "bundle_revision": "v1",
+      "pipeline_generation": "v3",
+      "model_version": "0.1.0"
     },
     "tts-harmony-tn-v1": {
       "description": "HarmonyOS arm64 Chinese and English TTS text-normalization executables",
@@ -476,10 +493,11 @@
           "sha256": "5db1cb5d7a6601a15d1e13997dfa2ca65f7c3bece05f62cbbf9197d12cb7ea98",
           "mode": "0755"
         }
-      ]
+      ],
+      "status": "current"
     },
     "team-secure-state-v2": {
-      "description": "Team-only license root, device allowlists, and complete Harmony signing materials",
+      "description": "Historical team-only license and Harmony signing snapshot; use team-secure-state-v5 for new environments",
       "license": "confidential-team-material",
       "source": "Local controlled secure inputs",
       "redistribution": "team-internal-only",
@@ -613,7 +631,9 @@
       ],
       "encryption": "sse-kms",
       "merge_destination": true,
-      "allow_extra_files": true
+      "allow_extra_files": true,
+      "status": "historical",
+      "superseded_by": "team-secure-state-v5"
     },
     "team-secure-state-v3": {
       "description": "Non-canonical portable signing snapshot missing DevEco decrypt material",
@@ -750,7 +770,9 @@
       ],
       "encryption": "sse-kms",
       "merge_destination": true,
-      "allow_extra_files": true
+      "allow_extra_files": true,
+      "status": "historical",
+      "superseded_by": "team-secure-state-v5"
     },
     "team-secure-state-v4": {
       "description": "Non-canonical signing snapshot whose ASR encrypted credentials do not match the packaged keystore",
@@ -917,7 +939,9 @@
       ],
       "encryption": "sse-kms",
       "merge_destination": true,
-      "allow_extra_files": true
+      "allow_extra_files": true,
+      "status": "historical",
+      "superseded_by": "team-secure-state-v5"
     },
     "team-secure-state-v5": {
       "description": "Canonical portable team-only license root, device allowlists, and device-verified Harmony signing materials",
@@ -1084,7 +1108,8 @@
       ],
       "encryption": "sse-kms",
       "merge_destination": true,
-      "allow_extra_files": true
+      "allow_extra_files": true,
+      "status": "current"
     }
   },
   "ignored_asset_policy": {
