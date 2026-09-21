@@ -10,8 +10,8 @@
 #
 # 输入来源（每一项默认值都可被环境变量覆盖；不存在时报错）：
 #
-#   ZH_EN_DIR     默认 asr/tools/demo-model/zipformer_L_zh_en
-#                 必须包含 encoder.int8.onnx / decoder.onnx / joiner.int8.onnx /
+#   ZH_EN_DIR     默认 asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32
+#                 必须包含 encoder.onnx（旧模型可用 encoder.int8.onnx）/ decoder.onnx / joiner.onnx /
 #                          tokens.txt / bbpe.vocab
 #                 bbpe.vocab 是 sherpa-onnx ssentencepiece 库期望的「token + score」
 #                 两列文本词表（非 google SentencePiece protobuf .model）。
@@ -49,7 +49,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zhen}"
+ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32}"
 YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
 ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts-v2}"
@@ -144,9 +144,14 @@ ensure_file "${VAD_FILE}" "请检查 VAD_FILE 路径是否正确"
 
 # -------- 4. 准备 ASR （zh-en / yue-en） --------
 ensure_dir "${ZH_EN_DIR}" \
-  "请用 asr/tools/00_fetch_demo_model.sh 拉 demo 模型，或把自有模型目录设到 ZH_EN_DIR 环境变量"
+  "请按 asr/tools/demo-model/README.md 恢复 Police 1.4.0，或设置 ZH_EN_DIR"
 
-for f in encoder.int8.onnx decoder.onnx tokens.txt bbpe.vocab; do
+ZH_ENCODER="${ZH_EN_DIR}/encoder.onnx"
+if [[ ! -f "$ZH_ENCODER" ]]; then
+  ZH_ENCODER="${ZH_EN_DIR}/encoder.int8.onnx"
+fi
+ensure_file "$ZH_ENCODER" "中英 ASR 缺 encoder.onnx 或 encoder.int8.onnx"
+for f in decoder.onnx tokens.txt bbpe.vocab; do
   ensure_file "${ZH_EN_DIR}/${f}" "中英 ASR 缺 ${f}（bbpe.vocab 用 asr/tools/09_export_bbpe_vocab.py 从 bbpe.model 导出）"
 done
 ZH_JOINER="$(resolve_joiner "$ZH_EN_DIR")"
@@ -268,7 +273,8 @@ convert_one() {
 
 info "并行预优化中英三图与标点（Android ORT 1.24.3 / ARM CPU；.mp3 为 aapt 免压缩传输后缀）"
 pids=()
-convert_one "${ZH_EN_DIR}/encoder.int8.onnx" "$ASSET_ROOT/zh-en/v1/encoder.int8.ort.mp3" \
+# Keep the runtime asset name stable; manifest source_name records FP32/INT8.
+convert_one "$ZH_ENCODER" "$ASSET_ROOT/zh-en/v1/encoder.int8.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/zh-encoder.json" & pids+=("$!")
 convert_one "${ZH_EN_DIR}/decoder.onnx" "$ASSET_ROOT/zh-en/v1/decoder.ort.mp3" \
   "$ASSET_ROOT/.conversion-metadata/zh-decoder.json" & pids+=("$!")

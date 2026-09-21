@@ -1,13 +1,15 @@
 {
   "schema_version": 3,
-  "model_id": "police-179m-v1-1-1.1.0-chunk32-lc256-edge-transducer",
+  "model_id": "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32",
   "source_bundle": {
-    "name": "bundle.tar.gz",
-    "md5": "6fd85a43dd226d7aa6f0db5b84be8c92"
+    "name": "transducer-fp32-chunk32-lc256-1.4.0.tar.gz",
+    "md5": "c0a03e66892ce076c1e16130dfd2a1fa",
+    "sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+    "uri": "obs://cuhk-anfeiweng-benchmark/icefall/amphion/zh_en/checkpoints/candidates/police-179m-v1.4/onnx/chunk32-lc256/1.4.0/dist/transducer-fp32-chunk32-lc256-1.4.0.tar.gz"
   },
   "onnx_files_md5": {
-    "decoder.onnx": "5eda4a3e47144bcea5b110e3ebf2469e",
-    "encoder.int8.onnx": "0bcad6878250a88261de9d4ca1129047",
-    "joiner.onnx": "5d408055735dd5275076a099d8c505f0"
+    "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
+    "encoder.onnx": "3b3ab642d3741f88a074c9adacbfe7bb",
+    "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9"
   }
 }

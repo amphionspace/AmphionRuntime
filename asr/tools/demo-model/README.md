@@ -2,6 +2,36 @@
 
 这个目录的所有内容（包括 manifest.json / tokens.txt / export_meta.json 等元数据）都不入库。
 
+## 当前中英模型：Police 1.4.0 FP32
+
+Android/Harmony 打包默认使用
+`amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32/`。
+源包位置和身份固定在
+[模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)。
+这个上游 tar.gz 使用以下命令手动恢复；`tools/assets/sync.py fetch all` 不包含它。
+
+```bash
+ab remotes  # 确认 obs-cuhk-anfeiweng-benchmark 对应 cuhk-anfeiweng-benchmark
+mkdir -p .cache/asr-police-v1.4
+ab pull 'obs-cuhk-anfeiweng-benchmark:icefall/amphion/zh_en/checkpoints/candidates/police-179m-v1.4/onnx/chunk32-lc256/1.4.0/dist/transducer-fp32-chunk32-lc256-1.4.0.tar.gz' \
+  .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz
+printf '%s  %s\n' \
+  58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f \
+  .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz | shasum -a 256 -c -
+# 仅在校验成功后解压到新的版本目录。
+tar -xzf .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz -C asr/tools/demo-model
+bash asr/tools/08_pack_harmony_assets.sh --zh-en-only
+bash asr/tools/08_pack_sdk_assets.sh --zh-en-only
+```
+
+三张 ONNX 图均保持源包 FP32 精度，词表与模型成套更新。两端运行期资源名
+`encoder.int8.ort` / `joiner.int8.ort`（Android 加 `.mp3`）沿用历史名称以保持加载路径，
+实际精度以源模型及打包 manifest 的 `source_name` 为准，不进行 INT8 量化。
+自定义 `ZH_EN_DIR` 仍支持旧 `encoder.int8.onnx` 输入，但旧模型不能通过当前鼎桥身份门禁。
+
+FP32 encoder 约 588 MiB，正式交付仍须验证端侧性能和包大小；现有 SDK-only ZIP 的
+320 MiB 门禁保持不变。桌面评测不等于 Android/Harmony 真机验收。
+
 ## 为什么
 
 第一性原理：

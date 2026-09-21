@@ -667,3 +667,33 @@ pipeline	equals	询问笔录？	询问笔录？
 pipeline	equals	讯问笔录	讯问笔录
 pipeline	equals	  讯问笔录。	  讯问笔录。
 pipeline	equals	讯问笔录？	讯问笔录？
+# Police 1.4.0 / V6: exact command corrections; protect surrounding text and legitimate words.
+terms	equals	开启记录仪ENFC	开启记录仪NFC
+terms	equals	  开启记录仪ENFC？	  开启记录仪NFC？
+terms	equals	开启记录仪NFC	开启记录仪NFC
+terms	equals	请复述开启记录仪ENFC这个错误	请复述开启记录仪ENFC这个错误
+terms	equals	把路线分辨率设置为D 幺	把录像分辨率设置为D 幺
+terms	equals	  把路线分辨率设置为D 幺？	  把录像分辨率设置为D 幺？
+terms	equals	把录像分辨率设置为D 幺	把录像分辨率设置为D 幺
+terms	equals	请复述把路线分辨率设置为D 幺这个错误	请复述把路线分辨率设置为D 幺这个错误
+terms	equals	八视频分段时长设置为六十分钟	把视频分段时长设置为六十分钟
+terms	equals	  八视频分段时长设置为六十分钟？	  把视频分段时长设置为六十分钟？
+terms	equals	把视频分段时长设置为六十分钟	把视频分段时长设置为六十分钟
+terms	equals	请复述八视频分段时长设置为六十分钟这个错误	请复述八视频分段时长设置为六十分钟这个错误
+terms	equals	当前沿路时长是多少	当前延录时长是多少
+terms	equals	  当前沿路时长是多少？	  当前延录时长是多少？
+terms	equals	当前延录时长是多少	当前延录时长是多少
+terms	equals	请复述当前沿路时长是多少这个错误	请复述当前沿路时长是多少这个错误
+terms	equals	把记录仪的镜头模式分辨率帧率沿路时长都告诉我	把记录仪的镜头模式分辨率帧率延录时长都告诉我
+terms	equals	  把记录仪的镜头模式分辨率帧率沿路时长都告诉我？	  把记录仪的镜头模式分辨率帧率延录时长都告诉我？
+terms	equals	把记录仪的镜头模式分辨率帧率延录时长都告诉我	把记录仪的镜头模式分辨率帧率延录时长都告诉我
+terms	equals	请复述把记录仪的镜头模式分辨率帧率沿路时长都告诉我这个错误	请复述把记录仪的镜头模式分辨率帧率沿路时长都告诉我这个错误
+terms	equals	把记录仪亮度调到零度	把记录仪亮度调到零档
+terms	equals	  把记录仪亮度调到零度？	  把记录仪亮度调到零档？
+terms	equals	把记录仪亮度调到零档	把记录仪亮度调到零档
+terms	equals	请复述把记录仪亮度调到零度这个错误	请复述把记录仪亮度调到零度这个错误
+terms	equals	电子录音	电子录音
+terms	equals	沿路风景很好	沿路风景很好
+terms	equals	地图路线分辨率设置为第一档	地图路线分辨率设置为第一档
+terms	equals	气温降到零度	气温降到零度
+terms	equals	把录像分辨率设置为第一档	把录像分辨率设置为第一档

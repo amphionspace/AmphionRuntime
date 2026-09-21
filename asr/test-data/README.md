@@ -18,7 +18,7 @@ with `AMPHION_TEST_DATA_DIR`.
 | --- | --- | --- |
 | `aishell3-500` | 生命周期、热词回归、说话人状态契约 | 自动恢复；不作为带身份真值的声纹精度集 |
 | `dingqiao-meeting-20260918` | 五段客户会议及其标注、句子体验验收证据 | 自动恢复；MOSS 辅助标注不等于人工真值 |
-| `police-asr-eval-20260914` | 警务术语、车牌、派出所名称及定向失败样例的识别精度评测 | 手动下载；18 个数据集，以合成音频为主，含客户音频 |
+| `police-asr-eval-20260914` | 警务术语、车牌、派出所名称及定向失败样例的识别精度评测 | 手动下载；19 个数据集（2026-09-21 更新），以合成音频为主，含客户音频 |
 | `police-terminology-legacy-v1` | 单独存放的旧警务术语包 | 手动下载；尚未检查内容，不应当作上面的完整警务评测包 |
 
 `aishell3-500` 使用中性名称；旧名称 `aishell3-hotwords-500` 仍作为别名，两个名称同时指定
@@ -49,10 +49,10 @@ Linux 可以用于警务算法迭代，正式交付的平台生命周期和性�
 | 来源、范围及目录说明 | `asr_testsets/2026-09-14/summary/README.md` |
 | 分数据集统计 | `asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv` |
 
-远端说明记录 18 个数据集、14,281 对音频和文本，约 21.76 小时，另有 1 条无可靠标注的音频。
+远端说明记录 19 个数据集、18,054 对音频和文本，约 24.78 小时，另有 1 条无可靠标注的音频。
 根目录的 `manifest.jsonl` / `manifest.tsv` 和 `datasets/<dataset_id>/pairs.tsv` 提供输入映射；
-评测时记录具体子集，不能只把整包名称写成“警务测试数据”。本次仅核对远端大小、已发布校验和
-和说明文件，未下载整包，也未验证其中的标注质量或模型精度。
+评测时记录具体子集，不能只把整包名称写成“警务测试数据”。2026-09-21 已下载整包并核对 SHA-256。新增 `police_v6_acceptance_205` 含 3,773 条
+合成音频、205 条指令；文本可能在训练中出现，且只有自动 ASR 质检，不作为未见指令泛化或人工真值。
 
 可用已配置的 AmphionBucket 下载（先用 `ab remotes` 确认下面别名对应上述桶）：
 
@@ -63,8 +63,8 @@ ab pull obs-cuhk-anfeiweng-benchmark:asr_testsets/2026-09-14/asr_testsets_handof
   "$HOME/.cache/amphion-runtime/test-data/external/police-asr-eval-20260914/asr_testsets_handoff_20260914.tar.zst"
 ```
 
-下载后、解压前按清单核对大小 `2538939557` 字节及 SHA-256
-`a63e272bcab9a0b4d63282080bf3c8eb961bf00d62de81b2cabc6558c8f21c15`；在 Linux 可用
+下载后、解压前按清单核对大小 `3098940742` 字节及 SHA-256
+`f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9`；在 Linux 可用
 `sha256sum`，macOS 可用 `shasum -a 256`。自动恢复工具目前不接管这个 `tar.zst` 归档。
 
 另一个旧包位于 `datasets/police-terminology-testset-v1.tar.gz`，大小 `20176931` 字节；
