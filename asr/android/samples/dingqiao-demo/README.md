@@ -41,7 +41,7 @@ cd asr/android
 | 用例 | 必需输入 |
 | --- | --- |
 | `a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint` | 显式传入 `-e singleSpeechAsset <文件名.wav>`；输入应为已核对的单次连续语音，不能含会触发重新起音的内部停顿。 |
-| `v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad` | 同一说话人的不同发言，按 `<前缀>_识别.wav` 与 `<前缀>_声纹.wav` 配对；不使用重叠音频。源文件前置静音加测试自身的 300 ms 静音应小于 1000 ms。 |
+| `v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad` | 显式传入 `-e speakerVadAsset <文件名.wav>`；识别与 `_声纹.wav` 注册样本须为同一说话人的不同发言，不使用重叠音频。加入用例固定的 300 ms 前置静音后，须核对原生 VAD 的首次语音确认在 1000 ms 内；仅检查首次概率越阈值不够，还须计入默认 250 ms 连续语音确认。默认 `minSegSec=0` 不延长初始等待窗。 |
 | `v06_speakerVad_overlapRuns` | 文件名含“重叠”的音频与同前缀的目标说话人 `_声纹.wav`；须记录双方身份及实际重叠区间。可用带身份标注的录音确定性混音，但不能把混音写成客户原录音。 |
 
 保留输入来源、身份标注、SHA-256、裁剪/重采样/混音参数及语音区间核对记录。缺少合格输入时，该项验收不完整，不能换用任意 WAV 或降低结果断言。`singleSpeechAsset` 同样可以通过 Gradle 的 `android.testInstrumentationRunnerArguments.singleSpeechAsset` 属性传入。

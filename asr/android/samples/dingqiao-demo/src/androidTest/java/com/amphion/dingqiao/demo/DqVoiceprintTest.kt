@@ -232,10 +232,13 @@ class DqVoiceprintTest {
         ensureReady()
         // Target-only filtering requires a same-speaker pair. The fallback gate only proves
         // score availability and provides no identity guarantee for its enrollment sample.
-        val main = mainWavs(testCtx)
-            .filter { !it.contains("重叠") && voiceprintSampleFor(testCtx, it) != null }
-            .minByOrNull { readAssetPcm(testCtx, it).size }
-            ?: error("Speaker VAD requires a qualified main WAV and its matching _声纹 enrollment WAV")
+        // Duration alone does not establish onset before vadBegin: native VAD also needs
+        // its 250 ms confirmation window. Preserve the 300 ms prefix and 1000 ms deadline.
+        val main = InstrumentationRegistry.getArguments().getString("speakerVadAsset")
+            ?: error("Pass -e speakerVadAsset <qualified-onset.wav> with a matching _声纹 enrollment WAV")
+        require(main in mainWavs(testCtx) && !main.contains("重叠")) {
+            "speakerVadAsset must be an available non-overlap recording: $main"
+        }
         val sample = checkNotNull(voiceprintSampleFor(testCtx, main))
         val id = registerFromSample(sample)
         val engine = engine()
@@ -261,6 +264,12 @@ class DqVoiceprintTest {
         feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
         assertTrue("runtime Speaker VAD must not let vadBegin end real speech",
             listener.finals.none { it.isLast } && listener.completes.isEmpty())
+        DqReport.append(ctx, mapOf("case" to "finish_requested", "sessionId" to sid,
+            "main" to main, "sample" to sample,
+            "enableVoiceprintVerification" to false, "enableSpeakerVad" to true,
+            "voiceprintIdCount" to 1, "vadBeginMs" to 1_000, "frontSilenceMs" to 300,
+            "pcmDurationMs" to readAssetPcm(testCtx, main).size * 1_000L / (DQ_SR * 2),
+            "lastBeforeFinish" to listener.finals.count { it.isLast }))
         engine.finish(sid)
         val completed = listener.awaitComplete(25_000)
         awaitIdle(engine)
@@ -276,8 +285,9 @@ class DqVoiceprintTest {
         assertTrue("runtime Speaker VAD corpus must produce a non-empty final", eligible.isNotEmpty())
         assertTrue("every non-empty runtime Speaker VAD final must carry a score",
             eligible.all { it.speakerSimilarity != null })
-        assertTrue("normal finish must emit exactly one last",
-            listener.finals.count { it.isLast } == 1)
+        assertTrue("normal finish must emit exactly one last then one complete",
+            listener.callbackTrace.filter { it.isLast || it.kind == CapturedCallbackKind.COMPLETE }
+                .map { it.kind } == listOf(CapturedCallbackKind.FINAL, CapturedCallbackKind.COMPLETE))
     }
 
     // ---------- v04e: 声纹确认窗有界，纯静音最终仍按 vadBegin 自动结束 ----------
