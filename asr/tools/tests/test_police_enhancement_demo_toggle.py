@@ -53,7 +53,7 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
 
         self.assertIn("DingqiaoEngineConfig.enablePoliceEnhancement(params)", engine)
         self.assertIn("PoliceEnhancementPolicy.finalText(", engine)
-        self.assertIn('extra["enablePoliceEnhancement"]', demo)
+        self.assertIn('"enablePoliceEnhancement" to capturedPoliceEnhancement', demo)
         self.assertIn("getPoliceEnhancementEnabled", prefs)
         self.assertIn("setPoliceEnhancementEnabled", prefs)
         self.assertIn("@+id/sw_police_enhancement", layout)
@@ -90,6 +90,9 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
             "config.hotwords = PoliceEngineConfig.effectiveHotwords(\n"
             "    context, parseLexicon(params.extraParams['sysGeneralLexicon']));",
             engine,
+        )
+        self.assertIn(
+            "config.hotwordsScore = PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT;", engine
         )
         self.assertIn("buildAsrConfig(context, this.params)", engine)
         self.assertIn("buildAsrConfig(this.context, this.params, params,", engine)
