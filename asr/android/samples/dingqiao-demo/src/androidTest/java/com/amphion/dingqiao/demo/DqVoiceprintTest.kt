@@ -230,8 +230,13 @@ class DqVoiceprintTest {
     @Test
     fun v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad() {
         ensureReady()
-        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val sample = registrationSampleFor(testCtx, main)
+        // Target-only filtering requires a same-speaker pair. The fallback gate only proves
+        // score availability and provides no identity guarantee for its enrollment sample.
+        val main = mainWavs(testCtx)
+            .filter { !it.contains("重叠") && voiceprintSampleFor(testCtx, it) != null }
+            .minByOrNull { readAssetPcm(testCtx, it).size }
+            ?: error("Speaker VAD requires a qualified main WAV and its matching _声纹 enrollment WAV")
+        val sample = checkNotNull(voiceprintSampleFor(testCtx, main))
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -269,8 +274,8 @@ class DqVoiceprintTest {
         assertTrue("runtime Speaker VAD session must complete after explicit finish", completed)
         assertTrue("runtime Speaker VAD must not report errors", listener.errors.isEmpty())
         assertTrue("runtime Speaker VAD corpus must produce a non-empty final", eligible.isNotEmpty())
-        assertTrue("runtime Speaker VAD must produce a scored non-empty final",
-            eligible.any { it.speakerSimilarity != null })
+        assertTrue("every non-empty runtime Speaker VAD final must carry a score",
+            eligible.all { it.speakerSimilarity != null })
         assertTrue("normal finish must emit exactly one last",
             listener.finals.count { it.isLast } == 1)
     }
@@ -336,8 +341,10 @@ class DqVoiceprintTest {
     @Test
     fun v06_speakerVad_overlapRuns() {
         ensureReady()
-        val main = mainWavs(testCtx).first { it.contains("重叠") }
-        val sample = registrationSampleFor(testCtx, main)
+        val main = mainWavs(testCtx).firstOrNull { it.contains("重叠") }
+            ?: error("Overlap coverage requires a qualified 重叠 WAV; the fallback corpus does not cover it")
+        val sample = voiceprintSampleFor(testCtx, main)
+            ?: error("Overlap coverage requires the target speaker's matching _声纹 enrollment WAV")
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -367,8 +374,11 @@ class DqVoiceprintTest {
         DqReport.append(ctx, mapOf("case" to "v06_speakerVadOverlap", "main" to main, "completed" to completed,
             "finalText" to listener.finalText(), "vadEventCount" to vadEvents.size,
             "errorCodes" to listener.errorCodes().toString()))
-        assertTrue("speaker VAD session should complete without recognition error",
-            !listener.errorCodes().contains(DingqiaoErrorCode.RECOGNITION_ERROR))
+        assertTrue("overlap session must complete", completed)
+        assertTrue("overlap session must not report errors: ${listener.errorCodes()}",
+            listener.errors.isEmpty())
+        assertTrue("overlap session must emit one last and one complete",
+            listener.finals.count { it.isLast } == 1 && listener.completes.size == 1)
     }
 
     // ---------- v07: 删除后再用 -> NOT_FOUND ----------
