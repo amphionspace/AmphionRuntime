@@ -132,6 +132,9 @@ class OnlineRecognizer(
     fun reset(stream: OnlineStream) = reset(ptr, stream.ptr)
     fun decode(stream: OnlineStream) = decode(ptr, stream.ptr)
     fun isEndpoint(stream: OnlineStream) = isEndpoint(ptr, stream.ptr)
+    fun getVadEndpointWaitSeconds(stream: OnlineStream, silenceSeconds: Float): Float =
+        getVadEndpointWaitSeconds(ptr, stream.ptr, silenceSeconds)
+
     fun getEndpointReason(stream: OnlineStream): OnlineEndpointReason =
         OnlineEndpointReason.fromNative(getEndpointReason(ptr, stream.ptr))
     fun commitRule3Segment(stream: OnlineStream): Boolean = commitRule3Segment(ptr, stream.ptr)
@@ -156,6 +159,8 @@ class OnlineRecognizer(
     private external fun reset(ptr: Long, streamPtr: Long)
     private external fun decode(ptr: Long, streamPtr: Long)
     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
+    private external fun getVadEndpointWaitSeconds(ptr: Long, streamPtr: Long, silenceSeconds: Float): Float
+
     private external fun getEndpointReason(ptr: Long, streamPtr: Long): Int
     private external fun commitRule3Segment(ptr: Long, streamPtr: Long): Boolean
     private external fun commitStablePrefix(ptr: Long, streamPtr: Long): Boolean

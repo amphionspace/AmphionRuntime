@@ -1368,6 +1368,7 @@ export class AsrSession {
   private svEndpointReady: boolean = false;
   private pendingVadStopAtEndpoint: boolean = false;
   private vadEndpointPending: boolean = false;
+  private vadEndpointRecheckSample: number = 0;
   private pendingNativeEndpointTransition?: NativeEndpointTransition;
   private endpointAtMs: number = -1;
   private callback: AsrCallback;
@@ -2351,6 +2352,7 @@ export class AsrSession {
       // close this session synchronously and must observe a coherent transition.
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
+      this.vadEndpointRecheckSample = 0;
       if (!replay && notifySpeechBegin && !this.callbackGate.invoke((): void => {
         this.callback.onSpeechBegin?.();
       })) return;
@@ -2369,11 +2371,17 @@ export class AsrSession {
         (this.vadProcessedSamples - this.vadLastSpeechEndSample) * 1000 / ASR_SAMPLE_RATE_HZ :
         this.trailingSilenceMs + i * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
-      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
-        this.vadSpeechActive = false;
-        this.trailingSilenceMs = 0;
-        this.triggerVadActiveEndpoint();
-        return;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs &&
+        this.publicSamplesFed >= this.vadEndpointRecheckSample) {
+        const waitSeconds = this.recognizer.getVadEndpointWaitSeconds(this.stream, activeEpMs / 1000);
+        if (waitSeconds > 0) {
+          this.vadEndpointRecheckSample = this.publicSamplesFed + Math.ceil(waitSeconds * ASR_SAMPLE_RATE_HZ);
+        } else {
+          this.vadSpeechActive = false;
+          this.trailingSilenceMs = 0;
+          this.triggerVadActiveEndpoint();
+          return;
+        }
       }
     }
   }
@@ -2473,6 +2481,12 @@ export class AsrSession {
       return;
     }
     if (vadAdvance.vadEndpoint) {
+      if (!await this.confirmVadEndpointAsync()) {
+        if (!this.callbackGate.isClosed() && this.svEndpointReady) {
+          await this.finalizeReadySpeakerEndpointAsync();
+        }
+        return;
+      }
       if (!await this.drainSpeakerInferenceAsync()) return;
       if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       await this.finalizeAnnouncedVadEndpointAsync();
@@ -2517,6 +2531,7 @@ export class AsrSession {
       const notifySpeechBegin = !this.vadSpeechActive;
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
+      this.vadEndpointRecheckSample = 0;
       if (!replay && notifySpeechBegin && !this.callbackGate.invoke((): void => {
         this.callback.onSpeechBegin?.();
       })) return advance;
@@ -2532,24 +2547,40 @@ export class AsrSession {
         this.trailingSilenceMs + index * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ??
         this.config.vadConfig.activeEndpointSilenceMs;
-      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending) {
-        this.vadSpeechActive = false;
-        this.trailingSilenceMs = 0;
-        Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
-          `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
-          `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
-          `speechEndSample=${this.vadLastSpeechEndSample} ` +
-          `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
-          `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
-        this.endpointAtMs = Date.now();
-        if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return advance;
-        this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
-        this.vadEndpointPending = true;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending &&
+        this.publicSamplesFed >= this.vadEndpointRecheckSample) {
+        // Candidate only: this slice has not reached ASR yet. Announce the
+        // endpoint only after current PCM and pending native speech agree.
         advance.vadEndpoint = true;
         return advance;
       }
     }
     return advance;
+  }
+
+  private async confirmVadEndpointAsync(): Promise<boolean> {
+    // A native endpoint may already have been announced while decoding this slice.
+    if (this.vadEndpointPending) return true;
+    const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
+    const waitSeconds = await this.recognizer.getVadEndpointWaitSecondsAsync(this.stream, activeEpMs / 1000);
+    if (this.callbackGate.isClosed()) return false;
+    if (waitSeconds > 0) {
+      this.vadEndpointRecheckSample = this.publicSamplesFed + Math.ceil(waitSeconds * ASR_SAMPLE_RATE_HZ);
+      return false;
+    }
+    this.vadSpeechActive = false;
+    this.trailingSilenceMs = 0;
+    Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
+      `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
+      `speechEndSample=${this.vadLastSpeechEndSample} ` +
+      `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
+      `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
+    this.endpointAtMs = Date.now();
+    if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return false;
+    this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+    this.vadEndpointPending = true;
+    return true;
   }
 
   private async prepareVadEndpointSpeakerScoreAsync(): Promise<boolean> {
@@ -2762,6 +2793,7 @@ export class AsrSession {
     this.vadEndpointPending = false;
     this.pendingVadStopAtEndpoint = false;
     this.pendingNativeEndpointTransition = undefined;
+    this.vadEndpointRecheckSample = 0;
     this.vadSpeechActive = false;
     this.trailingSilenceMs = 0;
     this.vadCarry = new Float32Array(0);

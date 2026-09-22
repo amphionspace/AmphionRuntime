@@ -24,6 +24,16 @@ class HarmonyVadTailClockTest(unittest.TestCase):
                 return { vadEndpoint: this.events.length > before };
               }
             """
+        else:
+            method = method.replace("private async advanceVadGateAsync", "private async advanceVadGateOnlyAsync", 1)
+            method += """
+              async advanceVadGateAsync(samples) {
+                this.publicSamplesFed += samples.length;
+                const result = await this.advanceVadGateOnlyAsync(samples);
+                if (result.vadEndpoint) result.vadEndpoint = await this.confirmVadEndpointAsync();
+                return result;
+              }
+            """
         script = f"""
             import assert from 'node:assert/strict';
             const ASR_SAMPLE_RATE_HZ = 16000;
@@ -38,6 +48,9 @@ class HarmonyVadTailClockTest(unittest.TestCase):
               vadSpeechActive = true;
               trailingSilenceMs = 0;
               vadEndpointPending = false;
+              vadEndpointRecheckSample = 0;
+              recognizer = {{ getVadEndpointWaitSeconds: () => 0,
+                getVadEndpointWaitSecondsAsync: async () => this.recognizer.getVadEndpointWaitSeconds() }};
               callbackGate = {{ invoke: fn => {{ fn(); return true; }}, isClosed: () => false }};
               initialSilenceTracker = {{ observeVad: () => false,
                 observeAcousticSamples() {{}}, hasTimedOut: () => false }};
@@ -137,6 +150,54 @@ class HarmonyVadTailClockTest(unittest.TestCase):
             silent.vadSpeechActive = false;
             await silent.advanceVadGateAsync(new Float32Array(16000));
             assert.deepEqual(silent.events, []);
+        """)
+
+    def test_pending_speech_veto_preserves_gate_until_real_pcm_advances(self):
+        for synchronous in (False, True):
+            with self.subTest(synchronous=synchronous):
+                self.run_gate("""
+            for (const frameSamples of [160, 320, 512]) {
+              const gate = new Gate();
+              let probes = 0;
+              gate.recognizer.getVadEndpointWaitSeconds = () => (++probes === 1 ? 0.24 : 0);
+              let fed = 0;
+              while (fed < 16000) {
+                fed += frameSamples;
+                await gate.advanceVadGateAsync(new Float32Array(frameSamples));
+                assert.deepEqual(gate.events, [], 'pending real speech cannot announce an endpoint');
+                assert.equal(gate.vadSpeechActive, true, 'veto must preserve the active utterance');
+              }
+              while (gate.events.length === 0 && fed < 18000) {
+                fed += frameSamples;
+                await gate.advanceVadGateAsync(new Float32Array(frameSamples));
+              }
+              assert.deepEqual(gate.events, ['end']);
+              assert.equal(probes, 2, 'do not repeat ONNX while its known PCM condition is unchanged');
+            }
+                """, synchronous=synchronous)
+
+    def test_cancel_during_native_probe_cannot_announce_endpoint(self):
+        self.run_gate("""
+            const gate = new Gate();
+            gate.recognizer.getVadEndpointWaitSecondsAsync = async () => {
+              gate.callbackGate.isClosed = () => true;
+              return 0;
+            };
+            const result = await gate.advanceVadGateAsync(new Float32Array(12800));
+            assert.equal(result.vadEndpoint, false);
+            assert.deepEqual(gate.events, []);
+            assert.equal(gate.vadEndpointPending, false);
+        """)
+
+    def test_already_announced_native_endpoint_is_not_announced_twice(self):
+        self.run_gate("""
+            const gate = new Gate();
+            gate.vadEndpointPending = true;
+            gate.recognizer.getVadEndpointWaitSecondsAsync = async () => {
+              throw new Error('native endpoint already owns this transition');
+            };
+            assert.equal(await gate.confirmVadEndpointAsync(), true);
+            assert.deepEqual(gate.events, []);
         """)
 
 
