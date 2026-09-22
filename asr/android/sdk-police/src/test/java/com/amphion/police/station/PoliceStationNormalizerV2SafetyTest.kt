@@ -57,6 +57,29 @@ class PoliceStationNormalizerV2SafetyTest {
     }
 
     @Test
+    fun preservesCommandPrefixWhenCorrectingStationSpan() {
+        val normalizer = v2()
+        val cases = listOf(
+            Triple("请帮忙整理一下", "海口市琼山区福城派出所", "海口市琼山区府城派出所"),
+            Triple("请把", "合肥市包河区五湖路派出所", "合肥市包河区芜湖路派出所"),
+            Triple("把", "银川市兴庆区兴华街派出所", "银川市兴庆区新华街派出所"),
+        )
+        for ((prefix, rawStation, station) in cases) {
+            val suffix = "近三天的接警情况整理一下。"
+            val input = prefix + rawStation + suffix
+            val result = normalizer.normalize(input)
+            assertEquals(input, prefix + station + suffix, result.text)
+            val span = result.spans.single()
+            assertEquals(prefix.length, span.start)
+            assertEquals(prefix.length + rawStation.length, span.end)
+            assertEquals(rawStation, span.raw)
+            assertEquals(rawStation, input.substring(span.start, span.end))
+            assertEquals(station, span.normalized)
+            assertTrue(span.valid)
+        }
+    }
+
+    @Test
     fun refusesTruncatedOrAmbiguousStationGuesses() {
         val normalizer = v2()
         val truncated = normalizer.normalize("麻烦核区中街派出所最近一个月的接警数据。").text

@@ -813,3 +813,9 @@ terms	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺
 pipeline	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
 terms	equals	把路线分辨率设置为D。	把路线分辨率设置为D。
 terms	equals	请复述把路线分辨率设置为D幺这个错误。	请复述把路线分辨率设置为D幺这个错误。
+# Station correction must preserve the caller's command outside the station span.
+station	equals	请帮忙整理一下海口市琼山区福城派出所本周末的出警情况。	请帮忙整理一下海口市琼山区府城派出所本周末的出警情况。
+pipeline	equals	请把合肥市包河区五湖路派出所近三天的处警情况整理一下。	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。
+station	equals	把银川市兴庆区兴华街派出所端午假期期间的接警数据按派警时段列一下。	把银川市兴庆区新华街派出所端午假期期间的接警数据按派警时段列一下。
+station	equals	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。
+station	equals	请把长安新城派出所近三天的处警情况整理一下。	请把长安新城派出所近三天的处警情况整理一下。
