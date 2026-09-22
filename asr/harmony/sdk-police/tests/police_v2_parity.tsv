@@ -697,3 +697,22 @@ terms	equals	沿路风景很好	沿路风景很好
 terms	equals	地图路线分辨率设置为第一档	地图路线分辨率设置为第一档
 terms	equals	气温降到零度	气温降到零度
 terms	equals	把录像分辨率设置为第一档	把录像分辨率设置为第一档
+# PR218 device outputs after ITN and punctuation: preserve format and exact-utterance scope.
+pipeline	equals	八、视频分段时长设置为60min。	把视频分段时长设置为60min。
+pipeline	equals	把记录仪的镜头模式分辨率、帧率沿路时长都告诉我。	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。
+pipeline	equals	把视频分段时长设置为60min。	把视频分段时长设置为60min。
+pipeline	equals	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。
+pipeline	equals	请复述八、视频分段时长设置为60min这个错误。	请复述八、视频分段时长设置为60min这个错误。
+pipeline	equals	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。
+pipeline	equals	沿路风景很好，录像时长是60min。	沿路风景很好，录像时长是60min。
+pipeline	equals	八视频分段时长设置为60min	把视频分段时长设置为60min。
+pipeline	equals	把录像分辨率设置为第一要。	把录像分辨率设置为D 幺。
+pipeline	equals	把记录仪亮度调到零到。	把记录仪亮度调到零档。
+pipeline	equals	  把录像分辨率设置为第一要？	把录像分辨率设置为D 幺。
+pipeline	equals	  把记录仪亮度调到零到？	  把记录仪亮度调到零档？
+pipeline	equals	把录像分辨率设置为第一。	把录像分辨率设置为第一。
+pipeline	equals	把记录仪亮度调到零。	把记录仪亮度调到零。
+pipeline	equals	请复述把录像分辨率设置为第一要这个错误。	请复述把录像分辨率设置为第一要这个错误。
+pipeline	equals	请复述把记录仪亮度调到零到这个错误。	请复述把记录仪亮度调到零到这个错误。
+pipeline	equals	把视频分段时长设置为60min	把视频分段时长设置为60min。
+pipeline	equals	  把录像分辨率设置为D 幺？	把录像分辨率设置为D 幺。
