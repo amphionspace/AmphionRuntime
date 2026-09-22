@@ -188,7 +188,12 @@ class DqVoiceprintTest {
         val id = registerFromSample(registrationAsset)
         val engine = freshEngine()
         awaitIdle(engine)
-        val speechBytes = minOf(full.size, (DQ_SR * 2 * 0.5).toInt())
+        // The file starts with about 400 ms of weak onset/background. Its first 500 ms
+        // truncates the first word and does not establish ASR speech evidence. Keep the
+        // 500 ms contract, but use the qualified 400..900 ms "帮我" speech interval.
+        val speechStartBytes = DQ_SR * 2 * 400 / 1000
+        val speechBytes = DQ_SR * 2 * 500 / 1000
+        require(full.size >= speechStartBytes + speechBytes)
         repeat(2) { round ->
             val listener = CapturingListener().also { engine.setListener(it) }
             val sid = "vp-fallback-$round-${System.currentTimeMillis()}"
@@ -206,7 +211,7 @@ class DqVoiceprintTest {
             assertTrue("round=$round start failed: ${listener.errorCodes()}",
                 listener.awaitStarted(15_000))
             feedSilence(engine, sid, 350)
-            feedFrames(engine, sid, full.copyOfRange(0, speechBytes), 20)
+            feedFrames(engine, sid, full.copyOfRange(speechStartBytes, speechStartBytes + speechBytes), 20)
             engine.finish(sid)
             val completed = listener.awaitComplete(25_000)
             awaitIdle(engine)
@@ -215,6 +220,7 @@ class DqVoiceprintTest {
             DqReport.append(ctx, mapOf("case" to "v04c_voiceprintFallback",
                 "round" to round, "registrationAsset" to registrationAsset,
                 "recognitionAsset" to recognitionAsset, "completed" to completed,
+                "sourceStartMs" to 400, "pcmDurationMs" to 500, "frontSilenceMs" to 350,
                 "finalText" to firstNonEmpty?.result,
                 "speakerSimilarity" to firstNonEmpty?.speakerSimilarity,
                 "errorCodes" to listener.errorCodes().toString()))
