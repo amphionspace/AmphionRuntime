@@ -14,7 +14,7 @@ import zipfile
 
 DEFAULT_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
 RUNTIME_TO_ONNX_SOURCE = {
-    "encoder.int8.ort": "encoder.onnx",
+    "encoder.int8.ort": "encoder.int8.onnx",
     "decoder.ort": "decoder.onnx",
     "joiner.int8.ort": "joiner.onnx",
 }

@@ -23,7 +23,7 @@ RUNTIME_IDENTITY_SOURCE_PATH = (
 )
 PINNED_MODEL_ONNX_SOURCES = {
     "decoder.onnx",
-    "encoder.onnx",
+    "encoder.int8.onnx",
     "joiner.onnx",
 }
 MODEL_MANIFEST_PATH = (
