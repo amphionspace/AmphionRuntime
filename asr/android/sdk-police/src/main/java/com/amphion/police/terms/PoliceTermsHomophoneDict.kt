@@ -12,6 +12,7 @@ internal class PoliceTermsHomophoneDict(
 ) {
     companion object {
         private const val ASSET_PATH = "police_terms/term_homophones.csv"
+        private val CHUJING_PERSONNEL = Regex("出警人员")
 
         fun load(context: Context): PoliceTermsHomophoneDict {
             context.assets.open(ASSET_PATH).use { input ->
@@ -40,7 +41,12 @@ internal class PoliceTermsHomophoneDict(
         var out = text
         for ((from, to) in phraseMap) {
             if (from.isEmpty() || from == to) continue
-            out = if (to.startsWith(from)) {
+            out = if (from == "出警人员") {
+                // 催促的是赶往现场的出警人员，不能改成现场处置含义的「处警」。
+                CHUJING_PERSONNEL.replace(out) { match ->
+                    if (out.substring(0, match.range.first).endsWith("催促")) match.value else to
+                }
+            } else if (to.startsWith(from)) {
                 replaceExtendingPhrase(out, from, to)
             } else {
                 out.replace(from, to)

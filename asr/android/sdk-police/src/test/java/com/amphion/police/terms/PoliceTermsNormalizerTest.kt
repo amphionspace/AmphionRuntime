@@ -69,6 +69,16 @@ class PoliceTermsNormalizerTest {
     }
 
     @Test
+    fun normalize_preservesDispatchMeaningWhenUrgingPersonnel() {
+        val input = "我们会催促出警人员尽快赶到现场。"
+        assertEquals(input, normalizer.normalize(input).text)
+        assertEquals(
+            "请处警人员到场后核实情况。",
+            normalizer.normalize("请出警人员到场后核实情况。").text,
+        )
+    }
+
+    @Test
     fun normalize_knownTermsUnchanged() {
         val input = "处警车辆已到达小区门口，请与报警人对接。"
         val r = normalizer.normalize(input)
