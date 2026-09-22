@@ -40,7 +40,7 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32",
+            "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-encoder-int8",
             model_id,
         )
         self.assertEqual(
@@ -49,7 +49,7 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "encoder.onnx": "3b3ab642d3741f88a074c9adacbfe7bb",
+                "encoder.int8.onnx": "054b25d3be91847c1141808809ccf6a9",
                 "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
                 "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
             },
@@ -150,7 +150,7 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
             encoder["source_name"] = "encoder.int8.onnx"
             encoder["source_md5"] = "0bcad6878250a88261de9d4ca1129047"
             (root / "manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
-            with self.assertRaisesRegex(MODULE.ModelIdentityError, "source name mismatch"):
+            with self.assertRaisesRegex(MODULE.ModelIdentityError, "model ONNX MD5 mismatch"):
                 MODULE.verify_root(root, self.expected)
 
     def test_accepts_har_and_hap_from_manifest_identity(self) -> None:

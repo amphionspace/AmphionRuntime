@@ -1,6 +1,6 @@
 {
   "schema_version": 3,
-  "model_id": "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32",
+  "model_id": "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-encoder-int8",
   "source_bundle": {
     "name": "transducer-fp32-chunk32-lc256-1.4.0.tar.gz",
     "md5": "c0a03e66892ce076c1e16130dfd2a1fa",
@@ -9,7 +9,22 @@
   },
   "onnx_files_md5": {
     "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
-    "encoder.onnx": "3b3ab642d3741f88a074c9adacbfe7bb",
-    "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9"
+    "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
+    "encoder.int8.onnx": "054b25d3be91847c1141808809ccf6a9"
+  },
+  "encoder_quantization": {
+    "source_encoder_sha256": "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932",
+    "encoder_sha256": "aae296f20c480333103e8b24e7c2466a26173f36f1a9750f236e70302576d691",
+    "recipe": "asr/tools/prepare_police_1_4_int8.py",
+    "onnxruntime": "1.16.3",
+    "onnx": "1.15.0",
+    "numpy": "1.26.4",
+    "weight_type": "QInt8",
+    "op_types": [
+      "MatMul"
+    ],
+    "per_channel": true,
+    "reduce_range": false,
+    "MatMulConstBOnly": true
   }
 }
