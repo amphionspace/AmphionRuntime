@@ -286,7 +286,7 @@ export class PlateV2 {
   private explicitPlateNounBefore: RegExp =
     /(?:车牌号|车牌|号牌)[\s，,：:、.．。；！？~·—-]*(?:为|是)?[\s，,：:、.．。；！？~·—-]*$/;
   private explicitPlateContextAfter: RegExp =
-    /^[\s，,：:、.．。；！？~·—-]*(?:这?辆车|车辆|车主|目标车辆|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)/;
+    /^[\s，,：:、.．。；！？~·—-]*(?:这?辆车|车辆|车主|车窗|目标车辆|停在.{0,12}(?:车位|停车场|装卸区)|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)/;
   private genericIdentifierBefore: RegExp =
     /(?:产品型号|设备编号|订单号|序列号|设备序列号|型号|编号)[\s，,：:、.．。；！？~·—-]*(?:为|是)?[\s，,：:、.．。；！？~·—-]*$/;
 
@@ -419,6 +419,9 @@ export class PlateV2 {
       const end = indices[bodyLength - 1] + 1;
       if (end < text.length && this.isPlateNumeric(text.charAt(end))) continue;
       if (!this.hasAnchor(text, start, end)) continue;
+      // 报警/登记等弱锚词不能把普通数字串解释为「机关字母 + 序号」。
+      if (body.slice(0, bodyLength).every((value: string): boolean => this.isPlateNumeric(value)) &&
+        !this.hasExplicitPlateContext(text, start, end, false)) continue;
       const hits: PlateCandidate[] = [];
       for (let p = 0; p < this.contextProvinces.length; p++) {
         const candidate = this.bestCandidateForLength(
@@ -489,6 +492,10 @@ export class PlateV2 {
       const candidate = this.bestCandidateForLength(sequence, length);
       if (candidate === undefined) continue;
       const end = endForLength(length);
+      // 无明确省份/字母前缀、其余全是数字时，与「登记290000」等普通记录无法区分。
+      if (!this.kb.isProvinceChar(sequence[0]) && !/[A-Za-zＡ-Ｚａ-ｚ]/.test(sequence[0]) &&
+        sequence.slice(1, length).every((value: string): boolean => this.isPlateNumeric(value)) &&
+        !this.hasExplicitPlateContext(text, start, end, false)) continue;
       if (this.acceptSpan(text, start, end, candidate)) {
         return new PlateMatch(candidate.plate, end, coverageForLength(length));
       }

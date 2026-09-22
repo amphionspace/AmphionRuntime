@@ -1,0 +1,684 @@
+{
+  "base_commit": "9a2ff524e4970e5156ffb44ad33cef5785c5a5ce",
+  "model_archive_sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+  "corpus_archive_sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
+  "scope": "Seen-data regression of police normalization; host hotword diagnosis; PR remains open; not mobile acceptance",
+  "runtime": {
+    "sherpa_onnx": "1.13.1",
+    "WeTextProcessing": "1.0.4.1",
+    "pynini": "2.1.6",
+    "itn_fst_sha256": {
+      "zh_itn_tagger.fst": "4983ab817f3f3b206516d576b54d6f925c3a52c58c8348d3ae98e826b4f6d49d",
+      "zh_itn_verbalizer.fst": "89d1b765d526fab21b1ba3402221baa28edb4b380e9b799d764042e842cecf98"
+    }
+  },
+  "decoder": {
+    "sample_rate": 16000,
+    "frame_samples": 320,
+    "tail_silence_samples": 19200,
+    "decoding_method": "modified_beam_search",
+    "max_active_paths": 8,
+    "num_threads": 1,
+    "endpoint_rules_sec": [
+      2.4,
+      1.4,
+      20
+    ]
+  },
+  "metrics": {
+    "all": {
+      "cases": 4305,
+      "strict": {
+        "before": {
+          "exact": 3632,
+          "sentence_accuracy": 0.8436701509872242,
+          "edits": 1701,
+          "reference_chars": 85455,
+          "cer": 0.01990521327014218
+        },
+        "after": {
+          "exact": 3636,
+          "sentence_accuracy": 0.8445993031358885,
+          "edits": 1695,
+          "reference_chars": 85455,
+          "cer": 0.019835000877654906
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 3701,
+          "sentence_accuracy": 0.8596980255516841,
+          "edits": 1591,
+          "reference_chars": 86015,
+          "cer": 0.018496773818520027
+        },
+        "after": {
+          "exact": 3705,
+          "sentence_accuracy": 0.8606271777003485,
+          "edits": 1585,
+          "reference_chars": 86015,
+          "cer": 0.018427018543277336
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 2898,
+          "target_occurrences": 5118,
+          "hit_occurrences": 5039,
+          "hit_rate": 0.9845642829230168,
+          "all_targets_hit_rows": 2828
+        },
+        "after": {
+          "covered_rows": 2898,
+          "target_occurrences": 5118,
+          "hit_occurrences": 5041,
+          "hit_rate": 0.9849550605705354,
+          "all_targets_hit_rows": 2830
+        }
+      },
+      "changed": 5,
+      "improved": 5,
+      "regressed": 0,
+      "enhancement_regressions_before": 5,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_application_names_62": {
+      "cases": 62,
+      "strict": {
+        "before": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        },
+        "after": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        },
+        "after": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 58,
+          "target_occurrences": 67,
+          "hit_occurrences": 66,
+          "hit_rate": 0.9850746268656716,
+          "all_targets_hit_rows": 57
+        },
+        "after": {
+          "covered_rows": 58,
+          "target_occurrences": 67,
+          "hit_occurrences": 66,
+          "hit_rate": 0.9850746268656716,
+          "all_targets_hit_rows": 57
+        }
+      },
+      "changed": 0,
+      "improved": 0,
+      "regressed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_industry_dialogue_189": {
+      "cases": 189,
+      "strict": {
+        "before": {
+          "exact": 161,
+          "sentence_accuracy": 0.8518518518518519,
+          "edits": 63,
+          "reference_chars": 6325,
+          "cer": 0.009960474308300396
+        },
+        "after": {
+          "exact": 161,
+          "sentence_accuracy": 0.8518518518518519,
+          "edits": 63,
+          "reference_chars": 6325,
+          "cer": 0.009960474308300396
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 174,
+          "sentence_accuracy": 0.9206349206349206,
+          "edits": 21,
+          "reference_chars": 6318,
+          "cer": 0.0033238366571699905
+        },
+        "after": {
+          "exact": 174,
+          "sentence_accuracy": 0.9206349206349206,
+          "edits": 21,
+          "reference_chars": 6318,
+          "cer": 0.0033238366571699905
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 36,
+          "target_occurrences": 47,
+          "hit_occurrences": 47,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 36
+        },
+        "after": {
+          "covered_rows": 36,
+          "target_occurrences": 47,
+          "hit_occurrences": 47,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 36
+        }
+      },
+      "changed": 0,
+      "improved": 0,
+      "regressed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_industry_vocab_1671": {
+      "cases": 1671,
+      "strict": {
+        "before": {
+          "exact": 1583,
+          "sentence_accuracy": 0.9473369239976063,
+          "edits": 157,
+          "reference_chars": 14010,
+          "cer": 0.011206281227694504
+        },
+        "after": {
+          "exact": 1585,
+          "sentence_accuracy": 0.9485338120885697,
+          "edits": 155,
+          "reference_chars": 14010,
+          "cer": 0.011063526052819414
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 1606,
+          "sentence_accuracy": 0.9611011370436864,
+          "edits": 72,
+          "reference_chars": 14013,
+          "cer": 0.005138086062941554
+        },
+        "after": {
+          "exact": 1608,
+          "sentence_accuracy": 0.9622980251346499,
+          "edits": 70,
+          "reference_chars": 14013,
+          "cer": 0.0049953614500820665
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 536,
+          "hit_rate": 0.9537366548042705,
+          "all_targets_hit_rows": 514
+        },
+        "after": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 536,
+          "hit_rate": 0.9537366548042705,
+          "all_targets_hit_rows": 514
+        }
+      },
+      "changed": 2,
+      "improved": 2,
+      "regressed": 0,
+      "enhancement_regressions_before": 2,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_special_codes_10": {
+      "cases": 10,
+      "strict": {
+        "before": {
+          "exact": 0,
+          "sentence_accuracy": 0.0,
+          "edits": 68,
+          "reference_chars": 193,
+          "cer": 0.35233160621761656
+        },
+        "after": {
+          "exact": 0,
+          "sentence_accuracy": 0.0,
+          "edits": 68,
+          "reference_chars": 193,
+          "cer": 0.35233160621761656
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 8,
+          "sentence_accuracy": 0.8,
+          "edits": 15,
+          "reference_chars": 192,
+          "cer": 0.078125
+        },
+        "after": {
+          "exact": 8,
+          "sentence_accuracy": 0.8,
+          "edits": 15,
+          "reference_chars": 192,
+          "cer": 0.078125
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 1,
+          "target_occurrences": 1,
+          "hit_occurrences": 1,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 1
+        },
+        "after": {
+          "covered_rows": 1,
+          "target_occurrences": 1,
+          "hit_occurrences": 1,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 1
+        }
+      },
+      "changed": 0,
+      "improved": 0,
+      "regressed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260727_190": {
+      "cases": 190,
+      "strict": {
+        "before": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "after": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "after": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 80,
+          "target_occurrences": 89,
+          "hit_occurrences": 89,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 80
+        },
+        "after": {
+          "covered_rows": 80,
+          "target_occurrences": 89,
+          "hit_occurrences": 89,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 80
+        }
+      },
+      "changed": 0,
+      "improved": 0,
+      "regressed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_2183": {
+      "cases": 2183,
+      "strict": {
+        "before": {
+          "exact": 1641,
+          "sentence_accuracy": 0.7517178195144297,
+          "edits": 1406,
+          "reference_chars": 62489,
+          "cer": 0.02249995999295876
+        },
+        "after": {
+          "exact": 1643,
+          "sentence_accuracy": 0.7526339899221255,
+          "edits": 1402,
+          "reference_chars": 62489,
+          "cer": 0.02243594872697595
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 1666,
+          "sentence_accuracy": 0.7631699496106276,
+          "edits": 1476,
+          "reference_chars": 63054,
+          "cer": 0.023408506994005138
+        },
+        "after": {
+          "exact": 1668,
+          "sentence_accuracy": 0.7640861200183234,
+          "edits": 1472,
+          "reference_chars": 63054,
+          "cer": 0.023345069305674503
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 2183,
+          "target_occurrences": 4352,
+          "hit_occurrences": 4300,
+          "hit_rate": 0.9880514705882353,
+          "all_targets_hit_rows": 2140
+        },
+        "after": {
+          "covered_rows": 2183,
+          "target_occurrences": 4352,
+          "hit_occurrences": 4302,
+          "hit_rate": 0.9885110294117647,
+          "all_targets_hit_rows": 2142
+        }
+      },
+      "changed": 3,
+      "improved": 3,
+      "regressed": 0,
+      "enhancement_regressions_before": 3,
+      "enhancement_regressions_after": 0
+    }
+  },
+  "plate_regression": {
+    "cases": 1276,
+    "strict": {
+      "before": {
+        "exact": 1020,
+        "sentence_accuracy": 0.799373040752351,
+        "edits": 707,
+        "reference_chars": 34187,
+        "cer": 0.020680375581361335
+      },
+      "after": {
+        "exact": 1020,
+        "sentence_accuracy": 0.799373040752351,
+        "edits": 706,
+        "reference_chars": 34187,
+        "cer": 0.02065112469652207
+      }
+    },
+    "numeric_equivalent": {
+      "before": {
+        "exact": 1024,
+        "sentence_accuracy": 0.8025078369905956,
+        "edits": 607,
+        "reference_chars": 34187,
+        "cer": 0.017755287097434697
+      },
+      "after": {
+        "exact": 1024,
+        "sentence_accuracy": 0.8025078369905956,
+        "edits": 606,
+        "reference_chars": 34187,
+        "cer": 0.01772603621259543
+      }
+    },
+    "project_lexicon_terms": {
+      "before": {
+        "covered_rows": 48,
+        "target_occurrences": 50,
+        "hit_occurrences": 49,
+        "hit_rate": 0.98,
+        "all_targets_hit_rows": 47
+      },
+      "after": {
+        "covered_rows": 48,
+        "target_occurrences": 50,
+        "hit_occurrences": 49,
+        "hit_rate": 0.98,
+        "all_targets_hit_rows": 47
+      }
+    },
+    "changed": 1,
+    "improved": 1,
+    "regressed": 0
+  },
+  "prior_regression": {
+    "cases": 4156,
+    "outputs_identical_to_base": true,
+    "comparison": "byte comparison of prior-after-v3.jsonl and previous prior-after.jsonl"
+  },
+  "hotword_diagnosis": {
+    "cases": 1671,
+    "hotwords_count": 370,
+    "modeling_unit": "bbpe",
+    "scope": "Industry vocabulary only; same final normalization; observed errors used for diagnosis; no held-out claim",
+    "sdk_default_changed": false,
+    "score_3": {
+      "cases": 1671,
+      "strict": {
+        "before": {
+          "exact": 1585,
+          "sentence_accuracy": 0.9485338120885697,
+          "edits": 155,
+          "reference_chars": 14010,
+          "cer": 0.011063526052819414
+        },
+        "after": {
+          "exact": 1532,
+          "sentence_accuracy": 0.9168162776780371,
+          "edits": 283,
+          "reference_chars": 14010,
+          "cer": 0.020199857244825124
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 1608,
+          "sentence_accuracy": 0.9622980251346499,
+          "edits": 70,
+          "reference_chars": 14013,
+          "cer": 0.0049953614500820665
+        },
+        "after": {
+          "exact": 1556,
+          "sentence_accuracy": 0.931178934769599,
+          "edits": 198,
+          "reference_chars": 14013,
+          "cer": 0.014129736673089274
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 536,
+          "hit_rate": 0.9537366548042705,
+          "all_targets_hit_rows": 514
+        },
+        "after": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 554,
+          "hit_rate": 0.9857651245551602,
+          "all_targets_hit_rows": 532
+        }
+      },
+      "changed": 95,
+      "improved": 19,
+      "regressed": 74
+    },
+    "score_1": {
+      "cases": 1671,
+      "strict": {
+        "before": {
+          "exact": 1585,
+          "sentence_accuracy": 0.9485338120885697,
+          "edits": 155,
+          "reference_chars": 14010,
+          "cer": 0.011063526052819414
+        },
+        "after": {
+          "exact": 1601,
+          "sentence_accuracy": 0.9581089168162776,
+          "edits": 136,
+          "reference_chars": 14010,
+          "cer": 0.009707351891506066
+        }
+      },
+      "numeric_equivalent": {
+        "before": {
+          "exact": 1608,
+          "sentence_accuracy": 0.9622980251346499,
+          "edits": 70,
+          "reference_chars": 14013,
+          "cer": 0.0049953614500820665
+        },
+        "after": {
+          "exact": 1625,
+          "sentence_accuracy": 0.9724715739078397,
+          "edits": 51,
+          "reference_chars": 14013,
+          "cer": 0.003639477627916934
+        }
+      },
+      "project_lexicon_terms": {
+        "before": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 536,
+          "hit_rate": 0.9537366548042705,
+          "all_targets_hit_rows": 514
+        },
+        "after": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 552,
+          "hit_rate": 0.9822064056939501,
+          "all_targets_hit_rows": 530
+        }
+      },
+      "changed": 17,
+      "improved": 17,
+      "regressed": 0
+    }
+  },
+  "validation": {
+    "parity_cases": 755,
+    "base_failed_assertions": 10,
+    "final_parity": "PASS",
+    "assets_synced": 28,
+    "mobile_device": "NOT_RUN",
+    "harmony_hap_har": "NOT_RUN",
+    "android_build_unit_tests": "See current PR HEAD CI"
+  },
+  "candidate_sha256": {
+    "asr/android/sdk-police/src/main/assets/police_terms/term_gazetteer.txt": "7537a2df69468007cf3f2756b0aa830c634cd653acf1878fc114c103261ea22d",
+    "asr/android/sdk-police/src/main/java/com/amphion/police/plate/PlateNormalizerV2.kt": "91d0da416adf7ba60e47d3e71065e43a342199166517948c3212af1106d177a8",
+    "asr/android/sdk-police/src/main/java/com/amphion/police/terms/PoliceTermsHomophoneDict.kt": "c9beed0652c99aba532581481a15f0d30d79238f473dd7ab8c97055638df1cbb",
+    "asr/android/sdk-police/src/test/java/com/amphion/police/terms/PoliceTermsNormalizerTest.kt": "1003f0607d0d9d697fa6186e69f0bdccf1e0eb4ea3d26ee8f79426e200e0dd98",
+    "asr/harmony/sdk-police/src/main/ets/com/amphion/police/PlateV2.ets": "803346f1a7d39209290ce7c5a18911215f4715da2022b35ad2c8c5067ca4ac4d",
+    "asr/harmony/sdk-police/src/main/ets/com/amphion/police/PoliceTermsV2.ets": "666dccf4f054121f7598a3cd469dbf9b22497c778f43abc64546a3585bda9ada",
+    "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police/manifest.json": "0f20464299640954f3802c4817bc63e00a3cc6df1e74c6c1b68aeda39a9e54ec",
+    "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police/police_terms/term_gazetteer.txt": "7537a2df69468007cf3f2756b0aa830c634cd653acf1878fc114c103261ea22d",
+    "asr/harmony/sdk-police/tests/police_v2_parity.tsv": "90a7aa6bfd4a357cb62c65fc72d28b35be89144cceabe2cea7b54f8ae1865069"
+  },
+  "evidence_sha256": {
+    ".cache/police-terms-round2-20260922/after-itn-v2.jsonl": "33bb48163aa17670d60f6fcf648873c9636efa818fad8f10f2264e2382d2be3c",
+    ".cache/police-terms-round2-20260922/after-itn-v3.jsonl": "33bb48163aa17670d60f6fcf648873c9636efa818fad8f10f2264e2382d2be3c",
+    ".cache/police-terms-round2-20260922/after-itn.jsonl": "33bb48163aa17670d60f6fcf648873c9636efa818fad8f10f2264e2382d2be3c",
+    ".cache/police-terms-round2-20260922/decode_checks.py": "0df6fb9870ee0ee507165d9070248b742e14c2b46fc9d347398d25d7d66b33bc",
+    ".cache/police-terms-round2-20260922/default-hotwords.txt": "b45d189b7e3add1b1e5cc002fdb564f97d266f1b794ae16d7a711bbc6eb40e07",
+    ".cache/police-terms-round2-20260922/full-comparison.jsonl": "dfe3c921a4552460f8249ff16318b68ed9f8b4820250a29cbced07b8a018068f",
+    ".cache/police-terms-round2-20260922/green-candidate-v2.log": "eceaa99e50aeb0b7408e6dabda47c38e7f431433c2d790706815b0400020ceba",
+    ".cache/police-terms-round2-20260922/green-candidate-v3.log": "d48c0d0d4ae7189bfc0c2c18568967643a9ff636545667c19695e9ccc331d926",
+    ".cache/police-terms-round2-20260922/green-final.log": "9d8d019d22f44f3123abb86f0e1848613d5ebf723bd23c422c96bd47da0c7feb",
+    ".cache/police-terms-round2-20260922/green-v2.log": "675fb547b71dea572bc845a6aaf5b57d4c3362d5d8346ff27f5409bb08f5207f",
+    ".cache/police-terms-round2-20260922/green.log": "a2f3528945d153b8f576b4e8f600dc36e2f3033bb7738e41de5969731d6f312b",
+    ".cache/police-terms-round2-20260922/hotword-enhanced.jsonl": "95e4f77115148051e936ba7711af48e66992d7fc4b261619e77ee380c101818d",
+    ".cache/police-terms-round2-20260922/hotword-itn.jsonl": "ff5dae9994ce3104c3eaaf6a1cd4c8ef58b96ffeaefc0226771dc493261060bb",
+    ".cache/police-terms-round2-20260922/hotword-probe-metrics.json": "a66619172ef1c7dace48f1649d0c6f93aeca18358d9fea9451db361f02b3e761",
+    ".cache/police-terms-round2-20260922/hotword-probe.log": "0d44cf306a4372879972f4c4c3b5962c11997860c9374bb2281de5f7564f56a4",
+    ".cache/police-terms-round2-20260922/hotword-raw.jsonl": "b34d1729fa3d34acf6e855313f008fa938a542cd70a6cc976780f08d9f7afb4e",
+    ".cache/police-terms-round2-20260922/hotword-selection.jsonl": "b07784bd25d1f373ea1d4fdc040f07bfe102f805ebee9b1c1eb026e39acf44a6",
+    ".cache/police-terms-round2-20260922/hotwords-full-after.jsonl": "4ac5e2d1597fa7efd02fac5056806492e94dc4b86f1ac8fd2c52a3e389ef64a0",
+    ".cache/police-terms-round2-20260922/hotwords-full-comparison.jsonl": "28a3fbea8734e961c161ff5f06bb5e66eab177db60cda215b08eb58e853036f0",
+    ".cache/police-terms-round2-20260922/hotwords-full-decode.log": "1ff7a39ccd52c83c75024f619414d6d2605883894e83083ff691c67eef275dc3",
+    ".cache/police-terms-round2-20260922/hotwords-full-itn.jsonl": "822e08ab27abb9775cb8c83098c61517bf2beccff2b7f64f328b64c94d12f0aa",
+    ".cache/police-terms-round2-20260922/hotwords-full-metrics.json": "6c0fa03a3b53012f0eae24f43eafb49f4553dca01cdaf529ac2020165115fc5a",
+    ".cache/police-terms-round2-20260922/hotwords-full-raw.jsonl": "bd5cab22613bf5c94fd29ed94c32fb90ac06965c5ad22633673a66146e05eff6",
+    ".cache/police-terms-round2-20260922/hotwords-full-summary.log": "c027c30037b3bfcc8294136eb788ce61cadb871f58087e7b3065a884126da4dc",
+    ".cache/police-terms-round2-20260922/hotwords-score1-after.jsonl": "9ad805ac89ff6b108da5be5496f3582e0d590ceff87f43700fca184c15177563",
+    ".cache/police-terms-round2-20260922/hotwords-score1-comparison.jsonl": "4fcabbbd3b04adbb764c7a77d5a61e502405893d84a8a55f4209d4e52fc2234f",
+    ".cache/police-terms-round2-20260922/hotwords-score1-decode.log": "3fa3a810dda3096372c71f0c981b1af70da736b9d1033402b27b66441e26feda",
+    ".cache/police-terms-round2-20260922/hotwords-score1-itn.jsonl": "3eabd6043a6a9678b0c41e551b880728cfc0d671e0296c4127f9fc9765843678",
+    ".cache/police-terms-round2-20260922/hotwords-score1-metrics.json": "23834e066d341abe311185790e1ae81308cb22e48335efeae0e0de77f480d181",
+    ".cache/police-terms-round2-20260922/hotwords-score1-raw.jsonl": "cd7b20a43ac86db7acb47cdbaf01c5208b1bca783472187a33ab57e44b5fcee9",
+    ".cache/police-terms-round2-20260922/hotwords-score1-summary.log": "53f200a6469efd783cd5a0125b7c09acc662d385c0903ab056d7b89e6095751f",
+    ".cache/police-terms-round2-20260922/make_report.py": "11d899cee12abf8b9b788e0246393e4e9c368d8d1f5c27fa93eba8d20eeb4572",
+    ".cache/police-terms-round2-20260922/metrics.json": "c7b4a1446aa25ae64ea4552830233a03111f949580e5e022e521ff7eead35850",
+    ".cache/police-terms-round2-20260922/plate-after-v3.jsonl": "83bd0a21f7bb1a526b568f77987da0234ca20c892fdb86bca880e11e5028f2b1",
+    ".cache/police-terms-round2-20260922/plate-after.jsonl": "93a143910763862de1268503c0df7659dd1ae8aa26a663451c85889052e83b50",
+    ".cache/police-terms-round2-20260922/plate-before.jsonl": "849dbbd657e9fd2b7b3827c2098d80d9f9fc9a32036d35eca570df2bff9389d0",
+    ".cache/police-terms-round2-20260922/plate-comparison.jsonl": "c01b9d6224c847b63dc76fa4fb2ea009eb3a1c39827380d54424d1c76468f96e",
+    ".cache/police-terms-round2-20260922/plate-decode.log": "0352a1fe4128dc77634f0ff69c71208bb650f149f43198ac470b4910eb672d8b",
+    ".cache/police-terms-round2-20260922/plate-final-comparison.jsonl": "bd9a434440419b8ded69e8c39560b6cad4aaf59d68f736ed778928a0ede037dd",
+    ".cache/police-terms-round2-20260922/plate-final-metrics.json": "9cdb7041ec9c2eec26b27d9bc534a69cd0316d11ab1d59adfb2d1b6db96a583d",
+    ".cache/police-terms-round2-20260922/plate-final-summary.log": "af4cc7ae1d4f57eba85f3b07170e10ad3333d99bd5a58408acae8646072b0efc",
+    ".cache/police-terms-round2-20260922/plate-itn.jsonl": "d3ae677062eb75b0157c3fd6ce9e92f37b5285c328eabf96a781a3e84b102308",
+    ".cache/police-terms-round2-20260922/plate-metrics.json": "9047a5bc71fbec87aa4dda10b24b6d1b50528920ebaba27d457cd03a3db0b2fa",
+    ".cache/police-terms-round2-20260922/plate-raw.jsonl": "21410a2be9e02982f48208115de99ddfdbe93e8098c029b603af2c168ab246a8",
+    ".cache/police-terms-round2-20260922/plate-summary.log": "3533865b47806729ab2c4571c281750bc6fe0a9820e4ffcddae47184088470bd",
+    ".cache/police-terms-round2-20260922/prepare_probe.py": "6d0192fb961a080857ad10b08136670c817655000723d52fba218531576bd78c",
+    ".cache/police-terms-round2-20260922/prior-after-v2.jsonl": "61e07c2e0d6e1481f67fd85e75e3e86282f2cac42bd47f906586965f541d3ba7",
+    ".cache/police-terms-round2-20260922/prior-after-v3.jsonl": "61e07c2e0d6e1481f67fd85e75e3e86282f2cac42bd47f906586965f541d3ba7",
+    ".cache/police-terms-round2-20260922/prior-after.jsonl": "b015a76893e6e76d19a99858e060e63437f7b2c50ef2ae4f5f84919d197a000c",
+    ".cache/police-terms-round2-20260922/prior-comparison.jsonl": "7bdbecb66c38364462e30f6ee91f156436f9a85c63b48583b5930beabf9d60e0",
+    ".cache/police-terms-round2-20260922/prior-metrics.json": "693250bf2092b73520c3d82bd9010c3fef5ba86578891a776dd3cb2488832c10",
+    ".cache/police-terms-round2-20260922/prior-summary.log": "e645e1ded51ed23e2708c9c2d2317cceb846af5bc919e7d142f72bf071f1714d",
+    ".cache/police-terms-round2-20260922/probe_hotwords.py": "823abad4774988788777a2143520a8b9e8716d908d60b835b397724ee1f2efde",
+    ".cache/police-terms-round2-20260922/probe_hotwords_score1.py": "79b1b8c0632c96664a9e9f0ee8e7dd604e2dd43d70c0a888e7f2f3772d5e39ce",
+    ".cache/police-terms-round2-20260922/red-755.log": "575e726412446fb4dcc9d4128446a7aff3b15c36f4c36ab0ef98d288d51b9baf",
+    ".cache/police-terms-round2-20260922/red-final.log": "4af4a52f818c283d795222b0a582afee95823f86fd2cc41c836b8c49cc96b09e",
+    ".cache/police-terms-round2-20260922/red.log": "3fee6df271f59ea41c0a7c184ce2c8a09cb5405ecd659f10a40f376fdb6f1774",
+    ".cache/police-terms-round2-20260922/scoring.py": "e158355c0976e77b3fa4815052037baee5caa1ebfe4043661b3225a2ecf1cf4a",
+    ".cache/police-terms-round2-20260922/summarize_checks.py": "58b8c7ef0b2158c74cbf18cde5649a9050c27f2ff2bd374842eec6cc9f166b1c"
+  },
+  "known_limitations": [
+    "Default hotword score 3.0 regresses 74 of 1671 host vocabulary cases relative to no hotwords; delivery issue remains open",
+    "Score 1.0 is a candidate only and not validated across plate/station/other dialogs or on the SDK native runtime",
+    "No new independent held-out set",
+    "Frozen project lexicon is incomplete; coverage must accompany hit rates",
+    "No device SDK contract, ARM resource or delivery package acceptance"
+  ]
+}
