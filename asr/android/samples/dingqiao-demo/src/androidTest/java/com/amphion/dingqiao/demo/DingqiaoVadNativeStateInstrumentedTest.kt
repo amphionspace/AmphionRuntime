@@ -43,6 +43,7 @@ class DingqiaoVadNativeStateInstrumentedTest {
                     val trace = mutableListOf<String>()
                     var count = 0
                     var previous = ""
+                    var silenceCutSample: Int? = null
                     try {
                         val full = audio + FloatArray(20480)
                         var pos = 0
@@ -65,6 +66,9 @@ class DingqiaoVadNativeStateInstrumentedTest {
                                     "sample" to pos, "realSamples" to audio.size, "decodeCount" to count,
                                     "boundary" to boundary, "waitSeconds" to wait,
                                     "probeMs" to elapsed, "liveResult" to before))
+                                if (pos >= audio.size && wait == 0f && silenceCutSample == null) {
+                                    silenceCutSample = pos
+                                }
                                 if (boundary) {
                                     assertTrue("Premature cut still allowed for $asset: $wait", wait > 0f)
                                     assertTrue("Short vadEnd discarded a pending token for $asset",
@@ -78,8 +82,15 @@ class DingqiaoVadNativeStateInstrumentedTest {
                                 previous = before
                             }
                         }
-                        if (probe) assertEquals("True silence cannot finalize", 0f,
-                            recognizer.getVadEndpointWaitSeconds(stream, .8f), 0f)
+                        // The SDK cuts at the first permitted silent boundary. Continue both
+                        // streams only to check probe equivalence; later uncommitted hypotheses
+                        // on an already-ended stream must not redefine that boundary.
+                        if (probe) {
+                            assertNotNull("No silence cut permitted within the 1280 ms tail", silenceCutSample)
+                            DqReport.append(ctx, mapOf("case" to "pending_speech_silence_cut",
+                                "asset" to asset, "sample" to silenceCutSample,
+                                "realSamples" to audio.size, "tailBoundSamples" to 20480))
+                        }
                         traces.add(trace)
                     } finally { stream.release() }
                 }
