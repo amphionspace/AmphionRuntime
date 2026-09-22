@@ -27,7 +27,9 @@ bash asr/tools/08_pack_sdk_assets.sh --zh-en-only
 ```
 
 上游 FP32 源包及其 SHA-256 不变。使用固定 ONNX Runtime 1.16.3 / ONNX 1.15.0 / NumPy
-1.26.4，对 encoder 的常量权重 MatMul 做逐张量动态 QInt8 量化；decoder、joiner 和
+1.26.4，对 encoder 的常量权重 MatMul 做动态 QInt8 量化：默认逐张量，
+对 [固定选择](../police_1_4_int8_per_channel_weights.json)的 190 组权重使用逐通道尺度。
+选择仅依据权重重建误差与新增压缩字节数，增量预算 7 MiB，不使用评测答案。decoder、joiner 和
 词表逐字节保留源包内容。脚本验证源 encoder 及派生 encoder 的 SHA-256，并写入独立
 `transducer-encoder-int8` 目录；不会覆盖 FP32 源模型。两端再分别转换为匹配各自 ORT 版本的产物。
 
@@ -36,7 +38,7 @@ encoder 为 INT8，joiner 仍为 FP32，实际身份以打包 manifest 的 `sour
 [模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)为准。
 
 FP32 encoder 单文件最高级 ZIP 压缩仍达 545.8 MiB，无法满足现有 SDK-only ZIP 的
-320 MiB 门禁。encoder INT8 候选约 153.7 MiB；门禁不变，仍须以最终 ZIP 验证。
+320 MiB 门禁。encoder INT8 候选约 154.0 MiB；门禁不变，仍须以最终 ZIP 验证。
 精度对照和 Android/Harmony 真机验收均通过后才允许交付，转换或加载成功不能替代验收。
 
 ## 为什么
