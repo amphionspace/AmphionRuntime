@@ -42,9 +42,11 @@ internal class PoliceTermsHomophoneDict(
         for ((from, to) in phraseMap) {
             if (from.isEmpty() || from == to) continue
             out = if (from == "出警人员") {
-                // 催促的是赶往现场的出警人员，不能改成现场处置含义的「处警」。
+                // 催促出发和登记出警人员姓名均保留「出警」，不能强制改成现场处置含义。
                 CHUJING_PERSONNEL.replace(out) { match ->
-                    if (out.substring(0, match.range.first).endsWith("催促")) match.value else to
+                    if (out.substring(0, match.range.first).endsWith("催促") ||
+                        out.substring(match.range.last + 1).startsWith("姓名")
+                    ) match.value else to
                 }
             } else if (to.startsWith(from)) {
                 replaceExtendingPhrase(out, from, to)

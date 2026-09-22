@@ -52,9 +52,10 @@ class TermsHomophones {
       const pair = this.pairs[i];
       if (pair.from === pair.to) continue;
       if (pair.from === '出警人员') {
-        // 催促的是赶往现场的出警人员，不能改成现场处置含义的「处警」。
+        // 催促出发和登记出警人员姓名均保留「出警」，不能强制改成现场处置含义。
         output = output.replace(/出警人员/g, (value: string, offset: number): string =>
-          output.substring(0, offset).endsWith('催促') ? value : pair.to);
+          output.substring(0, offset).endsWith('催促') ||
+          output.substring(offset + value.length).startsWith('姓名') ? value : pair.to);
       } else {
         output = pair.to.startsWith(pair.from) ?
           this.replaceExtending(output, pair.from, pair.to) : output.split(pair.from).join(pair.to);
