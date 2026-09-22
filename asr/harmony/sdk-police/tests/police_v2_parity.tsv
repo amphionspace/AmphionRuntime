@@ -808,3 +808,8 @@ terms	equals	执法路线分辨率设置为D。	执法路线分辨率设置为D�
 terms	equals	执法路线分辨率设置为D二。	执法路线分辨率设置为D二。
 terms	equals	请复述执法路线分辨率设置为D幺这个错误。	请复述执法路线分辨率设置为D幺这个错误。
 terms	equals	执法路线已经确认。	执法路线已经确认。
+# Device INT8/score1 output: the complete command may omit the space before 幺.
+terms	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+pipeline	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+terms	equals	把路线分辨率设置为D。	把路线分辨率设置为D。
+terms	equals	请复述把路线分辨率设置为D幺这个错误。	请复述把路线分辨率设置为D幺这个错误。
