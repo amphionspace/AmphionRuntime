@@ -49,7 +49,7 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "encoder.int8.onnx": "2e78eb5e2aa7a2702719a4c17d073d9b",
+                "encoder.int8.onnx": "078adb5946aeacbefe81ebe1da41ca52",
                 "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
                 "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
             },

@@ -10,11 +10,11 @@
   "onnx_files_md5": {
     "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
     "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
-    "encoder.int8.onnx": "2e78eb5e2aa7a2702719a4c17d073d9b"
+    "encoder.int8.onnx": "078adb5946aeacbefe81ebe1da41ca52"
   },
   "encoder_quantization": {
     "source_encoder_sha256": "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932",
-    "encoder_sha256": "39f7f10d08a3e26cb2c585afefe5920d300a88d1bf1019a5c62203a2333a77ce",
+    "encoder_sha256": "91ebc1f9042811ab8a90362a2e118adee2208b3d13a6a52d1d13d4b03689994c",
     "recipe": "asr/tools/prepare_police_1_4_int8.py",
     "onnxruntime": "1.16.3",
     "onnx": "1.15.0",
@@ -25,6 +25,8 @@
     ],
     "per_channel": false,
     "reduce_range": false,
-    "MatMulConstBOnly": true
+    "MatMulConstBOnly": true,
+    "per_channel_weights_recipe": "asr/tools/police_1_4_int8_per_channel_weights.json",
+    "per_channel_weight_count": 190
   }
 }
