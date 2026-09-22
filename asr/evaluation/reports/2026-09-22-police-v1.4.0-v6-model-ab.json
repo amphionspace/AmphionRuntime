@@ -1,0 +1,346 @@
+{
+  "base_commit": "78b294e66717b02a732a34ed1ca587fd97c5f5e1",
+  "evaluated_current_code_commit": "2c6185c2c7c401d19a0e0a804068be7d5bbf908c",
+  "conclusion": "The current PR substantially improves police_v6_acceptance_205 on this paired host test. At hotword score 3.0, equivalent sentence accuracy increases from 2943/3773 to 3443/3773; model replacement contributes +485 exact sentences and new rules +15. This is a separate corpus from the previously reported 4305 cases, which regress under the default hotword setting.",
+  "configuration": {
+    "old_model": "police-179m-v1-1 / 1.1.0 / INT8 encoder, FP32 decoder and joiner",
+    "new_model": "police-179m-v1.4 / 1.4.0 / FP32 encoder, decoder and joiner",
+    "old_model_zip_sha256": "b2aace0db10e84faa561a025b9d0ea88cf7eb07edc5f7b7d217a18d637166cab",
+    "new_model_tar_sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+    "corpus_tar_sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
+    "selection_cases": 3773,
+    "runtime": {
+      "sherpa_onnx": "1.13.1",
+      "platform": "Linux-5.15.0-60-generic-x86_64-with-glibc2.31",
+      "num_threads": 1,
+      "sample_rate": 16000,
+      "frame_samples": 320,
+      "feature_dim": 80,
+      "model_type": "zipformer2",
+      "decoding_method": "modified_beam_search",
+      "max_active_paths": 8,
+      "endpoint_rules_sec": [
+        2.4,
+        1.4,
+        20
+      ],
+      "tail_silence_samples": 19200,
+      "hotword_scores": [
+        0,
+        3
+      ],
+      "hotwords_count": 370,
+      "hotword_modeling_unit": "bbpe",
+      "WeTextProcessing": "1.0.4.1",
+      "pynini": "2.1.6"
+    },
+    "scope": "All police_v6_acceptance_205 recordings from current OBS snapshot; paired old/new model comparison, not mobile SDK acceptance",
+    "remote_archive": {
+      "bucket": "cuhk-anfeiweng-benchmark",
+      "key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst",
+      "size": 3098940742,
+      "last_modified": "2026-09-21T10:31:46Z",
+      "etag": "196a9d1d971a9a51cbf64fdd0e480a98-370",
+      "sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9"
+    }
+  },
+  "dataset": {
+    "id": "police_v6_acceptance_205",
+    "cases": 3773,
+    "unique_audio": 3773,
+    "instruction_count": 205,
+    "reference_variants": 217,
+    "duration_hours": 3.0194666666666667,
+    "ground_truth": "Contract supervision, synthetic audio with independent automatic ASR QC, not human-reviewed; command text may have been seen in training"
+  },
+  "profiles": {
+    "0": {
+      "cases": 3773,
+      "strict": {
+        "old_raw": {
+          "exact": 2601,
+          "sentence_accuracy": 0.6893718526371587,
+          "edits": 3826,
+          "reference_chars": 33378,
+          "cer": 0.11462640062316495
+        },
+        "new_raw": {
+          "exact": 2921,
+          "sentence_accuracy": 0.7741849986747946,
+          "edits": 2848,
+          "reference_chars": 33378,
+          "cer": 0.08532566361076158
+        },
+        "old_base": {
+          "exact": 2601,
+          "sentence_accuracy": 0.6893718526371587,
+          "edits": 3819,
+          "reference_chars": 33378,
+          "cer": 0.11441668164659356
+        },
+        "new_base": {
+          "exact": 2921,
+          "sentence_accuracy": 0.7741849986747946,
+          "edits": 2844,
+          "reference_chars": 33378,
+          "cer": 0.08520582419557793
+        },
+        "new_current": {
+          "exact": 2938,
+          "sentence_accuracy": 0.778690697058044,
+          "edits": 2813,
+          "reference_chars": 33378,
+          "cer": 0.08427706872790461
+        }
+      },
+      "numeric_equivalent": {
+        "old_raw": {
+          "exact": 3062,
+          "sentence_accuracy": 0.8115557911476279,
+          "edits": 1402,
+          "reference_chars": 33402,
+          "cer": 0.04197353451889108
+        },
+        "new_raw": {
+          "exact": 3532,
+          "sentence_accuracy": 0.9361250993904056,
+          "edits": 425,
+          "reference_chars": 33402,
+          "cer": 0.012723788994670977
+        },
+        "old_base": {
+          "exact": 3068,
+          "sentence_accuracy": 0.8131460376358336,
+          "edits": 1395,
+          "reference_chars": 33402,
+          "cer": 0.041763966229567094
+        },
+        "new_base": {
+          "exact": 3536,
+          "sentence_accuracy": 0.937185263715876,
+          "edits": 421,
+          "reference_chars": 33402,
+          "cer": 0.01260403568648584
+        },
+        "new_current": {
+          "exact": 3553,
+          "sentence_accuracy": 0.9416909620991254,
+          "edits": 390,
+          "reference_chars": 33402,
+          "cer": 0.011675947548051015
+        }
+      },
+      "frozen_project_lexicon": {
+        "old_base": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 214,
+          "hit_rate": 0.9907407407407407,
+          "all_targets_hit_rows": 214
+        },
+        "new_base": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 216,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 216
+        },
+        "new_current": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 216,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 216
+        }
+      },
+      "model_at_base_rules": {
+        "changed": 724,
+        "improved": 538,
+        "regressed": 17,
+        "became_exact": 482,
+        "lost_exact": 14
+      },
+      "rules_at_new_model": {
+        "changed": 17,
+        "improved": 17,
+        "regressed": 0,
+        "became_exact": 17,
+        "lost_exact": 0
+      },
+      "whole_pr": {
+        "changed": 741,
+        "improved": 555,
+        "regressed": 17,
+        "became_exact": 499,
+        "lost_exact": 14
+      }
+    },
+    "3": {
+      "cases": 3773,
+      "strict": {
+        "old_raw": {
+          "exact": 2483,
+          "sentence_accuracy": 0.6580970050357805,
+          "edits": 4066,
+          "reference_chars": 33378,
+          "cer": 0.12181676553418419
+        },
+        "new_raw": {
+          "exact": 2813,
+          "sentence_accuracy": 0.7455605618870925,
+          "edits": 3083,
+          "reference_chars": 33378,
+          "cer": 0.09236622925280125
+        },
+        "old_base": {
+          "exact": 2483,
+          "sentence_accuracy": 0.6580970050357805,
+          "edits": 4059,
+          "reference_chars": 33378,
+          "cer": 0.1216070465576128
+        },
+        "new_base": {
+          "exact": 2813,
+          "sentence_accuracy": 0.7455605618870925,
+          "edits": 3078,
+          "reference_chars": 33378,
+          "cer": 0.09221642998382168
+        },
+        "new_current": {
+          "exact": 2828,
+          "sentence_accuracy": 0.7495361781076066,
+          "edits": 3050,
+          "reference_chars": 33378,
+          "cer": 0.0913775540775361
+        }
+      },
+      "numeric_equivalent": {
+        "old_raw": {
+          "exact": 2937,
+          "sentence_accuracy": 0.7784256559766763,
+          "edits": 1643,
+          "reference_chars": 33402,
+          "cer": 0.049188671337045686
+        },
+        "new_raw": {
+          "exact": 3423,
+          "sentence_accuracy": 0.9072356215213359,
+          "edits": 659,
+          "reference_chars": 33402,
+          "cer": 0.019729357523501585
+        },
+        "old_base": {
+          "exact": 2943,
+          "sentence_accuracy": 0.7800159024648821,
+          "edits": 1636,
+          "reference_chars": 33402,
+          "cer": 0.04897910304772169
+        },
+        "new_base": {
+          "exact": 3428,
+          "sentence_accuracy": 0.9085608269281739,
+          "edits": 654,
+          "reference_chars": 33402,
+          "cer": 0.019579665888270162
+        },
+        "new_current": {
+          "exact": 3443,
+          "sentence_accuracy": 0.9125364431486881,
+          "edits": 626,
+          "reference_chars": 33402,
+          "cer": 0.018741392730974193
+        }
+      },
+      "frozen_project_lexicon": {
+        "old_base": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 215,
+          "hit_rate": 0.9953703703703703,
+          "all_targets_hit_rows": 215
+        },
+        "new_base": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 216,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 216
+        },
+        "new_current": {
+          "covered_rows": 216,
+          "target_occurrences": 216,
+          "hit_occurrences": 216,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 216
+        }
+      },
+      "model_at_base_rules": {
+        "changed": 794,
+        "improved": 581,
+        "regressed": 47,
+        "became_exact": 519,
+        "lost_exact": 34
+      },
+      "rules_at_new_model": {
+        "changed": 15,
+        "improved": 15,
+        "regressed": 0,
+        "became_exact": 15,
+        "lost_exact": 0
+      },
+      "whole_pr": {
+        "changed": 809,
+        "improved": 596,
+        "regressed": 47,
+        "became_exact": 534,
+        "lost_exact": 34
+      }
+    }
+  },
+  "decode_reuse": {
+    "new_without_hotwords": 3773,
+    "old_without_hotwords": 0,
+    "old_score3": 0,
+    "new_score3": 0
+  },
+  "evidence_sha256": {
+    ".cache/pr218-v6-model-ab-20260922/compare-0.log": "a9c7788a4c0f4a99dd71c20bef08c7873c57d3f8890b295b59949468ae8844fa",
+    ".cache/pr218-v6-model-ab-20260922/compare-3.log": "485183ba199b934d4a259bab709fbca9b7651f5912c35620e1c7246f2458fcf2",
+    ".cache/pr218-v6-model-ab-20260922/compare.py": "09dafb7dc0be8c370e21f1a0959997990f8ca51ce3f6220c6181773ff4d8b719",
+    ".cache/pr218-v6-model-ab-20260922/comparison-0.jsonl": "51437b16b78f012c6f0a7d1691dc467f8b146d35019bf2cb807a1e7dc49ce65e",
+    ".cache/pr218-v6-model-ab-20260922/comparison-3.jsonl": "04e760349575354068c683f2a52c5dbab8eb403d965d8ff6320120ad7ec5c226",
+    ".cache/pr218-v6-model-ab-20260922/config.json": "f603b6e07b72c7f097f07a9787a126e5d114f88a200129aa72fb44e0a6729405",
+    ".cache/pr218-v6-model-ab-20260922/decode-new-0.log": "889095dc65fa5939a58c548b986e4fd8918d243ee76a8227448981641f6689e8",
+    ".cache/pr218-v6-model-ab-20260922/decode-new-3.log": "3333f9057542d5c7ace9e51eac7ec3a9016adac13240bf9df7ced4a17d6ee880",
+    ".cache/pr218-v6-model-ab-20260922/decode-old-0.log": "d5e823ff17ac036c0899919292ea7be62433cf1bbf6b61ac33ff308ce83cc971",
+    ".cache/pr218-v6-model-ab-20260922/decode-old-3.log": "6f52aca4ff6c30d92a30f5a04869aea74c1d5fdcf877444df2abf431fbb4ffcb",
+    ".cache/pr218-v6-model-ab-20260922/decode_ab.py": "e9b5cc5a0ce13173ce37d6df2af647816ec6d3929267d9f4f667e653f6f189f9",
+    ".cache/pr218-v6-model-ab-20260922/hotwords.txt": "b45d189b7e3add1b1e5cc002fdb564f97d266f1b794ae16d7a711bbc6eb40e07",
+    ".cache/pr218-v6-model-ab-20260922/make_summary.py": "67891fdc8e8b2da770a877d9dac564f226961be1e99b108553eaba2f5cd73043",
+    ".cache/pr218-v6-model-ab-20260922/metrics-0.json": "8e50149b1dda33230fdd6f92a1eab1338c46c5729ea93391446ed93e52460292",
+    ".cache/pr218-v6-model-ab-20260922/metrics-3.json": "8e26fbf9a8086b00d0aaa8238ecf7bf402c6b75f9786992419e14c9cb4d7aa77",
+    ".cache/pr218-v6-model-ab-20260922/new-0-base.jsonl": "fb2f77cf24d97758fcda89ff78d72d9bb0ecc8a9ae6315071ec383a102d2a50f",
+    ".cache/pr218-v6-model-ab-20260922/new-0-current.jsonl": "c6328389516a6f64233a09cc98a22590894d5b66f1f5c763a78066dacaaab472",
+    ".cache/pr218-v6-model-ab-20260922/new-0-itn.jsonl": "4d5f7f0668397c0abbd3c52af009bc299c4a5f7f9e7c692dcc3342e1aa12a53d",
+    ".cache/pr218-v6-model-ab-20260922/new-0-raw.jsonl": "595bf19e827f60b1ac68fa13f42aba21f7f3278e17534d0b8d97f478291bce8b",
+    ".cache/pr218-v6-model-ab-20260922/new-3-base.jsonl": "760cb3b82b3b65da091465139c81830be35f212d657499af699a60097e5b838b",
+    ".cache/pr218-v6-model-ab-20260922/new-3-current.jsonl": "43c4f750faad87ab2aae44674aec28039e9e68f8a19f0a771485fc4993ea5a7d",
+    ".cache/pr218-v6-model-ab-20260922/new-3-itn.jsonl": "d685f246392d5921195c888e5383cf8690c7342c5fe2e2dde691cb0be3348ba5",
+    ".cache/pr218-v6-model-ab-20260922/new-3-raw.jsonl": "e15ab2164f971e089d7493e9c37048c475361910d6e58d228e056b8aa2d5b831",
+    ".cache/pr218-v6-model-ab-20260922/old-0-base.jsonl": "d97e9e53a71506171dc620a0e0a206974551f3588c8e7d81c5343cca3ef4c425",
+    ".cache/pr218-v6-model-ab-20260922/old-0-itn.jsonl": "c2cfee53f8c096dcd55043280ff2e8b7cfe37d59a8e87aa016265ac22bfe1857",
+    ".cache/pr218-v6-model-ab-20260922/old-0-raw.jsonl": "452462c6462399f61e8a2d9052c77e563a76e2125a2a0dce9341853ea92cd092",
+    ".cache/pr218-v6-model-ab-20260922/old-3-base.jsonl": "b879c319604718ac7305623042c606833efc4d622bb57ba65ef80faf13954e51",
+    ".cache/pr218-v6-model-ab-20260922/old-3-itn.jsonl": "f7a072e0f5f6cfadf776a1ebeb8f2c5e1b9124196cb963d5e67921a1aa988588",
+    ".cache/pr218-v6-model-ab-20260922/old-3-raw.jsonl": "8aeab7e05e0fc9572de7de98664f75aa7cb603a09a23328e975119d15519750e",
+    ".cache/pr218-v6-model-ab-20260922/selection.jsonl": "54ebbe1fb84c27fd7f15b99320d960eca7c55dbd4fd7981726fa9d898fadf803"
+  },
+  "limitations": [
+    "Host stock sherpa-onnx 1.13.1, not mobile SDK end-to-end acceptance",
+    "V6 gains must not hide regressions in the separate 4305-case police terminology corpus",
+    "No unseen-instruction or training-data independence claim",
+    "This comparison adds identical per-segment ITN to both arms; older V6 reports without ITN are not directly comparable",
+    "Same requested 1.4.0 FP32 bundle; no default-score 1.0 candidate included",
+    "No new runtime code or model changes; PR remains unmerged"
+  ]
+}
