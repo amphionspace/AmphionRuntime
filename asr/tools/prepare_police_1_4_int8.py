@@ -11,7 +11,7 @@ import shutil
 from pathlib import Path
 
 SOURCE_SHA256 = "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932"
-ENCODER_SHA256 = "aae296f20c480333103e8b24e7c2466a26173f36f1a9750f236e70302576d691"
+ENCODER_SHA256 = "39f7f10d08a3e26cb2c585afefe5920d300a88d1bf1019a5c62203a2333a77ce"
 MODEL_ROOT = Path(__file__).resolve().parent / "demo-model"
 MODEL_PREFIX = "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-"
 
@@ -37,7 +37,7 @@ def main() -> None:
     encoder = args.output_dir / "encoder.int8.onnx"
     quantize_dynamic(
         str(source), str(encoder), op_types_to_quantize=["MatMul"],
-        weight_type=QuantType.QInt8, per_channel=True, reduce_range=False,
+        weight_type=QuantType.QInt8, per_channel=False, reduce_range=False,
         extra_options={"MatMulConstBOnly": True},
     )
     if hashlib.sha256(encoder.read_bytes()).hexdigest() != ENCODER_SHA256:
@@ -49,7 +49,7 @@ def main() -> None:
         "encoder_sha256": ENCODER_SHA256,
         "versions": versions,
         "weight_type": "QInt8", "op_types": ["MatMul"],
-        "per_channel": True, "reduce_range": False, "MatMulConstBOnly": True,
+        "per_channel": False, "reduce_range": False, "MatMulConstBOnly": True,
         "decoder": "unchanged FP32", "joiner": "unchanged FP32",
     }, indent=2) + "\n")
     print(f"[OK] reproducible encoder-only INT8 model: {args.output_dir}")
