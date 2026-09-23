@@ -4,41 +4,35 @@
 
 ## 当前中英模型：Police 1.4.0（仅 encoder INT8）
 
-Android/Harmony 打包默认使用
-`amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-encoder-int8/`。
+Android/Harmony 打包默认使用上游原包目录
+`amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer/`。
 源包位置和身份固定在
 [模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)。
-这个上游 tar.gz 使用以下命令手动恢复；`tools/assets/sync.py fetch all` 不包含它。
+按以下命令恢复；`tools/assets/sync.py fetch all` 不包含它。
 
 ```bash
 ab remotes  # 确认 obs-cuhk-anfeiweng-benchmark 对应 cuhk-anfeiweng-benchmark
 mkdir -p .cache/asr-police-v1.4
-ab pull 'obs-cuhk-anfeiweng-benchmark:icefall/amphion/zh_en/checkpoints/candidates/police-179m-v1.4/onnx/chunk32-lc256/1.4.0/dist/transducer-fp32-chunk32-lc256-1.4.0.tar.gz' \
-  .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz
+ab pull 'obs-cuhk-anfeiweng-benchmark:icefall/amphion/zh_en/checkpoints/candidates/police-179m-v1.4/onnx/chunk32-lc256/1.4.0/dist/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz' \
+  .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz
 printf '%s  %s\n' \
-  58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f \
-  .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz | shasum -a 256 -c -
-# 仅在校验成功后解压到新的版本目录。
-tar -xzf .cache/asr-police-v1.4/transducer-fp32-chunk32-lc256-1.4.0.tar.gz -C asr/tools/demo-model
-# 使用 requirements-harmony-ort.txt 对应的 Python 环境，仅量化 encoder。
-.venv-harmony-ort-1.16.3/bin/python asr/tools/prepare_police_1_4_int8.py
+  0f46f694ee4858f6959b598bd8eb338750b0f1025e39442313db12eb10af36b7 \
+  .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz | shasum -a 256 -c -
+# 仅在校验成功后解压；已有不同内容时先保留历史候选。
+tar -xzf .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz -C asr/tools/demo-model
 bash asr/tools/08_pack_harmony_assets.sh --zh-en-only
 bash asr/tools/08_pack_sdk_assets.sh --zh-en-only
 ```
 
-上游 FP32 源包及其 SHA-256 不变。使用固定 ONNX Runtime 1.16.3 / ONNX 1.15.0 / NumPy
-1.26.4，对 encoder 的常量权重 MatMul 做动态 QInt8 量化：默认逐张量，
-对 [固定选择](../police_1_4_int8_per_channel_weights.json)的 190 组权重使用逐通道尺度。
-选择仅依据权重重建误差与新增压缩字节数，增量预算 7 MiB，不使用评测答案。decoder、joiner 和
-词表逐字节保留源包内容。脚本验证源 encoder 及派生 encoder 的 SHA-256，并写入独立
-`transducer-encoder-int8` 目录；不会覆盖 FP32 源模型。两端再分别转换为匹配各自 ORT 版本的产物。
+直接使用包内 `encoder.int8.onnx`，不再本地量化。decoder、joiner 和词表也保持原包内容。
+两端分别转换为匹配各自 ORT 版本的运行产物。原本地量化脚本
+`prepare_police_1_4_int8.py` 仅用于追溯已被否决的历史候选，不参与当前构建。
 
 运行期资源名 `encoder.int8.ort` / `joiner.int8.ort`（Android 加 `.mp3`）沿用历史名称。
 encoder 为 INT8，joiner 仍为 FP32，实际身份以打包 manifest 的 `source_name`、源哈希及
 [模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)为准。
 
-FP32 encoder 单文件最高级 ZIP 压缩仍达 545.8 MiB，无法满足现有 SDK-only ZIP 的
-320 MiB 门禁。encoder INT8 候选约 154.0 MiB；门禁不变，仍须以最终 ZIP 验证。
+SDK-only ZIP 的 320 MiB 门禁保持不变，须以完整组包产物验证。
 精度对照和 Android/Harmony 真机验收均通过后才允许交付，转换或加载成功不能替代验收。
 
 ## 为什么

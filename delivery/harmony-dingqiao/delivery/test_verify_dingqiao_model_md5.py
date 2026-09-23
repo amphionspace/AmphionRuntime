@@ -40,16 +40,16 @@ class VerifyDingqiaoModelMd5Test(unittest.TestCase):
         model_id, expected = MODULE.load_policy()
         policy = json.loads(MODULE.DEFAULT_POLICY_PATH.read_text(encoding="utf-8"))
         self.assertEqual(
-            "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-encoder-int8",
+            "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer",
             model_id,
         )
         self.assertEqual(
-            "c0a03e66892ce076c1e16130dfd2a1fa",
+            "8401ebf7af9e2859783342fcf55f4da7",
             policy["source_bundle"]["md5"],
         )
         self.assertEqual(
             {
-                "encoder.int8.onnx": "078adb5946aeacbefe81ebe1da41ca52",
+                "encoder.int8.onnx": "473241f898df64c2afb3bda46acc5080",
                 "decoder.onnx": "bcf567bbb371b400fd80fef3312fd730",
                 "joiner.onnx": "fcc8e3c097f7d58d5057fd62f1933ca9",
             },

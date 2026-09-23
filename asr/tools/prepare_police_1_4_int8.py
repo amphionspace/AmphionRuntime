@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Reproduce the Police 1.4.0 encoder-only INT8 delivery candidate.
+"""Reproduce the historical, rejected local Police 1.4.0 INT8 candidate.
 
 Use the pinned Harmony ORT environment (requirements-harmony-ort.txt).
-The upstream FP32 package is retained; this writes a new model directory.
+For current builds use the upstream INT8 package in demo-model/README.md.
+This diagnostic recipe preserves old evidence and is not a delivery input.
 """
 import argparse
 import hashlib

@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-encoder-int8}"
+ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer}"
 YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
 ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts-v2}"
