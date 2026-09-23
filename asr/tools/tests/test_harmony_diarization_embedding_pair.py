@@ -178,6 +178,36 @@ const work=inference.computeEmbeddingPair(pcm), primary=Float32Array.of(1,2);
 a.resolve(primary);assert.deepEqual(await work,{primary});assert.equal(a.model.live,0);
 """)
 
+    def test_unready_channel_does_not_turn_secondary_failure_into_degraded_window(self):
+        self.run_pair("""
+async function processSpeakerTurnSegmentationAsync() {
+  return [{startSample:0,endSample:32000,speaker:0,speakerMask:1}];
+}
+const inference=new SpeakerDiarizationInference();
+inference.extractor={};inference.complementaryExtractor={};
+const calls=[];
+inference.computeEmbedding=async (_samples,model=inference.extractor)=>{
+  if(model===inference.extractor){calls.push('primary-unready');return undefined;}
+  calls.push('secondary-failed');throw new Error('secondary model failed');
+};
+const result=await inference.process(new Float32Array(32000),0,0,0);
+assert.deepEqual(calls,['primary-unready','secondary-failed']);
+assert.deepEqual(result.embeddings,[],
+  'the old channel path skipped secondary evidence when primary was unready');
+""")
+
+    def test_unready_run_still_reports_secondary_failure(self):
+        self.run_pair("""
+const inference=new SpeakerDiarizationInference();
+inference.extractor={};inference.complementaryExtractor={};
+inference.computeEmbedding=async (_samples,model=inference.extractor)=>{
+  if(model===inference.extractor)return undefined;
+  throw new Error('secondary model failed');
+};
+await assert.rejects(inference.computeEmbeddingPair(pcm),/secondary model failed/,
+  'run/refinement paths previously evaluated the secondary model independently');
+""")
+
     def test_window_matches_serial_values_under_opposite_model_delays(self):
         self.run_pair("""
 async function processSpeakerTurnSegmentationAsync() {

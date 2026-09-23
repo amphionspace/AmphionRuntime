@@ -132,7 +132,7 @@ export class SpeakerDiarizationInference {
       const channelSamples = this.collectSingleSpeakerSamples(
         samples, nativeSegments, localSpeaker);
       if (channelSamples.length < MIN_EMBEDDING_SAMPLES) continue;
-      const pair = await this.computeEmbeddingPair(channelSamples);
+      const pair = await this.computeEmbeddingPair(channelSamples, true);
       channelPairs.set(localSpeaker, { samples: channelSamples, pair });
       const embedding = pair.primary;
       if (embedding === undefined) continue;
@@ -374,7 +374,8 @@ export class SpeakerDiarizationInference {
     return true;
   }
 
-  private async computeEmbeddingPair(samples: Float32Array): Promise<SpeakerDiarizationEmbeddingPair> {
+  private async computeEmbeddingPair(samples: Float32Array,
+    skipComplementaryFailureWithoutPrimary: boolean = false): Promise<SpeakerDiarizationEmbeddingPair> {
     const primary = this.computeEmbedding(samples);
     if (this.complementaryExtractor === undefined) return { primary: await primary };
     // Each extractor owns a separate model. Keep at most one
@@ -385,7 +386,11 @@ export class SpeakerDiarizationInference {
     try {
       const embedding = await primary;
       const other = await complementary;
-      if (complementaryError !== undefined) throw complementaryError;
+      // The channel path formerly skipped the complementary model when its
+      // primary embedding was unavailable. Its speculative failure cannot
+      // turn that skipped channel into a degraded window.
+      if (complementaryError !== undefined &&
+        !(skipComplementaryFailureWithoutPrimary && embedding === undefined)) throw complementaryError;
       return { primary: embedding, complementary: other };
     } finally {
       // A rejected primary must not release the runtime while the other model
