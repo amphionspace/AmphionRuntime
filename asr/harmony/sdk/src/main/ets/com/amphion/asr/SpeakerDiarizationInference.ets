@@ -15,6 +15,21 @@ const MIN_EMBEDDING_SAMPLES: number = SAMPLE_RATE;
 // Retain later clean speech while bounding variable-length model workspace.
 const MAX_EMBEDDING_SAMPLES: number = SAMPLE_RATE * 6;
 
+interface SpeakerDiarizationEmbeddingPair {
+  primary?: Float32Array;
+  complementary?: Float32Array;
+}
+
+interface SpeakerDiarizationChannelPair {
+  samples: Float32Array;
+  pair: SpeakerDiarizationEmbeddingPair;
+}
+
+interface SpeakerDiarizationLocalFailure {
+  position: number;
+  error: Error;
+}
+
 export class SpeakerDiarizationSegment {
   startSample: number = 0;
   endSample: number = 0;
@@ -62,6 +77,8 @@ export interface SpeakerDiarizationBoundaryRefinement {
 export class SpeakerDiarizationInference {
   private extractor?: SpeakerEmbeddingExtractor;
   private complementaryExtractor?: SpeakerEmbeddingExtractor;
+  private localQueryExtractor?: SpeakerEmbeddingExtractor;
+  private localComplementaryExtractor?: SpeakerEmbeddingExtractor;
   private closed: boolean = false;
   private recentSingleSpeakerRuns: SpeakerTurnSegmentationSegment[] = [];
   private speakerLevelReference: number = 0;
@@ -71,7 +88,7 @@ export class SpeakerDiarizationInference {
     await AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync(context, embeddingModelPath);
     const config = new SpeakerEmbeddingExtractorConfig();
     config.model = embeddingModelPath;
-    config.numThreads = 1;
+    config.numThreads = 2;
     config.debug = false;
     this.extractor = await SpeakerEmbeddingExtractor.createAsync(
       config, embeddingModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
@@ -82,9 +99,13 @@ export class SpeakerDiarizationInference {
     try {
       this.complementaryExtractor = await SpeakerEmbeddingExtractor.createAsync(
         complementaryConfig, complementaryModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
+      this.localQueryExtractor = await SpeakerEmbeddingExtractor.createAsync(
+        config, embeddingModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
+      this.localComplementaryExtractor = await SpeakerEmbeddingExtractor.createAsync(
+        complementaryConfig, complementaryModelPath.startsWith('/') ? undefined : context.resourceManager, SAMPLE_RATE);
     } catch (error) {
       this.close();
-      throw new Error(`complementary speaker model load failed: ${error}`);
+      throw new Error(`speaker model load failed: ${error}`);
     }
   }
 
@@ -106,11 +127,14 @@ export class SpeakerDiarizationInference {
         return converted;
       });
 
+    const channelPairs = new Map<number, SpeakerDiarizationChannelPair>();
     for (let localSpeaker = 0; localSpeaker < 3; localSpeaker++) {
       const channelSamples = this.collectSingleSpeakerSamples(
         samples, nativeSegments, localSpeaker);
       if (channelSamples.length < MIN_EMBEDDING_SAMPLES) continue;
-      const embedding = await this.computeEmbedding(channelSamples);
+      const pair = await this.computeEmbeddingPair(channelSamples);
+      channelPairs.set(localSpeaker, { samples: channelSamples, pair });
+      const embedding = pair.primary;
       if (embedding === undefined) continue;
       const value = new SpeakerDiarizationEmbedding();
       value.localSpeaker = localSpeaker;
@@ -120,7 +144,7 @@ export class SpeakerDiarizationInference {
       value.speechRms = Math.sqrt(squaredLevel / channelSamples.length);
       value.embedding = Array.from(embedding);
       if (this.complementaryExtractor !== undefined) {
-        const complementary = await this.computeEmbedding(channelSamples, this.complementaryExtractor);
+        const complementary = pair.complementary;
         if (complementary !== undefined) value.complementaryEmbedding = Array.from(complementary);
       }
       const querySamples = this.collectQuerySamples(
@@ -140,10 +164,15 @@ export class SpeakerDiarizationInference {
       const end = Math.min(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES);
       if (end - segment.startSample < MIN_EMBEDDING_SAMPLES) continue;
       const runSamples = samples.slice(segment.startSample, end);
-      const query = await this.computeEmbedding(runSamples);
+      // A continuous single-speaker channel often uses exactly the same PCM
+      // as this run. Reuse only an exact match from the current window.
+      const channel = channelPairs.get(segment.speaker);
+      const pair = channel !== undefined && this.sameSamples(channel.samples, runSamples) ?
+        channel.pair : await this.computeEmbeddingPair(runSamples);
+      const query = pair.primary;
       if (query !== undefined) segment.queryEmbedding = Array.from(query);
       if (this.complementaryExtractor !== undefined) {
-        const complementary = await this.computeEmbedding(runSamples, this.complementaryExtractor);
+        const complementary = pair.complementary;
         if (complementary !== undefined) segment.complementaryEmbedding = Array.from(complementary);
       }
       const context = result.embeddings.find(value => value.localSpeaker === segment.speaker);
@@ -163,6 +192,8 @@ export class SpeakerDiarizationInference {
     if (this.complementaryExtractor === undefined) return queries;
     const start = origin + Math.max(segment.startSample, queryStartSample);
     const end = origin + Math.min(segment.endSample, queryEndSample);
+    const cells: number[] = [];
+    const samplesByCell: Float32Array[] = [];
     // Fixed 250-ms output cells use 1.3 seconds of real, continuous local PCM.
     // The grid is absolute, independent of input framing and native window origin.
     for (let cell = Math.floor(start / 4000); cell < Math.ceil(end / 4000); cell++) {
@@ -171,13 +202,60 @@ export class SpeakerDiarizationInference {
       const through = center + 10400;
       if (from < Math.max(0, origin) || through > origin + samples.length) continue;
       const pcm = samples.slice(from - origin, through - origin);
-      const primary = await this.computeEmbedding(pcm);
-      const complementary = await this.computeEmbedding(pcm, this.complementaryExtractor);
+      cells.push(cell);
+      samplesByCell.push(pcm);
+    }
+    const pairs = await this.computeLocalEmbeddings(samplesByCell);
+    for (let index = 0; index < cells.length; index++) {
+      const cell = cells[index];
+      const pair = pairs[index];
+      const primary = pair.primary;
+      const complementary = pair.complementary;
       if (primary === undefined || complementary === undefined) continue;
       queries.push({ startSample: Math.max(start, cell * 4000), endSample: Math.min(end, (cell + 1) * 4000),
         embedding: Array.from(primary), complementaryEmbedding: Array.from(complementary) });
     }
     return queries;
+  }
+
+  private async computeLocalEmbeddings(samples: Float32Array[]): Promise<SpeakerDiarizationEmbeddingPair[]> {
+    if (samples.length === 0) return [];
+    if (this.localQueryExtractor === undefined || this.localComplementaryExtractor === undefined) {
+      throw new Error('local speaker models are not loaded');
+    }
+    // Each model has one ordered queue. The two primary copies use identical
+    // weights/configuration and own disjoint cells, as do the secondary copies.
+    const errors: SpeakerDiarizationLocalFailure[] = [];
+    const first = this.computeEmbeddingSequence(samples, 0, 2, this.extractor, 0, errors);
+    const second = this.computeEmbeddingSequence(samples, 1, 2, this.localQueryExtractor, 0, errors);
+    const other = this.computeEmbeddingSequence(samples, 0, 2, this.complementaryExtractor, 1, errors);
+    const localOther = this.computeEmbeddingSequence(samples, 1, 2, this.localComplementaryExtractor, 1, errors);
+    // Never return/reject while another queue still owns native work.
+    const values = await Promise.all([first, second, other, localOther]);
+    // Preserve the error the original cell-by-cell path would encounter first.
+    errors.sort((left, right): number => left.position - right.position);
+    if (errors.length > 0) throw errors[0].error;
+    return samples.map((_pcm: Float32Array, index: number): SpeakerDiarizationEmbeddingPair =>
+      ({ primary: values[index % 2][Math.floor(index / 2)],
+        complementary: values[2 + index % 2][Math.floor(index / 2)] }));
+  }
+
+  private async computeEmbeddingSequence(samples: Float32Array[], start: number, step: number,
+    extractor: SpeakerEmbeddingExtractor | undefined, modelOrder: number,
+    errors: SpeakerDiarizationLocalFailure[]): Promise<Array<Float32Array | undefined>> {
+    const values: Array<Float32Array | undefined> = [];
+    for (let index = start; index < samples.length; index += step) {
+      let failed = false;
+      const value = await this.computeEmbedding(samples[index], extractor)
+        .catch((error: Error): undefined => {
+          errors.push({ position: index * 2 + modelOrder, error });
+          failed = true;
+          return undefined;
+        });
+      if (failed) break;
+      values.push(value);
+    }
+    return values;
   }
 
   private async refineEarlierRuns(samples: Float32Array, segments: SpeakerTurnSegmentationSegment[],
@@ -196,10 +274,12 @@ export class SpeakerDiarizationInference {
       const start = Math.min(...parents.map(run => run.startSample));
       const leftSamples = samples.slice(Math.max(start - origin, right.startSample - MAX_EMBEDDING_SAMPLES), right.startSample);
       const rightSamples = samples.slice(right.startSample, Math.min(right.endSample, right.startSample + MAX_EMBEDDING_SAMPLES));
-      const leftEmbedding = await this.computeEmbedding(leftSamples);
-      const leftComplementary = await this.computeEmbedding(leftSamples, this.complementaryExtractor);
-      const rightEmbedding = await this.computeEmbedding(rightSamples);
-      const rightComplementary = await this.computeEmbedding(rightSamples, this.complementaryExtractor);
+      const leftPair = await this.computeEmbeddingPair(leftSamples);
+      const rightPair = await this.computeEmbeddingPair(rightSamples);
+      const leftEmbedding = leftPair.primary;
+      const leftComplementary = leftPair.complementary;
+      const rightEmbedding = rightPair.primary;
+      const rightComplementary = rightPair.complementary;
       if (leftEmbedding === undefined || leftComplementary === undefined ||
         rightEmbedding === undefined || rightComplementary === undefined) continue;
       refinements.push({ startSample: start, cutSample: cut,
@@ -224,6 +304,10 @@ export class SpeakerDiarizationInference {
     this.extractor = undefined;
     try { this.complementaryExtractor?.close(); } catch (_ignored) {}
     this.complementaryExtractor = undefined;
+    try { this.localQueryExtractor?.close(); } catch (_ignored) {}
+    this.localQueryExtractor = undefined;
+    try { this.localComplementaryExtractor?.close(); } catch (_ignored) {}
+    this.localComplementaryExtractor = undefined;
   }
 
   private collectSingleSpeakerSamples(samples: Float32Array,
@@ -280,6 +364,34 @@ export class SpeakerDiarizationInference {
       if (masks[i] === 0 || masks[i] === expectedMask) result[offset++] = samples[start + i];
     }
     return result;
+  }
+
+  private sameSamples(left: Float32Array, right: Float32Array): boolean {
+    if (left.length !== right.length) return false;
+    for (let index = 0; index < left.length; index++) {
+      if (left[index] !== right[index]) return false;
+    }
+    return true;
+  }
+
+  private async computeEmbeddingPair(samples: Float32Array): Promise<SpeakerDiarizationEmbeddingPair> {
+    const primary = this.computeEmbedding(samples);
+    if (this.complementaryExtractor === undefined) return { primary: await primary };
+    // Each extractor owns a separate model. Keep at most one
+    // call per model in flight and do not advance the window until both settle.
+    let complementaryError: Error | undefined;
+    const complementary = this.computeEmbedding(samples, this.complementaryExtractor)
+      .catch((error: Error): undefined => { complementaryError = error; return undefined; });
+    try {
+      const embedding = await primary;
+      const other = await complementary;
+      if (complementaryError !== undefined) throw complementaryError;
+      return { primary: embedding, complementary: other };
+    } finally {
+      // A rejected primary must not release the runtime while the other model
+      // still owns a native stream. Preserve the primary error if both fail.
+      await complementary;
+    }
   }
 
   private async computeEmbedding(samples: Float32Array,

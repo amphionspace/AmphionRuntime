@@ -58,7 +58,7 @@ class HarmonyDiarizationQuietLocalQueryTest(unittest.TestCase):
         driver="""
           import assert from 'node:assert/strict';
           const inference=new SpeakerDiarizationInference();
-          inference.extractor={};inference.complementaryExtractor={};
+          inference.extractor={};inference.complementaryExtractor={};inference.localQueryExtractor={};inference.localComplementaryExtractor={};
           inference.computeEmbedding=async pcm=>Float32Array.of(pcm[0],pcm.at(-1));
           async function collect(origin,a,b){
             const samples=Float32Array.from({length:160000},(_,i)=>origin+i);
