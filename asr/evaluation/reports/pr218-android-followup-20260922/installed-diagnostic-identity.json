@@ -1,0 +1,13 @@
+{
+  "scope": "on-device native diagnostic and targeted test; production app reused from known 3334c80d build",
+  "git_head": "0978911167bee4c978b8b3909a9194a87306784e",
+  "production_app_source_commit": "3334c80d6810f1dda6b275685438c242044df99b",
+  "packages": {
+    "com.amphion.dingqiao.demo": {
+      "installed_sha256": "73355369d173809a5163174d1ca5da17b7af4472fd4eb21fc9238e80c9454fc1"
+    },
+    "com.amphion.dingqiao.demo.test": {
+      "installed_sha256": "a749d8409a0635925227d27cb50c98857ed145349bbbf4a39b6855cb61e14ea6"
+    }
+  }
+}

@@ -1,0 +1,152 @@
+{
+  "fp32-1-final": {
+    "current_plate_number_1276/strict": {
+      "both_correct": 1027,
+      "both_wrong": 227,
+      "gain": 8,
+      "loss": 14
+    },
+    "current_plate_number_1276/numeric_equivalent": {
+      "both_correct": 1031,
+      "both_wrong": 223,
+      "gain": 8,
+      "loss": 14
+    },
+    "current_police_station_394/strict": {
+      "both_wrong": 127,
+      "both_correct": 263,
+      "loss": 3,
+      "gain": 1
+    },
+    "current_police_station_394/numeric_equivalent": {
+      "both_correct": 281,
+      "both_wrong": 108,
+      "loss": 4,
+      "gain": 1
+    },
+    "original_six/strict": {
+      "both_correct": 3641,
+      "both_wrong": 643,
+      "gain": 13,
+      "loss": 8
+    },
+    "original_six/numeric_equivalent": {
+      "both_correct": 3712,
+      "both_wrong": 572,
+      "gain": 14,
+      "loss": 7
+    },
+    "police_v6_acceptance_205/strict": {
+      "both_correct": 2921,
+      "both_wrong": 837,
+      "gain": 4,
+      "loss": 11
+    },
+    "police_v6_acceptance_205/numeric_equivalent": {
+      "both_correct": 3531,
+      "both_wrong": 220,
+      "gain": 6,
+      "loss": 16
+    }
+  },
+  "old-1-final": {
+    "current_plate_number_1276/strict": {
+      "both_correct": 1012,
+      "both_wrong": 194,
+      "gain": 23,
+      "loss": 47
+    },
+    "current_plate_number_1276/numeric_equivalent": {
+      "both_correct": 1016,
+      "both_wrong": 185,
+      "gain": 23,
+      "loss": 52
+    },
+    "current_police_station_394/strict": {
+      "both_wrong": 109,
+      "loss": 21,
+      "both_correct": 257,
+      "gain": 7
+    },
+    "current_police_station_394/numeric_equivalent": {
+      "both_correct": 275,
+      "both_wrong": 88,
+      "loss": 24,
+      "gain": 7
+    },
+    "original_six/strict": {
+      "both_correct": 3621,
+      "both_wrong": 605,
+      "gain": 33,
+      "loss": 46
+    },
+    "original_six/numeric_equivalent": {
+      "both_correct": 3694,
+      "both_wrong": 535,
+      "gain": 32,
+      "loss": 44
+    },
+    "police_v6_acceptance_205/strict": {
+      "both_correct": 2615,
+      "both_wrong": 834,
+      "gain": 310,
+      "loss": 14
+    },
+    "police_v6_acceptance_205/numeric_equivalent": {
+      "both_correct": 3081,
+      "both_wrong": 222,
+      "gain": 456,
+      "loss": 14
+    }
+  },
+  "old-3-base": {
+    "current_plate_number_1276/strict": {
+      "both_correct": 973,
+      "both_wrong": 198,
+      "gain": 62,
+      "loss": 43
+    },
+    "current_plate_number_1276/numeric_equivalent": {
+      "both_correct": 977,
+      "both_wrong": 189,
+      "gain": 62,
+      "loss": 48
+    },
+    "current_police_station_394/strict": {
+      "both_wrong": 109,
+      "loss": 21,
+      "both_correct": 239,
+      "gain": 25
+    },
+    "current_police_station_394/numeric_equivalent": {
+      "both_correct": 256,
+      "both_wrong": 87,
+      "loss": 25,
+      "gain": 26
+    },
+    "original_six/strict": {
+      "both_correct": 3428,
+      "both_wrong": 598,
+      "gain": 226,
+      "loss": 53
+    },
+    "original_six/numeric_equivalent": {
+      "both_correct": 3496,
+      "both_wrong": 528,
+      "gain": 230,
+      "loss": 51
+    },
+    "police_v6_acceptance_205/strict": {
+      "both_correct": 2469,
+      "both_wrong": 834,
+      "gain": 456,
+      "loss": 14
+    },
+    "police_v6_acceptance_205/numeric_equivalent": {
+      "both_correct": 2929,
+      "both_wrong": 222,
+      "gain": 608,
+      "loss": 14
+    }
+  }
+}

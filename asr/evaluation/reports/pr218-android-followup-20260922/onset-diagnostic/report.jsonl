@@ -1,0 +1,30 @@
+{"ts":1790067631715,"case":"runtime_prepare","phase":"init_start"}
+{"ts":1790067631715,"case":"runtime_prepare","phase":"init_complete"}
+{"ts":1790067631716,"case":"runtime_prepare","phase":"work_path_complete"}
+{"ts":1790067631716,"case":"runtime_prepare","phase":"license_staged"}
+{"ts":1790067631717,"case":"runtime_prepare","phase":"license_invoked"}
+{"ts":1790067632556,"case":"runtime_prepare","phase":"license_complete"}
+{"ts":1790067632556,"case":"runtime_prepare","phase":"prepare_invoked"}
+{"ts":1790067633191,"case":"runtime_prepare","phase":"prepare_complete"}
+{"ts":1790067633822,"case":"onset_diagnostic","phase":"start","sessionId":"onset-300-1790067633822","prefixMs":300,"nativeConfirmedMs":1120,"vadBeginMs":1000,"minSegSec":0,"voiceprintIdCount":1}
+{"ts":1790067633835,"case":"callback","sessionId":"onset-300-1790067633822","kind":"START","isLast":false}
+{"ts":1790067633835,"case":"callback","sessionId":"onset-300-1790067633822","kind":"EVENT","isLast":false}
+{"ts":1790067635690,"case":"callback","sessionId":"onset-300-1790067633822","kind":"EVENT","isLast":false}
+{"ts":1790067635692,"case":"callback","sessionId":"onset-300-1790067633822","kind":"FINAL","isLast":true}
+{"ts":1790067635692,"case":"callback","sessionId":"onset-300-1790067633822","kind":"COMPLETE","isLast":false}
+{"ts":1790067635712,"case":"onset_diagnostic","phase":"before_finish","sessionId":"onset-300-1790067633822","prefixMs":300,"fedAudioMs":2160,"lastBeforeFinish":1,"events":"[(20, speaker vad enabled.), (22, speaker vad rejected final; score=n\/a)]","partials":"[]"}
+{"ts":1790067635712,"case":"onset_diagnostic","phase":"complete","sessionId":"onset-300-1790067633822","prefixMs":300,"errors":"[]","text":"","lastCount":1,"completeCount":1,"scores":"[null]"}
+{"ts":1790067635735,"case":"onset_diagnostic","phase":"start","sessionId":"onset-0-1790067635734","prefixMs":0,"nativeConfirmedMs":832,"vadBeginMs":1000,"minSegSec":0,"voiceprintIdCount":1}
+{"ts":1790067635740,"case":"callback","sessionId":"onset-0-1790067635734","kind":"START","isLast":false}
+{"ts":1790067635740,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067636652,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067637296,"case":"callback","sessionId":"onset-0-1790067635734","kind":"PARTIAL","isLast":false}
+{"ts":1790067637344,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067637827,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067637959,"case":"callback","sessionId":"onset-0-1790067635734","kind":"PARTIAL","isLast":false}
+{"ts":1790067638321,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067638496,"case":"onset_diagnostic","phase":"before_finish","sessionId":"onset-0-1790067635734","prefixMs":0,"fedAudioMs":2691,"lastBeforeFinish":0,"events":"[(20, speaker vad enabled.), (1, speech started.), (21, speaker_vad state=target_confirmed score=0.570 threshold=0.35 inferMs=46.9 rtf=0.031 confirmed=true below=0), (21, speaker_vad state=target_active score=0.589 threshold=0.35 inferMs=59.6 rtf=0.040 confirmed=true below=0), (21, speaker_vad state=target_active score=0.364 threshold=0.35 inferMs=45.7 rtf=0.030 confirmed=true below=0)]","partials":"[来一, 来一首爱如]"}
+{"ts":1790067638713,"case":"callback","sessionId":"onset-0-1790067635734","kind":"EVENT","isLast":false}
+{"ts":1790067638811,"case":"callback","sessionId":"onset-0-1790067635734","kind":"FINAL","isLast":true}
+{"ts":1790067638811,"case":"callback","sessionId":"onset-0-1790067635734","kind":"COMPLETE","isLast":false}
+{"ts":1790067638811,"case":"onset_diagnostic","phase":"complete","sessionId":"onset-0-1790067635734","prefixMs":0,"errors":"[]","text":"来一首，爱如潮水。","lastCount":1,"completeCount":1,"scores":"[0.5642403]"}
