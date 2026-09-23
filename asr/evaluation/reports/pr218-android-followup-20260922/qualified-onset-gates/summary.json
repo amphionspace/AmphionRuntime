@@ -1,0 +1,21 @@
+{
+  "command": [
+    "<LOCAL_PATH>",
+    "shell",
+    "am",
+    "instrument",
+    "-w",
+    "-r",
+    "-e",
+    "class",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest#v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad,com.amphion.dingqiao.demo.DqVoiceprintTest#v04e_voiceprintVadBegin_pureSilenceEndsOnce",
+    "-e",
+    "speakerVadAsset",
+    "03_\u8bc6\u522b.wav",
+    "com.amphion.dingqiao.demo.test/androidx.test.runner.AndroidJUnitRunner"
+  ],
+  "elapsed_seconds": 8.766,
+  "exit_code": 0,
+  "status": "PASS",
+  "source_commit": "0978911167bee4c978b8b3909a9194a87306784e"
+}

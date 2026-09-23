@@ -64,7 +64,8 @@ python3 - \
   "$REPO_ROOT/asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police" \
   "$ZH_EN_ONLY" \
   "$APPROVED_TARGET_SPEAKER_MODEL_SHA256" \
-  "$SCRIPT_DIR" <<'PY'
+  "$SCRIPT_DIR" \
+  "$REPO_ROOT/shared/models/asr/police/lac/v1/lac_encoder.onnx" <<'PY'
 import sys
 import tarfile
 import json
@@ -123,15 +124,16 @@ with tarfile.open(har, "r:gz") as package:
     if police_package.get("dependencies", {}).get("amphion_asr") != "file:../amphion_asr":
         raise SystemExit("[ERROR] bundled police dependency does not link bundled ASR")
 
-    expected_police_root = local_police_root
-    temp_root = None
+    temp_root = Path(tempfile.mkdtemp(prefix="amphion-police-verify."))
+    expected_police_root = (
+        temp_root / "_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
+    )
+    expected_police_root.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(local_police_root, expected_police_root)
+    # Hvigor stages the shared encoder into rawfile only while building the HAR.
+    # Reconstruct that same input tree instead of expecting a persistent source copy.
+    shutil.copyfile(Path(sys.argv[12]), expected_police_root / "lac/v1/lac_encoder.onnx")
     if zh_en_only:
-        temp_root = Path(tempfile.mkdtemp(prefix="amphion-police-verify."))
-        expected_police_root = (
-            temp_root / "_bundled/amphion_police/src/main/resources/rawfile/amphion-police"
-        )
-        expected_police_root.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copytree(local_police_root, expected_police_root)
         sanitizer_path = Path(sys.argv[11]) / "sanitize_public_har_payload.py"
         spec = importlib.util.spec_from_file_location("sanitize_public_har_payload", sanitizer_path)
         if spec is None or spec.loader is None:

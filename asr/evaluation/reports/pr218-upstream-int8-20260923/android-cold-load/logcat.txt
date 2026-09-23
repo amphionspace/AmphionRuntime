@@ -1,0 +1,62 @@
+--------- beginning of main
+09-22 02:17:41.701 10192 10218 I TestRunner: run started: 1 tests
+09-22 02:17:41.705 10192 10218 I TestRunner: started: coldWarmUnloadAndRuntimeReloadUsePublicLifecycle(com.amphion.dingqiao.demo.DqRuntimeFastLoadInstrumentedTest)
+09-22 02:17:44.061 10192 10223 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2321 postProcessorMs=446 assetInstallMs=0
+09-22 02:17:46.558 10192 10223 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2327 postProcessorMs=306 assetInstallMs=0
+09-22 02:17:47.039 10192 10218 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-22 02:17:48.379 10192 10733 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=307 elapsedMs=308 singleDecode=true fallback=false
+09-22 02:17:48.409 10192 10736 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1500 decodeDurationMs=1333 postProcessMs=20 firstPartialLatencyMs=1020 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1353 rtf=0.889 nativeRssMb=479 nativeRssMbDelta=0 pcmBytesAccepted=48000 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=24 nativeRssMbAtReady=316
+09-22 02:17:48.424 10192 10738 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=48000 avgRtf=0.889 p95Rtf=0.889 peakNativeRssMb=479 nativeRssMb=476
+09-22 02:17:51.271 10192 10223 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2396 postProcessorMs=291 assetInstallMs=0
+09-22 02:17:51.406 10192 10218 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-22 02:17:52.371 10192 10787 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=273 elapsedMs=275 singleDecode=true fallback=false
+09-22 02:17:52.381 10192 10789 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1500 decodeDurationMs=962 postProcessMs=8 firstPartialLatencyMs=684 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=971 rtf=0.641 nativeRssMb=481 nativeRssMbDelta=0 pcmBytesAccepted=48000 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=2445 nativeRssMbAtReady=322
+09-22 02:17:52.387 10192 10738 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=48000 avgRtf=0.641 p95Rtf=0.641 peakNativeRssMb=481 nativeRssMb=480
+09-22 02:17:54.804 10192 10223 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2198 postProcessorMs=301 assetInstallMs=0
+09-22 02:17:55.122 10192 10218 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-22 02:17:56.063 10192 10826 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=284 elapsedMs=285 singleDecode=true fallback=false
+09-22 02:17:56.073 10192 10828 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1500 decodeDurationMs=936 postProcessMs=8 firstPartialLatencyMs=648 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=945 rtf=0.624 nativeRssMb=484 nativeRssMbDelta=0 pcmBytesAccepted=48000 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=38 nativeRssMbAtReady=324
+09-22 02:17:56.079 10192 10738 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=48000 avgRtf=0.624 p95Rtf=0.624 peakNativeRssMb=484 nativeRssMb=484
+09-22 02:17:56.083 10192 10218 I DqRuntimeFastLoad: {case=runtime-fast-load, prepareMs=2383, prepareBaselinePssKb=157245, preparePeakPssKb=239110, preparePeakDeltaPssKb=81865, coldMs=218, coldPeakDeltaPssKb=4663, warmMs=79, modelReloadMs=2554, modelReloadBaselinePssKb=158886, modelReloadPeakPssKb=239397, modelReloadPeakDeltaPssKb=80511, runtimePrepareMs=2262, runtimePrepareBaselinePssKb=163125, runtimePreparePeakPssKb=245769, runtimePreparePeakDeltaPssKb=82644, runtimeReloadMs=152, runtimeReloadPeakDeltaPssKb=6179}
+09-22 02:17:56.083 10192 10218 E TestRunner: failed: coldWarmUnloadAndRuntimeReloadUsePublicLifecycle(com.amphion.dingqiao.demo.DqRuntimeFastLoadInstrumentedTest)
+09-22 02:17:56.084 10192 10218 E TestRunner: ----- begin exception -----
+09-22 02:17:56.084 10192 10218 E TestRunner: java.lang.AssertionError: SDK cold prepare should finish within 2000 ms
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.Assert.fail(Assert.java:89)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.Assert.assertTrue(Assert.java:42)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at com.amphion.dingqiao.demo.DqRuntimeFastLoadInstrumentedTest.coldWarmUnloadAndRuntimeReloadUsePublicLifecycle(DqRuntimeFastLoadInstrumentedTest.kt:91)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-22 02:17:56.084 10192 10218 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2340)
+09-22 02:17:56.084 10192 10218 E TestRunner: ----- end exception -----
+09-22 02:17:56.085 10192 10218 I TestRunner: finished: coldWarmUnloadAndRuntimeReloadUsePublicLifecycle(com.amphion.dingqiao.demo.DqRuntimeFastLoadInstrumentedTest)
+09-22 02:17:56.893 10192 10218 I TestRunner: run finished: 1 tests, 1 failed, 0 ignored

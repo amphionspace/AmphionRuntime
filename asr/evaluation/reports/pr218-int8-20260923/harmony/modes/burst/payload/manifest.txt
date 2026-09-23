@@ -1,0 +1,12 @@
+000000	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000000.pcm
+000001	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000001.pcm
+000002	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000002.pcm
+000003	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000003.pcm
+000004	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000004.pcm
+000005	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000005.pcm
+000006	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000006.pcm
+000007	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000007.pcm
+000008	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000008.pcm
+000009	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000009.pcm
+000010	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000010.pcm
+000011	/data/storage/el2/base/files/asr-stress/20260922-193342-burst-0fba8cdc/audio/000011.pcm

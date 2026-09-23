@@ -1,0 +1,175 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build
+> Task :samples:dingqiao-demo:preBuild UP-TO-DATE
+> Task :samples:dingqiao-demo:preDebugBuild UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-dingqiao:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-police:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-police:preBuild UP-TO-DATE
+> Task :sdk-dingqiao:preBuild UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk-police:preDebugBuild UP-TO-DATE
+> Task :samples:dingqiao-demo:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-dingqiao:preDebugBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk-police:generateDebugResValues UP-TO-DATE
+> Task :samples:dingqiao-demo:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk-police:generateDebugResources UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugResources UP-TO-DATE
+> Task :samples:dingqiao-demo:generateDebugResources UP-TO-DATE
+> Task :sdk-police:packageDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk-dingqiao:packageDebugResources UP-TO-DATE
+> Task :samples:dingqiao-demo:packageDebugResources UP-TO-DATE
+> Task :sdk-police:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk-dingqiao:parseDebugLocalResources UP-TO-DATE
+> Task :sdk-police:generateDebugRFile UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugRFile UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk-police:javaPreCompileDebug UP-TO-DATE
+> Task :sdk-dingqiao:javaPreCompileDebug UP-TO-DATE
+> Task :sdk-police:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk-dingqiao:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk-police:writeDebugAarMetadata UP-TO-DATE
+> Task :sdk-dingqiao:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk-police:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk-dingqiao:processDebugManifest UP-TO-DATE
+> Task :sdk-police:processDebugManifest UP-TO-DATE
+> Task :sdk-police:mergeDebugShaders UP-TO-DATE
+> Task :sdk-dingqiao:mergeDebugShaders UP-TO-DATE
+> Task :sdk-police:compileDebugShaders NO-SOURCE
+> Task :sdk-dingqiao:compileDebugShaders NO-SOURCE
+> Task :sdk-police:syncSharedLacModel UP-TO-DATE
+> Task :sdk-dingqiao:syncSharedDingqiaoModels UP-TO-DATE
+> Task :sdk-police:generateDebugAssets UP-TO-DATE
+> Task :sdk-dingqiao:generateDebugAssets UP-TO-DATE
+> Task :sdk-dingqiao:packageDebugAssets UP-TO-DATE
+> Task :sdk-dingqiao:preDiagnosticsBuild UP-TO-DATE
+> Task :sdk-police:packageDebugAssets UP-TO-DATE
+> Task :samples:dingqiao-demo:mapDebugSourceSetPaths UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugResources UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk:compileDebugLibraryResources UP-TO-DATE
+> Task :sdk:writeDebugAarMetadata UP-TO-DATE
+> Task :samples:dingqiao-demo:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugManifest UP-TO-DATE
+> Task :sdk:mergeDebugShaders UP-TO-DATE
+> Task :sdk:compileDebugShaders NO-SOURCE
+> Task :sdk:generateDebugAssets UP-TO-DATE
+> Task :samples:dingqiao-demo:checkDebugAarMetadata UP-TO-DATE
+> Task :sdk:packageDebugAssets UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :samples:dingqiao-demo:extractDeepLinksDebug UP-TO-DATE
+> Task :sdk:processDebugJavaRes UP-TO-DATE
+> Task :sdk:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :sdk:mergeDebugJniLibFolders UP-TO-DATE
+> Task :sdk:mergeDebugNativeLibs UP-TO-DATE
+> Task :sdk:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugMainManifest UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugManifest UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugManifestForPackage UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugResources UP-TO-DATE
+> Task :samples:dingqiao-demo:javaPreCompileDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugShaders UP-TO-DATE
+> Task :samples:dingqiao-demo:compileDebugShaders NO-SOURCE
+> Task :samples:dingqiao-demo:generateDebugAssets UP-TO-DATE
+
+> Task :sdk-dingqiao:configureCMakeDebug[arm64-v8a]
+[CXX5304] This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+[CXX5304] This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+
+> Task :sdk-police:configureCMakeDebug[arm64-v8a]
+> Task :sdk-dingqiao:buildCMakeDebug[arm64-v8a]
+> Task :sdk-dingqiao:mergeDebugJniLibFolders UP-TO-DATE
+> Task :sdk-dingqiao:mergeDebugNativeLibs UP-TO-DATE
+> Task :sdk-dingqiao:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :sdk-police:compileDebugKotlin UP-TO-DATE
+> Task :sdk-police:compileDebugJavaWithJavac NO-SOURCE
+> Task :sdk-police:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-police:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk-police:processDebugJavaRes UP-TO-DATE
+> Task :sdk-police:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugKotlin UP-TO-DATE
+> Task :sdk-dingqiao:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk-dingqiao:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-dingqiao:bundleLibRuntimeToJarDebug UP-TO-DATE
+> Task :sdk-police:buildCMakeDebug[arm64-v8a]
+> Task :sdk-dingqiao:processDebugJavaRes UP-TO-DATE
+> Task :sdk-police:mergeDebugJniLibFolders UP-TO-DATE
+> Task :sdk-police:mergeDebugNativeLibs UP-TO-DATE
+> Task :sdk-police:copyDebugJniLibsProjectOnly UP-TO-DATE
+> Task :sdk-dingqiao:bundleLibRuntimeToDirDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAssets
+> Task :samples:dingqiao-demo:compileDebugKotlin UP-TO-DATE
+> Task :samples:dingqiao-demo:compileDebugJavaWithJavac NO-SOURCE
+> Task :samples:dingqiao-demo:desugarDebugFileDependencies UP-TO-DATE
+> Task :samples:dingqiao-demo:dexBuilderDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugGlobalSynthetics UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugJavaRes UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugJavaResource UP-TO-DATE
+> Task :samples:dingqiao-demo:checkDebugDuplicateClasses UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugStartupProfile UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeExtDexDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeProjectDexDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugJniLibFolders UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugNativeLibs UP-TO-DATE
+> Task :samples:dingqiao-demo:stripDebugDebugSymbols UP-TO-DATE
+> Task :samples:dingqiao-demo:validateDingqiaoDemoRuntimeAssets
+> Task :samples:dingqiao-demo:validateSigningDebug UP-TO-DATE
+> Task :samples:dingqiao-demo:writeDebugAppMetadata UP-TO-DATE
+> Task :samples:dingqiao-demo:writeDebugSigningConfigVersions UP-TO-DATE
+> Task :samples:dingqiao-demo:bundleDebugClassesToCompileJar UP-TO-DATE
+> Task :samples:dingqiao-demo:preDebugAndroidTestBuild SKIPPED
+> Task :samples:dingqiao-demo:checkDebugAndroidTestAarMetadata UP-TO-DATE
+> Task :samples:dingqiao-demo:generateDebugAndroidTestResValues UP-TO-DATE
+> Task :samples:dingqiao-demo:mapDebugAndroidTestSourceSetPaths
+> Task :samples:dingqiao-demo:generateDebugAndroidTestResources UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestResources FROM-CACHE
+> Task :samples:dingqiao-demo:processDebugAndroidTestManifest UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugAndroidTestResources FROM-CACHE
+> Task :samples:dingqiao-demo:javaPreCompileDebugAndroidTest UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestShaders UP-TO-DATE
+> Task :samples:dingqiao-demo:compileDebugAndroidTestShaders NO-SOURCE
+> Task :samples:dingqiao-demo:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestAssets UP-TO-DATE
+> Task :samples:dingqiao-demo:compressDebugAndroidTestAssets UP-TO-DATE
+> Task :samples:dingqiao-demo:desugarDebugAndroidTestFileDependencies UP-TO-DATE
+> Task :samples:dingqiao-demo:checkDebugAndroidTestDuplicateClasses UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeExtDexDebugAndroidTest UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeLibDexDebugAndroidTest UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestJniLibFolders UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :samples:dingqiao-demo:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :samples:dingqiao-demo:validateSigningDebugAndroidTest UP-TO-DATE
+> Task :samples:dingqiao-demo:writeDebugAndroidTestSigningConfigVersions UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeLibDexDebug
+> Task :samples:dingqiao-demo:compileDebugAndroidTestKotlin
+> Task :samples:dingqiao-demo:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :samples:dingqiao-demo:dexBuilderDebugAndroidTest
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestGlobalSynthetics UP-TO-DATE
+> Task :samples:dingqiao-demo:processDebugAndroidTestJavaRes UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeDebugAndroidTestJavaResource UP-TO-DATE
+> Task :samples:dingqiao-demo:mergeProjectDexDebugAndroidTest
+> Task :samples:dingqiao-demo:packageDebugAndroidTest
+> Task :samples:dingqiao-demo:createDebugAndroidTestApkListingFileRedirect UP-TO-DATE
+> Task :samples:dingqiao-demo:assembleDebugAndroidTest
+> Task :samples:dingqiao-demo:compressDebugAssets
+> Task :samples:dingqiao-demo:packageDebug
+> Task :samples:dingqiao-demo:createDebugApkListingFileRedirect UP-TO-DATE
+> Task :samples:dingqiao-demo:assembleDebug
+
+BUILD SUCCESSFUL in 36s
+138 actionable tasks: 18 executed, 2 from cache, 118 up-to-date

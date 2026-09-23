@@ -1,0 +1,46 @@
+{
+  "status": "ACCEPTANCE_BLOCKED",
+  "source_commit": "e7cc4008724f01286ff09e40a29cbe1240facbd5",
+  "device": {
+    "ro.product.model": "V2505A",
+    "ro.build.version.release": "16",
+    "ro.build.display.id": "PD2505D_A_16.0.30.8.W10"
+  },
+  "identity": "installed-current-identity.json",
+  "targeted_gates": {
+    "v04d_onStartSpeakerVad": "PASS",
+    "v04e_pureSilence": "PASS"
+  },
+  "onset_resolution": {
+    "status": "TEST_INPUT_QUALIFICATION_FIXED",
+    "old_input": "Same PCM: device native VAD confirms at 1120 ms with the 300 ms prefix, or 832 ms without it. SDK terminates before finish only in the first arm. Original failure retained.",
+    "qualified_input": "Full independent same-speaker recordings; unchanged 300 ms prefix and 1000 ms timeout. No cropping, repetition, SDK threshold or model change. See qualified-onset.json.",
+    "current_result": "Before finish: zero last. After finish: one last then one complete, no errors, every non-empty final scored. Pure silence: one empty last then one complete without a score.",
+    "scope": "Lifecycle and score availability, not speaker identity accuracy."
+  },
+  "native_boundary": {
+    "status": "LOSS_LOCALIZED_NOT_FIXED",
+    "scope": "Isolated native diagnostic on the known 3334c80d production APK. Native/model binaries unchanged in the current build. JUnit execution success is not product acceptance.",
+    "nfc": "At 3.300 s inputFinished makes no new decode (count stays 4). Keeping the stream yields ENF at 4.000 s and ENFC after tail; fresh stream yields only F C. Soft reset retains ENFC in the next segment.",
+    "resolution": "At 3.760 s inputFinished makes no new decode (count stays 5). Keeping the stream emits 幺 at decode 6 / 4.000 s, timestamp 3.240 s. Both reset and fresh stream omit 幺. Prefix 执法路线 is wrong before this boundary.",
+    "rejected_shortcuts": [
+      "Unconditional soft reset does not recover both fixtures.",
+      "Previously rejected silence padding produces unsupported S; do not ship it.",
+      "Do not guess missing characters or deduplicate strings outside the recognizer."
+    ],
+    "next_requirement": "Native finalization must preserve undecoded frames and pending hypotheses, and prove real/synthetic/next-utterance token ownership before publishing final."
+  },
+  "remaining": [
+    "NFC and resolution boundary loss remain uncorrected.",
+    "Resolution prefix recognition remains wrong independently of the boundary.",
+    "Prior Android 第一 and 零 truncated command failures remain open; not independently localized by this two-fixture experiment.",
+    "Full current-HEAD platform/device merge gates are not all passed."
+  ],
+  "evidence_reuse": "Runtime/native logic and models unchanged. Final app/test APK built from source_commit with installed hashes verified. Reused 773 parity cases and police module tests because their source inputs did not change.",
+  "limitations": [
+    "No full device matrix rerun while known content blockers remain.",
+    "Labeled AISHELL-3 qualification and original synthetic V6 fixtures; no customer original audio.",
+    "Logcat was empty for the first three diagnostic runs; final current-onset-gates includes test and runtime metrics. Ordered public callbacks or native diagnostic records are preserved for every run.",
+    "Short memory samples are INCONCLUSIVE for leaks."
+  ]
+}

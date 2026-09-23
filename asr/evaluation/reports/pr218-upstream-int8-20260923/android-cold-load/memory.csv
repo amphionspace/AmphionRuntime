@@ -1,0 +1,8 @@
+elapsed_s,pid,VmRSS_kB,threads,cgroup,frozen
+2.426,10192,263856 kB,38,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+4.569,10192,320832 kB,57,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+6.755,10192,323788 kB,60,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+8.945,10192,322848 kB,57,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+11.13,10192,329924 kB,62,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+13.259,10192,330572 kB,57,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0
+15.444,10192,495236 kB,64,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_10192,0

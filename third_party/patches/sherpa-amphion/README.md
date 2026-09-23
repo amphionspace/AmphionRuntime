@@ -30,6 +30,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0024-*` | C API 暴露 metadata-free pyannote powerset 解码，与 Android/Harmony 的 10 秒说话人片段语义一致，供 iOS 直接复用公共模型 |
 | `0025-*` | Android 上游构建脚本显式传递 `CFLAGS` / `CXXFLAGS`，确保首次干净构建也应用可复现路径映射 |
 | `0026-*` | Harmony online decode 增加单 chunk 异步入口，供 final 补尾按实际 encoder readiness 推进且不阻塞 UI |
+| `0028-*` | 主动 VAD 切句前，在临时 encoder/decoder 状态上检查待处理真实帧；补齐的右上下文不进入 token 解码或公共结果。发现未决语音时按 PCM 时钟复查，等待自然解码提交后才允许销毁旧流；JNI、C API 和 Harmony 异步入口保持同一语义 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 

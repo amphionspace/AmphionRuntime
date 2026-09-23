@@ -56,7 +56,7 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[str, dict[str, str]]:
     source_bundle = policy.get("source_bundle")
     if (
         not isinstance(source_bundle, dict)
-        or source_bundle.get("name") != "bundle.tar.gz"
+        or source_bundle.get("name") != "edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz"
         or not isinstance(source_bundle.get("md5"), str)
         or MD5_RE.fullmatch(source_bundle["md5"]) is None
     ):

@@ -667,3 +667,155 @@ pipeline	equals	询问笔录？	询问笔录？
 pipeline	equals	讯问笔录	讯问笔录
 pipeline	equals	  讯问笔录。	  讯问笔录。
 pipeline	equals	讯问笔录？	讯问笔录？
+# Police 1.4.0 / V6: exact command corrections; protect surrounding text and legitimate words.
+terms	equals	开启记录仪ENFC	开启记录仪NFC
+terms	equals	  开启记录仪ENFC？	  开启记录仪NFC？
+terms	equals	开启记录仪NFC	开启记录仪NFC
+terms	equals	请复述开启记录仪ENFC这个错误	请复述开启记录仪ENFC这个错误
+terms	equals	把路线分辨率设置为D 幺	把录像分辨率设置为D 幺
+terms	equals	  把路线分辨率设置为D 幺？	  把录像分辨率设置为D 幺？
+terms	equals	把录像分辨率设置为D 幺	把录像分辨率设置为D 幺
+terms	equals	请复述把路线分辨率设置为D 幺这个错误	请复述把路线分辨率设置为D 幺这个错误
+terms	equals	八视频分段时长设置为六十分钟	把视频分段时长设置为六十分钟
+terms	equals	  八视频分段时长设置为六十分钟？	  把视频分段时长设置为六十分钟？
+terms	equals	把视频分段时长设置为六十分钟	把视频分段时长设置为六十分钟
+terms	equals	请复述八视频分段时长设置为六十分钟这个错误	请复述八视频分段时长设置为六十分钟这个错误
+terms	equals	当前沿路时长是多少	当前延录时长是多少
+terms	equals	  当前沿路时长是多少？	  当前延录时长是多少？
+terms	equals	当前延录时长是多少	当前延录时长是多少
+terms	equals	请复述当前沿路时长是多少这个错误	请复述当前沿路时长是多少这个错误
+terms	equals	把记录仪的镜头模式分辨率帧率沿路时长都告诉我	把记录仪的镜头模式分辨率帧率延录时长都告诉我
+terms	equals	  把记录仪的镜头模式分辨率帧率沿路时长都告诉我？	  把记录仪的镜头模式分辨率帧率延录时长都告诉我？
+terms	equals	把记录仪的镜头模式分辨率帧率延录时长都告诉我	把记录仪的镜头模式分辨率帧率延录时长都告诉我
+terms	equals	请复述把记录仪的镜头模式分辨率帧率沿路时长都告诉我这个错误	请复述把记录仪的镜头模式分辨率帧率沿路时长都告诉我这个错误
+terms	equals	把记录仪亮度调到零度	把记录仪亮度调到零档
+terms	equals	  把记录仪亮度调到零度？	  把记录仪亮度调到零档？
+terms	equals	把记录仪亮度调到零档	把记录仪亮度调到零档
+terms	equals	请复述把记录仪亮度调到零度这个错误	请复述把记录仪亮度调到零度这个错误
+terms	equals	电子录音	电子录音
+terms	equals	沿路风景很好	沿路风景很好
+terms	equals	地图路线分辨率设置为第一档	地图路线分辨率设置为第一档
+terms	equals	气温降到零度	气温降到零度
+terms	equals	把录像分辨率设置为第一档	把录像分辨率设置为第一档
+# PR218 device outputs after ITN and punctuation: preserve format and exact-utterance scope.
+pipeline	equals	八、视频分段时长设置为60min。	把视频分段时长设置为60min。
+pipeline	equals	把记录仪的镜头模式分辨率、帧率沿路时长都告诉我。	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。
+pipeline	equals	把视频分段时长设置为60min。	把视频分段时长设置为60min。
+pipeline	equals	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。	把记录仪的镜头模式分辨率、帧率延录时长都告诉我。
+pipeline	equals	请复述八、视频分段时长设置为60min这个错误。	请复述八、视频分段时长设置为60min这个错误。
+pipeline	equals	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。
+pipeline	equals	沿路风景很好，录像时长是60min。	沿路风景很好，录像时长是60min。
+pipeline	equals	八视频分段时长设置为60min	把视频分段时长设置为60min。
+pipeline	equals	把录像分辨率设置为第一要。	把录像分辨率设置为D 幺。
+pipeline	equals	把记录仪亮度调到零到。	把记录仪亮度调到零档。
+pipeline	equals	  把录像分辨率设置为第一要？	把录像分辨率设置为D 幺。
+pipeline	equals	  把记录仪亮度调到零到？	  把记录仪亮度调到零档？
+pipeline	equals	把录像分辨率设置为第一。	把录像分辨率设置为第一。
+pipeline	equals	把记录仪亮度调到零。	把记录仪亮度调到零。
+pipeline	equals	请复述把录像分辨率设置为第一要这个错误。	请复述把录像分辨率设置为第一要这个错误。
+pipeline	equals	请复述把记录仪亮度调到零到这个错误。	请复述把记录仪亮度调到零到这个错误。
+pipeline	equals	把视频分段时长设置为60min	把视频分段时长设置为60min。
+pipeline	equals	  把录像分辨率设置为D 幺？	把录像分辨率设置为D 幺。
+
+# 20260922 警言警语全量基线：出警语境、完整数字码与开发集定向术语纠错。
+terms	equals	对不起因当前交通堵塞我们会催促出警人员尽快赶到现场请您稍等	对不起因当前交通堵塞我们会催促出警人员尽快赶到现场请您稍等
+terms	equals	催促出警人员尽快赶到现场。	催促出警人员尽快赶到现场。
+pipeline	equals	催促出警人员尽快赶到现场。	催促出警人员尽快赶到现场。
+terms-polish	equals	催促出警人员。	催促出警人员。
+terms	equals	请出警人员到场后核实现场。	请处警人员到场后核实现场。
+terms	equals	出警人员已经到达小区门口。	处警人员已经到达小区门口。
+terms	equals	催促处警人员回报。	催促处警人员回报。
+terms	equals	幺二零	120
+terms	equals	编号零一幺二七九。	编号011279。
+terms	equals	快递单号后六位七五八勾两洞。	快递单号后六位758920。
+terms	equals	编号三七零五零三幺九九幺幺二三零九八三。	编号37050319911230983。
+terms	equals	来了一两个人。	来了一两个人。
+terms	equals	七八九月轮流值班。	七八九月轮流值班。
+terms	equals	一二三栋楼。	一二三栋楼。
+terms	equals	住在5栋楼。	住在5栋楼。
+terms	equals	加强沟通，弯腰捡东西。	加强沟通，弯腰捡东西。
+terms	equals	访谈节目已经开始。	访谈节目已经开始。
+terms	equals	事发后明理已经赶到现场。	事发后明理已经赶到现场。
+terms	equals	今天在基地处理纠纷。	今天在基地处理纠纷。
+terms	equals	参观体育系，随后到体育西路。	参观体育系，随后到体育西路。
+terms	equals	中医讨论湿温。	中医讨论湿温。
+terms	equals	访谈背心。	防弹背心。
+terms	equals	防弹背心。	防弹背心。
+terms	equals	事发明理。	释法明理。
+terms	equals	释法明理。	释法明理。
+terms	equals	案结室了。	案结事了。
+terms	equals	案结事了。	案结事了。
+terms	equals	案结试了。	案结事了。
+terms	equals	案结事了。	案结事了。
+terms	equals	设稳线索。	涉稳线索。
+terms	equals	涉稳线索。	涉稳线索。
+terms	equals	边造警情。	编造警情。
+terms	equals	编造警情。	编造警情。
+terms	equals	济南市历下区全城路。	济南市历下区泉城路。
+terms	equals	济南市历下区泉城路。	济南市历下区泉城路。
+terms	equals	广州市天河区体育系路。	广州市天河区体育西路。
+terms	equals	广州市天河区体育西路。	广州市天河区体育西路。
+terms	equals	勤指行今天有点卡	情指行今天有点卡
+terms	equals	  勤指行今天有点卡。	  情指行今天有点卡。
+terms	equals	情指行今天有点卡	情指行今天有点卡
+terms	equals	请复述勤指行今天有点卡这个错误。	请复述勤指行今天有点卡这个错误。
+terms	equals	佩奇单警装备	配齐单警装备
+terms	equals	  佩奇单警装备。	  配齐单警装备。
+terms	equals	配齐单警装备	配齐单警装备
+terms	equals	请复述佩奇单警装备这个错误。	请复述佩奇单警装备这个错误。
+terms	equals	佩奇防护装备	配齐防护装备
+terms	equals	  佩奇防护装备。	  配齐防护装备。
+terms	equals	配齐防护装备	配齐防护装备
+terms	equals	请复述佩奇防护装备这个错误。	请复述佩奇防护装备这个错误。
+terms	equals	非直系亲属不能待办	非直系亲属不能代办
+terms	equals	  非直系亲属不能待办。	  非直系亲属不能代办。
+terms	equals	非直系亲属不能代办	非直系亲属不能代办
+terms	equals	请复述非直系亲属不能待办这个错误。	请复述非直系亲属不能待办这个错误。
+terms	equals	保暖毯可以防止湿温	保暖毯可以防止失温
+terms	equals	  保暖毯可以防止湿温。	  保暖毯可以防止失温。
+terms	equals	保暖毯可以防止失温	保暖毯可以防止失温
+terms	equals	请复述保暖毯可以防止湿温这个错误。	请复述保暖毯可以防止湿温这个错误。
+
+# 20260922 第二轮：正确动作/人员字段守恒，纯数字补省必须有明确车牌/车辆语境。
+terms	equals	技术人员正在现场勘查。	技术人员正在现场勘查。
+pipeline	equals	现场勘查发现了脚印。	现场勘查发现了脚印。
+terms	equals	请带上现场勘查箱。	请带上现场勘查箱。
+pipeline	equals	现场缉枪	现场勘查箱
+terms	equals	签收警情后请把出警人员姓名补录到系统。	签收警情后请把出警人员姓名补录到系统。
+terms-polish	equals	出警人员姓名	出警人员姓名
+pipeline	equals	出警人员姓名和处警人员姓名都已登记。	出警人员姓名和处警人员姓名都已登记。
+terms	equals	出警人员到场后核实出警人员姓名。	处警人员到场后核实出警人员姓名。
+plate	equals	零四以290000报警人再次来电后接警记录增加了备注。	零四以290000报警人再次来电后接警记录增加了备注。
+plate	equals	登记290000条报警记录。	登记290000条报警记录。
+plate	equals	设备编号290000已登记。	设备编号290000已登记。
+plate	equals	车牌号290000已登记。	车牌号冀R90000已登记。
+plate	equals	车牌号H28491已登记。	车牌号H28491已登记。
+plate	equals	车牌号冀R90000已登记。	车牌号冀R90000已登记。
+plate	equals	车牌号记290000已登记。	车牌号冀R90000已登记。
+plate	equals	冀290000已登记。	冀R90000已登记。
+plate	equals	帮忙查一下G 二五九三八六对应车辆的情况。	帮忙查一下冀R59386对应车辆的情况。
+plate	equals	继205 831车主暂时联系不上。	冀R05831车主暂时联系不上。
+plate	equals	即205 831车窗没关。	冀R05831车窗没关。
+plate	equals	即249 718停在我店门口装卸区。	冀R49718停在我店门口装卸区。
+plate	equals	以267 240这辆车倒车的时候碰到我电动车了。	以冀R67240这辆车倒车的时候碰到我电动车了。
+plate	equals	设备编号267240这辆车已经登记。	设备编号267240这辆车已经登记。
+
+# V6 native 对照确认短热词“执法”锁住误识；只修正完整设备指令，不移除通用热词。
+terms	equals	执法路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+terms	equals	执法路线分辨率设置为D 幺	把录像分辨率设置为D 幺
+pipeline	equals	执法路线分辨率设置为D幺	把录像分辨率设置为D 幺。
+terms	equals	执法路线分辨率设置为D。	执法路线分辨率设置为D。
+terms	equals	执法路线分辨率设置为D二。	执法路线分辨率设置为D二。
+terms	equals	请复述执法路线分辨率设置为D幺这个错误。	请复述执法路线分辨率设置为D幺这个错误。
+terms	equals	执法路线已经确认。	执法路线已经确认。
+# Device INT8/score1 output: the complete command may omit the space before 幺.
+terms	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+pipeline	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+terms	equals	把路线分辨率设置为D。	把路线分辨率设置为D。
+terms	equals	请复述把路线分辨率设置为D幺这个错误。	请复述把路线分辨率设置为D幺这个错误。
+# Station correction must preserve the caller's command outside the station span.
+station	equals	请帮忙整理一下海口市琼山区福城派出所本周末的出警情况。	请帮忙整理一下海口市琼山区府城派出所本周末的出警情况。
+pipeline	equals	请把合肥市包河区五湖路派出所近三天的处警情况整理一下。	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。
+station	equals	把银川市兴庆区兴华街派出所端午假期期间的接警数据按派警时段列一下。	把银川市兴庆区新华街派出所端午假期期间的接警数据按派警时段列一下。
+station	equals	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。
+station	equals	请把长安新城派出所近三天的处警情况整理一下。	请把长安新城派出所近三天的处警情况整理一下。

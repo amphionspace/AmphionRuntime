@@ -1,0 +1,26 @@
+elapsed_s,pid,VmRSS_kB,threads,cgroup,frozen
+0.265,15826,90556 kB,18,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15826,0
+2.582,15884,270476 kB,50,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+4.874,15884,341052 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+7.111,15884,517256 kB,60,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+9.414,15884,543520 kB,59,5:schedtune:/foreground;4:memory:/;3:cpuset:/foreground;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+11.663,15884,546952 kB,63,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+13.835,15884,565408 kB,62,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+16.232,15884,484972 kB,58,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+18.439,15884,528100 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+20.733,15884,594000 kB,59,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+22.897,15884,534776 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+25.057,15884,550820 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+27.487,15884,555056 kB,62,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+29.781,15884,631024 kB,58,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+31.994,15884,550740 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+34.212,15884,569064 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+36.393,15884,565324 kB,58,5:schedtune:/foreground;4:memory:/;3:cpuset:/foreground;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+38.708,15884,601664 kB,58,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+40.998,15884,318328 kB,53,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+43.228,15884,322416 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+45.457,15884,485092 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+47.668,15884,482848 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+49.883,15884,481744 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+52.102,15884,484360 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0
+54.306,15884,482988 kB,61,5:schedtune:/top-app;4:memory:/;3:cpuset:/top-app;2:cpu:/;1:blkio:/;0::/uid_10254/pid_15884,0

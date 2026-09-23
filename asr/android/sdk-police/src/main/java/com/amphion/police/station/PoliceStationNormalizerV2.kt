@@ -117,7 +117,10 @@ class PoliceStationNormalizerV2 private constructor(
         val m = STATION_SUFFIX.findAll(text).toList()
         if (m.isEmpty()) return null
         val best = m.minByOrNull { it.value.length } ?: return null
-        return RawSpan(best.range.first, best.range.last + 1, best.value)
+        // Command words belong to the caller's sentence, outside the replaceable station span.
+        val station = stripCommandPrefix(best.value)
+        val start = best.range.first + best.value.length - station.length
+        return RawSpan(start, best.range.last + 1, station)
     }
 
     /**

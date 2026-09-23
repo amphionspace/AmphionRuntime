@@ -379,12 +379,12 @@
   },
   "catalog": {
     "police-asr-eval-20260914": {
-      "description": "Police ASR evaluation handoff: terminology, license plates, station names and targeted failures; 18 datasets, mostly synthetic audio; manual tar.zst download",
+      "description": "Police ASR evaluation handoff updated 2026-09-21: 19 datasets including 3,773 V6 command recordings; mostly synthetic audio; manual tar.zst download",
       "bucket": "cuhk-anfeiweng-benchmark",
       "object_key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst",
       "archive_type": "tar.zst",
-      "size": 2538939557,
-      "sha256": "a63e272bcab9a0b4d63282080bf3c8eb961bf00d62de81b2cabc6558c8f21c15",
+      "size": 3098940742,
+      "sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
       "checksum_object_key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst.sha256",
       "readme_object_key": "asr_testsets/2026-09-14/summary/README.md",
       "summary_object_key": "asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv",
@@ -394,7 +394,8 @@
         "police-station-accuracy"
       ],
       "redistribution": "team-internal-only; contains customer audio; no public redistribution",
-      "verification_scope": "Remote size, published checksum and README inspected; archive not downloaded or evaluated in this audit"
+      "verification_scope": "Archive downloaded and SHA-256 verified on 2026-09-21; V6 labels are synthetic supervision with automatic ASR QC, not human-reviewed unseen-command ground truth",
+      "updated_at": "2026-09-21"
     },
     "police-terminology-legacy-v1": {
       "description": "Separate legacy police terminology archive; contents not inspected; not interchangeable with police-asr-eval-20260914",

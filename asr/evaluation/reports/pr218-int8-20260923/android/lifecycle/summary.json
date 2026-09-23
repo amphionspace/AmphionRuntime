@@ -1,0 +1,21 @@
+{
+  "command": [
+    "<LOCAL_PATH>",
+    "shell",
+    "am",
+    "instrument",
+    "-w",
+    "-r",
+    "-e",
+    "class",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest",
+    "-e",
+    "singleSpeechAsset",
+    "gate_single.wav",
+    "com.amphion.dingqiao.demo.test/androidx.test.runner.AndroidJUnitRunner"
+  ],
+  "elapsed_seconds": 775.411,
+  "exit_code": 0,
+  "status": "PASS",
+  "source_commit": "52a9169ffa72907cb41942cbbec34bbbf595629e"
+}

@@ -1,0 +1,44 @@
+2026-09-23 01:49:10,545 WETEXT INFO found existing fst: asr/tools/weitn-fsts-v2/zh_itn_tagger.fst
+2026-09-23 01:49:10,545 WETEXT INFO                     asr/tools/weitn-fsts-v2/zh_itn_verbalizer.fst
+2026-09-23 01:49:10,545 WETEXT INFO skip building fst for zh_inverse_normalizer ...
+{"item_id": "vocab_0050", "reference": "讯问在办案区进行。", "text": "询问在办案区进行", "correct": false}
+{"item_id": "vocab_0173", "reference": "调取天网的录像。", "text": "调取天网的录像", "correct": true}
+{"item_id": "vocab_0253", "reference": "交强险已经过期。", "text": "提交抢险已经过期", "correct": false}
+{"item_id": "zh_police_terms_samples_118", "reference": "接警过程中已提醒报警人远离酒店前台，不要继续参与噪音扰民。", "text": "接警过程中已提醒报警人员离酒店前台不要继续参与噪音扰民。", "correct": false}
+{"item_id": "zh_police_terms_samples_147", "reference": "接警登记中已注明门店名称，报警人称门店暂时无法正常营业。", "text": "接警登记中已注明门店名称报警人称门店暂时无法正常营业。", "correct": true}
+{"item_id": "zh_police_terms_samples_424", "reference": "20:29派发的警单内容为电动车被挪动，请及时签收警单并回拨报警人确认具体位置。", "text": "20:29派发的警单内容为电动车被挪动请及时签收警单并回拨报警人确认具体位置。", "correct": true}
+{"item_id": "zh_police_terms_samples_910", "reference": "夜巡警力到达现场处警，正在处理占用消防通道并核对是否需要120。", "text": "叶巡警力到达现场处警正在处理占用消防通道并核对是否需要120。", "correct": false}
+{"item_id": "audio-a2254ddd5a8e1111", "reference": "把镜头切换到超长待机模式", "text": "把镜头切换到超长待机模式。", "correct": true}
+{"item_id": "audio-36fa9552f6b3b42c", "reference": "切换到防抖", "text": "切换到防毒", "correct": false}
+{"item_id": "audio-97f07ab5c70acebf", "reference": "把录像分辨率设置为D 幺", "text": "把录像分辨率设置为D 幺。", "correct": true}
+{"item_id": "audio-2c7f5ec8cffdd691", "reference": "把视频分段时长设置为十分钟", "text": "把视频分段时长设置为10min。", "correct": true}
+{"item_id": "audio-acb5bdad3ff59172", "reference": "当前分段时长是多少", "text": "当前分段时长是多少", "correct": true}
+{"item_id": "audio-8ff83150fcf3b13b", "reference": "照片像素支持哪些", "text": "照片像素质是哪些", "correct": false}
+{"item_id": "audio-d89c3243a979b308", "reference": "开启预录", "text": "开启预录", "correct": true}
+{"item_id": "audio-742601a89118251d", "reference": "把预录时长设置为五秒", "text": "把预录时长设置为五秒", "correct": true}
+{"item_id": "audio-e6cc856d6b2bf406", "reference": "把预录时长设置为十秒", "text": "把预录时长设置为10s", "correct": true}
+{"item_id": "audio-5d494a968dea556f", "reference": "把预录时长设置为幺二零秒", "text": "把预录时长设置为120秒。", "correct": true}
+{"item_id": "audio-f552574fdc075c7c", "reference": "把延录时长设置为三百秒", "text": "把延录时长设置为300s。", "correct": true}
+{"item_id": "audio-d9d4c7d64f3b74e2", "reference": "A I识别距离有哪些模式", "text": "A 识别距离有哪些模式", "correct": false}
+{"item_id": "audio-2c738fba8bfd1fd5", "reference": "打点:持刀嫌疑人,男,约三十岁", "text": "打电持刀嫌疑人男约30岁。", "correct": false}
+{"item_id": "audio-5e2d5ecac2618a1c", "reference": "记录仪音量静音", "text": "记录仪音量成音", "correct": false}
+{"item_id": "audio-2fdf6d687f759308", "reference": "把记录仪亮度调到二档", "text": "把记录仪亮度调到一档", "correct": false}
+{"item_id": "audio-81eb24ccaa881a9e", "reference": "把录像分辨率设置为D 幺", "text": "把录像分辨率设置为D 幺。", "correct": true}
+{"item_id": "zh_kespeech_1017724_license_plate_dialogue_samples_283", "reference": "车牌号辽B06331在小区门禁口横着停放，进出的车都动不了。", "text": "车牌号辽B06331在小区门禁口横着停放进错的车都动不了。", "correct": false}
+{"item_id": "zh_kespeech_1028228_license_plate_dialogue_samples_181", "reference": "车牌号冀R20885刚才在高架入口急刹，后车差点追尾。", "text": "车牌号冀R20885刚才在高架入口急刹后车差点追尾。", "correct": true}
+{"item_id": "zh_kespeech_1028777_license_plate_dialogue_samples_481", "reference": "车牌号冀R14278刚才在高架入口急刹，后车差点追尾。", "text": "车牌号冀R14278刚才在高架入口急刹后车差点追尾。", "correct": true}
+{"item_id": "zh_kespeech_1029201_license_plate_dialogue_samples_57", "reference": "车牌号冀R41454的司机开车时一直压线，我担心路上不安全。", "text": "车牌号冀R41454个司机开车时一直压线我担心路上不安全。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_114", "reference": "请您再确认一下，现场车辆是车牌号冀R14079，对吗？", "text": "请您再确认一下现场车辆是车牌号冀R14079对吗。", "correct": true}
+{"item_id": "zh_license_plate_dialogue_samples_174", "reference": "车牌号冀R59674如果挡住通道，请您先提醒周围人员注意避让。", "text": "车牌号GI 59674如果挡住通道请您先提醒周围人员注意避让。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_222", "reference": "车牌号冀R06393已记录，请您在安全位置等待处理结果。", "text": "车牌号冀R06393以记录请您在安全位置等待处理结果。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_253", "reference": "车牌号冀R14579的车挡住了店门口卸货通道，司机一直联系不上。", "text": "车牌号GI 4579的车挡住了店门口卸货通道司机一直联系不上。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_261", "reference": "车牌号冀R24826停在公交站台旁，公交车只能斜着进站。", "text": "车牌号GI 24826停在公交站台旁公交车只能斜着进站。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_274", "reference": "车牌号冀R27088如果挡住通道，请您先提醒周围人员注意避让。", "text": "车牌号冀R27088如果挡住通道请您先提醒周围人员注意避让。", "correct": true}
+{"item_id": "zh_license_plate_dialogue_samples_306", "reference": "车牌号冀R58724已经记录清楚，请您等待下一步联系。", "text": "车牌号GI 58724已经记录清楚请您等待下一步联系。", "correct": false}
+{"item_id": "zh_license_plate_dialogue_samples_446", "reference": "请您确认车牌号冀R20015车辆现在是否还在现场。", "text": "请您确认车牌号冀R20015车辆现在是否还在现场。", "correct": true}
+{"item_id": "zh_license_plate_dialogue_samples_461", "reference": "车牌号冀R46222停在公交站台旁，公交车只能斜着进站。", "text": "车牌号冀R46222停在公交站台旁公交车只能斜着进站。", "correct": true}
+{"item_id": "zh_license_plate_dialogue_samples_98", "reference": "我们会处理车牌号冀R70713的问题，请您避免继续与司机口头冲突。", "text": "我们会处理车牌号GI 70713的问题请您避免继续与司机口头冲突。", "correct": false}
+{"item_id": "zh_kespeech_1001417_police_station_v2_86_ref1", "reference": "整理北京市海淀区上地派出所本周末的接警数据，按日期排序。", "text": "整理北京市海淀区上地派出所本周末的接警数据按日期排序。", "correct": true}
+{"item_id": "zh_kespeech_1018898_police_station_v2_37_ref1", "reference": "统计济南市历城区洪家楼派出所近十五天的接警记录，按天分一下。", "text": "统计济南市历城区洪家楼派出所近15天的接警记录按天分一下。", "correct": true}
+{"item_id": "zh_kespeech_1020701_police_station_v2_77_ref1", "reference": "给我看一下成都市高新区桂溪派出所昨天白天分辖区的接警趋势。", "text": "给我看一下成都市高新区桂溪派出所昨天白天分辖区的接警趣事。", "correct": false}
+{"item_id": "zh_kespeech_1021923_police_station_v2_90_ref1", "reference": "麻烦汇总郑州市郑东新区如意湖派出所昨天夜间的接警总量和日均数量。", "text": "麻烦汇总郑州市郑东新区如意湖派出所昨天夜间的接警总量和日均数量。", "correct": true}
