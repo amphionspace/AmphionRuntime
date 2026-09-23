@@ -1,0 +1,37 @@
+{
+  "decoder.onnx": {
+    "bytes": 17453084,
+    "sha256": "5ac4956a33520b2184b71ecabeb7925fa85a8ade9d3ada90df56b6593bffe460",
+    "md5": "bcf567bbb371b400fd80fef3312fd730"
+  },
+  "bbpe.model": {
+    "bytes": 380510,
+    "sha256": "6232b8a79b91b3831a3ab7ab71168a21abac87cd85449982857f9de3bc578d73",
+    "md5": "068588683487c7bd78dc72f4127a770b"
+  },
+  "joiner.onnx": {
+    "bytes": 16416467,
+    "sha256": "cab74315925720da98b8ffb53ef235ef90b706d92fa7c8c061a072218d202ef5",
+    "md5": "fcc8e3c097f7d58d5057fd62f1933ca9"
+  },
+  "tokens.txt": {
+    "bytes": 115253,
+    "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15",
+    "md5": "ff6d4c460f9c021fb29b1fc2a0abf968"
+  },
+  "bbpe.vocab": {
+    "bytes": 232130,
+    "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514",
+    "md5": "09638658a4217d431c8c043c36deee00"
+  },
+  "manifest.json": {
+    "bytes": 1540,
+    "sha256": "9208d47d6aad8e64e298cf45dcb95586e2f5f3f3c7857627f018613625d1fc05",
+    "md5": "00ac00bf57f11ea67502ed7fe353445b"
+  },
+  "encoder.int8.onnx": {
+    "bytes": 161135709,
+    "sha256": "04b89ee63a7f850b281db67d9a1aa05fd5112a8c748b8edcb398b744490178b0",
+    "md5": "473241f898df64c2afb3bda46acc5080"
+  }
+}
