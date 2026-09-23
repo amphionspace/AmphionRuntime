@@ -1,0 +1,31 @@
+test_different_model_in_har_is_rejected (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... ok
+test_missing_shared_model_is_rejected (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... ok
+test_shared_model_verifies_with_source_only_police_assets (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... 
+======================================================================
+FAIL: test_shared_model_verifies_with_source_only_police_assets (test_verify_shared_lac_har.SharedLacHarVerificationTest) (zh_only=False)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<LOCAL_PATH>", line 67, in test_shared_model_verifies_with_source_only_police_assets
+    self.assertEqual(0, result.returncode, result.stderr)
+AssertionError: 0 != 1 : [ERROR] self-contained HAR police assets mismatch: missing=[] extra=['lac/v1/lac_encoder.onnx']
+
+
+======================================================================
+FAIL: test_shared_model_verifies_with_source_only_police_assets (test_verify_shared_lac_har.SharedLacHarVerificationTest) (zh_only=True)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "<LOCAL_PATH>", line 67, in test_shared_model_verifies_with_source_only_police_assets
+    self.assertEqual(0, result.returncode, result.stderr)
+AssertionError: 0 != 1 : Traceback (most recent call last):
+  File "<stdin>", line 74, in <module>
+  File "<LOCAL_PATH>", line 96, in sanitize_payload
+    _sanitize_police_assets(package_root)
+  File "<LOCAL_PATH>", line 84, in _sanitize_police_assets
+    raise PayloadSanitizationError(f"police manifest asset is missing: {relative}")
+sanitize_public_har_payload.PayloadSanitizationError: police manifest asset is missing: lac/v1/lac_encoder.onnx
+
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.148s
+
+FAILED (failures=2)

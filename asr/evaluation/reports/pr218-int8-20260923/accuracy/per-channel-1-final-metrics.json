@@ -1,0 +1,266 @@
+{
+  "all": {
+    "cases": 9748,
+    "strict": {
+      "exact": 7882,
+      "sentence_accuracy": 0.8085761181780878,
+      "edits": 5465,
+      "reference_chars": 163469,
+      "cer": 0.03343141513069756
+    },
+    "numeric_equivalent": {
+      "exact": 8594,
+      "sentence_accuracy": 0.8816167418957734,
+      "edits": 2777,
+      "reference_chars": 164053,
+      "cer": 0.016927456370806997
+    },
+    "frozen_lexicon": {
+      "covered_rows": 3556,
+      "target_occurrences": 5793,
+      "hit_occurrences": 5684,
+      "hit_rate": 0.9811841878128776,
+      "all_targets_hit_rows": 3455
+    }
+  },
+  "current_police_terms_20260711_application_names_62": {
+    "cases": 62,
+    "strict": {
+      "exact": 60,
+      "sentence_accuracy": 0.967741935483871,
+      "edits": 3,
+      "reference_chars": 557,
+      "cer": 0.005385996409335727
+    },
+    "numeric_equivalent": {
+      "exact": 60,
+      "sentence_accuracy": 0.967741935483871,
+      "edits": 3,
+      "reference_chars": 557,
+      "cer": 0.005385996409335727
+    },
+    "frozen_lexicon": {
+      "covered_rows": 58,
+      "target_occurrences": 67,
+      "hit_occurrences": 67,
+      "hit_rate": 1.0,
+      "all_targets_hit_rows": 58
+    }
+  },
+  "original_six": {
+    "cases": 4305,
+    "strict": {
+      "exact": 3650,
+      "sentence_accuracy": 0.8478513356562137,
+      "edits": 1669,
+      "reference_chars": 85455,
+      "cer": 0.01953074717687672
+    },
+    "numeric_equivalent": {
+      "exact": 3722,
+      "sentence_accuracy": 0.8645760743321719,
+      "edits": 1557,
+      "reference_chars": 86015,
+      "cer": 0.018101493925478114
+    },
+    "frozen_lexicon": {
+      "covered_rows": 2898,
+      "target_occurrences": 5118,
+      "hit_occurrences": 5065,
+      "hit_rate": 0.9896443923407581,
+      "all_targets_hit_rows": 2853
+    }
+  },
+  "current_police_terms_20260711_industry_dialogue_189": {
+    "cases": 189,
+    "strict": {
+      "exact": 161,
+      "sentence_accuracy": 0.8518518518518519,
+      "edits": 62,
+      "reference_chars": 6325,
+      "cer": 0.009802371541501976
+    },
+    "numeric_equivalent": {
+      "exact": 174,
+      "sentence_accuracy": 0.9206349206349206,
+      "edits": 20,
+      "reference_chars": 6318,
+      "cer": 0.0031655587211142765
+    },
+    "frozen_lexicon": {
+      "covered_rows": 36,
+      "target_occurrences": 47,
+      "hit_occurrences": 47,
+      "hit_rate": 1.0,
+      "all_targets_hit_rows": 36
+    }
+  },
+  "current_police_terms_20260711_industry_vocab_1671": {
+    "cases": 1671,
+    "strict": {
+      "exact": 1599,
+      "sentence_accuracy": 0.9569120287253142,
+      "edits": 139,
+      "reference_chars": 14010,
+      "cer": 0.0099214846538187
+    },
+    "numeric_equivalent": {
+      "exact": 1623,
+      "sentence_accuracy": 0.9712746858168761,
+      "edits": 54,
+      "reference_chars": 14013,
+      "cer": 0.0038535645472061657
+    },
+    "frozen_lexicon": {
+      "covered_rows": 540,
+      "target_occurrences": 562,
+      "hit_occurrences": 551,
+      "hit_rate": 0.9804270462633452,
+      "all_targets_hit_rows": 529
+    }
+  },
+  "current_police_terms_20260711_special_codes_10": {
+    "cases": 10,
+    "strict": {
+      "exact": 0,
+      "sentence_accuracy": 0.0,
+      "edits": 68,
+      "reference_chars": 193,
+      "cer": 0.35233160621761656
+    },
+    "numeric_equivalent": {
+      "exact": 8,
+      "sentence_accuracy": 0.8,
+      "edits": 15,
+      "reference_chars": 192,
+      "cer": 0.078125
+    },
+    "frozen_lexicon": {
+      "covered_rows": 1,
+      "target_occurrences": 1,
+      "hit_occurrences": 1,
+      "hit_rate": 1.0,
+      "all_targets_hit_rows": 1
+    }
+  },
+  "current_police_terms_20260727_190": {
+    "cases": 190,
+    "strict": {
+      "exact": 187,
+      "sentence_accuracy": 0.9842105263157894,
+      "edits": 3,
+      "reference_chars": 1881,
+      "cer": 0.001594896331738437
+    },
+    "numeric_equivalent": {
+      "exact": 187,
+      "sentence_accuracy": 0.9842105263157894,
+      "edits": 3,
+      "reference_chars": 1881,
+      "cer": 0.001594896331738437
+    },
+    "frozen_lexicon": {
+      "covered_rows": 80,
+      "target_occurrences": 89,
+      "hit_occurrences": 89,
+      "hit_rate": 1.0,
+      "all_targets_hit_rows": 80
+    }
+  },
+  "current_police_terms_2183": {
+    "cases": 2183,
+    "strict": {
+      "exact": 1643,
+      "sentence_accuracy": 0.7526339899221255,
+      "edits": 1394,
+      "reference_chars": 62489,
+      "cer": 0.022307926195010323
+    },
+    "numeric_equivalent": {
+      "exact": 1670,
+      "sentence_accuracy": 0.7650022904260192,
+      "edits": 1462,
+      "reference_chars": 63054,
+      "cer": 0.023186475084847908
+    },
+    "frozen_lexicon": {
+      "covered_rows": 2183,
+      "target_occurrences": 4352,
+      "hit_occurrences": 4310,
+      "hit_rate": 0.9903492647058824,
+      "all_targets_hit_rows": 2149
+    }
+  },
+  "police_v6_acceptance_205": {
+    "cases": 3773,
+    "strict": {
+      "exact": 2930,
+      "sentence_accuracy": 0.7765703684071031,
+      "edits": 2840,
+      "reference_chars": 33378,
+      "cer": 0.08508598478039427
+    },
+    "numeric_equivalent": {
+      "exact": 3547,
+      "sentence_accuracy": 0.9401007156109197,
+      "edits": 414,
+      "reference_chars": 33402,
+      "cer": 0.012394467397161846
+    },
+    "frozen_lexicon": {
+      "covered_rows": 216,
+      "target_occurrences": 216,
+      "hit_occurrences": 216,
+      "hit_rate": 1.0,
+      "all_targets_hit_rows": 216
+    }
+  },
+  "current_plate_number_1276": {
+    "cases": 1276,
+    "strict": {
+      "exact": 1037,
+      "sentence_accuracy": 0.8126959247648903,
+      "edits": 650,
+      "reference_chars": 34187,
+      "cer": 0.019013075145523153
+    },
+    "numeric_equivalent": {
+      "exact": 1042,
+      "sentence_accuracy": 0.8166144200626959,
+      "edits": 550,
+      "reference_chars": 34187,
+      "cer": 0.016087986661596512
+    },
+    "frozen_lexicon": {
+      "covered_rows": 48,
+      "target_occurrences": 50,
+      "hit_occurrences": 49,
+      "hit_rate": 0.98,
+      "all_targets_hit_rows": 47
+    }
+  },
+  "current_police_station_394": {
+    "cases": 394,
+    "strict": {
+      "exact": 265,
+      "sentence_accuracy": 0.6725888324873096,
+      "edits": 306,
+      "reference_chars": 10449,
+      "cer": 0.029285099052540915
+    },
+    "numeric_equivalent": {
+      "exact": 283,
+      "sentence_accuracy": 0.7182741116751269,
+      "edits": 256,
+      "reference_chars": 10449,
+      "cer": 0.02449995214853096
+    },
+    "frozen_lexicon": {
+      "covered_rows": 394,
+      "target_occurrences": 409,
+      "hit_occurrences": 354,
+      "hit_rate": 0.8655256723716381,
+      "all_targets_hit_rows": 339
+    }
+  }
+}
