@@ -35,7 +35,7 @@ python3 tools/assets/sync.py verify all
 中断的分片下载保存在 `~/.cache/amphion-runtime/assets`，可用
 `AMPHION_ASSET_CACHE_DIR` 改位置。
 
-当前中英打包默认模型为 Police 1.4.0 FP32，上游 tar.gz 暂按
+当前中英打包默认模型为 Police 1.4.0 上游 encoder INT8、decoder/joiner FP32 包，tar.gz 按
 [模型恢复说明](../../asr/tools/demo-model/README.md) 手动下载并校验；`fetch all` 不包含该模型。
 `asr-zhen-police-179m-v1-1-v1.1.0` 保留为历史 A/B 基线，不再是当前鼎桥模型。
 
