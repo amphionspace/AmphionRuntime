@@ -1,0 +1,14 @@
+{
+  "adopted": false,
+  "scope": "Targeted red-case diagnostic only, not full accuracy acceptance",
+  "cases": 41,
+  "recovered": 22,
+  "stop_condition": "critical numeral error still unresolved",
+  "remaining_numeral_case": {
+    "item_id": "audio-2fdf6d687f759308",
+    "reference": "把记录仪亮度调到二档",
+    "text": "把记录仪亮度调到一档",
+    "correct": false
+  },
+  "no_final_device_rerun": true
+}
