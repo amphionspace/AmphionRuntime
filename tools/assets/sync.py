@@ -223,7 +223,10 @@ def verify_file_identities(
                     f"bundle {bundle.name} SHA-256 mismatch for {relative}: "
                     f"expected {identity['sha256']}, got {actual_hash}"
                 )
-            if check_mode and "mode" in identity:
+            # Windows ACLs are not represented by POSIX mode bits. Python reports
+            # synthesized values such as 0666/0777 even after chmod, so only
+            # enforce archive modes on platforms where they are meaningful.
+            if os.name != "nt" and check_mode and "mode" in identity:
                 expected_mode = int(str(identity["mode"]), 8)
                 actual_mode = stat.S_IMODE(path.stat().st_mode)
                 if actual_mode != expected_mode:
@@ -237,7 +240,7 @@ def verify_local(bundle: Bundle) -> Path:
     destination = bundle.destination
     if not destination.is_dir():
         raise AssetError(f"bundle {bundle.name} is missing: {destination}")
-    if bundle.definition.get("encryption") == "sse-kms":
+    if os.name != "nt" and bundle.definition.get("encryption") == "sse-kms":
         directory_mode = stat.S_IMODE(destination.stat().st_mode)
         if directory_mode & 0o077:
             raise AssetError(

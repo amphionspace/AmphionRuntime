@@ -10,4 +10,24 @@ export class DingqiaoSpeakerModelAssets {
   static complementaryDiarizationPath(): string {
     return 'amphion-dingqiao/campplus.onnx';
   }
+
+  static communityDiarizationPath(): string {
+    return 'amphion-dingqiao/community1-wespeaker.onnx';
+  }
+
+  static communitySegmentationPath(): string {
+    return 'amphion-dingqiao/community1-segmentation.onnx';
+  }
+
+  static communityPldaPath(): string {
+    return 'amphion-dingqiao/community1-plda.npz';
+  }
+
+  static communityXvecTransformPath(): string {
+    return 'amphion-dingqiao/community1-xvec-transform.npz';
+  }
+
+  static communityPldaRuntimePath(): string {
+    return 'amphion-dingqiao/community1-plda.bin';
+  }
 }

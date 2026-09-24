@@ -30,6 +30,10 @@ export interface SpeakerTurnSegmentationSegment {
   speaker: number;
   /** Bit mask of active local channels; more than one bit means overlap. */
   speakerMask: number;
+  /** Inclusive Community-1 frame index in [0, 589). */
+  startFrame: number;
+  /** Exclusive Community-1 frame index in (0, 589]. */
+  endFrame: number;
 }
 export const loadSpeakerTurnSegmentationModelAsync: (model: Uint8Array) => Promise<void>;
 export const isSpeakerTurnSegmentationModelLoaded: () => boolean;
@@ -40,6 +44,20 @@ export const processSpeakerTurnSegmentation: (
 export const processSpeakerTurnSegmentationAsync: (
   samples: Float32Array
 ) => Promise<SpeakerTurnSegmentationSegment[]>;
+
+export interface Community1ClusterResult {
+  hardClusters: number[];
+  speakerCount: number;
+  constraintViolated: boolean;
+}
+export const loadCommunity1Plda: (parameters: Uint8Array) => void;
+export const clusterCommunity1Async: (
+  embeddings: Float32Array,
+  frameMasks: Int32Array,
+  numChunks: number,
+  minSpeakers: number,
+  maxSpeakers: number
+) => Promise<Community1ClusterResult>;
 
 export interface TargetSpeakerEnhancementNativeResult {
   samples: Float32Array;

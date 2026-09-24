@@ -156,7 +156,8 @@ class AssetSyncTest(unittest.TestCase):
                 MODULE.build_archive(bundle, archive)
             with tempfile.TemporaryDirectory(dir=root) as stage:
                 extracted = MODULE.safe_extract(archive, Path(stage), bundle)
-                self.assertEqual(0o755, (extracted / "model.bin").stat().st_mode & 0o777)
+                if os.name != "nt":
+                    self.assertEqual(0o755, (extracted / "model.bin").stat().st_mode & 0o777)
 
     def test_local_verification_rejects_unlisted_asset(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -183,7 +184,8 @@ class AssetSyncTest(unittest.TestCase):
             MODULE.merge_destination(extracted, bundle)
             self.assertEqual(b"keep", (destination / "local-only.txt").read_bytes())
             self.assertEqual(b"private", (destination / "private.pem").read_bytes())
-            self.assertEqual(0o600, (destination / "private.pem").stat().st_mode & 0o777)
+            if os.name != "nt":
+                self.assertEqual(0o600, (destination / "private.pem").stat().st_mode & 0o777)
 
             (destination / "private.pem").write_bytes(b"different")
             with self.assertRaisesRegex(MODULE.AssetError, "--replace-existing"):

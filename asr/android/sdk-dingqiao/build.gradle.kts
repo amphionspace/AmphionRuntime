@@ -12,7 +12,21 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
+            "community1-wespeaker.onnx",
+            "community1-wespeaker.NOTICE",
+            "community1-plda.npz",
+            "community1-xvec-transform.npz",
         )
+    }
+    // Community-1 keeps the original NumPy PLDA calibration beside the
+    // checkpoint in the workspace; rename it into the SDK asset namespace.
+    from("../../../../speaker-diarization-community-1/plda") {
+        include("plda.npz")
+        rename("plda.npz", "community1-plda.npz")
+    }
+    from("../../../../speaker-diarization-community-1/plda") {
+        include("xvec_transform.npz")
+        rename("xvec_transform.npz", "community1-xvec-transform.npz")
     }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
 }

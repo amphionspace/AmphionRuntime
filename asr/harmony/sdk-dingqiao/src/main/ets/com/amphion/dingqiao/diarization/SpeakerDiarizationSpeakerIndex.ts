@@ -1,13 +1,13 @@
 export const UNASSIGNED_SPEAKER_INDEX: number = -1;
 
-export function speakerIndexFromInternalId(speakerId: string, maxSpeakers: number = 4): number {
+export function speakerIndexFromInternalId(speakerId: string, _maxSpeakers?: number): number {
   if (!speakerId.startsWith('S')) return UNASSIGNED_SPEAKER_INDEX;
   const value = Number(speakerId.substring(1));
-  return Number.isInteger(value) && value > 0 && value <= maxSpeakers ?
+  return Number.isInteger(value) && value > 0 ?
     value - 1 : UNASSIGNED_SPEAKER_INDEX;
 }
 
-export function speakerIndexesFromInternalIds(speakerIds: string[], maxSpeakers: number = 4,
+export function speakerIndexesFromInternalIds(speakerIds: string[], maxSpeakers?: number,
   preserveUnassigned: boolean = false): number[] {
   const indexes: number[] = [];
   for (let index = 0; index < speakerIds.length; index++) {

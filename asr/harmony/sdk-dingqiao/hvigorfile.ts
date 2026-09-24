@@ -13,7 +13,13 @@ const sharedModelFiles = [
   'campplus.onnx',
   'campplus.LICENSE',
   'pyannote-segmentation-3.0.onnx',
-  'pyannote-segmentation-3.0.LICENSE'
+  'pyannote-segmentation-3.0.LICENSE',
+  'community1-segmentation.onnx',
+  'community1-wespeaker.onnx',
+  'community1-wespeaker.NOTICE',
+  'community1-plda.npz',
+  'community1-xvec-transform.npz',
+  'community1-plda.bin'
 ];
 
 syncSharedModels();

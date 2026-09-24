@@ -11,6 +11,7 @@ internal data class DiarizationEmbedding(
     val queryEmbedding: FloatArray? = null,
     val speechRms: Double = 0.0,
     val complementaryEmbedding: FloatArray? = null,
+    val scoringEmbedding: FloatArray? = null,
 )
 
 internal data class DiarizationWindowInferenceResult(
@@ -35,7 +36,8 @@ internal data class DiarizationLocalIdentityQuery(
 internal class SpeakerDiarizationInference(
     segmentationModelPath: String,
     embeddingModelPath: String,
-    complementaryModelPath: String,
+    private val communityPlda: Community1Plda? = null,
+    complementaryModelPath: String? = null,
 ) : AutoCloseable {
     private data class SingleSpeakerRun(val startSample: Long, val endSample: Long)
     private val recentSingleSpeakerRuns = mutableListOf<SingleSpeakerRun>()
@@ -48,14 +50,16 @@ internal class SpeakerDiarizationInference(
             debug = false,
         ),
     )
-    private val complementaryExtractor = try {
-        SpeakerEmbeddingExtractor(config = SpeakerEmbeddingExtractorConfig(
-            model = complementaryModelPath, numThreads = 1, debug = false,
-        ))
-    } catch (t: Throwable) {
-        runCatching { extractor.release() }
-        runCatching { segmenter.close() }
-        throw t
+    private val complementaryExtractor = complementaryModelPath?.let {
+        try {
+            SpeakerEmbeddingExtractor(config = SpeakerEmbeddingExtractorConfig(
+                model = it, numThreads = 1, debug = false,
+            ))
+        } catch (t: Throwable) {
+            runCatching { extractor.release() }
+            runCatching { segmenter.close() }
+            throw t
+        }
     }
 
     fun process(samples: FloatArray, queryStartSample: Int = 0, queryEndSample: Int = 0,
@@ -71,7 +75,8 @@ internal class SpeakerDiarizationInference(
             for (sample in channelSamples) squaredLevel += sample.toDouble() * sample
             DiarizationEmbedding(localSpeaker, channelSamples.size, embedding, computeEmbedding(querySamples),
                 kotlin.math.sqrt(squaredLevel / channelSamples.size),
-                computeEmbedding(channelSamples, complementaryExtractor))
+                complementaryExtractor?.let { computeEmbedding(channelSamples, it) },
+                communityPlda?.project(embedding))
         }
         embeddings.forEach { speakerLevelReference = maxOf(speakerLevelReference, it.speechRms) }
         val queriedSegments = segments.map { segment ->
@@ -83,7 +88,7 @@ internal class SpeakerDiarizationInference(
                     val end = minOf(segment.endSample, segment.startSample + MAX_EMBEDDING_SAMPLES)
                     val runSamples = samples.copyOfRange(segment.startSample, end)
                     val query = computeEmbedding(runSamples)
-                    val complementary = computeEmbedding(runSamples, complementaryExtractor)
+                    val complementary = complementaryExtractor?.let { computeEmbedding(runSamples, it) }
                     val context = embeddings.find { it.localSpeaker == segment.speaker }
                     val local = if (context != null && context.speechRms > 0 && context.speechRms < speakerLevelReference * .5 &&
                         query != null && complementary != null)
@@ -111,7 +116,7 @@ internal class SpeakerDiarizationInference(
             if (from >= maxOf(0, origin) && through <= origin + samples.size) {
                 val pcm = samples.copyOfRange((from - origin).toInt(), (through - origin).toInt())
                 val primary = computeEmbedding(pcm)
-                val complementary = computeEmbedding(pcm, complementaryExtractor)
+                val complementary = complementaryExtractor?.let { computeEmbedding(pcm, it) }
                 if (primary != null && complementary != null)
                     queries += DiarizationLocalIdentityQuery(maxOf(start, cell * 4000), minOf(end, (cell + 1) * 4000), primary, complementary)
             }
@@ -136,9 +141,9 @@ internal class SpeakerDiarizationInference(
             val leftSamples = samples.copyOfRange(maxOf((start - origin).toInt(), right.startSample - MAX_EMBEDDING_SAMPLES), right.startSample)
             val rightSamples = samples.copyOfRange(right.startSample, minOf(right.endSample, right.startSample + MAX_EMBEDDING_SAMPLES))
             val leftEmbedding = computeEmbedding(leftSamples) ?: continue
-            val leftComplementary = computeEmbedding(leftSamples, complementaryExtractor) ?: continue
+            val leftComplementary = complementaryExtractor?.let { computeEmbedding(leftSamples, it) } ?: continue
             val rightEmbedding = computeEmbedding(rightSamples) ?: continue
-            val rightComplementary = computeEmbedding(rightSamples, complementaryExtractor) ?: continue
+            val rightComplementary = complementaryExtractor?.let { computeEmbedding(rightSamples, it) } ?: continue
             refinements += DiarizationBoundaryRefinement(start, cut, origin + minOf(right.endSample, queryStartSample),
                 leftEmbedding, leftComplementary, rightEmbedding, rightComplementary)
         }
@@ -151,7 +156,7 @@ internal class SpeakerDiarizationInference(
 
     override fun close() {
         runCatching { extractor.release() }
-        runCatching { complementaryExtractor.release() }
+        runCatching { complementaryExtractor?.release() }
         runCatching { segmenter.close() }
     }
 

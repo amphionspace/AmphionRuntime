@@ -85,6 +85,10 @@ internal class SpeakerDiarizationSession(
 
     init { require(maxSpeakers in 1..4) }
 
+    override fun onCommunityPldaReady(model: Community1Plda) {
+        synchronized(this) { globalClusterer.setCommunityPlda(model) }
+    }
+
     @Synchronized
     override fun append(audio: ByteArray) {
         if (finishRequested || finished) return
@@ -222,6 +226,7 @@ internal class SpeakerDiarizationSession(
                 evidenceKey = "${window.jobId}:${embedding.localSpeaker}",
                 queryEmbedding = embedding.queryEmbedding?.copyOf(),
                 complementaryEmbedding = embedding.complementaryEmbedding?.copyOf(),
+                scoringEmbedding = embedding.scoringEmbedding?.copyOf(),
             )
             recentObservations += observation
         }

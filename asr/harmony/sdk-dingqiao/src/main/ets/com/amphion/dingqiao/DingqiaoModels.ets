@@ -17,8 +17,10 @@ export class CreateEngineParams {
 }
 
 export class SpeakerDiarizationConfig {
-  /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
-  maxSpeakers: number = 4;
+  /** Optional Community-1 lower bound. Undefined keeps automatic estimation. */
+  minSpeakers?: number;
+  /** Optional Community-1 upper bound. Undefined keeps automatic estimation. */
+  maxSpeakers?: number;
 }
 
 export class StartParams {
@@ -100,7 +102,10 @@ export class SpeakerDiarizationResult {
   windowEndTime: number = 0;
   isSessionFinal: boolean = false;
   utterances: DiarizedUtterance[] = [];
+  /** Community-1 regular timeline. Overlap is represented by secondary speakers. */
   speakerTurns: SpeakerTurn[] = [];
+  /** Community-1 exclusive timeline used to align ASR text to one speaker. */
+  exclusiveSpeakerTurns: SpeakerTurn[] = [];
   speakerCount: number = 0;
   degraded: boolean = false;
   degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;

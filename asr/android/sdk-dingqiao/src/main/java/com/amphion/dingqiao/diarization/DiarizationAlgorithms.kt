@@ -353,6 +353,7 @@ internal data class SpeakerEmbeddingObservation(
     val speechRms: Double = 0.0,
     val complementaryEmbedding: FloatArray? = null,
     val levelEligibleAtObservation: Boolean = false,
+    val scoringEmbedding: FloatArray? = null,
 )
 
 internal data class SpeakerClusterResult(
@@ -370,7 +371,9 @@ internal data class MutableCluster(
 internal class SpeakerDiarizationGlobalClusterer(
     private val maxSpeakers: Int = 4,
     private val similarityThreshold: Float = 0.72f,
+    private var communityPlda: Community1Plda? = null,
 ) {
+    fun setCommunityPlda(value: Community1Plda?) { communityPlda = value }
     fun cluster(observations: List<SpeakerEmbeddingObservation>): SpeakerClusterResult {
         val clusters = seedMicroClusters(observations)
         while (clusters.size > 1) {
@@ -380,7 +383,7 @@ internal class SpeakerDiarizationGlobalClusterer(
             for (left in clusters.indices) {
                 for (right in left + 1 until clusters.size) {
                     if (!compatible(clusters[left].indexes, clusters[right].indexes, observations)) continue
-                    val score = cosine(clusters[left].centroid, clusters[right].centroid)
+                    val score = clusterScore(clusters[left], clusters[right], observations)
                     if (score > bestScore) {
                         bestScore = score
                         bestLeft = left
@@ -398,6 +401,25 @@ internal class SpeakerDiarizationGlobalClusterer(
             cluster.indexes.forEach { assignments[it] = displayIds.getOrElse(clusterIndex) { "UNKNOWN" } }
         }
         return SpeakerClusterResult(assignments, clusters.size, sorted)
+    }
+
+    private fun clusterScore(left: MutableCluster, right: MutableCluster,
+        observations: List<SpeakerEmbeddingObservation>): Float {
+        if (communityPlda == null) return cosine(left.centroid, right.centroid)
+        val leftVectors = left.indexes.mapNotNull { observations[it].scoringEmbedding }
+        val rightVectors = right.indexes.mapNotNull { observations[it].scoringEmbedding }
+        if (leftVectors.isEmpty() || rightVectors.isEmpty()) return Float.NEGATIVE_INFINITY
+        // PLDA is bilinear in the sufficient statistics.  Scoring normalized
+        // duration-weighted centroids preserves that property and avoids a
+        // quadratic pairwise pass for long meetings.
+        fun centroid(values: List<FloatArray>): FloatArray? {
+            val sum = FloatArray(values.first().size)
+            values.forEach { value -> for (i in sum.indices) sum[i] += value[i] }
+            return normalize(sum)
+        }
+        val leftCentroid = centroid(leftVectors) ?: return Float.NEGATIVE_INFINITY
+        val rightCentroid = centroid(rightVectors) ?: return Float.NEGATIVE_INFINITY
+        return communityPlda.score(leftCentroid, rightCentroid)
     }
 
     private fun compatible(left: List<Int>, right: List<Int>, observations: List<SpeakerEmbeddingObservation>): Boolean =

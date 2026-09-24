@@ -1,0 +1,9 @@
+Community-1 WeSpeaker embedding model
+
+Source checkpoint: pyannote/speaker-diarization-community-1, embedding copied
+from pyannote/wespeaker-voxceleb-resnet34-LM. The local model card identifies
+the VoxCeleb-trained model under Creative Commons Attribution 4.0.
+
+The WeSpeaker implementation is described in:
+Wang et al., "WeSpeaker: A Research and Production Oriented Speaker Embedding
+Learning Toolkit", ICASSP 2023.

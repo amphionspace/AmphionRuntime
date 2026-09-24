@@ -23,6 +23,7 @@ internal data class DiarizationLocalWindowResult(
 )
 
 internal interface SpeakerDiarizationLocalObserver {
+    fun onCommunityPldaReady(model: Community1Plda) {}
     fun onWindow(result: DiarizationLocalWindowResult)
     fun onDrained()
     fun onDegraded(reason: SpeakerDiarizationDegradedReason, message: String)
@@ -76,15 +77,18 @@ internal class SpeakerDiarizationLocalClient(
         spool = DiarizationPcmSpool(jobDir)
         executor.execute {
             try {
-                val (segmentation, embedding) =
-                    DingqiaoSpeakerModelAssets.ensureDiarizationInstalled(context, workPath)
+                val assets = DingqiaoSpeakerModelAssets.ensureDiarizationInstalled(context, workPath)
+                val plda = Community1Plda.load(assets.plda, assets.xvecTransform)
                 val loaded = SpeakerDiarizationInference(
-                    segmentation.absolutePath,
-                    embedding.absolutePath,
-                    DingqiaoSpeakerModelAssets.ensureComplementaryDiarizationInstalled(context, workPath).absolutePath,
+                    assets.segmentation.absolutePath,
+                    assets.embedding.absolutePath,
+                    plda,
                 )
                 synchronized(this) {
-                    if (closed) loaded.close() else inference = loaded
+                    if (closed) loaded.close() else {
+                        inference = loaded
+                        observer.onCommunityPldaReady(plda)
+                    }
                 }
             } catch (t: Throwable) {
                 synchronized(this) {

@@ -6,11 +6,18 @@ import java.io.FileOutputStream
 import java.io.IOException
 
 internal object DingqiaoSpeakerModelAssets {
+    internal data class CommunityAssets(
+        val segmentation: File,
+        val embedding: File,
+        val plda: File,
+        val xvecTransform: File,
+    )
     private const val ASSET_PATH = "amphion-dingqiao/$DINGQIAO_SPEAKER_MODEL_FILENAME"
     private const val MIN_BYTES = 30L * 1024L * 1024L
     private const val SEGMENTATION_FILENAME = "pyannote-segmentation-3.0.onnx"
     private const val SEGMENTATION_ASSET_PATH = "amphion-dingqiao/$SEGMENTATION_FILENAME"
     private const val SEGMENTATION_MIN_BYTES = 5L * 1024L * 1024L
+    private const val COMMUNITY_EMBEDDING_FILENAME = "community1-wespeaker.onnx"
 
     @Synchronized
     fun ensureInstalled(context: Context, dest: File): File {
@@ -18,15 +25,32 @@ internal object DingqiaoSpeakerModelAssets {
     }
 
     @Synchronized
-    fun ensureDiarizationInstalled(context: Context, workPath: File): Pair<File, File> {
-        val embedding = ensureInstalled(context, File(workPath, DINGQIAO_SPEAKER_MODEL_FILENAME))
+    fun ensureDiarizationInstalled(context: Context, workPath: File): CommunityAssets {
+        val embedding = ensureAssetInstalled(
+            context,
+            "amphion-dingqiao/$COMMUNITY_EMBEDDING_FILENAME",
+            File(workPath, COMMUNITY_EMBEDDING_FILENAME),
+            20L * 1024L * 1024L,
+        )
         val segmentation = ensureAssetInstalled(
             context,
             SEGMENTATION_ASSET_PATH,
             File(workPath, SEGMENTATION_FILENAME),
             SEGMENTATION_MIN_BYTES,
         )
-        return segmentation to embedding
+        val plda = ensureAssetInstalled(
+            context,
+            "amphion-dingqiao/community1-plda.npz",
+            File(workPath, "community1-plda.npz"),
+            100L * 1024L,
+        )
+        val xvecTransform = ensureAssetInstalled(
+            context,
+            "amphion-dingqiao/community1-xvec-transform.npz",
+            File(workPath, "community1-xvec-transform.npz"),
+            100L * 1024L,
+        )
+        return CommunityAssets(segmentation, embedding, plda, xvecTransform)
     }
 
     @Synchronized

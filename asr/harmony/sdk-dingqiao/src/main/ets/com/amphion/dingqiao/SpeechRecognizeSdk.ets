@@ -278,7 +278,11 @@ function mapLicenseErrorCode(asrCode: number): number {
 }
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
-const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15000;
+// Community-1 diarization is a whole-session pipeline. On Harmony the final
+// segmentation/embedding/clustering pass can take longer than the ASR tail,
+// especially for long recordings. Do not tear down the local inference job
+// while it is still producing the terminal timeline.
+const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15 * 60 * 1000;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
@@ -576,7 +580,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       if (params.speakerDiarization !== undefined) {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
-        const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const diarizationConfig = validateSpeakerDiarizationConfig(params.speakerDiarization);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -599,7 +603,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
             SpeechRecognizeSdk.getWorkPath(),
-            maxSpeakers,
+            diarizationConfig.minSpeakers,
+            diarizationConfig.maxSpeakers,
             diarizationObserver,
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);

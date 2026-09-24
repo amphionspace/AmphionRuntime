@@ -8,10 +8,8 @@ export interface DiarizationInferenceWindow {
 }
 
 /**
- * Produces frame-independent 10 s / 2.5 s streaming diarization windows.
- *
- * Early windows have less than 10 seconds of real audio and are left-padded by
- * the process client. realEndSample always bounds every public result.
+ * Matches Community-1 inference: 10-second windows, one-second step, and at
+ * most one right-padded tail window.
  */
 export class DiarizationWindowScheduler {
   private readonly windowSamples: number;
@@ -25,8 +23,8 @@ export class DiarizationWindowScheduler {
   constructor(
     sampleRate: number,
     windowMs: number = 10_000,
-    hopMs: number = 2_500,
-    rightContextMs: number = 1_500,
+    hopMs: number = 1_000,
+    rightContextMs: number = 0,
   ) {
     if (sampleRate <= 0 || windowMs <= 0 || hopMs <= 0 || rightContextMs < 0) {
       throw new Error('Invalid diarization window configuration');
@@ -34,7 +32,7 @@ export class DiarizationWindowScheduler {
     this.windowSamples = Math.round(sampleRate * windowMs / 1_000);
     this.hopSamples = Math.round(sampleRate * hopMs / 1_000);
     this.rightContextSamples = Math.round(sampleRate * rightContextMs / 1_000);
-    this.nextWindowEnd = this.hopSamples;
+    this.nextWindowEnd = this.windowSamples;
   }
 
   acceptSamples(sampleCount: number): DiarizationInferenceWindow[] {
@@ -49,7 +47,7 @@ export class DiarizationWindowScheduler {
     const windows: DiarizationInferenceWindow[] = [];
     while (this.totalSamples >= this.nextWindowEnd) {
       const endSample = this.nextWindowEnd;
-      const stableEndSample = Math.max(endSample - this.rightContextSamples, 0);
+      const stableEndSample = endSample;
       windows.push({
         startSample: Math.max(0, endSample - this.windowSamples),
         endSample,
@@ -64,15 +62,22 @@ export class DiarizationWindowScheduler {
     return windows;
   }
 
-  finish(): DiarizationInferenceWindow {
+  finish(): DiarizationInferenceWindow | undefined {
     if (this.finished) {
       throw new Error('Diarization window scheduler is already finished');
     }
     this.finished = true;
 
-    const endSample = Math.max(this.totalSamples, this.windowSamples);
+    const completeWindowCount = this.totalSamples >= this.windowSamples ?
+      Math.floor((this.totalSamples - this.windowSamples) / this.hopSamples) + 1 : 0;
+    const hasTail = this.totalSamples < this.windowSamples ||
+      (this.totalSamples - this.windowSamples) % this.hopSamples > 0;
+    if (!hasTail) return undefined;
+    const startSample = hasTail ? completeWindowCount * this.hopSamples :
+      Math.max(0, (completeWindowCount - 1) * this.hopSamples);
+    const endSample = startSample + this.windowSamples;
     return {
-      startSample: Math.max(endSample - this.windowSamples, 0),
+      startSample,
       endSample,
       realEndSample: this.totalSamples,
       commitStartSample: this.committedThroughSample,

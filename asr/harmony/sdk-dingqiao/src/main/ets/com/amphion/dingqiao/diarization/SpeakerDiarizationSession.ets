@@ -1,5 +1,4 @@
-import { AsrResult, ResultAudioTimeline, SpeakerDiarizationBoundaryRefinement, SpeakerDiarizationLocalIdentityQuery } from 'amphion_asr';
-import { DiarizationCommitClock } from './DiarizationCommitClock';
+import { AsrResult, ResultAudioTimeline } from 'amphion_asr';
 import {
   DiarizedUtterance,
   SpeakerDiarizationDegradedReason,
@@ -8,11 +7,6 @@ import {
   SpeakerTurn,
   SpeechRecognitionResult
 } from '../DingqiaoModels';
-import { OnlineSpeakerRegistry, SpeakerIdentitySupport } from './OnlineSpeakerRegistry';
-import {
-  SpeakerDiarizationEmbeddingObservation,
-  SpeakerDiarizationGlobalClusterer
-} from './SpeakerDiarizationGlobalClusterer';
 import {
   DiarizationLocalWindowResult,
   SpeakerDiarizationLocalClient,
@@ -24,24 +18,18 @@ import {
   speakerIndexesFromInternalIds
 } from './SpeakerDiarizationSpeakerIndex';
 import {
-  SpeakerTimelineTurn,
-  SpeakerDiarizationTranscriptState,
   DiarizationTranscriptUpdate,
-  DiarizedTranscriptUtterance
+  DiarizedTranscriptUtterance,
+  SpeakerDiarizationTranscriptState,
+  SpeakerTimelineTurn
 } from './SpeakerDiarizationTranscriptState';
+import {
+  Community1TimelineReconstructor,
+  Community1TimelineResult
+} from './Community1TimelineReconstructor';
 
 const SAMPLE_RATE: number = 16000;
-interface PendingBoundaryRefinement extends SpeakerDiarizationBoundaryRefinement {
-  evidenceEndTimeMs: number;
-}
-interface SpeakerDiarizationTurnQuery {
-  evidenceKey: string;
-  contextEvidenceKey: string;
-  embedding: number[];
-  complementaryEmbedding?: number[];
-  localQueries?: SpeakerDiarizationLocalIdentityQuery[];
-  endTimeMs: number;
-}
+
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
   onWindowResult(result: SpeakerDiarizationResult): void;
@@ -58,56 +46,47 @@ export interface SpeakerDiarizationSessionController {
   cleanup(): void;
 }
 
+/** Whole-session Community-1 pipeline with final-only stable role labels. */
 export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserver,
   SpeakerDiarizationSessionController {
-  // Recognize the first/known speaker as before; require more speech to add another.
-  private readonly minAdditionalSpeakerSpeechMs: number = 3000;
   private readonly client: SpeakerDiarizationLocalClient;
-  private registry: OnlineSpeakerRegistry;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
   private readonly observer: SpeakerDiarizationSessionObserver;
-  private readonly globalClusterer: SpeakerDiarizationGlobalClusterer;
-  private readonly maxSpeakers: number;
-  private recentEmbeddingObservations: SpeakerDiarizationEmbeddingObservation[] = [];
-  private recentTurnQueries: SpeakerDiarizationTurnQuery[] = [];
-  private recentRefinements: PendingBoundaryRefinement[] = [];
-  private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
-  private readonly committedRegistry: OnlineSpeakerRegistry;
-  private readonly publishedSpeakerIds: Set<string> = new Set();
-  private inferenceEndMs: number = 0;
-  private speakerLevelReference: number = 0;
-  private windowIndex: number = 0;
+  private readonly minSpeakers?: number;
+  private readonly maxSpeakers?: number;
+  private readonly windows: DiarizationLocalWindowResult[] = [];
+  private readonly reconstructor: Community1TimelineReconstructor = new Community1TimelineReconstructor();
+  private standardTurns: SpeakerTimelineTurn[] = [];
+  private exclusiveTurns: SpeakerTimelineTurn[] = [];
   private terminalPayload?: SpeechRecognitionResult;
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
   private inferenceMs: number = 0;
+  private finalSpeakerCount: number = 0;
   private degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
   private degradedMessage?: string;
   private finishRequested: boolean = false;
   private processDrained: boolean = false;
   private asrTailObserved: boolean = false;
   private finished: boolean = false;
-  private finalSpeakerCount: number = 0;
+  private finalizing: boolean = false;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
 
-  constructor(context: Context, workPath: string, maxSpeakers: number,
-    observer: SpeakerDiarizationSessionObserver,
+  constructor(context: Context, workPath: string, minSpeakers: number | undefined,
+    maxSpeakers: number | undefined, observer: SpeakerDiarizationSessionObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void) {
     this.observer = observer;
     this.diagnostic = diagnostic;
+    this.minSpeakers = minSpeakers;
     this.maxSpeakers = maxSpeakers;
-    this.registry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
-    this.committedRegistry = new OnlineSpeakerRegistry(maxSpeakers, 0.72, 0.05);
-    this.globalClusterer = new SpeakerDiarizationGlobalClusterer(
-      maxSpeakers, 0, 0.72);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
       this.client = new SpeakerDiarizationLocalClient(context, workPath, this);
-    } catch (e) {
+    } catch (error) {
       this.runtimeLease.release();
       this.runtimeLease = undefined;
-      throw new Error(`${e}`);
+      throw new Error(`${error}`);
     }
   }
 
@@ -116,50 +95,41 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.totalSamples += audio.byteLength / 2;
     try {
       this.client.append(audio);
-    } catch (e) {
+    } catch (error) {
       this.onDegraded(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-        `speaker diarization audio spool failed: ${e}`);
+        `speaker diarization audio spool failed: ${error}`);
     }
   }
 
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
-    if (payload.isLast) { this.asrTailObserved = true; this.terminalPayload = payload; }
-    if (payload.result.length === 0) {
-      this.finalizeIfReady();
-      return;
+    if (payload.isLast) {
+      this.asrTailObserved = true;
+      this.terminalPayload = payload;
     }
-    const timestampMs = result.timestamps.map(
-      (timestamp: number): number => Math.round(timestamp * 1000));
-    const beginTime = payload.beginTime ?? timestampMs[0] ?? this.lastAsrEndMs;
-    const endTime = payload.endTime ??
-      timestampMs[timestampMs.length - 1] ?? Math.round(this.totalSamples * 1000 / SAMPLE_RATE);
-    this.lastAsrEndMs = Math.max(this.lastAsrEndMs, endTime);
-    const utteranceId = this.transcript.addUtterance({
-      rawText: result.rawText,
-      text: payload.result,
-      tokens: result.tokens,
-      tokenTimesMs: timestampMs,
-      beginTime,
-      endTime,
-      audioEndTime: (ResultAudioTimeline.endSample(result) ?? this.totalSamples) * 1000 / SAMPLE_RATE,
-    });
-    payload.utteranceId = utteranceId;
-    const assignment = this.transcript.currentAssignment(utteranceId);
-    if (assignment !== undefined) {
-      payload.speakerIndex = speakerIndexFromInternalId(assignment.speakerId, this.maxSpeakers);
-      payload.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-        assignment.secondarySpeakerIds, this.maxSpeakers, true);
-      payload.speakerConfidence = assignment.confidence;
+    if (payload.result.length > 0) {
+      const timestampMs = result.timestamps.map(
+        (timestamp: number): number => Math.round(timestamp * 1000));
+      const beginTime = payload.beginTime ?? timestampMs[0] ?? this.lastAsrEndMs;
+      const endTime = payload.endTime ?? timestampMs[timestampMs.length - 1] ??
+        Math.round(this.totalSamples * 1000 / SAMPLE_RATE);
+      this.lastAsrEndMs = Math.max(this.lastAsrEndMs, endTime);
+      const utteranceId = this.transcript.addUtterance({
+        rawText: result.rawText,
+        text: payload.result,
+        tokens: result.tokens,
+        tokenTimesMs: timestampMs,
+        beginTime,
+        endTime,
+        audioEndTime: (ResultAudioTimeline.endSample(result) ?? this.totalSamples) * 1000 / SAMPLE_RATE,
+      });
+      payload.utteranceId = utteranceId;
+      this.decoratePayload(payload);
     }
     this.finalizeIfReady();
   }
 
-  asrFinalDelivered(result: AsrResult): void {
-    if (this.finished || result.isLast) return;
-    const endSample = ResultAudioTimeline.endSample(result);
-    if (endSample === undefined) return;
-    this.commitClock.observeEndpoint(endSample * 1000 / SAMPLE_RATE);
-    this.flushReadyWindows();
+  asrFinalDelivered(_result: AsrResult): void {
+    // Community-1 jointly estimates identities after all chunks are available.
   }
 
   finish(): void {
@@ -194,446 +164,101 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   onWindow(window: DiarizationLocalWindowResult): void {
     if (this.finished) return;
+    this.windows.push(window);
     this.inferenceMs += window.result.inferenceMs;
-    this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
-    for (const refinement of window.result.refinements ?? []) {
-      this.recentRefinements.push({ startSample: refinement.startSample, cutSample: refinement.cutSample,
-        endSample: refinement.endSample, leftEmbedding: refinement.leftEmbedding,
-        leftComplementaryEmbedding: refinement.leftComplementaryEmbedding,
-        rightEmbedding: refinement.rightEmbedding, rightComplementaryEmbedding: refinement.rightComplementaryEmbedding,
-        evidenceEndTimeMs: this.inferenceEndMs });
-    }
-    const channelIds = new Map<number, string>();
-    const channelConfidences = new Map<number, number>();
-    const ownedStart = window.commitStartSample - window.windowStartSample + window.contentStartInWindowSample;
-    const ownedEnd = Math.min(window.realEndSample, window.stableEndSample) -
-      window.windowStartSample + window.contentStartInWindowSample;
-    // Historical/right-context channels must not compete with the current output.
-    // Keep their embeddings below for window-final clustering.
-    // Prioritize principal voices within 6 dB of the observed speech level.
-    // Quieter speech remains UNKNOWN; it must not occupy the four role slots.
-    for (const item of window.result.embeddings) {
-      this.speakerLevelReference = Math.max(this.speakerLevelReference, item.speechRms);
-    }
-    const activeEmbeddings = window.result.embeddings.filter(item =>
-      item.speechRms > 0 && item.speechRms >= this.speakerLevelReference * 0.5 &&
-      window.result.segments.some(segment =>
-        (segment.speakerMask & (1 << item.localSpeaker)) !== 0 &&
-        Math.max(ownedStart, segment.startSample) < Math.min(ownedEnd, segment.endSample)));
-    const assignments = this.registry.assignBatch(
-      activeEmbeddings.map((item) => new Float32Array(item.embedding)),
-      activeEmbeddings.map((item) => Math.round(item.speechSamples * 1000 / SAMPLE_RATE)),
-      Math.round(window.realEndSample * 1000 / SAMPLE_RATE),
-      activeEmbeddings.map(item => item.speechSamples * 1000 / SAMPLE_RATE >= this.minAdditionalSpeakerSpeechMs));
-    for (let i = 0; i < window.result.embeddings.length; i++) {
-      const item = window.result.embeddings[i];
-      const assignment = assignments[activeEmbeddings.indexOf(item)];
-      if (assignment !== undefined) {
-        channelIds.set(item.localSpeaker, assignment.speakerId);
-        channelConfidences.set(item.localSpeaker, assignment.confidence);
-      }
-      const endTimeMs = Math.round(window.realEndSample * 1000 / SAMPLE_RATE);
-      const observation: SpeakerDiarizationEmbeddingObservation = {
-        embedding: item.embedding.slice(),
-        speechRms: item.speechRms,
-        levelEligibleAtObservation: item.speechRms > 0 && item.speechRms >= this.speakerLevelReference * 0.5,
-        // Do not round sub-threshold PCM up into an eligible new identity.
-        durationMs: Math.floor(item.speechSamples * 1000 / SAMPLE_RATE),
-        onlineSpeakerId: assignment?.speakerId ?? 'UNKNOWN',
-        endTimeMs,
-        evidenceKey: `${window.jobId}:${item.localSpeaker}`,
-        queryEmbedding: item.queryEmbedding?.slice(),
-        complementaryEmbedding: item.complementaryEmbedding?.slice(),
-      };
-      this.recentEmbeddingObservations.push(observation);
-
-    }
-
-    const turns: SpeakerTimelineTurn[] = [];
-    for (let i = 0; i < window.result.segments.length; i++) {
-      const segment = window.result.segments[i];
-      const localStart = Math.max(0,
-        segment.startSample - window.contentStartInWindowSample);
-      const localEnd = Math.max(localStart,
-        segment.endSample - window.contentStartInWindowSample);
-      const globalStart = Math.max(window.commitStartSample,
-        window.windowStartSample + localStart);
-      const globalEnd = Math.min(window.realEndSample, window.stableEndSample,
-        window.windowStartSample + localEnd);
-      if (globalEnd <= globalStart) continue;
-      const contextEvidenceKey = `${window.jobId}:${segment.speaker}`;
-      let evidenceKey = contextEvidenceKey;
-      if (segment.queryEmbedding !== undefined) {
-        evidenceKey = `${contextEvidenceKey}:t${i}`;
-        this.recentTurnQueries.push({ evidenceKey, contextEvidenceKey,
-          embedding: segment.queryEmbedding.slice(),
-          complementaryEmbedding: segment.complementaryEmbedding?.slice(),
-          localQueries: segment.localQueries,
-          endTimeMs: Math.round(window.realEndSample * 1000 / SAMPLE_RATE) });
-      }
-      const primary = channelIds.get(segment.speaker) ?? 'UNKNOWN';
-      const secondary: string[] = [];
-      const secondaryEvidenceKeys: string[] = [];
-      for (let localSpeaker = 0; localSpeaker < 3; localSpeaker++) {
-        if (localSpeaker === segment.speaker ||
-          (segment.speakerMask & (1 << localSpeaker)) === 0) continue;
-        const id = channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY';
-        secondary.push(id);
-        secondaryEvidenceKeys.push(`${window.jobId}:${localSpeaker}`);
-      }
-      turns.push({
-        beginTime: Math.round(globalStart * 1000 / SAMPLE_RATE),
-        endTime: Math.round(globalEnd * 1000 / SAMPLE_RATE),
-        speakerId: primary,
-        secondarySpeakerIds: secondary,
-        confidence: channelConfidences.get(segment.speaker) ?? 0,
-        overlap: (segment.speakerMask & (segment.speakerMask - 1)) !== 0,
-        evidenceKey,
-        secondaryEvidenceKeys,
-      });
-    }
-    const updates = this.transcript.applySpeakerTurns(turns);
-    for (let i = 0; i < updates.length; i++) {
-      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[i]));
-    }
-    this.flushReadyWindows();
   }
 
   onDrained(): void {
-    if (!this.finishRequested || this.finished) return;
-    this.processDrained = true;
-    this.finalizeIfReady();
-  }
-
-  private finalizeIfReady(): void {
-    if (!this.finishRequested || this.finished || !this.processDrained ||
-      !this.asrTailObserved) return;
-    this.flushReadyWindows();
-    if (this.finished) return;
-    const result = this.commitWindow(this.totalSamples * 1000 / SAMPLE_RATE,
-      Number.POSITIVE_INFINITY, true);
-    this.finished = true;
-    this.observer.onFinished(result);
-  }
-
-  private flushReadyWindows(): void {
-    if (this.finished) return;
-    const progress = this.degradedReason === SpeakerDiarizationDegradedReason.NONE ?
-      this.inferenceEndMs : Number.POSITIVE_INFINITY;
-    let boundary = this.commitClock.takeReady(progress);
-    while (boundary !== undefined && !this.finished) {
-      const result = this.commitWindow(boundary.endTime, boundary.evidenceEndTime, false,
-        boundary.beginTime);
-      if (result.utterances.length > 0 || result.speakerTurns.length > 0) {
-        this.windowIndex += 1;
-        this.observer.onWindowResult(result);
-      }
-      boundary = this.finished ? undefined : this.commitClock.takeReady(progress);
-    }
-  }
-
-  private commitWindow(endTime: number, evidenceEndTime: number, isSessionFinal: boolean,
-    beginTime: number = this.commitClock.beginTime()): SpeakerDiarizationResult {
-    const windowObservations = this.recentEmbeddingObservations.filter(item =>
-      (item.endTimeMs ?? 0) <= evidenceEndTime && (item.endTimeMs ?? 0) > beginTime);
-    const observations = windowObservations.filter(item =>
-      (item.speechRms ?? 0) > 0 && (item.speechRms ?? 0) >= this.speakerLevelReference * 0.5)
-      .map((item: SpeakerDiarizationEmbeddingObservation): SpeakerDiarizationEmbeddingObservation => ({
-        embedding: item.embedding, durationMs: item.durationMs, endTimeMs: item.endTimeMs,
-        evidenceKey: item.evidenceKey, onlineSpeakerId: 'UNKNOWN',
-        queryEmbedding: item.queryEmbedding, complementaryEmbedding: item.complementaryEmbedding,
-        anchorId: this.committedRegistry.matchKnown(item.embedding) }));
-    const clustered = this.globalClusterer.cluster(observations);
-    // Quiet evidence may corroborate an existing identity; it still cannot
-    // enroll a role or receive an output label through this support path.
-    const identitySupport: SpeakerIdentitySupport[] = windowObservations
-      .filter(item => item.queryEmbedding !== undefined)
-      .map((item: SpeakerDiarizationEmbeddingObservation): SpeakerIdentitySupport =>
-        ({ embedding: item.embedding, queryEmbedding: item.queryEmbedding! }));
-    const turnQueries = this.recentTurnQueries.filter(query =>
-      query.endTimeMs <= evidenceEndTime && query.endTimeMs > beginTime);
-    const clusters = clustered.clusters.slice();
-    if (this.committedRegistry.speakerIds().length === 0) {
-      // Repeated short context must not outweigh a better-supported first identity.
-      const firstSupported = clusters.findIndex(cluster => cluster.indexes.some(index =>
-        observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs));
-      const firstOwnedIndex = observations.findIndex(item => item.queryEmbedding !== undefined);
-      // Preserve the initial voice when it also leads the coherent evidence.
-      // Later repeated short contexts still cannot take the first-role exemption.
-      const leadingOwnsFirst = firstOwnedIndex >= 0 && clusters[0]?.indexes.includes(firstOwnedIndex);
-      if (firstSupported > 0 && !leadingOwnsFirst) clusters.unshift(clusters.splice(firstSupported, 1)[0]);
-    }
-    const remap: Record<string, string> = {};
-    // A louder later voice can make earlier provisional evidence ineligible.
-    // Explicitly clear that evidence instead of retaining its provisional ID.
-    for (const observation of windowObservations) {
-      if (observation.evidenceKey !== undefined) remap[observation.evidenceKey] = 'UNKNOWN';
-    }
-    for (const cluster of clusters) {
-      const anchor = cluster.indexes.map(index => observations[index].anchorId)
-        .find(id => id !== undefined);
-      let id: string;
-      if (anchor !== undefined) {
-        id = anchor;
-        this.committedRegistry.commitKnown(id, cluster.centroid, cluster.durationMs, endTime);
-      } else {
-        // Overlapping windows repeatedly contain the same short PCM. Their summed
-        // weights cannot qualify it as a longer recording for a new identity.
-        const canEnroll = cluster.indexes.some(index =>
-          observations[index].durationMs >= this.minAdditionalSpeakerSpeechMs) &&
-          // Context alone can mix earlier speakers. Require evidence from an
-          // owned output slice before making an additional role a query target.
-          cluster.indexes.some(index => observations[index].queryEmbedding !== undefined);
-        const assignment = this.committedRegistry.assign(new Float32Array(cluster.centroid), cluster.durationMs,
-          endTime, canEnroll, cluster.indexes.flatMap(index =>
-            observations[index].queryEmbedding === undefined ? [] : [observations[index].queryEmbedding!]),
-          identitySupport);
-        id = assignment.speakerId;
-        if (assignment.created) this.committedRegistry.bindComplementaryProfile(id,
-          cluster.indexes.map(index => observations[index].complementaryEmbedding),
-          cluster.indexes.map(index => observations[index].durationMs));
-      }
-      for (const index of cluster.indexes) {
-        const key = observations[index].evidenceKey;
-        if (key !== undefined) remap[key] = id;
-      }
-    }
-    // A later louder person must not erase an independently admitted new voice.
-    // Keep the ordinary profiles first; this path cannot update or extend them.
-    const recoveredNovelKeys = new Set<string>();
-    const firstReference = observations.find(item => item.queryEmbedding !== undefined &&
-      item.evidenceKey !== undefined && remap[item.evidenceKey] !== 'UNKNOWN');
-    const referenceEstablishedAt = this.publishedSpeakerIds.size > 0 ? beginTime :
-      firstReference?.endTimeMs ?? Number.POSITIVE_INFINITY;
-    const historicalEligible = windowObservations.filter(item => item.levelEligibleAtObservation &&
-      (item.endTimeMs ?? 0) >= referenceEstablishedAt &&
-      (item.speechRms ?? 0) < this.speakerLevelReference * 0.5);
-    if (historicalEligible.length > 0 && this.committedRegistry.speakerIds().length < this.maxSpeakers) {
-      const historicalClusters = this.globalClusterer.cluster(historicalEligible);
-      for (const cluster of historicalClusters.clusters) {
-        const members = cluster.indexes.map(index => historicalEligible[index]);
-        const queries = members.flatMap(item => item.queryEmbedding === undefined ? [] : [item.queryEmbedding]);
-        if (!members.some(item => item.durationMs >= this.minAdditionalSpeakerSpeechMs) || queries.length === 0) continue;
-        const preview = this.committedRegistry.fork().assign(new Float32Array(cluster.centroid),
-          cluster.durationMs, endTime, true, queries, identitySupport);
-        if (!preview.created) continue;
-        const assignment = this.committedRegistry.assign(new Float32Array(cluster.centroid),
-          cluster.durationMs, endTime, true, queries, identitySupport);
-        if (!assignment.created) continue;
-        this.committedRegistry.bindComplementaryProfile(assignment.speakerId,
-          members.map(item => item.complementaryEmbedding), members.map(item => item.durationMs));
-        for (const member of members) {
-          if (member.evidenceKey === undefined) continue;
-          remap[member.evidenceKey] = assignment.speakerId;
-          recoveredNovelKeys.add(member.evidenceKey);
-        }
-      }
-    }
-    for (const query of turnQueries) {
-      remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?? 'UNKNOWN';
-    }
-    const established = new Set<string>(this.publishedSpeakerIds);
-    this.collectOutputSpeakerIds(beginTime, endTime, remap, established);
-    const queryConfidences: Record<string, number> = {};
-    for (const observation of observations) {
-      const key = observation.evidenceKey;
-      if (key === undefined || observation.queryEmbedding === undefined) continue;
-      const match = this.committedRegistry.matchQuery(observation.queryEmbedding, established);
-      if (match !== undefined && match.speakerId !== remap[key]) {
-        remap[key] = match.speakerId;
-        queryConfidences[key] = match.confidence;
-      }
-    }
-    const eligibleKeys = new Set(observations.map(item => item.evidenceKey));
-    recoveredNovelKeys.forEach((key: string): void => { eligibleKeys.add(key); });
-    for (const query of turnQueries) {
-      remap[query.evidenceKey] = remap[query.contextEvidenceKey] ?? 'UNKNOWN';
-      const contextConfidence = queryConfidences[query.contextEvidenceKey];
-      if (contextConfidence !== undefined) queryConfidences[query.evidenceKey] = contextConfidence;
-      if (!eligibleKeys.has(query.contextEvidenceKey)) {
-        const context = windowObservations.find(item => item.evidenceKey === query.contextEvidenceKey);
-        const match = context === undefined ? undefined :
-          this.committedRegistry.matchQuietQuery(query.embedding, context.embedding, established);
-        if (match !== undefined) {
-          remap[query.evidenceKey] = match.speakerId;
-          queryConfidences[query.evidenceKey] = match.confidence;
-        }
-        continue;
-      }
-      const match = this.committedRegistry.matchQuery(query.embedding, established);
-      if (match !== undefined) {
-        remap[query.evidenceKey] = match.speakerId;
-        queryConfidences[query.evidenceKey] = match.confidence;
-      }
-    }
-    // Complementary evidence can only resolve a still-unknown, level-eligible run.
-    for (const query of turnQueries) {
-      if (remap[query.evidenceKey] !== 'UNKNOWN' || !eligibleKeys.has(query.contextEvidenceKey) ||
-        query.complementaryEmbedding === undefined) continue;
-      const context = windowObservations.find(item => item.evidenceKey === query.contextEvidenceKey);
-      if (context?.complementaryEmbedding === undefined) continue;
-      const match = this.committedRegistry.matchComplementaryQuery(query.embedding, context.embedding,
-        query.complementaryEmbedding, context.complementaryEmbedding, established);
-      if (match !== undefined) {
-        remap[query.evidenceKey] = match.speakerId;
-        queryConfidences[query.evidenceKey] = match.confidence;
-      }
-    }
-    // Quiet context can propose an existing identity, but cannot label a long
-    // run wholesale: unresolved local cells must retain their UNKNOWN evidence.
-    for (const query of turnQueries) {
-      if (remap[query.evidenceKey] !== 'UNKNOWN' || eligibleKeys.has(query.contextEvidenceKey) ||
-        query.complementaryEmbedding === undefined || query.localQueries === undefined) continue;
-      const context = windowObservations.find(item => item.evidenceKey === query.contextEvidenceKey);
-      if (context?.complementaryEmbedding === undefined) continue;
-      const proposed = this.committedRegistry.matchComplementaryQuery(query.embedding, context.embedding,
-        query.complementaryEmbedding, context.complementaryEmbedding, established);
-      if (proposed === undefined) continue;
-      for (const local of query.localQueries) {
-        const match = this.committedRegistry.matchLocalQuery(local.embedding, local.complementaryEmbedding, established);
-        if (match?.speakerId !== proposed.speakerId) continue;
-        const from = Math.max(beginTime, Math.round(local.startSample * 1000 / SAMPLE_RATE));
-        const through = Math.min(endTime, Math.round(local.endSample * 1000 / SAMPLE_RATE));
-        this.transcript.resolveUnknownSpan(query.evidenceKey, from, through, match.speakerId, match.confidence, remap);
-      }
-    }
-    this.recordUnknownDiagnostics(beginTime, endTime, windowObservations, turnQueries, remap);
-    for (const refinement of this.recentRefinements) {
-      const start = Math.round(refinement.startSample * 1000 / SAMPLE_RATE);
-      const cut = Math.round(refinement.cutSample * 1000 / SAMPLE_RATE);
-      const end = Math.round(refinement.endSample * 1000 / SAMPLE_RATE);
-      if (start < beginTime || end > endTime || refinement.evidenceEndTimeMs > evidenceEndTime) continue;
-      const left = this.committedRegistry.matchComplementaryQuery(refinement.leftEmbedding, refinement.leftEmbedding,
-        refinement.leftComplementaryEmbedding, refinement.leftComplementaryEmbedding, established);
-      const right = this.committedRegistry.matchComplementaryQuery(refinement.rightEmbedding, refinement.rightEmbedding,
-        refinement.rightComplementaryEmbedding, refinement.rightComplementaryEmbedding, established);
-      if (left === undefined || right === undefined || left.speakerId === right.speakerId) continue;
-      this.transcript.refineSingleSpeakerSpan(start, cut, end, left.speakerId, right.speakerId,
-        left.confidence, right.confidence, remap);
-    }
-    this.transcript.applyEvidenceRemap(remap, 0, queryConfidences);
-    this.finalSpeakerCount = this.committedRegistry.speakerIds().length;
-    this.registry = this.committedRegistry.fork();
-    if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
-    const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
-    result.isSessionFinal = isSessionFinal;
-    this.collectOutputSpeakerIds(beginTime, endTime, {}, this.publishedSpeakerIds);
-    this.transcript.commitThrough(endTime);
-    this.recentRefinements = this.recentRefinements.filter(item => item.startSample * 1000 / SAMPLE_RATE >= endTime);
-    // Keep only evidence needed by a crossing inference window / later uncommitted turns.
-    const needed = new Set(this.transcript.allTurns().flatMap(turn =>
-      [turn.evidenceKey ?? '', ...(turn.secondaryEvidenceKeys ?? [])]));
-    this.recentTurnQueries = this.recentTurnQueries.filter(query =>
-      query.endTimeMs > endTime || needed.has(query.evidenceKey));
-    for (const query of this.recentTurnQueries) needed.add(query.contextEvidenceKey);
-    this.recentEmbeddingObservations = this.recentEmbeddingObservations.filter(item =>
-      (item.endTimeMs ?? 0) > endTime || needed.has(item.evidenceKey ?? ''));
-    return result;
-  }
-
-  private recordUnknownDiagnostics(beginTime: number, endTime: number,
-    observations: SpeakerDiarizationEmbeddingObservation[], queries: SpeakerDiarizationTurnQuery[],
-    remap: Record<string, string>): void {
-    if (this.diagnostic === undefined) return;
-    try {
-      const unknownTurns: Record<string, Object>[] = [];
-      for (const turn of this.transcript.allTurns()) {
-        if (turn.endTime <= beginTime || turn.beginTime >= endTime) continue;
-        const key = turn.evidenceKey ?? '';
-        if ((remap[key] ?? turn.speakerId) !== 'UNKNOWN') continue;
-        const query = queries.find(item => item.evidenceKey === key);
-        const contextKey = query?.contextEvidenceKey ?? key;
-        const observation = observations.find(item => item.evidenceKey === contextKey);
-        const level = observation?.speechRms;
-        const filtered = observation !== undefined &&
-          ((level ?? 0) <= 0 || (level ?? 0) < this.speakerLevelReference * 0.5);
-        const queryAvailable = query !== undefined || observation?.queryEmbedding !== undefined;
-        const reasons: string[] = [];
-        if (filtered) reasons.push('RELATIVE_LEVEL_FILTERED');
-        if (observation === undefined) reasons.push('NO_VALID_CONTEXT_EMBEDDING');
-        if (!queryAvailable) reasons.push('NO_VALID_QUERY_EMBEDDING');
-        if (observation !== undefined && !filtered) reasons.push('IDENTITY_UNCERTAIN');
-        const diagnosticTurn: Record<string, Object> = {};
-        diagnosticTurn['beginTime'] = Math.max(beginTime, turn.beginTime);
-        diagnosticTurn['endTime'] = Math.min(endTime, turn.endTime);
-        diagnosticTurn['evidenceKey'] = key;
-        diagnosticTurn['contextEvidenceKey'] = contextKey;
-        diagnosticTurn['reasons'] = reasons;
-        diagnosticTurn['speechRms'] = level ?? -1;
-        diagnosticTurn['referenceRms'] = this.speakerLevelReference;
-        diagnosticTurn['relativeLevel'] = level !== undefined && this.speakerLevelReference > 0 ?
-          level / this.speakerLevelReference : -1;
-        diagnosticTurn['relativeThreshold'] = 0.5;
-        diagnosticTurn['absoluteThreshold'] = this.speakerLevelReference * 0.5;
-        diagnosticTurn['contextEmbeddingAvailable'] = observation !== undefined;
-        diagnosticTurn['queryEmbeddingAvailable'] = queryAvailable;
-        diagnosticTurn['channelQueryAvailable'] = observation?.queryEmbedding !== undefined;
-        diagnosticTurn['runQueryAvailable'] = query !== undefined;
-        unknownTurns.push(diagnosticTurn);
-      }
-      const fields: Record<string, Object> = {};
-      fields['windowBeginTime'] = beginTime;
-      fields['windowEndTime'] = endTime;
-      fields['stage'] = 'WINDOW_FINAL';
-      fields['unknownTurns'] = unknownTurns;
-      this.diagnostic('DIARIZATION_UNKNOWN', fields);
-    } catch (_ignored) {
-      // Diagnostics must not affect identity decisions or finalization.
-    }
-  }
-
-  private collectOutputSpeakerIds(beginTime: number, endTime: number,
-    remap: Record<string, string>, ids: Set<string>): void {
-    for (const turn of this.transcript.allTurns()) {
-      if (turn.beginTime >= endTime || turn.endTime <= beginTime) continue;
-      const primary = turn.evidenceKey === undefined ? turn.speakerId : remap[turn.evidenceKey] ?? turn.speakerId;
-      if (primary.startsWith('S')) ids.add(primary);
-      (turn.secondaryEvidenceSpeakerIds ?? turn.secondarySpeakerIds).forEach((id: string, index: number): void => {
-        const key = turn.secondaryEvidenceKeys?.[index];
-        const secondary = key === undefined ? id : remap[key] ?? id;
-        if (secondary.startsWith('S')) ids.add(secondary);
-      });
-    }
+    if (!this.finishRequested || this.finished || this.finalizing) return;
+    this.finalizing = true;
+    void this.finalizeCommunity();
   }
 
   onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void {
     if (this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
     this.degradedReason = reason;
     this.degradedMessage = message;
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['reason'] = reason;
+      fields['message'] = message;
+      this.diagnostic('COMMUNITY1_DIARIZATION_DEGRADED', fields);
+    }
+  }
+
+  private async finalizeCommunity(): Promise<void> {
+    try {
+      if (this.windows.length > 0 &&
+        this.degradedReason === SpeakerDiarizationDegradedReason.NONE) {
+        const clustering = await this.client.clusterCommunity(
+          this.windows.map(window => window.result), this.minSpeakers, this.maxSpeakers);
+        const timeline: Community1TimelineResult = this.reconstructor.reconstruct(
+          this.windows, clustering, this.totalSamples, this.maxSpeakers);
+        this.standardTurns = timeline.speakerTurns;
+        this.exclusiveTurns = timeline.exclusiveSpeakerTurns;
+        this.finalSpeakerCount = timeline.speakerCount;
+        const updates = this.transcript.applySpeakerTurns(this.exclusiveTurns);
+        for (let index = 0; index < updates.length; index++) {
+          this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[index]));
+        }
+        if (clustering.constraintViolated ||
+          (this.minSpeakers !== undefined && this.finalSpeakerCount < this.minSpeakers) ||
+          (this.maxSpeakers !== undefined && this.finalSpeakerCount > this.maxSpeakers)) {
+          this.onDegraded(SpeakerDiarizationDegradedReason.SPEAKER_LIMIT_EXCEEDED,
+            `automatic speaker count ${this.finalSpeakerCount} is outside configured range ` +
+            `[${this.minSpeakers ?? 1}, ${this.maxSpeakers ?? 'unbounded'}]`);
+        }
+      }
+    } catch (error) {
+      this.onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
+        `Community-1 PLDA/VBx finalization failed: ${error}`);
+    }
+    this.processDrained = true;
+    this.finalizeIfReady();
+  }
+
+  private finalizeIfReady(): void {
+    if (!this.finishRequested || this.finished || !this.processDrained || !this.asrTailObserved) return;
+    if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
+    const result = this.buildResult(this.degradedReason, this.degradedMessage);
+    result.isSessionFinal = true;
+    this.finished = true;
+    this.observer.onFinished(result);
   }
 
   private buildResult(reason: SpeakerDiarizationDegradedReason,
-    message?: string, endTime: number = this.totalSamples * 1000 / SAMPLE_RATE,
-    beginTime: number = this.commitClock.beginTime()): SpeakerDiarizationResult {
+    message?: string): SpeakerDiarizationResult {
     const result = new SpeakerDiarizationResult();
-    result.windowIndex = this.windowIndex;
-    result.windowBeginTime = Math.round(beginTime);
-    result.windowEndTime = Math.round(endTime);
-    const utterances = this.transcript.sentenceUtterances(endTime);
-    for (let i = 0; i < utterances.length; i++) {
-      result.utterances.push(this.toPublicUtterance(utterances[i]));
+    result.windowBeginTime = 0;
+    result.windowEndTime = Math.round(this.totalSamples * 1000 / SAMPLE_RATE);
+    const utterances = this.transcript.sentenceUtterances();
+    for (let index = 0; index < utterances.length; index++) {
+      result.utterances.push(this.toPublicUtterance(utterances[index]));
     }
-    const turns = this.transcript.allTurns();
-    for (let i = 0; i < turns.length; i++) {
-      if (turns[i].endTime <= beginTime || turns[i].beginTime >= endTime) continue;
-      const turn = new SpeakerTurn();
-      turn.beginTime = Math.max(beginTime, turns[i].beginTime);
-      turn.endTime = Math.min(endTime, turns[i].endTime);
-      turn.speakerIndex = speakerIndexFromInternalId(turns[i].speakerId, this.maxSpeakers);
-      turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
-        turns[i].secondarySpeakerIds, this.maxSpeakers, true);
-      turn.confidence = turns[i].confidence ?? 0;
-      turn.overlap = turns[i].overlap ?? turn.secondarySpeakerIndexes.length > 0;
-      result.speakerTurns.push(turn);
-    }
+    result.speakerTurns = this.standardTurns.map(
+      (turn: SpeakerTimelineTurn): SpeakerTurn => this.toPublicTurn(turn));
+    result.exclusiveSpeakerTurns = this.exclusiveTurns.map(
+      (turn: SpeakerTimelineTurn): SpeakerTurn => this.toPublicTurn(turn));
     result.speakerCount = this.finalSpeakerCount;
     result.degraded = reason !== SpeakerDiarizationDegradedReason.NONE;
     result.degradedReason = reason;
     result.degradedMessage = message;
     result.inferenceMs = this.inferenceMs;
-    const audioMs = Math.max(1, this.totalSamples * 1000 / SAMPLE_RATE);
-    result.rtf = this.inferenceMs / audioMs;
+    result.rtf = this.inferenceMs /
+      Math.max(1, this.totalSamples * 1000 / SAMPLE_RATE);
     return result;
+  }
+
+  private toPublicTurn(value: SpeakerTimelineTurn): SpeakerTurn {
+    const turn = new SpeakerTurn();
+    turn.beginTime = value.beginTime;
+    turn.endTime = value.endTime;
+    turn.speakerIndex = speakerIndexFromInternalId(value.speakerId, this.maxSpeakers);
+    turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
+      value.secondarySpeakerIds, this.maxSpeakers, true);
+    turn.confidence = value.confidence ?? 0;
+    turn.overlap = value.overlap ?? turn.secondarySpeakerIndexes.length > 0;
+    return turn;
   }
 
   private toPublicUpdate(update: DiarizationTranscriptUpdate): SpeakerDiarizationUpdate {
@@ -670,5 +295,4 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.runtimeLease?.release();
     this.runtimeLease = undefined;
   }
-
 }

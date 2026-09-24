@@ -37,7 +37,7 @@
 | 文件 | 用途 |
 |------|------|
 | 声纹模型 `eres2net.onnx` | 已内置于 `dingqiao-asr-v*.aar`，首次运行自动解包到 `setWorkPath` |
-| 说话人分离模型 `pyannote-segmentation-3.0.onnx` | 已内置于 AAR，与 eres2net 一起在启用 diarization 时按需准备 |
+| 说话人分离模型 `pyannote-segmentation-3.0.onnx` | 已内置于 AAR，与 Community-1 WeSpeaker、PLDA calibration 一起在启用 diarization 时按需准备 |
 | LAC 人名模型/字典 | 已内置于 `sdk-police`，仅对调用方 `sysGeneralLexicon` 中的人名候选做门控纠正 |
 | `amphion-license.lic` | 商用授权（武装构建 AAR 时必需，见 `docs/LICENSING.md`） |
 
@@ -107,7 +107,7 @@ bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqia
 
 # 最终交付验收必须从 zip 开始；设备验证也安装 zip 解压出的 Demo APK
 ZIP=delivery/.../amphion-dingqiao-*.zip
-export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,jni/arm64-v8a/libamphion_diarization_jni.so:1,jni/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520'
+export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,jni/arm64-v8a/libamphion_diarization_jni.so:1,jni/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/amphion-dingqiao/community1-wespeaker.onnx:20971520,assets/amphion-dingqiao/community1-plda.npz:100000,assets/amphion-dingqiao/community1-xvec-transform.npz:100000,assets/lac/v1/lac_encoder.onnx:20971520'
 export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,lib/arm64-v8a/libamphion_diarization_jni.so:1,lib/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520,assets/amphion-license.lic:1'
 export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
 export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'

@@ -44,13 +44,11 @@ function cosine(left: number[], right: number[]): number {
 
 /** Duration-weighted AHC with an optional weak speaker-count prior. */
 export class SpeakerDiarizationGlobalClusterer {
-  private readonly maxSpeakers: number;
   private readonly speakerCountHint: number;
   private readonly similarityThreshold: number;
 
-  constructor(maxSpeakers: number = 4, speakerCountHint: number = 0,
-    similarityThreshold: number = 0.72) {
-    this.maxSpeakers = maxSpeakers;
+  constructor(_maxSpeakers?: number, speakerCountHint: number = 0,
+    similarityThreshold: number = 0.6) {
     this.speakerCountHint = speakerCountHint;
     this.similarityThreshold = similarityThreshold;
   }
@@ -178,30 +176,29 @@ export class SpeakerDiarizationGlobalClusterer {
 
   private matchDisplayIds(clusters: MutableCluster[],
     observations: SpeakerDiarizationEmbeddingObservation[]): string[] {
-    const assignable = Math.min(this.maxSpeakers, clusters.length);
-    const candidates = new Array<string>(this.maxSpeakers);
-    for (let index = 0; index < candidates.length; index++) candidates[index] = `S${index + 1}`;
-    let bestScore = Number.NEGATIVE_INFINITY;
-    let best: string[] = [];
-    const search = (clusterIndex: number, remaining: string[], current: string[], score: number): void => {
-      if (clusterIndex >= assignable) {
-        if (score > bestScore) {
-          bestScore = score;
-          best = current.slice();
-        }
-        return;
+    const observed = new Set<string>();
+    for (const item of observations) {
+      if (item.onlineSpeakerId.startsWith('S')) observed.add(item.onlineSpeakerId);
+    }
+    const used = new Set<string>();
+    const result: string[] = [];
+    for (const cluster of clusters) {
+      let best = '';
+      let bestDuration = 0;
+      observed.forEach((speakerId: string): void => {
+        if (used.has(speakerId)) return;
+        const duration = this.clusterDisplayDuration(cluster, observations, speakerId);
+        if (duration > bestDuration) { bestDuration = duration; best = speakerId; }
+      });
+      if (best.length === 0) {
+        let index = 1;
+        while (used.has(`S${index}`) || observed.has(`S${index}`)) index += 1;
+        best = `S${index}`;
       }
-      for (let index = 0; index < remaining.length; index++) {
-        const speakerId = remaining[index];
-        const nextRemaining = remaining.slice();
-        nextRemaining.splice(index, 1);
-        search(clusterIndex + 1, nextRemaining, current.concat(speakerId),
-          score + this.clusterDisplayDuration(clusters[clusterIndex], observations, speakerId));
-      }
-    };
-    search(0, candidates, [], 0);
-    while (best.length < clusters.length) best.push('UNKNOWN');
-    return best;
+      used.add(best);
+      result.push(best);
+    }
+    return result;
   }
 
   private clusterDisplayDuration(cluster: MutableCluster,

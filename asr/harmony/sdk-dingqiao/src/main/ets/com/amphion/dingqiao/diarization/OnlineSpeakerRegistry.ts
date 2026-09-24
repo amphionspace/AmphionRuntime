@@ -67,16 +67,16 @@ function cosine(left: Float32Array, right: Float32Array): number {
 
 export class OnlineSpeakerRegistry {
   private readonly entries: MutableSpeakerEntry[] = [];
-  private readonly maxSpeakers: number;
+  private readonly maxSpeakers?: number;
   private readonly similarityThreshold: number;
   private readonly topMargin: number;
 
   constructor(
-    maxSpeakers: number = 4,
+    maxSpeakers?: number,
     similarityThreshold: number = 0.72,
     topMargin: number = 0.05,
   ) {
-    if (!Number.isInteger(maxSpeakers) || maxSpeakers < 1) {
+    if (maxSpeakers !== undefined && (!Number.isInteger(maxSpeakers) || maxSpeakers < 1)) {
       throw new Error('maxSpeakers must be a positive integer');
     }
     this.maxSpeakers = maxSpeakers;
@@ -152,7 +152,7 @@ export class OnlineSpeakerRegistry {
       const novel = best === undefined || !mutual ||
         best.score < Math.min(this.similarityThreshold, QUERY_SIMILARITY_THRESHOLD) ||
         this.confirmsNovelty(embedding, enrollmentQueries?.[observation]);
-      if (this.entries.length < this.maxSpeakers && novel &&
+      if ((this.maxSpeakers === undefined || this.entries.length < this.maxSpeakers) && novel &&
         (this.entries.length === 0 || (allowAdditionalSpeaker?.[observation] ?? true))) {
         // Only intercept a new identity. Do not broaden UNKNOWN attribution.
         const supported = this.matchSupportedIdentity(embedding, identitySupport ?? [],

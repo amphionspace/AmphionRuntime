@@ -85,6 +85,8 @@ class SpeakerTurnSegmentationModel {
     int32_t end = 0;
     int32_t speaker = 0;
     int32_t speaker_mask = 0;
+    int32_t start_frame = 0;
+    int32_t end_frame = 0;
   };
 
   std::vector<Segment> Process(const std::vector<float>& samples) {
@@ -112,10 +114,11 @@ class SpeakerTurnSegmentationModel {
     int32_t active_speaker_mask = 0;
     int32_t active_speaker = -1;
     int32_t active_start = 0;
-    auto finish = [&](int32_t end) {
+    int32_t active_start_frame = 0;
+    auto finish = [&](int32_t end, int32_t end_frame) {
       if (active_speaker_mask != 0 && end > active_start) {
         result.push_back({active_start, end, active_speaker,
-                          active_speaker_mask});
+                          active_speaker_mask, active_start_frame, end_frame});
       }
       active_speaker_mask = 0;
       active_speaker = -1;
@@ -129,14 +132,15 @@ class SpeakerTurnSegmentationModel {
                                frame * kReceptiveFieldShift;
       if (speaker_mask == active_speaker_mask) continue;
       const int32_t next_speaker = PrimarySpeaker(speaker_mask, active_speaker);
-      finish(std::clamp(boundary, 0, static_cast<int32_t>(samples.size())));
+      finish(std::clamp(boundary, 0, static_cast<int32_t>(samples.size())), frame);
       if (speaker_mask != 0) {
         active_speaker_mask = speaker_mask;
         active_speaker = next_speaker;
         active_start = std::clamp(boundary, 0, static_cast<int32_t>(samples.size()));
+        active_start_frame = frame;
       }
     }
-    finish(static_cast<int32_t>(samples.size()));
+    finish(static_cast<int32_t>(samples.size()), kFrames);
     return result;
   }
 
@@ -286,6 +290,10 @@ napi_value Process(napi_env env, napi_callback_info info) {
       napi_set_named_property(env, item, "speaker", value);
       napi_create_int32(env, segments[i].speaker_mask, &value);
       napi_set_named_property(env, item, "speakerMask", value);
+      napi_create_int32(env, segments[i].start_frame, &value);
+      napi_set_named_property(env, item, "startFrame", value);
+      napi_create_int32(env, segments[i].end_frame, &value);
+      napi_set_named_property(env, item, "endFrame", value);
       napi_set_element(env, result, i, item);
     }
     return result;
@@ -343,6 +351,10 @@ void CompleteProcess(napi_env env, napi_status status, void* data) {
     napi_set_named_property(env, item, "speaker", value);
     napi_create_int32(env, context->segments[i].speaker_mask, &value);
     napi_set_named_property(env, item, "speakerMask", value);
+    napi_create_int32(env, context->segments[i].start_frame, &value);
+    napi_set_named_property(env, item, "startFrame", value);
+    napi_create_int32(env, context->segments[i].end_frame, &value);
+    napi_set_named_property(env, item, "endFrame", value);
     napi_set_element(env, result, i, item);
   }
   napi_resolve_deferred(env, context->deferred, result);

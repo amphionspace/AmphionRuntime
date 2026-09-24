@@ -1,5 +1,9 @@
 import { DiarizationPcmSpool } from './DiarizationPcmSpool';
-import { SpeakerDiarizationInference, SpeakerDiarizationWindowResult } from 'amphion_asr';
+import {
+  SpeakerDiarizationCommunityClusterResult,
+  SpeakerDiarizationInference,
+  SpeakerDiarizationWindowResult
+} from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { DingqiaoSpeakerModelAssets } from '../DingqiaoSpeakerModelAssets';
 import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
@@ -71,8 +75,10 @@ export class SpeakerDiarizationLocalClient {
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
-    this.inferenceLoad = this.inference.load(context, DingqiaoSpeakerModelAssets.bundledPath(),
-      DingqiaoSpeakerModelAssets.complementaryDiarizationPath());
+    this.inferenceLoad = this.inference.load(
+      context,
+      DingqiaoSpeakerModelAssets.communityDiarizationPath(),
+      DingqiaoSpeakerModelAssets.communityPldaRuntimePath());
     this.inferenceLoad.then((): void => {
       this.loadSettled = true;
       this.closeWhenQuiescent();
@@ -103,7 +109,10 @@ export class SpeakerDiarizationLocalClient {
     if (this.closed || this.finishing) return;
     this.finishing = true;
     if (!this.degraded) {
-      try { this.submit(this.scheduler.finish()); } catch (error) {
+      try {
+        const tail = this.scheduler.finish();
+        if (tail !== undefined) this.submit(tail);
+      } catch (error) {
         this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
           `speaker diarization finish spool failed: ${error}`);
       }
@@ -124,19 +133,25 @@ export class SpeakerDiarizationLocalClient {
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
+  async clusterCommunity(windows: SpeakerDiarizationWindowResult[], minSpeakers?: number,
+    maxSpeakers?: number): Promise<SpeakerDiarizationCommunityClusterResult> {
+    await this.inferenceLoad;
+    return this.inference.cluster(windows, minSpeakers, maxSpeakers);
+  }
+
 
   private submit(window: DiarizationInferenceWindow): void {
     const jobId = `w${this.nextJobId.toString().padStart(8, '0')}`;
     this.nextJobId += 1;
     const realSamples = Math.max(0, window.realEndSample - window.startSample);
     const sampleCount = Math.min(WINDOW_SAMPLES, realSamples);
-    const contentStartInWindowSample = WINDOW_SAMPLES - sampleCount;
-    const offsetSample = Math.max(0, window.realEndSample - sampleCount);
+    const contentStartInWindowSample = 0;
+    const offsetSample = window.startSample;
     this.queue.push({
       jobId,
       offsetBytes: offsetSample * 2,
       sampleCount,
-      windowStartSample: Math.max(0, window.realEndSample - WINDOW_SAMPLES),
+      windowStartSample: window.startSample,
       contentStartInWindowSample,
       realEndSample: window.realEndSample,
       commitStartSample: window.commitStartSample,
@@ -231,8 +246,7 @@ export class SpeakerDiarizationLocalClient {
     catch (error) { throw new SpeakerDiarizationStorageError(`diarization PCM read failed: ${error}`); }
     const pcm = new Int16Array(data);
     const result = new Float32Array(WINDOW_SAMPLES);
-    const offset = WINDOW_SAMPLES - pcm.length;
-    for (let index = 0; index < pcm.length; index++) result[offset + index] = pcm[index] / 32768.0;
+    for (let index = 0; index < pcm.length; index++) result[index] = pcm[index] / 32768.0;
     return result;
   }
 

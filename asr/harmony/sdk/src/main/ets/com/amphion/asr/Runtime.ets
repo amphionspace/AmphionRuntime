@@ -120,7 +120,7 @@ const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
 // Fresh Speaker VAD replay streams need more right context than the live stream. Device and offline
 // cut-point differentials show the police model preserves the fixed-tail tokens from 800 ms onward.
 const SPEAKER_FINAL_TAIL_MIN_PADDING_MS: number = 800;
-const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
+const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'community1-segmentation.onnx';
 
 export class AmphionRuntime {
   private static readonly SDK_VERSION: string = HARMONY_SDK_VERSION;

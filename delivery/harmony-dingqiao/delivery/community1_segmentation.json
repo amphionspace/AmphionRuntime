@@ -1,0 +1,13 @@
+{
+  "artifact": "community1-segmentation.onnx",
+  "format": "onnx-fp32",
+  "source_repository": "https://huggingface.co/pyannote/speaker-diarization-community-1",
+  "source_revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+  "source_member": "segmentation/pytorch_model.bin",
+  "license": "CC-BY-4.0",
+  "sha256": "ded655a8696d1aa03951fd942bc189250c40d384d4fc35f436ca00f5d868aac2",
+  "input_sample_rate_hz": 16000,
+  "input_window_samples": 160000,
+  "output_frames": 589,
+  "output_classes": 7
+}

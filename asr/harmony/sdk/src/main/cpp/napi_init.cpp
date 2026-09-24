@@ -4,6 +4,7 @@
 
 #include "target_speaker_enhancer.h"
 #include "speaker_turn_segmenter.h"
+#include "community1_clusterer.h"
 #include "agc_bridge.h"
 #include "lac_person_ner.h"
 
@@ -29,6 +30,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
   RegisterTargetSpeakerEnhancer(env, exports);
   RegisterSpeakerTurnSegmenter(env, exports);
+  RegisterCommunity1Clusterer(env, exports);
   RegisterAgcBridge(env, exports);
   RegisterLacPersonNer(env, exports);
   return exports;
