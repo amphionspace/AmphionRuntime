@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.amphion.dingqiao.demo.DingqiaoNativeEndpointParityInstrumentedTest" tests="1" failures="0" errors="0" skipped="0" time="41.315" timestamp="2026-09-24T10:13:37" hostname="redacted">
+  <properties>
+    <property name="device" value="TECNO KI8 - 13" />
+    <property name="flavor" value="" />
+    <property name="project" value=":samples:dingqiao-demo" />
+  </properties>
+  <testcase name="nativeRule3TransitionsPreserveContinuousSession" classname="com.amphion.dingqiao.demo.DingqiaoNativeEndpointParityInstrumentedTest" time="40.155" />
+</testsuite>

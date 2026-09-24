@@ -1,0 +1,17 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.amphion.dingqiao.demo.DqVoiceprintTest" tests="3" failures="1" errors="0" skipped="0" time="19.378" timestamp="2026-09-24T10:32:38" hostname="redacted">
+  <properties>
+    <property name="device" value="TECNO KI8 - 13" />
+    <property name="flavor" value="" />
+    <property name="project" value=":samples:dingqiao-demo" />
+  </properties>
+  <testcase name="v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly" classname="com.amphion.dingqiao.demo.DqVoiceprintTest" time="12.243">
+    <failure>java.lang.AssertionError: voiceprint vadBegin must not auto-finish real speech
+at org.junit.Assert.fail(Assert.java:89)
+at org.junit.Assert.assertTrue(Assert.java:42)
+at com.amphion.dingqiao.demo.DqVoiceprintTest.v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly(DqVoiceprintTest.kt:153)
+</failure>
+  </testcase>
+  <testcase name="v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm" classname="com.amphion.dingqiao.demo.DqVoiceprintTest" time="4.138" />
+  <testcase name="v04e_voiceprintVadBegin_pureSilenceEndsOnce" classname="com.amphion.dingqiao.demo.DqVoiceprintTest" time="1.789" />
+</testsuite>

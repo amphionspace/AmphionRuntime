@@ -1,0 +1,35 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" tests="27" failures="0" errors="0" skipped="0" time="735.744" timestamp="2026-09-24T10:29:39" hostname="redacted">
+  <properties>
+    <property name="device" value="TECNO KI8 - 13" />
+    <property name="flavor" value="" />
+    <property name="project" value=":samples:dingqiao-demo" />
+  </properties>
+  <testcase name="a01_tailFrame_abruptFinish_keepsTail" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="28.663" />
+  <testcase name="a02_frameSize_nonStandardRejected" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.427" />
+  <testcase name="a03_writeBeforeStart_notListening" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.032" />
+  <testcase name="a04_doubleStart_busy" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.066" />
+  <testcase name="a05_finishWhenIdle_finishFailed" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.001" />
+  <testcase name="a06_cancel_noFinalNoComplete" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="2.045" />
+  <testcase name="a07_invalidSessionId_rejected" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.003" />
+  <testcase name="a08_writeWrongSessionId_mismatch" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.068" />
+  <testcase name="a09_maxAudioDuration_explicitShortLimitAutoFinishes" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="3.326" />
+  <testcase name="a09b_maxAudioDuration_nonFiniteValuesStayDisabled" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="2.785" />
+  <testcase name="a10_maxAudioDuration_autoFinish" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="5.155" />
+  <testcase name="a10b_autoFinishWindow_ignoresLateFrames" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="6.442" />
+  <testcase name="a10c_finishIdempotent_singleComplete" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="2.534" />
+  <testcase name="a10d_terminalCallback_reentrantReplacementOwnsCompletion" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="1.189" />
+  <testcase name="a10e_onStartSynchronousWrite_thenContinue" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="6.556" />
+  <testcase name="a10f_onStartSynchronousWrite_thenImmediateFinish" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="1.05" />
+  <testcase name="a10g_onStartSynchronousWrite_afterEngineReload" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="3.78" />
+  <testcase name="a10ga_onStartCancel_sameIdReplacementOwnsCallbacks" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.329" />
+  <testcase name="a10gb_onStartCanWaitForOtherThreadWriteAudio" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.651" />
+  <testcase name="a10h_lateOldWrite_doesNotAffectReplacement" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.302" />
+  <testcase name="a10i_lateOldFinish_doesNotAffectReplacement" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.316" />
+  <testcase name="a10j_lateOldCancel_doesNotAffectReplacement" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.305" />
+  <testcase name="a11_unsupportedLanguage_createFails" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.071" />
+  <testcase name="a11_vadBegin_initialSilenceAutoFinish" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.61" />
+  <testcase name="a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="8.393" />
+  <testcase name="a12_postShutdown_throwsInsteadOfCallback" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="0.385" />
+  <testcase name="a13_userSequenceStress_300Cycles" classname="com.amphion.dingqiao.demo.DqSdkCornerCaseTest" time="658.817" />
+</testsuite>

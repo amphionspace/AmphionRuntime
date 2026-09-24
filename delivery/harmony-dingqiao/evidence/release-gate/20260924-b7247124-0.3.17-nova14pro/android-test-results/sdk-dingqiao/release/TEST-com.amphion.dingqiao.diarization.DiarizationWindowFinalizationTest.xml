@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" tests="16" skipped="0" failures="0" errors="0" timestamp="2026-09-24T12:24:58" hostname="redacted" time="0.203">
+  <properties/>
+  <testcase name="fiveHoursOfAudioTimeDoesNotRetainPublishedTranscriptOrEmbeddings" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.153"/>
+  <testcase name="publicationEvictsTextWithoutReusingIdsAndFreezesUnknown" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.0"/>
+  <testcase name="provisionalUnknownCollisionCannotEraseFinalOverlap" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.002"/>
+  <testcase name="independentOutputQueriesPreserveTheSecondPersonAtFinalization" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.001"/>
+  <testcase name="degradedWindowsFreezeUnknownAndAlwaysPublishAnEmptyTerminalBatch" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.001"/>
+  <testcase name="contextWithoutOutputQueryCannotEnrollOrRedirectAnotherSpeaker" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.0"/>
+  <testcase name="hiddenSecondaryKeepsItsEvidenceBindingAcrossPartialRemaps" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.001"/>
+  <testcase name="pcmBlocksRetainQueuedAudioAndReleaseOnlyConsumedBlocks" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.023"/>
+  <testcase name="contextOnlyCandidateLeavesCapacityForASupportedFourthSpeaker" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.001"/>
+  <testcase name="historicalContextCannotCompeteWithCurrentSpeech" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.0"/>
+  <testcase name="sessionResultsAreIdenticalWhenAsrOrDiarizationFinishesFirst" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.006"/>
+  <testcase name="committedIdentitiesCannotBeMergedBySimilarLaterEvidence" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.0"/>
+  <testcase name="repeatedShortContextCannotEnrollButCanRecognizeAnExistingSpeaker" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.005"/>
+  <testcase name="separateRunsOnOneChannelUseTheirOwnQueryAcrossACommitBoundary" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.002"/>
+  <testcase name="windowPublicationCannotOvertakeAnEarlierUpdateDuringConcurrentDrain" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.001"/>
+  <testcase name="lateAsrCallbacksUseTheSameEvidenceAndKeepReturningSpeakerIdentity" classname="com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest" time="0.007"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

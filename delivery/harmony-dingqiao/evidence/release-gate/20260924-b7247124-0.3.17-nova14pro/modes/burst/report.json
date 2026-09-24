@@ -1,0 +1,279 @@
+{
+  "application": {
+    "completed": "2",
+    "completes": "2",
+    "elapsedMs": "2207",
+    "emptyFinals": "0",
+    "errors": "0",
+    "failed": "0",
+    "fatal": "",
+    "finals": "2",
+    "mode": "burst",
+    "partials": "0",
+    "requested": "2",
+    "runId": "20260924-200830-burst-79afc5d1",
+    "starts": "2",
+    "status": "PASS"
+  },
+  "build_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "70d493264c2ca27b80f6912b6a4efb2819c596574c6ce8cbb391ea54954b37d9",
+        "size_bytes": 219613125
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "5a5b5fae77861a5a507acbeef2608a7809ed4e45c856abec7c81ca72d8710d5e",
+        "size_bytes": 409095933
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "b6cb9535d9f38a3afcc0d3eaf38d9e58c1bef737cef44eaff28f26d61b1b6c29",
+        "size_bytes": 68136612
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "e621704619bc74d76c8376f617507c6c79dc5a499705de4649a47684aae7772c",
+        "size_bytes": 30204990
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "3ef63d272d272c84a3733e464ae28e7a2dd2f7ebdb9225c53fe7a085500f6708",
+        "size_bytes": 6956389
+      }
+    },
+    "build_mode": "diagnostics",
+    "created_at": "2026-09-24T12:00:56.992803+00:00",
+    "git_commit": "b7247124598bca56684bba98705f48f13e743c66",
+    "model_manifest_sha256": "bfd989aae5d091d146cc17460f595681dc331de7540c1a5e5063e388e5da0ebd",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "c16f698303d2b764e85960231c5507412dd3f595bc701149132d7efa289b54a5"
+    },
+    "optional_models": {
+      "speaker_complementary_embedding": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/campplus.onnx",
+        "sha256": "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11",
+        "size_bytes": 28281138
+      },
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "source_fingerprint_sha256": "0fbb0e6665f2fce5e8651c502838ec039ccb7b100112e321a7419b10cdf9605d",
+    "zh_en_only": true
+  },
+  "configuration": {
+    "asr_allow_spinning": true,
+    "asr_cpu_ids": "none",
+    "asr_disable_prepack": true,
+    "asr_num_threads": 4,
+    "asr_qos": "default",
+    "cycles": 2,
+    "diarization_vad_end_ms": null,
+    "effective_diarization_vad_end_ms": null,
+    "finish_recovery_entry_ids": [],
+    "pace_ms": 0,
+    "post_run_observe_seconds": 5.0,
+    "sample_interval_seconds": 1.0,
+    "settle_ms": 0,
+    "speaker_vad_threshold": null,
+    "speech_end_ms": 0,
+    "target_content_check_enabled": true
+  },
+  "corpus_preconditions": {},
+  "cpu": {
+    "interval_count": 2,
+    "logical_cpus": 12,
+    "mean_device_capacity_percent": 25.354,
+    "mean_single_core_equivalent_percent": 304.248,
+    "observation_seconds": 2.539,
+    "p50_device_capacity_percent": 25.36,
+    "p50_single_core_equivalent_percent": 304.324,
+    "p95_device_capacity_percent": 27.843,
+    "p95_single_core_equivalent_percent": 334.116,
+    "peak_device_capacity_percent": 28.119,
+    "peak_single_core_equivalent_percent": 337.426,
+    "sample_count": 3,
+    "status": "MEASURED"
+  },
+  "cycles": [
+    {
+      "audioFeedStartedAtMs": "-1",
+      "audioStartToFirstNonEmptyResultMs": "445",
+      "audioStartToSpeechBeginMs": "21",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "finished",
+      "effectiveMaxAudioDurationMs": "-1",
+      "elapsedMs": "468",
+      "errors": "0",
+      "fedFrames": "0",
+      "finalChars": "3",
+      "finals": "1",
+      "finishToCompleteMs": "-1",
+      "finishToDiarizationResultMs": "-1",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "finishToLastMs": "-1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "468",
+      "id": "000000",
+      "index": "0",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptyFinals": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryStarts": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "requestedMaxAudioDurationMs": "-1",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerDiarizationDegraded": "-1",
+      "speakerDiarizationInferenceMs": "-1",
+      "speakerDiarizationMessageHex": "",
+      "speakerDiarizationReason": "-1",
+      "speakerDiarizationResults": "0",
+      "speakerDiarizationRtf": "-1",
+      "speakerDiarizationSpeakerCount": "-1",
+      "speakerDiarizationUpdates": "0",
+      "speakerProvisionalIndexes": "",
+      "speakerScores": "0",
+      "speakerTurnsHex": "",
+      "speakerWindowsHex": "005b005d",
+      "speechBeginToFirstNonEmptyResultMs": "424",
+      "speechEndAtMs": "-1",
+      "speechEndLatencyMs": "-1",
+      "speechEndsBeforeFinish": "-1",
+      "startListeningMs": "-1",
+      "starts": "1",
+      "status": "PASS",
+      "tailSilenceMs": "-1",
+      "trace": "stress-0:start>stress-0:event-1>stress-0:final-last>stress-0:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    },
+    {
+      "audioFeedStartedAtMs": "-1",
+      "audioStartToFirstNonEmptyResultMs": "978",
+      "audioStartToSpeechBeginMs": "29",
+      "completes": "1",
+      "confirmationGraceMs": "-1",
+      "detail": "finished",
+      "effectiveMaxAudioDurationMs": "-1",
+      "elapsedMs": "979",
+      "errors": "0",
+      "fedFrames": "0",
+      "finalChars": "13",
+      "finals": "1",
+      "finishToCompleteMs": "-1",
+      "finishToDiarizationResultMs": "-1",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "finishToLastMs": "-1",
+      "firstNonEmptyFinalHasScore": "0",
+      "firstNonEmptyResultMs": "979",
+      "id": "000001",
+      "index": "1",
+      "lastFinalsBeforeFinish": "-1",
+      "liveStreams": "0",
+      "missingSpeakerScores": "1",
+      "nonEmptyFinals": "1",
+      "nonEmptySpeakerScores": "0",
+      "partials": "0",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryStarts": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "requestedMaxAudioDurationMs": "-1",
+      "requestedVadBeginMs": "-1",
+      "resultHex": "<redacted>",
+      "speakerDiarizationDegraded": "-1",
+      "speakerDiarizationInferenceMs": "-1",
+      "speakerDiarizationMessageHex": "",
+      "speakerDiarizationReason": "-1",
+      "speakerDiarizationResults": "0",
+      "speakerDiarizationRtf": "-1",
+      "speakerDiarizationSpeakerCount": "-1",
+      "speakerDiarizationUpdates": "0",
+      "speakerProvisionalIndexes": "",
+      "speakerScores": "0",
+      "speakerTurnsHex": "",
+      "speakerWindowsHex": "005b005d",
+      "speechBeginToFirstNonEmptyResultMs": "949",
+      "speechEndAtMs": "-1",
+      "speechEndLatencyMs": "-1",
+      "speechEndsBeforeFinish": "-1",
+      "startListeningMs": "-1",
+      "starts": "1",
+      "status": "PASS",
+      "tailSilenceMs": "-1",
+      "trace": "stress-1:start>stress-1:event-1>stress-1:final-last>stress-1:complete",
+      "unexpectedCallbacks": "0",
+      "voiceprintIdCount": "0"
+    }
+  ],
+  "device": "device-362c3b8b4ca8",
+  "empty_finals": {
+    "count": 0,
+    "max_rate": 0.05,
+    "rate": 0.0,
+    "status": "PASS"
+  },
+  "expected_tail": {
+    "cases": [],
+    "reason": "tail assertion disabled",
+    "status": "NOT_APPLICABLE"
+  },
+  "failures": [],
+  "inventory": {
+    "sample_rates": {
+      "44100": 500
+    },
+    "selected_duration_seconds": 13.746,
+    "selected_wavs": 3,
+    "target_speaker_enrollment_wavs": 1,
+    "total_valid_duration_seconds": 1737.956,
+    "valid_wavs": 500
+  },
+  "memory": {
+    "observation_seconds": 6.672,
+    "reason": "observation shorter than 15s",
+    "sample_count": 7,
+    "status": "INCONCLUSIVE"
+  },
+  "mode": "burst",
+  "native_streams": {
+    "max_live_streams": 0,
+    "nonzero_cycles": 0,
+    "observed_cycles": 2,
+    "status": "PASS"
+  },
+  "overall_status": "PASS",
+  "run_id": "20260924-200830-burst-79afc5d1",
+  "speech_end_latency": {
+    "status": "NOT_APPLICABLE"
+  },
+  "target_speaker_content": {
+    "cases": [],
+    "reason": "accuracy gate disabled or mode is lifecycle-only",
+    "status": "NOT_APPLICABLE"
+  },
+  "target_speaker_realtime": {
+    "chunk_count": 0,
+    "reason": "mode disabled",
+    "status": "NOT_APPLICABLE"
+  }
+}

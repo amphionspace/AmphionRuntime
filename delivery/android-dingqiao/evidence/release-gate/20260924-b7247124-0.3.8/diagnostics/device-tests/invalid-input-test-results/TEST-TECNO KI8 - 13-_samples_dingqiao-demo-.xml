@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.amphion.dingqiao.demo.DingqiaoNativeEndpointParityInstrumentedTest" tests="1" failures="1" errors="0" skipped="0" time="6.747" timestamp="2026-09-24T10:11:21" hostname="redacted">
+  <properties>
+    <property name="device" value="TECNO KI8 - 13" />
+    <property name="flavor" value="" />
+    <property name="project" value=":samples:dingqiao-demo" />
+  </properties>
+  <testcase name="nativeRule3TransitionsPreserveContinuousSession" classname="com.amphion.dingqiao.demo.DingqiaoNativeEndpointParityInstrumentedTest" time="5.181">
+    <failure>java.lang.IllegalArgumentException: expected 16k mono PCM16, got sr=44100 ch=1 bits=16 file=SSB13280301.wav
+at com.amphion.dingqiao.demo.DqWav.read16kMonoPcm(DqSupport.kt:162)
+at com.amphion.dingqiao.demo.DqSupportKt.readAssetPcm(DqSupport.kt:180)
+at com.amphion.dingqiao.demo.DingqiaoNativeEndpointParityInstrumentedTest.nativeRule3TransitionsPreserveContinuousSession(DingqiaoNativeEndpointParityInstrumentedTest.kt:41)
+</failure>
+  </testcase>
+</testsuite>
