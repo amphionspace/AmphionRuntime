@@ -410,7 +410,14 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 `onResult.isFinal` 只定稿文字，只有窗口结果才定稿身份，整场完成仍以 `onComplete` 为准。
 此处是 Harmony／Android 的新语义，旧调用方必须同步迁移；iOS 本轮未改，不能套用本分窗契约。
 
-分人收尾的等待时限从真实 ASR 尾结果到达后开始计算。`finish()` 会先处理完已接收的音频；
+分人收尾的等待时限为 Harmony **15,000 ms**、Android **10,000 ms**，从 SDK 内部收到真实
+ASR 尾结果时开始计算，不是从调用方执行 `finish()` 或收到公开 `onResult(isLast=true)` 时起算。
+公开 last 会等待分人收尾后，按上述顺序与尾批、complete 一起发出；因此公开 last 与尾批间隔很短，
+并不表示分人等待计时刚刚开始。已经完成的分人结果不会再等待这一时限。
+
+`finish()` 到 `onComplete` 的总耗时还包含已接收音频的 ASR 排空，不能将上述时限理解为整次收尾的
+耗时承诺。调用方应保持“正在处理”状态直到收到 `onComplete`，并保存最终尾批；仅因业务等待界面
+达到 15 秒就丢弃尾批，会错过随后到达的正常或降级结果。`finish()` 会先处理完已接收的音频；
 音频积压不受分人超时截断，也不会用空 last 代替尚未完成的识别结果。分人收尾超时时，
 按相同顺序返回真实 ASR 尾结果及 `degraded=true` 的当前最佳分人结果；`cancel()` 不产生
 last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，
