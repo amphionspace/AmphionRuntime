@@ -13,13 +13,13 @@
     <string name="label_log">运行日志（自测）</string>
 
     <string name="hint_input">请输入要合成的文本</string>
-    <string name="hint_chunk_size">默认 50</string>
+    <string name="hint_chunk_size">留空使用模型默认值</string>
     <string name="hint_pcm_queue_capacity">默认 128</string>
     <string name="hint_speed">默认 1.0，范围 0.5~2.0</string>
     <string name="mode_mixed">zh-en</string>
     <string name="mode_en">en-US</string>
-    <string name="mode_desc">数字读法由 languageContext 决定：zh-en 按中文逐位读，en-US 按英文逐位读。</string>
-    <string name="action_desc">“开始合成”用于测流式回调；“SDK 直接播报”用于测边推边播；“Warmup”会先跑一条短句，把模型首次执行开销排除掉。Chunk size 会覆盖流式切块大小，PCM queue capacity 会覆盖 SDK 直接播报的播放缓冲队列容量，Speed 会调整语速。</string>
+    <string name="mode_desc">纯数字在 zh-en 模式下按中文读，在 en-US 模式下按英文读；末尾句点作为标点，小数保留小数读法。</string>
+    <string name="action_desc">“开始合成”生成音频；“SDK 直接播报”合成并播放；“Warmup”先运行一条短句。模型决定使用整句或流式合成，Chunk size 仅对流式模型生效。PCM queue capacity 调整播放缓冲容量，Speed 调整语速。</string>
 
     <string name="button_synthesize">开始合成</string>
     <string name="button_sdk_playback">SDK 直接播报</string>
@@ -45,4 +45,9 @@
     <string name="status_stopped">请求已停止：%1$s</string>
     <string name="status_stop_current">当前任务已停止</string>
     <string name="status_error">请求失败：%1$s / %2$d / %3$s</string>
+    <string name="compact_button_synthesize">合成</string>
+    <string name="compact_button_sdk_playback">播报</string>
+    <string name="compact_button_stop">停止</string>
+    <string name="memory_usage">RSS %1$.1f MiB · 峰值 %2$.1f MiB</string>
+    <string name="memory_pending">RSS -- · 峰值 --</string>
 </resources>

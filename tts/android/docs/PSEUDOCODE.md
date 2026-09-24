@@ -5,6 +5,12 @@
 ## 1. 完整流程
 
 ```pseudocode
+// 模型已内置于 AAR，首次创建引擎时自动解包到工作目录
+// 使用客户自有 license；默认从 assets/amphion-license.lic 读取并获取系统 SN
+// 若宿主没有系统 SN 权限，通过 TtsLicenseOptions.deviceIdProvider 提供真实设备 SN
+TextToSpeechSdk.init(context)
+TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
+
 // 0. 可选：查询可用音色
 voices = TextToSpeechSdk.listVoices(VoiceQuery {
     requestId: "voices-001",
@@ -12,14 +18,13 @@ voices = TextToSpeechSdk.listVoices(VoiceQuery {
     language: "zh-en"
 })
 
-// 1. 可选：指定 SDK 工作目录
-TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
+// 1. 工作目录已在创建前设置
 
 // 2. 创建引擎并在 createEngine 阶段加载模型
 params = CreateEngineParams {
     language: "zh-en",
     mode: OFFLINE,
-    voiceId: "lits-female-01",
+    voiceId: "lits-female-02",
     locate: "CN",
     engineName: "xiaoqiao-tts",
     modelLoadOnCreate: true
@@ -61,12 +66,16 @@ engine.speak("您好，有什么可以帮您？", SpeakParams {
     queueMode: PREEMPT
 })
 
+// 等待 play-001 的 PLAYBACK_COMPLETE 后，再继续下一示例
+
 // 5. 仅合成并通过 onData 接收 PCM
 engine.speak("hello world", SpeakParams {
     requestId: "pcm-001",
     playType: SYNTHESIZE_ONLY,
     queueMode: QUEUE
 })
+
+// 等待 pcm-001 的 SYNTHESIS_COMPLETE 后继续；如果需要取消则直接调用 stop
 
 // 6. 可选：停止全部任务
 engine.stop()
@@ -80,6 +89,7 @@ engine.shutdown()
 Android App 推荐优先使用 callback 版 `createEngine` 做预加载，不要在主线程调用同步版创建接口。
 
 ```pseudocode
+// 已完成第 1 节的工作目录设置和授权初始化
 TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
 
 TextToSpeechSdk.createEngine(params, Callback {
@@ -108,7 +118,5 @@ TextToSpeechSdk.createEngine(params, Callback {
 
 | language | voiceId | gender |
 | --- | --- | --- |
-| `zh-en` | `lits-female-01` | `Female` |
 | `zh-en` | `lits-female-02` | `Female` |
-| `en-US` | `lits-female-01` | `Female` |
 | `en-US` | `lits-female-02` | `Female` |

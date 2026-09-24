@@ -17,12 +17,6 @@ internal object EngineRegistry {
 
     private val speakers = listOf(
         RegisteredVoice(
-            voiceId = "lits-female-01",
-            gender = "Female",
-            description = "Dingqiao female speaker 01",
-            speakerId = 0,
-        ),
-        RegisteredVoice(
             voiceId = "lits-female-02",
             gender = "Female",
             description = "Dingqiao female speaker 02",

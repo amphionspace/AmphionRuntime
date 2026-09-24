@@ -19,6 +19,7 @@ import com.lits.tts.sdk.TextToSpeechException
 import com.lits.tts.sdk.TtsErrorCode
 import com.lits.tts.sdk.VoiceInfo
 import java.util.ArrayDeque
+import java.util.concurrent.Executor
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
@@ -32,6 +33,7 @@ internal class TextToSpeechEngineImpl(
     @Suppress("unused") private val workPath: String?,
     private val onRelease: () -> Boolean,
     private val synthesizer: PcmSynthesizer,
+    private val listenerExecutor: Executor = LISTENER_EXECUTOR,
 ) : TextToSpeechEngine {
     private val lock = Any()
     private val queue = ArrayDeque<SynthesisTask>()
@@ -45,8 +47,9 @@ internal class TextToSpeechEngineImpl(
     @Volatile
     private var destroyed = false
 
-    @Volatile
-    private var released = false
+    private val released = AtomicBoolean(false)
+    // Includes cancelled/preempted workers until their native calls have returned.
+    private var activeWorkers = 0
 
     private var current: SynthesisTask? = null
 
@@ -118,7 +121,7 @@ internal class TextToSpeechEngineImpl(
     override fun isBusy(): Boolean {
         ensureNotDestroyed()
         return synchronized(lock) {
-            current?.cancelled?.get() == false || queue.any { !it.cancelled.get() }
+            current?.let { !it.cancelled.get() && !it.terminalNotified } == true || queue.any { !it.cancelled.get() }
         }
     }
 
@@ -135,8 +138,10 @@ internal class TextToSpeechEngineImpl(
             stoppedTasks.forEach { notifyStop(callback, it) }
         }
         player.stop()
-        executor.shutdownNow()
-        releaseOnce()
+        // Interrupting Java does not stop an in-flight ORT call. Workers own
+        // their native resources until finally; shutdown itself stays nonblocking.
+        executor.shutdown()
+        if (synchronized(lock) { activeWorkers == 0 }) releaseOnce()
     }
 
     private fun validateSpeak(text: String, params: SpeakParams): Pair<Int, String>? {
@@ -195,10 +200,13 @@ internal class TextToSpeechEngineImpl(
 
     private fun cancelAllLocked(): List<SynthesisTask> {
         val tasks = buildList {
-            current?.let { add(it) }
+            current?.takeUnless { it.terminalNotified }?.let { add(it) }
             addAll(queue)
         }
-        tasks.forEach { it.cancelled.set(true) }
+        tasks.forEach {
+            it.stopRequested.set(true)
+            it.cancelled.set(true)
+        }
         queue.clear()
         current = null
         return tasks
@@ -208,6 +216,7 @@ internal class TextToSpeechEngineImpl(
         if (current != null || queue.isEmpty() || destroyed) return
         val task = queue.removeFirst()
         current = task
+        activeWorkers += 1
         executor.execute { runTask(task) }
     }
 
@@ -255,6 +264,7 @@ internal class TextToSpeechEngineImpl(
                     text = task.text,
                     params = task.params,
                     engineParams = engineParams,
+                    collectOutput = false,
                     isCancelled = { task.cancelled.get() || destroyed },
                 ) { chunk ->
                     if (!task.cancelled.get() && !destroyed) {
@@ -317,6 +327,7 @@ internal class TextToSpeechEngineImpl(
                         }
                     },
                 )
+                if (task.stopRequested.get() || destroyed) return
                 synthesized ?: throw IllegalStateException("streaming playback produced no synthesized audio")
             } else {
                 synthesizer.synthesize(task.text, task.params, engineParams)
@@ -348,12 +359,22 @@ internal class TextToSpeechEngineImpl(
             if (callback != null) notifyStop(callback, task)
         } catch (error: RuntimeException) {
             val (code, message) = parseRuntimeError(error)
-            if (callback != null) notifyError(callback, task.params.requestId, code, message)
+            if (callback != null) {
+                dispatchListener {
+                    // Recheck at dispatch: stop may race with a native failure.
+                    if (commitTerminal(task, TerminalEvent.ERROR)) {
+                        callback.onError(task.params.requestId, code, message)
+                    }
+                }
+            }
         } finally {
-            synchronized(lock) {
+            val shouldRelease = synchronized(lock) {
+                activeWorkers -= 1
                 if (current === task) current = null
                 startNextLocked()
+                destroyed && activeWorkers == 0
             }
+            if (shouldRelease) releaseOnce()
         }
     }
 
@@ -478,7 +499,12 @@ internal class TextToSpeechEngineImpl(
 
     private fun notifyComplete(callback: SpeakListener, task: SynthesisTask, response: CompleteResponse) {
         dispatchListener {
-            if (!task.cancelled.get() && !destroyed) {
+            val terminal = task.params.playType == PlayType.SYNTHESIZE_ONLY ||
+                response.type == CompleteType.PLAYBACK_COMPLETE
+            val deliver = if (terminal) commitTerminal(task) else synchronized(lock) {
+                !task.cancelled.get() && !destroyed && !task.terminalNotified
+            }
+            if (deliver) {
                 callback.onComplete(task.params.requestId, response)
             }
         }
@@ -487,8 +513,31 @@ internal class TextToSpeechEngineImpl(
     private fun notifyStop(callback: SpeakListener, task: SynthesisTask) {
         if (task.stopNotified.compareAndSet(false, true)) {
             dispatchListener {
-                callback.onStop(task.params.requestId, StopResponse(StopType.STOP_ALL, "stopped"))
+                if (commitTerminal(task, TerminalEvent.STOP)) {
+                    callback.onStop(task.params.requestId, StopResponse(StopType.STOP_ALL, "stopped"))
+                }
             }
+        }
+    }
+
+    // Publish the terminal state before entering user code. Worker-finally may
+    // still be pending, but a completed request must no longer be cancellable.
+    // Share the cancellation lock so stop and completion have one winner.
+    private enum class TerminalEvent { COMPLETE, ERROR, STOP }
+
+    private fun commitTerminal(task: SynthesisTask, event: TerminalEvent = TerminalEvent.COMPLETE): Boolean = synchronized(lock) {
+        val suppressed = when (event) {
+            TerminalEvent.COMPLETE -> task.cancelled.get() || destroyed
+            // Internal playback failure sets cancelled to stop its peer worker.
+            // Only an explicit user stop/shutdown should suppress that error.
+            TerminalEvent.ERROR -> task.stopRequested.get() || destroyed
+            TerminalEvent.STOP -> false
+        }
+        if (task.terminalNotified || suppressed) {
+            false
+        } else {
+            task.terminalNotified = true
+            true
         }
     }
 
@@ -499,7 +548,7 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun dispatchListener(block: () -> Unit) {
-        LISTENER_EXECUTOR.execute(block)
+        listenerExecutor.execute(block)
     }
 
     private fun ensureNotDestroyed() {
@@ -514,8 +563,7 @@ internal class TextToSpeechEngineImpl(
         engineName?.let { "$message (engineName=$it)" } ?: message
 
     private fun releaseOnce() {
-        if (!released) {
-            released = true
+        if (released.compareAndSet(false, true)) {
             player.stop()
             val noActiveEngines = onRelease()
             synthesizer.close(releaseSharedResources = noActiveEngines)
@@ -536,7 +584,10 @@ internal class TextToSpeechEngineImpl(
         val text: String,
         val params: SpeakParams,
         val cancelled: AtomicBoolean = AtomicBoolean(false),
+        val stopRequested: AtomicBoolean = AtomicBoolean(false),
         val stopNotified: AtomicBoolean = AtomicBoolean(false),
+        // Guarded by the engine lock; native worker lifetime is tracked separately.
+        var terminalNotified: Boolean = false,
         val playbackStartMs: AtomicLong = AtomicLong(-1L),
         @Volatile var startedAtMs: Long = -1L,
     )

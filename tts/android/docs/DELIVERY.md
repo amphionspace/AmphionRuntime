@@ -1,5 +1,7 @@
 # 从源码构建 SDK
 
+> 以下保留早期 16 kHz HiFi-GAN 源码构建记录，不适用于当前 3.1 外置模型包。当前 AAR 接入请使用 [INTEGRATION.md](INTEGRATION.md)，模型部署路径和构建参数见包根目录 README.md。
+
 本文面向第一次拿到这份源码工程的协作者，目标是只靠文档就能从 0 构建出 Android SDK AAR。
 
 最终产物：
