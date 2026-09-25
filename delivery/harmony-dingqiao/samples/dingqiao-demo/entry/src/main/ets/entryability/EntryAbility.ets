@@ -124,6 +124,7 @@ export default class EntryAbility extends UIAbility {
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
       options.speechEndMs = this.numberParameter(want, 'stressSpeechEndMs', 0);
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
+      options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
       options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));

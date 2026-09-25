@@ -58,6 +58,9 @@ export BUILD_SHARED_LIBS=ON
 )
 
 OUT_DIR="$SHERPA_ROOT/build-ohos-arm64-v8a/install/lib"
+# Keep the public spinning switch and arithmetic partitioning unchanged, but
+# bound unproductive worker polling during long simultaneous ASR/diarization.
+python3 "$SCRIPT_DIR/build_harmony_onnxruntime.py" --output "$OUT_DIR/libonnxruntime.so"
 ls -lh "$OUT_DIR/libsherpa-onnx-c-api.so" "$OUT_DIR/libonnxruntime.so"
 python3 "$SCRIPT_DIR/verify_harmony_sherpa_symbols.py" \
   --library "$OUT_DIR/libsherpa-onnx-c-api.so" \
