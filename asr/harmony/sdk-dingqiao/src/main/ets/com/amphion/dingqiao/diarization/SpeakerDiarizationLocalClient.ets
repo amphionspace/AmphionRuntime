@@ -58,6 +58,7 @@ export class SpeakerDiarizationLocalClient {
   private readonly quiescentCallbacks: Array<() => void> = [];
   private nextJobId: number = 1;
   private activeJob?: DiarizationLocalJob;
+  private activeJobStartedMs: number = 0;
   private finishing: boolean = false;
   private closed: boolean = false;
   private degraded: boolean = false;
@@ -169,6 +170,7 @@ export class SpeakerDiarizationLocalClient {
       return;
     }
     this.activeJob = job;
+    this.activeJobStartedMs = Date.now();
     void this.execute(job);
   }
 
@@ -313,6 +315,22 @@ export class SpeakerDiarizationLocalClient {
   private fail(reason: SpeakerDiarizationDegradedReason, message: string): void {
     if (this.degraded || this.closed) return;
     this.degraded = true;
+    if (this.diagnostic !== undefined) {
+      try {
+        const fields: Record<string, Object> = {};
+        fields['reason'] = reason;
+        fields['message'] = message;
+        fields['pendingJobs'] = this.queue.length;
+        fields['finishing'] = this.finishing;
+        if (this.activeJob !== undefined) {
+          fields['jobId'] = this.activeJob.jobId;
+          fields['realPcmRange'] = [this.activeJob.windowStartSample, this.activeJob.realEndSample];
+          fields['startedMs'] = this.activeJobStartedMs;
+          fields['elapsedMs'] = Date.now() - this.activeJobStartedMs;
+        }
+        this.diagnostic('DIARIZATION_LOCAL_FAILURE', fields);
+      } catch (_ignored) {}
+    }
     this.queue.splice(0, this.queue.length);
     this.observer.onDegraded(reason, message);
     this.maybeNotifyDrained();

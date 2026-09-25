@@ -354,6 +354,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['endTime'] = endTime;
       fields['isSessionFinal'] = isSessionFinal;
       fields['speakerCount'] = result.speakerCount;
+      fields['degraded'] = result.degraded;
+      fields['degradedReason'] = result.degradedReason;
+      fields['degradedMessage'] = result.degradedMessage ?? '';
       fields['speakerTurns'] = result.speakerTurns;
       fields['utterances'] = result.utterances;
       this.recordDecision('DIARIZATION_PUBLIC_RESULT', fields);
