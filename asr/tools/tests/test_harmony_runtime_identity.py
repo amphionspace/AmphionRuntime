@@ -35,9 +35,9 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
     def test_runtime_identity_matches_delivery_version(self) -> None:
         self.run_identity(
             """
-            assert.equal(HARMONY_SDK_VERSION, '0.3.16');
+            assert.equal(HARMONY_SDK_VERSION, '0.3.17');
             assert.equal(HARMONY_SDK_MAJOR, 1);
-            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-09-17');
+            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-09-24');
             """
         )
 
@@ -47,14 +47,14 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         self.assertIn("from './RuntimeIdentity'", license_source)
         self.assertNotIn("0.2.0-harmony", runtime)
 
-    def test_delivery_ledger_keeps_last_actual_delivery_until_packaging(self) -> None:
+    def test_delivery_ledger_records_current_packaged_release(self) -> None:
         history = json.loads(
             (REPO_ROOT / "delivery/asr-sdk-release-history.json").read_text(encoding="utf-8")
         )
         harmony_deliveries = [
             entry for entry in history["deliveries"] if entry["platform"] == "harmony"
         ]
-        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.16")
+        self.assertEqual(harmony_deliveries[-1]["version"], "0.3.17")
 
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
         self.run_identity(
@@ -72,11 +72,15 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
               LicenseIdentityFailure.MAINTENANCE_EXPIRED,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-17', HARMONY_SDK_RELEASE_DATE),
+                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-23', HARMONY_SDK_RELEASE_DATE),
+              LicenseIdentityFailure.MAINTENANCE_EXPIRED,
+            );
+            assert.equal(
+                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-24', HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.NONE,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-18', HARMONY_SDK_RELEASE_DATE),
+                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-25', HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.NONE,
             );
             """
@@ -91,7 +95,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5",
         ):
             manifest = json.loads((REPO_ROOT / relative).read_text(encoding="utf-8"))
-            self.assertEqual(manifest["version"], "0.3.16", relative)
+            self.assertEqual(manifest["version"], "0.3.17", relative)
 
         # Lockfiles are generated/ignored by ohpm. When present, they must not retain stale native
         # identity, but a clean checkout does not need generated files for this gate to pass.
@@ -111,7 +115,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             ]
             self.assertTrue(native_packages, relative)
             self.assertTrue(
-                all(package["version"] == "0.3.16" for package in native_packages),
+                all(package["version"] == "0.3.17" for package in native_packages),
                 relative,
             )
 

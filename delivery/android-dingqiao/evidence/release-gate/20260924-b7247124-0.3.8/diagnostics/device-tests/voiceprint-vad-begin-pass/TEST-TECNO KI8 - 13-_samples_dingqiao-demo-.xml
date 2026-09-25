@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.amphion.dingqiao.demo.DqVoiceprintTest" tests="1" failures="0" errors="0" skipped="0" time="23.623" timestamp="2026-09-24T10:34:23" hostname="redacted">
+  <properties>
+    <property name="device" value="TECNO KI8 - 13" />
+    <property name="flavor" value="" />
+    <property name="project" value=":samples:dingqiao-demo" />
+  </properties>
+  <testcase name="v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly" classname="com.amphion.dingqiao.demo.DqVoiceprintTest" time="22.66" />
+</testsuite>

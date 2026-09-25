@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest" tests="3" skipped="0" failures="0" errors="0" timestamp="2026-09-24T12:24:53" hostname="redacted" time="0.01">
+  <properties/>
+  <testcase name="laterLoudVoicePreservesAnIndependentlyAdmittedNewPerson" classname="com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest" time="0.005"/>
+  <testcase name="laterLouderSpeechRevisesOnlyUncommittedQuietEvidence" classname="com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest" time="0.001"/>
+  <testcase name="quieterBackgroundCannotDisplaceFourPrincipalVoices" classname="com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest" time="0.004"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

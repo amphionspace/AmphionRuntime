@@ -1,0 +1,46 @@
+{
+  "overall_status": "PASS",
+  "source_commit": "b7247124598bca56684bba98705f48f13e743c66",
+  "rerun_tasks": true,
+  "sherpa_submodule_commit": "f3b1a9da8d6e0e6cdb21387d41d25f8c8e10d3cc",
+  "suites": [
+    {
+      "module": "sdk",
+      "variant": "debug",
+      "tests": 60,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk",
+      "variant": "release",
+      "tests": 59,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk-dingqiao",
+      "variant": "debug",
+      "tests": 128,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    },
+    {
+      "module": "sdk-dingqiao",
+      "variant": "release",
+      "tests": 128,
+      "errors": 0,
+      "failures": 0,
+      "skipped": 0
+    }
+  ],
+  "total_tests": 375,
+  "total_errors": 0,
+  "total_failures": 0,
+  "commands": [
+    "./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain"
+  ]
+}

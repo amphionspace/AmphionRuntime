@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.diarization.DiarizationQueryTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-09-24T12:24:53" hostname="redacted" time="0.003">
+  <properties/>
+  <testcase name="laterBoundaryPreservesGapsUnknownOverlapAndShortKnownChanges" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.001"/>
+  <testcase name="independentContextSupportsOwnedSpeechWhenShortQueriesDiffer" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="fixedOriginalReferencesRecoverDilutedCentroidWithoutCrossMatching" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="complementaryProfileIsFixedAndBothModelsMustAgree" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="correctedConfidenceIsFrozenWithItsUtterance" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.001"/>
+  <testcase name="quietLocalIdentityRequiresBothModelsAndCannotOverwriteKnownOrOverlap" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.001"/>
+  <testcase name="queryCannotIntroduceContextOnlyIdentity" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="shortQueryMatchesEstablishedRoleWithoutChangingItsProfile" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="uncertaintyDoesNotEnrollAnotherIdentity" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="independentKnownQueryPreventsDuplicateWithoutChaining" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
