@@ -521,6 +521,11 @@ export class PlateV2 {
 
   private acceptSpan(text: string, start: number, end: number, candidate: PlateCandidate): boolean {
     if (candidate.cost === 0) return true;
+    // Latin words can otherwise look like a province alias plus five letters.
+    // Keep them intact unless the caller's text explicitly names a plate.
+    if (Array.from(text.substring(start, end)).every((value: string): boolean =>
+      /[A-Za-zＡ-Ｚａ-ｚ]/.test(value) || this.isSeparator(value)) &&
+      !this.hasExplicitPlateContext(text, start, end, true)) return false;
     if (this.startsWithGb(text, start)) return this.hasAnchor(text, start, end);
     return candidate.risky <= PlateV2.MAX_RISKY_UNANCHORED || this.hasAnchor(text, start, end);
   }
