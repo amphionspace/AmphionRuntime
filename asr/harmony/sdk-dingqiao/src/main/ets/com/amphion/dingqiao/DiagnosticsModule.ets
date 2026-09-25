@@ -424,13 +424,26 @@ export class DiagnosticsModule {
     }
   }
 
+  private static writeEvents(path: string, events: DiagnosticEvent[], jsonArray: boolean = false): void {
+    const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      // Long meetings carry per-window tensors. Do not materialize a second
+      // whole-session JSON string on each five-second crash-journal flush.
+      DiagnosticsModule.ndjsonSink.write(events, (value: string): void => {
+        fs.writeSync(fp.fd, value);
+      }, jsonArray);
+    } finally {
+      fs.closeSync(fp);
+    }
+  }
+
   private static writeSnapshot(runDir: string, snapshot: DiagnosticsSnapshot,
     automatic: boolean): void {
     ensureDirectory(runDir);
-    writeText(`${runDir}/events.ndjson`, DiagnosticsModule.ndjsonSink.serialize(snapshot.events));
+    DiagnosticsModule.writeEvents(`${runDir}/events.ndjson`, snapshot.events);
     const callbacks = snapshot.events.filter((event: DiagnosticEvent): boolean =>
       event.event.indexOf('CALLBACK_') === 0);
-    writeText(`${runDir}/callbacks.ndjson`, DiagnosticsModule.ndjsonSink.serialize(callbacks));
+    DiagnosticsModule.writeEvents(`${runDir}/callbacks.ndjson`, callbacks);
     for (let i = 0; i < snapshot.sessions.length; i++) {
       DiagnosticsModule.writeSession(runDir, snapshot.sessions[i]);
     }
@@ -489,7 +502,7 @@ export class DiagnosticsModule {
   private static writeSession(runDir: string, session: DiagnosticSessionSnapshot): void {
     const sessionDir = `${runDir}/sessions/${session.sessionId}`;
     ensureDirectory(sessionDir);
-    writeText(`${sessionDir}/timeline.json`, `${JSON.stringify(session.events)}\n`);
+    DiagnosticsModule.writeEvents(`${sessionDir}/timeline.json`, session.events, true);
     const result = DiagnosticsModule.sessionSummary(session);
     writeText(`${sessionDir}/result.json`, `${JSON.stringify(result)}\n`);
     if (session.audio === undefined) return;

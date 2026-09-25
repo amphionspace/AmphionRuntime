@@ -30,9 +30,13 @@ export class HilogDiagnosticSink implements DiagnosticSink {
 }
 
 export class NdjsonDiagnosticSink {
-  serialize(events: DiagnosticEvent[]): string {
-    let output = '';
-    for (let i = 0; i < events.length; i++) output += `${JSON.stringify(events[i])}\n`;
-    return output;
+  write(events: DiagnosticEvent[], append: (value: string) => void,
+    jsonArray: boolean = false): void {
+    if (jsonArray) append('[');
+    for (let i = 0; i < events.length; i++) {
+      const separator = jsonArray ? (i + 1 < events.length ? ',' : '') : '\n';
+      append(`${JSON.stringify(events[i])}${separator}`);
+    }
+    if (jsonArray) append(']\n');
   }
 }
