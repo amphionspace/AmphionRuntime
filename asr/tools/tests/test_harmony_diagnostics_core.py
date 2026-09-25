@@ -1,4 +1,5 @@
 import subprocess
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -381,6 +382,89 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             "const emptyFinal = session.abnormalReasons.indexOf('empty-final') >= 0;",
             module,
         )
+
+    def test_journal_materializes_retained_audio_once_without_changing_evidence(self) -> None:
+        from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
+
+        module = MODULE.read_text(encoding="utf-8")
+        body = method_body(module.replace("private static ", "private "), "flushBackground")
+        filter_function = module[
+            module.index("function snapshotWithSessions(") : module.index("/** File adapter.")
+        ]
+        script = f"""
+            import assert from 'node:assert/strict';
+            import {{ DiagnosticsCore, DiagnosticModeValue }} from {CORE.as_uri()!r};
+            import type {{ DiagnosticsSnapshot, DiagnosticSessionSnapshot,
+              DiagnosticEvent }} from {CORE.as_uri()!r};
+            {filter_function}
+            const fs = {{ accessSync: () => false, renameSync: () => {{}} }};
+            const ensureDirectory = () => {{}};
+            const removeTree = () => {{}};
+            const sampleResources = () => ({{}});
+            const writes = [];
+            class DiagnosticsModule {{
+              static core;
+              static resourceSamples = [];
+              static exportRoot() {{ return 'export'; }}
+              static pendingRoot() {{ return 'pending'; }}
+              static rotateRuns() {{}}
+              static writeSnapshot(path, snapshot, automatic) {{
+                writes.push({{path, snapshot: structuredClone(snapshot), automatic}});
+              }}
+              static flushBackground() {{ {body} }}
+            }}
+            for (const mode of ['BASIC', 'CUSTOMER_SUPPORT', 'FAILURE_ONLY']) {{
+              const core = new DiagnosticsCore();
+              core.configure({{enabled: true, mode, captureAudio: true,
+                includeRecognitionText: true, maxSessionAudioSec: 300}}, 1000);
+              DiagnosticsModule.core = core;
+              const engine = core.nextEngineId();
+              core.beginSession('active', engine, {{}}, 1000);
+              const pcm = Int16Array.from({{length: 16000}}, (_, i) => i % 30000);
+              core.captureAudio('active', pcm.buffer, 1000);
+              const snapshot = core.snapshot.bind(core);
+              for (let stage = 0; stage < 4; stage++) {{
+                if (stage === 1) {{
+                  core.beginSession('normal', engine, {{}}, 1100);
+                  core.captureAudio('normal', pcm.buffer, 1100);
+                  core.record('normal', engine, 'CANCEL_REQUESTED', {{}}, 1110);
+                }}
+                if (stage === 2) {{
+                  core.beginSession('failed', engine, {{}}, 1200);
+                  core.captureAudio('failed', pcm.buffer, 1200);
+                  core.record('failed', engine, 'CALLBACK_ERROR', {{}}, 1210);
+                }}
+                if (stage === 3) core.record('active', engine, 'CANCEL_REQUESTED', {{}}, 1300);
+                const journal = snapshot(true), completed = snapshot(false);
+                const expectedPending = snapshotWithSessions(journal,
+                  journal.sessions.filter(s => !s.terminal));
+                const persist = mode === 'CUSTOMER_SUPPORT' ?
+                  completed.sessions.some(s => s.terminal) : completed.sessions.length > 0;
+                const retainedBytes = journal.sessions.reduce((n, s) => n + (s.audio?.bytes ?? 0), 0);
+                let materializedBytes = 0;
+                core.snapshot = (pending = false) => {{
+                  const value = snapshot(pending);
+                  materializedBytes += value.sessions.reduce((n, s) => n + (s.audio?.bytes ?? 0), 0);
+                  return value;
+                }};
+                writes.length = 0;
+                DiagnosticsModule.flushBackground();
+                const exported = writes.find(w => w.path.startsWith('export/'));
+                const pending = writes.find(w => w.path.startsWith('pending/'));
+                assert.equal(Boolean(exported), persist);
+                if (exported) assert.deepEqual(exported.snapshot, completed);
+                assert.equal(Boolean(pending), expectedPending.sessions.length > 0);
+                if (pending) assert.deepEqual(pending.snapshot, expectedPending);
+                assert.ok(materializedBytes <= retainedBytes,
+                  `${{mode}} stage=${{stage}} copied ${{materializedBytes}} retained=${{retainedBytes}}`);
+              }}
+            }}
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / "journal.mts"
+            entry.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(entry)],
+                           check=True, cwd=REPO_ROOT)
 
 
 if __name__ == "__main__":

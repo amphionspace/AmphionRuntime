@@ -332,7 +332,11 @@ export class DiagnosticsModule {
     DiagnosticsModule.resourceSamples.push(sampleResources(journalSnapshot));
     if (DiagnosticsModule.resourceSamples.length > 256) DiagnosticsModule.resourceSamples.shift();
 
-    const completedSnapshot = DiagnosticsModule.core.snapshot(false);
+    // Both views describe the same synchronous state. Reuse captured PCM rather
+    // than materializing the whole recording twice on every journal flush.
+    const completedSnapshot = journalSnapshot.config.mode === DiagnosticModeValue.FAILURE_ONLY ?
+      snapshotWithSessions(journalSnapshot, journalSnapshot.sessions.filter(
+        (session: DiagnosticSessionSnapshot): boolean => session.abnormal)) : journalSnapshot;
     const hasTerminalSession = completedSnapshot.sessions.some(
       (session: DiagnosticSessionSnapshot): boolean => session.terminal);
     const shouldPersist = journalSnapshot.config.mode === DiagnosticModeValue.CUSTOMER_SUPPORT ?
