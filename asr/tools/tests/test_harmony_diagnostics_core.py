@@ -142,6 +142,49 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("class NdjsonDiagnosticSink", sinks)
         self.assertIn("class MemoryDiagnosticSink", sinks)
 
+    def test_streamed_event_files_preserve_bytes_and_close_on_write_failure(self) -> None:
+        sink = SINKS.read_text().split("export class NdjsonDiagnosticSink", 1)[1]
+        sink = "export class NdjsonDiagnosticSink" + sink
+        module = MODULE.read_text()
+        writer = module[module.index("  private static writeEvents("):
+                        module.index("  private static writeSnapshot(")]
+        script = r"""
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          type DiagnosticEvent = object;
+        """ + sink + r"""
+          let closed=0, writes=0, fail=false, maximum=0, hash;
+          const fs={OpenMode:{WRITE_ONLY:1,CREATE:2,TRUNC:4},
+            openSync(){return {fd:7}},
+            writeSync(fd,value){
+              assert.equal(fd,7);writes++;
+              if(fail)throw new Error('disk unavailable');
+              maximum=Math.max(maximum,Buffer.byteLength(value));hash.update(value);
+            }, closeSync(fp){assert.equal(fp.fd,7);closed++}};
+          class DiagnosticsModule {
+            static ndjsonSink = new NdjsonDiagnosticSink();
+        """ + writer.replace('private static', 'static') + r"""
+          }
+          const events=Array.from({length:1000},(_,i)=>({sequence:i,event:'WINDOW',
+            fields:{text:'中文 / English \" \n',scores:Array.from({length:768},(_,j)=>(i+j)/997)}}));
+          for(const values of [[],events.slice(0,1),events])for(const asArray of [false,true]) {
+            hash=createHash('sha256');maximum=0;
+            const before=closed;
+            DiagnosticsModule.writeEvents('trace',values,asArray);
+            const expected=asArray?JSON.stringify(values)+'\n':values.map(e=>JSON.stringify(e)+'\n').join('');
+            assert.equal(hash.digest('hex'),createHash('sha256').update(expected).digest('hex'));
+            assert.equal(closed,before+1);
+            assert.ok(maximum<64*1024,'temporary encoding must remain bounded by one event');
+          }
+          fail=true;const before=closed;
+          assert.throws(()=>DiagnosticsModule.writeEvents('trace',events),/disk unavailable/);
+          assert.equal(closed,before+1,'write failure must still release the file');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'streamed-events.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True)
+
     def test_disabled_core_has_no_capture_or_event_overhead(self) -> None:
         self.run_core(
             """
