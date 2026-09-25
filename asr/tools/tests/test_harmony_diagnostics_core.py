@@ -316,6 +316,39 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             """
         )
 
+    def test_audio_statistics_match_retained_pcm_after_partial_trims_and_trigger(self) -> None:
+        self.run_core(
+            """
+            for (const mode of ['CUSTOMER_SUPPORT', 'FAILURE_ONLY']) {
+              const core = new DiagnosticsCore();
+              core.configure({enabled:true,mode,captureAudio:true,includeRecognitionText:false,
+                maxSessionAudioSec:2,failureRingAudioSec:1},1000);
+              const engine=core.nextEngineId();core.beginSession('s',engine,{},1000);
+              let expected=[],triggered=mode==='CUSTOMER_SUPPORT',position=0;
+              const pattern=[32767,-32768,0,1000,-1234,7];
+              for (const length of [11003,9999,7013,9001,27007]) {
+                const pcm=Int16Array.from({length},()=>pattern[position++%pattern.length]);
+                expected.push(...pcm);
+                expected=expected.slice(-(triggered?32000:16000));
+                core.captureAudio('s',pcm.buffer,1000+position);
+                pcm.fill(0); // A caller-owned buffer can be reused immediately.
+                const audio=core.snapshot(true).sessions[0].audio;
+                assert.deepEqual(Array.from(new Int16Array(audio.pcm)),expected);
+                const energy=expected.reduce((sum,value)=>sum+value*value,0);
+                const peak=Math.max(...expected.map(Math.abs));
+                const clipped=expected.filter(value=>Math.abs(value)>=32767).length;
+                assert.equal(audio.rms,Math.sqrt(energy/expected.length)/32768);
+                assert.equal(audio.peak,peak/32768);
+                assert.equal(audio.clipRate,clipped/expected.length);
+                assert.deepEqual(core.snapshot(true).sessions[0].audio,audio);
+                if(position>16000&&!triggered){
+                  core.record('s',engine,'CALLBACK_ERROR',{},1000+position);triggered=true;
+                }
+              }
+            }
+            """
+        )
+
     def test_event_ring_is_bounded_without_losing_final_classification_state(self) -> None:
         self.run_core(
             """
