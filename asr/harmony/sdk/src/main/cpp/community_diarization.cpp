@@ -178,7 +178,7 @@ class Model {
     }
     int windows = segments.size() / (589 * 3);
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers);
-    auto turns = community::Reconstruct(segments, result.hard, windows);
+    auto turns = community::Reconstruct(segments, result.hard, windows, max_speakers);
     std::ostringstream json;
     json << std::setprecision(17) << "{\"speakerCount\":" << result.centroids.size();
     auto ints = [&](const char* key, const std::vector<int>& values) {
