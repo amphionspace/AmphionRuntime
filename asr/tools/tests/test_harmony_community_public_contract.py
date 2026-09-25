@@ -144,6 +144,29 @@ class HarmonyCommunityPublicContractTest(unittest.TestCase):
           assert.deepEqual(await replay(()=>{throw new Error('sink unavailable')}),plain);
         """)
 
+    def test_diagnostic_tensor_snapshots_are_isolated_from_model_and_later_windows(self):
+        run_community_session("""
+          const events=[];
+          const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+            onWindowResult(){},onFinished(){}},(event,fields)=>events.push({event,fields}));
+          const first=window(0);first.result.embeddings[0]=Math.fround(1/3);
+          s.totalSamples=176000;s.onWindow(first);
+          const captured=events.find(e=>e.event==='DIARIZATION_COMMUNITY_WINDOW').fields;
+          first.result.embeddings[0]=7;
+          assert.equal(captured.embeddings[0],Math.fround(1/3),'captured scores cannot change after recording');
+          captured.segmentations[0]=99;
+          const next=window(1);s.onWindow(next);
+          s.client.cluster=async(segments,embeddings)=>{
+            assert.equal(segments[0],1,'diagnostic consumers cannot mutate model input');
+            assert.equal(segments[589*3],1,'later windows keep independent PCM ownership');
+            assert.equal(embeddings[0],7);
+            assert.equal(embeddings[3*256],0);
+            return clusterResult(2);
+          };
+          await s.commitWindow(11000,Infinity,true,0);
+          assert.equal(captured.embeddings[0],Math.fround(1/3));
+        """)
+
     def test_finish_tail_and_drain_orders_have_the_same_unique_result(self):
         run_community_session("""
           Date.now=()=>1000;

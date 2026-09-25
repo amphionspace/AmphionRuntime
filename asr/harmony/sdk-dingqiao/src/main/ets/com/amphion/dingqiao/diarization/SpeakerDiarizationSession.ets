@@ -213,8 +213,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['frameCenterSample'] = 495.5;
       fields['frameStepSamples'] = 270;
       fields['frameReceptiveSamples'] = 991;
-      fields['segmentations'] = Array.from(window.result.segments);
-      fields['embeddings'] = Array.from(window.result.embeddings);
+      // Keep independent snapshots without retaining boxed copies of every tensor.
+      fields['segmentations'] = window.result.segments.slice();
+      fields['embeddings'] = window.result.embeddings.slice();
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;

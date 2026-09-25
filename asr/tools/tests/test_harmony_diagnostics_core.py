@@ -230,6 +230,16 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             assert.equal(closed,before+1);
             assert.ok(maximum<64*1024,'temporary encoding must remain bounded by one event');
           }
+          const tensor=new Float32Array([0,1,-0,NaN,Infinity,-Infinity,Math.fround(1/3)]);
+          const compact=[{sequence:1001,event:'WINDOW',fields:{segmentations:tensor,embeddings:tensor.slice()}}];
+          const plain=[{sequence:1001,event:'WINDOW',fields:{segmentations:Array.from(tensor),embeddings:Array.from(tensor)}}];
+          for(const asArray of [false,true]) {
+            hash=createHash('sha256');
+            DiagnosticsModule.writeEvents('tensor-trace',compact,asArray);
+            const expected=asArray?JSON.stringify(plain)+'\n':plain.map(e=>JSON.stringify(e)+'\n').join('');
+            assert.equal(hash.digest('hex'),createHash('sha256').update(expected).digest('hex'),
+              'compact tensors must retain the flat array schema and every raw numeric score');
+          }
           fail=true;const before=closed;
           assert.throws(()=>DiagnosticsModule.writeEvents('trace',events),/disk unavailable/);
           assert.equal(closed,before+1,'write failure must still release the file');
