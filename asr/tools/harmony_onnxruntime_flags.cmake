@@ -72,7 +72,7 @@ set(onnxruntime_ENABLE_LAZY_TENSOR OFF CACHE BOOL "Pinned OHOS runtime build" FO
 set(onnxruntime_ENABLE_EXTERNAL_CUSTOM_OP_SCHEMAS OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
 set(onnxruntime_ENABLE_CUDA_PROFILING OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
 set(onnxruntime_ENABLE_ROCM_PROFILING OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
-set(onnxruntime_USE_XNNPACK OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
+set(onnxruntime_USE_XNNPACK ON CACHE BOOL "Pinned OHOS runtime build" FORCE)
 set(onnxruntime_USE_WEBNN OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
 set(onnxruntime_USE_CANN OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)
 set(onnxruntime_USE_TRITON_KERNEL OFF CACHE BOOL "Pinned OHOS runtime build" FORCE)

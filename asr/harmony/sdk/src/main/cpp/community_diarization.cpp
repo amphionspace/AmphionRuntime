@@ -110,7 +110,9 @@ class Model {
     options.DisableMemPattern();
     options.SetIntraOpNumThreads(1);
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
-    options.SetIntraOpNumThreads(4);
+    // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
+    // a second pool cannot compete with them between convolution operators.
+    options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
     embedding_ = Ort::Session(env_, embedding.data(), embedding.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();

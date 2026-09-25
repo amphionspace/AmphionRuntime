@@ -132,6 +132,7 @@ def main():
         "compiler": run(sdk / "llvm/bin/clang++", "--version", capture=True).decode().strip(),
         "workerSpinLog2": 14,
         "parallelCompletionWait": "mutex-predicate-notification",
+        "compiledExecutionProviders": ["CPU", "XNNPACK"],
     }
     output.with_suffix(".provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     print(json.dumps(provenance, indent=2))
