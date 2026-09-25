@@ -38,6 +38,45 @@ def run_node(script: str) -> None:
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_diarization_degradation_survives_normal_and_automatic_completion(self) -> None:
+        source = INDEX.read_text()
+        complete = 'handleComplete(' + source.split('  handleComplete(', 1)[1].split(
+            '\n  handleSpeakerDiarizationUpdate(', 1)[0]
+        result = 'handleSpeakerDiarizationResult(' + source.split(
+            '  handleSpeakerDiarizationResult(', 1)[1].split('\n  private handleStopFailure(', 1)[0]
+        script = f"""
+            import assert from 'node:assert/strict';
+            class Page {{
+              replaySessionId = 'replay'; lastDiarizationWindowIndex = -1;
+              capturedCustomerScenario = 'meeting-minutes'; finalSegments = [];
+              listening = false; captureReady = false;
+              refreshSpeakerDisplayIndexes() {{}}
+              stopCapture() {{}}
+              saveSdkCapture() {{}}
+              writeSdkCaptureMetadataBestEffort() {{}}
+              releaseModel(status) {{ this.status = status; }}
+              {complete}
+              {result}
+            }}
+            for (const automatic of [false, true]) {{
+              for (const degraded of [false, true]) {{
+                const page = new Page();
+                page.listening = automatic;
+                page.handleSpeakerDiarizationResult('live', {{ windowIndex: 0,
+                  utterances: [], isSessionFinal: true, degraded }});
+                page.handleComplete('live');
+                for (let i = 0; i < 5; i++) await Promise.resolve();
+                assert.equal(page.status.includes('角色分离已降级'), degraded,
+                  'onComplete must retain the SDK degradation warning after model unload');
+                assert.ok(page.status.includes('模型已卸载'));
+              }}
+            }}
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'degraded-completion.mts'
+            harness.write_text(textwrap.dedent(script))
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
     def test_all_lifecycle_listeners_record_diarization_and_cancel_violations(self) -> None:
         carrier = CARRIER.read_text()
         prefix = carrier[carrier.index('class SessionEvents'):carrier.index('class OnStartSpeakerVadListener')]

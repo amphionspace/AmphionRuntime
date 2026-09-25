@@ -153,6 +153,7 @@ struct Index {
   private capturedSpeakerVad: boolean = false;
   private capturedSpeakerDiarization: boolean = false;
   private lastDiarizationWindowIndex: number = -1;
+  private diarizationDegraded: boolean = false;
   private capturedPoliceEnhancement: boolean = true;
   private capturedCustomerScenario: CustomerScenarioName = 'ptt';
   private capturedAudioSource: DemoAudioSource = 'mic';
@@ -404,6 +405,7 @@ struct Index {
       this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
     this.lastDiarizationWindowIndex = -1;
+    this.diarizationDegraded = false;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
@@ -1107,7 +1109,7 @@ struct Index {
         '纪要已生成 · 模型已卸载' : (this.captureReady ?
           'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
           '模型已卸载 · 运行时常驻 · 点击开始识别按需加载');
-      this.releaseModel(next);
+      this.releaseModel(this.completedDiarizationStatus(next));
     }
   }
 
@@ -1132,6 +1134,7 @@ struct Index {
     if (sessionId === this.replaySessionId) return;
     if (result.windowIndex <= this.lastDiarizationWindowIndex) return;
     this.lastDiarizationWindowIndex = result.windowIndex;
+    this.diarizationDegraded = this.diarizationDegraded || result.degraded;
     const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
     const next = this.finalSegments.filter(item =>
       item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
@@ -1149,7 +1152,11 @@ struct Index {
     if (!result.isSessionFinal) return;
     this.loading = false;
     const completed = this.capturedCustomerScenario === 'meeting-minutes' ? '纪要已生成' : '角色分离已完成';
-    this.status = result.degraded ? `${completed} · 角色分离已降级` : completed;
+    this.status = this.completedDiarizationStatus(completed);
+  }
+
+  private completedDiarizationStatus(statusText: string): string {
+    return this.diarizationDegraded ? `${statusText} · 角色分离已降级` : statusText;
   }
 
   private async finishAutoEndedCapture(): Promise<void> {
@@ -1165,7 +1172,7 @@ struct Index {
       this.writeSdkCaptureMetadataBestEffort();
     } finally {
       this.stoppingListening = false;
-      this.releaseModel('SDK 已按 VAD/最长时长自动结束 · 模型已卸载');
+      this.releaseModel(this.completedDiarizationStatus('SDK 已按 VAD/最长时长自动结束 · 模型已卸载'));
     }
   }
 
