@@ -1523,7 +1523,7 @@ export class AsrSession {
   }
 
   private acceptPcmFloatNow(samples: Float32Array): void {
-    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.isInputTerminated() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
@@ -1544,7 +1544,7 @@ export class AsrSession {
   }
 
   private async acceptPcmFloatNowAsync(samples: Float32Array): Promise<void> {
-    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.isInputTerminated() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
@@ -1603,12 +1603,13 @@ export class AsrSession {
   }
 
   private stopNow(): void {
-    if (this.callbackGate.isClosed()) return;
+    if (this.isInputTerminated()) return;
     this.streamCallDepth += 1;
     try {
       this.agcIngress.flush((frame: ProcessedAudioFrame): void => {
         this.feedAndDecode(frame);
       });
+      if (this.isInputTerminated()) return;
       if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
@@ -1634,12 +1635,13 @@ export class AsrSession {
   }
 
   private async stopNowAsync(): Promise<void> {
-    if (this.callbackGate.isClosed()) return;
+    if (this.isInputTerminated()) return;
     this.streamCallDepth += 1;
     try {
       await this.agcIngress.flushAsync(async (frame: ProcessedAudioFrame): Promise<void> => {
         await this.feedAndDecodeAsync(frame);
       });
+      if (this.isInputTerminated()) return;
       if (await this.commitSpeakerTurnAtFinishAsync()) return;
       let tailDecodeMs = 0;
       if (this.speakerVadEnabled) {
@@ -2251,7 +2253,7 @@ export class AsrSession {
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(frame: ProcessedAudioFrame): void {
     let offset = 0;
-    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.isInputTerminated() &&
       !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
@@ -2271,7 +2273,7 @@ export class AsrSession {
 
   private async feedAndDecodeAsync(frame: ProcessedAudioFrame): Promise<void> {
     let offset = 0;
-    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.isInputTerminated() &&
       !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
@@ -4146,6 +4148,12 @@ export class AsrSession {
     metrics.p95Rtf = p95(this.rtfValues);
     this.callback.onMetrics?.(metrics);
     Logger.metric(metrics.toLogLine());
+  }
+
+  private isInputTerminated(): boolean {
+    // An endpoint may consume stop while the adapter still awaits diarization or a
+    // deferred speaker score. Callback lifetime must not reopen native audio input.
+    return this.callbackGate.isClosed() || this.stoppedNotified || this.stopNotificationPending;
   }
 
   private notifyStopped(): void {
