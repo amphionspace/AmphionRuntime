@@ -49,10 +49,97 @@ index 687a231..5f3fa38 100644
 +
 +list(APPEND onnxruntime_EXTERNAL_LIBRARIES cpuinfo::cpuinfo cpuinfo::clog)
 diff --git a/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h b/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
-index f9b694e..322b1da 100644
+index f9b694e..2a3b7f2 100644
 --- a/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
 +++ b/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
-@@ -1532,7 +1532,7 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+@@ -391,6 +391,12 @@ class ThreadPoolParallelSection {
+   std::atomic<bool> dispatch_started{false};
+   std::atomic<bool> dispatch_done{false};
+   std::atomic<bool> work_done{false};
++
++  // Completion notifications share a mutex with the predicates so no wake-up
++  // can be lost. The owner acquires it before releasing this section, including
++  // when all work has already completed, to outlive the final notification.
++  OrtMutex completion_mutex;
++  OrtCondVar completion_cv;
+ };
+ 
+ class ThreadPoolLoop {
+@@ -908,8 +914,9 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+     // finish dispatch work.  This avoids new tasks being started
+     // concurrently with us attempting to end the parallel section.
+     if (ps.dispatch_q_idx != -1) {
++      std::unique_lock<OrtMutex> completion_lock(ps.completion_mutex);
+       while (!ps.dispatch_done.load(std::memory_order_acquire)) {
+-        onnxruntime::concurrency::SpinPause();
++        ps.completion_cv.wait(completion_lock);
+       }
+     }
+ 
+@@ -929,17 +936,21 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+     }
+     profiler_.LogEnd(ThreadPoolProfiler::WAIT_REVOKE);
+ 
++    // Always acquire the mutex, even if completion is already visible. A
++    // worker may still be inside its final notification and touching ps.
++    std::unique_lock<OrtMutex> completion_lock(ps.completion_mutex);
++
+     // Wait for the dispatch task's own work...
+     if (ps.dispatch_q_idx > -1) {
+       while (!ps.work_done.load(std::memory_order_acquire)) {
+-        onnxruntime::concurrency::SpinPause();
++        ps.completion_cv.wait(completion_lock);
+       }
+     }
+ 
+     // ...and wait for any other tasks not revoked to finish their work
+     auto tasks_to_wait_for = tasks_started - ps.tasks_revoked;
+     while (ps.tasks_finished < tasks_to_wait_for) {
+-      onnxruntime::concurrency::SpinPause();
++      ps.completion_cv.wait(completion_lock);
+     }
+ 
+     // Clear status to allow the ThreadPoolParallelSection to be
+@@ -1105,7 +1116,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+         // This will form the preferred worker for the next loop.
+         UpdatePreferredWorker(preferred_workers, par_idx);
+         worker_fn(par_idx);
+-        ps.tasks_finished++;
++        {
++          std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++          ps.tasks_finished++;
++          ps.completion_cv.notify_one();
++        }
+       },
+                                            pt.tag, w_idx);
+ 
+@@ -1193,7 +1208,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+ 
+           // Schedule tasks par_idx=[current_dop+1,new_dop)
+           ScheduleOnPreferredWorkers(pt, ps, preferred_workers, current_dop + 1, new_dop, worker_fn);
+-          ps.dispatch_done.store(true, std::memory_order_release);
++          {
++            std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++            ps.dispatch_done.store(true, std::memory_order_release);
++            ps.completion_cv.notify_one();
++          }
+ 
+           // Record the worker thread that actually runs this task.
+           // This will form the preferred worker for the next loop.
+@@ -1203,7 +1222,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+           worker_fn(current_dop);
+ 
+           // Dispatcher's work complete
+-          ps.work_done.store(true, std::memory_order_release);
++          {
++            std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++            ps.work_done.store(true, std::memory_order_release);
++            ps.completion_cv.notify_one();
++          }
+         };
+ 
+         profiler_.LogStart();
+@@ -1532,7 +1555,7 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
  
      assert(td.GetStatus() == WorkerData::ThreadStatus::Spinning);
  
