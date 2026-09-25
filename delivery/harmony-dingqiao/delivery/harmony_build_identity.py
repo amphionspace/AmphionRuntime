@@ -57,6 +57,9 @@ TRACKED_BUILD_INPUTS = (
     "asr/harmony",
     "asr/native/audio-processing",
     "asr/tools/03_build_agc_native.sh",
+    "asr/tools/04_build_harmony_so.sh",
+    "asr/tools/build_harmony_onnxruntime.py",
+    "asr/tools/harmony_onnxruntime_flags.cmake",
     "asr/tools/05_package_har_libs.sh",
     "asr/tools/apply_sherpa_patches.sh",
     "asr/tools/prepare_sherpa_source.sh",
@@ -68,6 +71,7 @@ TRACKED_BUILD_INPUTS = (
     "delivery/harmony-dingqiao/hvigorfile.ts",
     "delivery/harmony-dingqiao/oh-package.json5",
     "third_party/patches/sherpa-amphion",
+    "third_party/patches/onnxruntime-amphion",
 )
 
 
