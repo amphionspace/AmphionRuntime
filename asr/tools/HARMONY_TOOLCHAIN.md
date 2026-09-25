@@ -82,6 +82,14 @@ bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 ```
 
+`04_build_harmony_so.sh` 会从固定提交重建 ONNX Runtime 1.16.3，应用
+`third_party/patches/onnxruntime-amphion/` 中的 OHOS 补丁和工作线程等待修复。
+它保留原有公开 spinning 开关和算子计算分工，只缩短没有任务时的空转等待。
+源码、Eigen 和主机 protoc 均固定版本；构建参数见 `harmony_onnxruntime_flags.cmake`。
+首次构建需要下载依赖，后续使用 `third_party/.derived/` 下的构建目录。
+输出旁的 `libonnxruntime.provenance.json` 记录源码、补丁、编译器和库哈希；
+HAP/HAR 仍须通过原有构建身份与真机门禁。
+
 产物：
 
 ```text
