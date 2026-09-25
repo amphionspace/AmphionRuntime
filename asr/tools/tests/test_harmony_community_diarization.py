@@ -45,6 +45,37 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    def test_resource_load_completion_keeps_session_ownership_after_close(self):
+        inference = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/CommunityDiarizationInference.ets'
+        source = inference.read_text().split('export class CommunityDiarizationInference', 1)[1]
+        source = 'export class CommunityDiarizationInference' + source.split('\nexport {', 1)[0]
+        script = """
+          import assert from 'node:assert/strict';
+          const loads=[],closed=[],processed=[];
+          function loadCommunityDiarizationResources(resources) {
+            return new Promise((resolve,reject)=>loads.push({resources,resolve,reject}));
+          }
+          function closeCommunityDiarization(handle){closed.push(handle)}
+          async function processCommunityDiarization(handle,pcm){processed.push(handle);return pcm}
+          async function clusterCommunityDiarization(){return '{}'}
+        """ + source + """
+          const a=new CommunityDiarizationInference(),b=new CommunityDiarizationInference();
+          const ra={},rb={};const la=a.load({resourceManager:ra}),lb=b.load({resourceManager:rb});
+          assert.equal(loads[0].resources,ra);assert.equal(loads[1].resources,rb);
+          a.close();loads[1].resolve(202);await lb;loads[0].resolve(101);await la;
+          assert.deepEqual(closed,[101]);await assert.rejects(a.process(new Float32Array(1)));
+          await b.process(new Float32Array(1));assert.deepEqual(processed,[202]);
+          b.close();b.close();assert.deepEqual(closed,[101,202]);
+          const failed=new CommunityDiarizationInference();const pending=failed.load({resourceManager:{}});
+          loads[2].reject(new Error('asset unavailable'));await assert.rejects(pending,/asset unavailable/);
+          failed.close();assert.deepEqual(closed,[101,202]);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'resource-load.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
+                            TS_LOADER.as_uri(), str(harness)], check=True, cwd=ROOT)
+
     def test_silence_placeholder_cannot_enroll_or_consume_a_role(self):
         run_node(f"""
           import assert from 'node:assert/strict';

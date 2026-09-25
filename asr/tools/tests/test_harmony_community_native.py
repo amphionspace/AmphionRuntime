@@ -10,6 +10,84 @@ CPP = ROOT / 'asr/harmony/sdk/src/main/cpp'
 
 
 class HarmonyCommunityNativeTest(unittest.TestCase):
+    def test_resource_assets_preserve_bytes_and_release_failed_or_completed_loads(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source_text = (CPP / 'community_diarization.cpp').read_text()
+        reader = source_text[source_text.index('std::vector<uint8_t> ReadCommunityAsset'):
+                             source_text.index('\nclass Model')]
+        work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
+        # Exercise production ownership with a platform resource provider that
+        # returns partial reads and errors. No models or customer data needed.
+        program = r'''
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <limits>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
+using napi_env=void*;using napi_ref=void*;using napi_async_work=void*;using napi_deferred=void*;
+enum class Operation { Load,Process,Cluster };
+struct Model {};struct Window {};
+struct NativeResourceManager {};
+struct RawFile { size_t offset=0; };
+static int closed=0,managers=0,references=0,readCalls=0;
+static bool missing=false,truncated=false;
+static long length=5;
+RawFile* OH_ResourceManager_OpenRawFile(NativeResourceManager*,const char*) {
+  return missing?nullptr:new RawFile;
+}
+void OH_ResourceManager_CloseRawFile(RawFile* f) { ++closed;delete f; }
+long OH_ResourceManager_GetRawFileSize(RawFile*) { return length; }
+int OH_ResourceManager_ReadRawFile(const RawFile* f,void* out,size_t size) {
+  ++readCalls;if(truncated&&f->offset>=2)return 0;
+  size_t count=std::min<size_t>(2,size);auto* bytes=static_cast<uint8_t*>(out);
+  for(size_t i=0;i<count;++i)bytes[i]=static_cast<uint8_t>(f->offset+i+1);
+  const_cast<RawFile*>(f)->offset+=count;return static_cast<int>(count);
+}
+void OH_ResourceManager_ReleaseNativeResourceManager(NativeResourceManager* manager) {
+  assert(references==1);--managers;delete manager;
+}
+int napi_delete_reference(napi_env env,napi_ref ref) {
+  assert(env&&ref&&managers==0);--references;return 0;
+}
+''' + reader + work + r'''
+int main() {
+  NativeResourceManager manager;
+  assert(ReadCommunityAsset(&manager,"model")==std::vector<uint8_t>({1,2,3,4,5}));
+  assert(readCalls==3&&closed==1);
+  for(int mode=0;mode<3;++mode) {
+    missing=mode==0;length=mode==1?0:5;truncated=mode==2;
+    int before=closed;bool rejected=false;
+    try { ReadCommunityAsset(&manager,"model"); }catch(const std::runtime_error&) {rejected=true;}
+    assert(rejected&&closed==before+(missing?0:1));
+  }
+  for(bool fail:{false,true}) {
+    try {
+      auto pending=std::make_unique<Work>();pending->operation=Operation::Load;
+      pending->resource_manager.reset(new NativeResourceManager);++managers;
+      pending->resource_env=&manager;pending->resource_ref=&manager;++references;
+      assert(managers==1&&references==1); // Held for the pending native work.
+      if(fail)throw std::runtime_error("queue or load failed");
+      auto completed=std::move(pending);
+    }catch(const std::runtime_error&) {}
+    assert(managers==0&&references==0);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'resource.cpp'
+            binary = Path(directory) / 'resource'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', str(source),
+                            '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_native_input_copy_uses_real_view_bounds(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:

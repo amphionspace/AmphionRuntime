@@ -7,6 +7,8 @@
 #include <cstring>
 #include <iomanip>
 #include <memory>
+#include <limits>
+#include <rawfile/raw_file_manager.h>
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
@@ -50,6 +52,26 @@ struct Window {
   std::vector<float> segments, embeddings;
   double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
 };
+
+std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const char* name) {
+  std::unique_ptr<RawFile, decltype(&OH_ResourceManager_CloseRawFile)> file(
+    OH_ResourceManager_OpenRawFile(manager, name), OH_ResourceManager_CloseRawFile);
+  if (!file) throw std::runtime_error(std::string("Community model asset unavailable: ") + name);
+  const long size = OH_ResourceManager_GetRawFileSize(file.get());
+  if (size <= 0) throw std::runtime_error("Community model asset is empty");
+  std::vector<uint8_t> bytes(static_cast<size_t>(size));
+  size_t offset = 0;
+  while (offset < bytes.size()) {
+    const size_t remaining = bytes.size() - offset;
+    const int read = OH_ResourceManager_ReadRawFile(file.get(), bytes.data() + offset,
+      std::min(remaining, static_cast<size_t>(std::numeric_limits<int>::max())));
+    if (read <= 0 || static_cast<size_t>(read) > remaining) {
+      throw std::runtime_error("Community model asset read failed");
+    }
+    offset += static_cast<size_t>(read);
+  }
+  return bytes;
+}
 
 class Model {
  public:
@@ -216,16 +238,36 @@ struct Work {
   napi_async_work work = nullptr;
   napi_deferred deferred = nullptr;
   std::shared_ptr<Model> model;
+  // Keep the resource provider alive across the native worker. Unlike ArkTS
+  // model arrays, these bytes are released with Work rather than by later GC.
+  napi_env resource_env = nullptr;
+  napi_ref resource_ref = nullptr;
+  std::unique_ptr<NativeResourceManager, decltype(&OH_ResourceManager_ReleaseNativeResourceManager)>
+    resource_manager{nullptr, OH_ResourceManager_ReleaseNativeResourceManager};
   std::array<std::vector<uint8_t>, 4> assets;
   std::vector<float> pcm, segments, embeddings;
   Window window;
   int max_speakers = 4;
   std::string result, error;
+  ~Work() {
+    resource_manager.reset();
+    if (resource_ref) napi_delete_reference(resource_env, resource_ref);
+  }
 };
 void Execute(napi_env, void* data) {
   auto& task = *static_cast<Work*>(data);
   try {
     if (task.operation == Operation::Load) {
+      if (task.resource_manager) {
+        constexpr const char* names[] = {
+          "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+          "amphion-dingqiao/community-wespeaker-masked.fp32.onnx",
+          "amphion-dingqiao/community-feature.f32", "amphion-dingqiao/community-plda.f64"
+        };
+        for (size_t i = 0; i < task.assets.size(); ++i) {
+          task.assets[i] = ReadCommunityAsset(task.resource_manager.get(), names[i]);
+        }
+      }
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3]);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.max_speakers);
@@ -271,16 +313,27 @@ void Complete(napi_env env, napi_status status, void* data) {
   }
   napi_delete_async_work(env, task->work);
 }
-napi_value Queue(napi_env env, napi_callback_info info, Operation operation) {
+napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
   size_t count = 4;
   napi_value args[4] = {};
   napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
   try {
-    if (count != (operation == Operation::Process ? 2u : 4u)) throw std::runtime_error("invalid Community arguments");
+    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : 4u)) {
+      throw std::runtime_error("invalid Community arguments");
+    }
     auto task = std::make_unique<Work>();
     task->operation = operation;
     if (operation == Operation::Load) {
-      for (size_t i = 0; i < 4; ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
+      if (from_resources) {
+        task->resource_manager.reset(OH_ResourceManager_InitNativeResourceManager(env, args[0]));
+        if (!task->resource_manager) throw std::runtime_error("invalid Community resource manager");
+        task->resource_env = env;
+        if (napi_create_reference(env, args[0], 1, &task->resource_ref) != napi_ok) {
+          throw std::runtime_error("Community resource reference failed");
+        }
+      } else {
+        for (size_t i = 0; i < 4; ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
+      }
     } else {
       uint32_t handle = 0;
       if (napi_get_value_uint32(env, args[0], &handle) != napi_ok) throw std::runtime_error("invalid Community handle");
@@ -312,6 +365,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation) {
   } catch (const std::exception& error) { napi_throw_error(env, nullptr, error.what()); return nullptr; }
 }
 napi_value Load(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Load); }
+napi_value LoadResources(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Load, true); }
 napi_value Process(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Process); }
 napi_value Cluster(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Cluster); }
 napi_value Close(napi_env env, napi_callback_info info) {
@@ -331,6 +385,7 @@ napi_value Close(napi_env env, napi_callback_info info) {
 void RegisterCommunityDiarization(napi_env env, napi_value exports) {
   napi_property_descriptor methods[] = {
     {"loadCommunityDiarization", nullptr, Load, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"loadCommunityDiarizationResources", nullptr, LoadResources, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"processCommunityDiarization", nullptr, Process, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"clusterCommunityDiarization", nullptr, Cluster, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"closeCommunityDiarization", nullptr, Close, nullptr, nullptr, nullptr, napi_default, nullptr},

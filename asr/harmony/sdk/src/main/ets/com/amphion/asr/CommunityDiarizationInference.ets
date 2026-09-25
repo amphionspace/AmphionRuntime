@@ -1,5 +1,5 @@
 import {
-  loadCommunityDiarization, processCommunityDiarization,
+  loadCommunityDiarizationResources, processCommunityDiarization,
   clusterCommunityDiarization, closeCommunityDiarization, CommunityDiarizationWindow
 } from 'libamphion_asr.so';
 
@@ -22,12 +22,7 @@ export class CommunityDiarizationInference {
 
   async load(context: Context): Promise<void> {
     if (this.closed) throw new Error('Community inference is closed');
-    const assets = context.resourceManager;
-    const segmentation = await assets.getRawFileContent('amphion-dingqiao/pyannote-segmentation-3.0.onnx');
-    const embedding = await assets.getRawFileContent('amphion-dingqiao/community-wespeaker-masked.fp32.onnx');
-    const features = await assets.getRawFileContent('amphion-dingqiao/community-feature.f32');
-    const plda = await assets.getRawFileContent('amphion-dingqiao/community-plda.f64');
-    const handle = await loadCommunityDiarization(segmentation, embedding, features, plda);
+    const handle = await loadCommunityDiarizationResources(context.resourceManager);
     if (this.closed) { closeCommunityDiarization(handle); return; }
     this.handle = handle;
   }
