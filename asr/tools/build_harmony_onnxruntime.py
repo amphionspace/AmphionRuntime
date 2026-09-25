@@ -91,9 +91,12 @@ def main():
     if hashlib.sha1(archive.read_bytes()).hexdigest() != dependency[2]:
         raise RuntimeError(f"Host protoc checksum differs from pinned ORT dependency: {archive}")
     protoc_root = root / "host-protoc"
-    with zipfile.ZipFile(archive) as package:
-        package.extractall(protoc_root)
     protoc = protoc_root / "bin/protoc"
+    with zipfile.ZipFile(archive) as package:
+        # Re-extracting an unchanged protoc updates its mtime and regenerates
+        # every protobuf source, defeating incremental native builds.
+        if not protoc.exists() or protoc.read_bytes() != package.read("bin/protoc"):
+            package.extractall(protoc_root)
     protoc.chmod(0o755)
 
     # The publisher builds this release as Linux with the standalone OHOS
@@ -111,7 +114,8 @@ def main():
         "-DCMAKE_TLS_VERIFY=ON", "-DFETCHCONTENT_QUIET=OFF",
         "-Donnxruntime_USE_PREINSTALLED_EIGEN=ON", f"-Deigen_SOURCE_PATH={eigen}",
         f"-DPYTHON_EXECUTABLE={sys.executable}", f"-DONNX_CUSTOM_PROTOC_EXECUTABLE={protoc}",
-        "-Dprotobuf_BUILD_PROTOC_BINARIES=OFF", "-DFLATBUFFERS_BUILD_FLATC=OFF")
+        "-Dprotobuf_BUILD_PROTOC_BINARIES=OFF", "-DFLATBUFFERS_BUILD_FLATC=OFF",
+        cwd=source)  # ORT derives its embedded Git identity from the working directory.
     run(cmake, "--build", build, "--target", "onnxruntime", "--parallel", "4")
     if source_diff(source) != PATCH.read_bytes():
         raise RuntimeError("ORT source changed during the build")
