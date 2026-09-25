@@ -11,7 +11,10 @@ import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './Diariz
 
 const SAMPLE_RATE: number = 16000;
 const WINDOW_SAMPLES: number = 160000;
-const INFERENCE_TIMEOUT_MS: number = 10000;
+// Community-1 provisional VBx can contend with the next segmentation window
+// on CPU-only devices. Keep a per-window guard, but let the session's 15-minute
+// finish barrier own the end-to-end deadline for long meetings.
+const INFERENCE_TIMEOUT_MS: number = 60_000;
 let nextDiarizationJobId: number = 1;
 
 export interface DiarizationLocalWindowResult {
@@ -196,6 +199,7 @@ export class SpeakerDiarizationLocalClient {
         await this.settleInference(inferencePromise);
         return;
       }
+      result.windowStartSample = job.windowStartSample;
       this.observer.onWindow({
         jobId: job.jobId,
         windowStartSample: job.windowStartSample,

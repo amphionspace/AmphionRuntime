@@ -47,8 +47,17 @@ export const processSpeakerTurnSegmentationAsync: (
 
 export interface Community1ClusterResult {
   hardClusters: number[];
+  /** Row-major [chunk, local speaker, global speaker] cosine/PLDA scores. */
+  clusterScores?: number[];
   speakerCount: number;
   constraintViolated: boolean;
+  validEmbeddingCount?: number;
+  ahcClusterCount?: number;
+  autoSpeakerCount?: number;
+  cleanFrameCounts?: number[];
+  maskHistogram?: number[];
+  minEmbeddingNorm?: number;
+  maxEmbeddingNorm?: number;
 }
 export const loadCommunity1Plda: (parameters: Uint8Array) => void;
 export const clusterCommunity1Async: (

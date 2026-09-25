@@ -112,6 +112,8 @@ export class SpeakerDiarizationResult {
   degradedMessage?: string;
   inferenceMs: number = 0;
   rtf: number = 0;
+  /** Internal Community-1 parity counters exported only in diagnostic payloads. */
+  communityDiagnostics: Record<string, Object> = {};
 }
 
 export class VoiceprintRegisterParams {

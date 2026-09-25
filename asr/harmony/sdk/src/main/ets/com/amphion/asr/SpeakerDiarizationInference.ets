@@ -49,10 +49,14 @@ export class SpeakerDiarizationEmbedding {
 }
 
 export class SpeakerDiarizationWindowResult {
+  /** Absolute sample origin of this Community-1 chunk. */
+  windowStartSample: number = 0;
   segments: SpeakerDiarizationSegment[] = [];
   embeddings: SpeakerDiarizationEmbedding[] = [];
   /** Powerset argmax converted to one bit per active local speaker. */
   frameMasks: number[] = [];
+  /** Per-frame overlap-add weight. Kept on the global frame grid by callers. */
+  frameWeights: number[] = [];
   refinements: SpeakerDiarizationBoundaryRefinement[] = [];
   inferenceMs: number = 0;
 }
@@ -69,8 +73,16 @@ export interface SpeakerDiarizationBoundaryRefinement {
 
 export class SpeakerDiarizationCommunityClusterResult {
   hardClusters: number[] = [];
+  clusterScores: number[] = [];
   speakerCount: number = 0;
   constraintViolated: boolean = false;
+  validEmbeddingCount: number = 0;
+  ahcClusterCount: number = 0;
+  autoSpeakerCount: number = 0;
+  cleanFrameCounts: number[] = [];
+  maskHistogram: number[] = [];
+  minEmbeddingNorm: number = 0;
+  maxEmbeddingNorm: number = 0;
 }
 
 /** Session-owned offline diarization executor backed by SDK-bundled models. */
@@ -116,6 +128,7 @@ export class SpeakerDiarizationInference {
     const nativeSegments = await processSpeakerTurnSegmentationAsync(samples);
     const result = new SpeakerDiarizationWindowResult();
     result.frameMasks = new Array<number>(COMMUNITY_FRAMES).fill(0);
+    result.frameWeights = new Array<number>(COMMUNITY_FRAMES).fill(0);
     result.segments = nativeSegments.map(
       (segment: SpeakerTurnSegmentationSegment): SpeakerDiarizationSegment => {
         const converted = new SpeakerDiarizationSegment();
@@ -126,6 +139,7 @@ export class SpeakerDiarizationInference {
         for (let frame = Math.max(0, segment.startFrame);
           frame < Math.min(COMMUNITY_FRAMES, segment.endFrame); frame++) {
           result.frameMasks[frame] = segment.speakerMask;
+          result.frameWeights[frame] = 1.0;
         }
         return converted;
       });
@@ -171,8 +185,16 @@ export class SpeakerDiarizationInference {
       embeddings, frameMasks, windows.length, minSpeakers ?? 0, maxSpeakers ?? 0);
     const result = new SpeakerDiarizationCommunityClusterResult();
     result.hardClusters = native.hardClusters;
+    result.clusterScores = native.clusterScores ?? [];
     result.speakerCount = native.speakerCount;
     result.constraintViolated = native.constraintViolated;
+    result.validEmbeddingCount = native.validEmbeddingCount ?? 0;
+    result.ahcClusterCount = native.ahcClusterCount ?? 0;
+    result.autoSpeakerCount = native.autoSpeakerCount ?? 0;
+    result.cleanFrameCounts = native.cleanFrameCounts ?? [];
+    result.maskHistogram = native.maskHistogram ?? [];
+    result.minEmbeddingNorm = native.minEmbeddingNorm ?? 0;
+    result.maxEmbeddingNorm = native.maxEmbeddingNorm ?? 0;
     return result;
   }
 
@@ -341,17 +363,24 @@ export class SpeakerDiarizationInference {
       if ((mask & 4) !== 0) active++;
       if (active < 2 && mask === expectedMask) cleanFrames++;
     }
-    // pyannote uses clean speaker masks only when enough clean frames remain;
-    // otherwise it falls back to the original (possibly overlapping) mask.
-    const useClean = cleanFrames > Math.ceil(COMMUNITY_FRAMES * MIN_EMBEDDING_SAMPLES /
+    // Match SpeakerDiarization.get_embeddings: use overlap-excluded masks only
+    // when enough clean frames remain; otherwise fall back to the original
+    // speaker mask so short/overlap-heavy local channels still get an
+    // embedding.
+    const minFrames = Math.ceil(COMMUNITY_FRAMES * MIN_EMBEDDING_SAMPLES /
       (SAMPLE_RATE * 10));
+    const useClean = cleanFrames > minFrames;
     for (let frame = 0; frame < COMMUNITY_FRAMES; frame++) {
       const mask = frameMasks[frame] ?? 0;
       let active = 0;
       if ((mask & 1) !== 0) active++;
       if ((mask & 2) !== 0) active++;
       if ((mask & 4) !== 0) active++;
-      if (mask === expectedMask && (!useClean || active < 2)) weights[frame] = 1.0;
+      if (useClean) {
+        if (mask === expectedMask && active < 2) weights[frame] = 1.0;
+      } else if ((mask & expectedMask) !== 0) {
+        weights[frame] = 1.0;
+      }
     }
     return weights;
   }

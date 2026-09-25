@@ -1,0 +1,32 @@
+From: Amphion Runtime <runtime@amphion.local>
+Date: Fri, 25 Sep 2026 12:50:00 +0800
+Subject: [PATCH] fix(harmony): count weighted embedding mask elements
+
+Harmony's N-API compatibility layer reports Float32Array ElementLength in
+bytes. Convert it to a float element count before copying the Community-1
+pooling mask, as the existing audio and VAD bindings already do.
+---
+ .../src/main/cpp/speaker-identification.cc                  | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+index 6e75e62..3d5e887 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+@@ -662,8 +662,13 @@ static Napi::Value SpeakerEmbeddingExtractorComputeEmbeddingWeightedAsyncWrapper
+     return env.Null();
+   }
+   auto float_input = info[2].As<Napi::Float32Array>();
++#if __OHOS__
++  const size_t num_weights = float_input.ElementLength() / sizeof(float);
++#else
++  const size_t num_weights = float_input.ElementLength();
++#endif
+   std::vector<float> weights(float_input.Data(),
+-                             float_input.Data() + float_input.ElementLength());
++                             float_input.Data() + num_weights);
+   Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
+   auto *worker = new SpeakerEmbeddingExtractorComputeAsyncWorker(
+       env, std::move(extractor), std::move(stream), deferred,
+-- 
+2.51.0.windows.1

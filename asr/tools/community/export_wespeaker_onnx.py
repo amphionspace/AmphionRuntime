@@ -70,7 +70,9 @@ def main() -> None:
         "comment": "Community-1 WeSpeaker ResNet34 VoxCeleb embedding model",
         "sample_rate": "16000",
         "output_dim": "256",
-        "normalize_samples": "1",
+        # pyannote multiplies normalized waveform samples by 2**15 before
+        # extracting Kaldi fbank features.
+        "normalize_samples": "0",
         "feature_normalize_type": "global-mean",
     }
     for key, value in metadata.items():

@@ -69,5 +69,9 @@ if [[ ! -e "$DESTINATION" ]]; then
   STAGE=""
 fi
 
-ln -sfn "$GENERATION" "$CURRENT_LINK"
+if [[ -d "$CURRENT_LINK" && "$(cd "$CURRENT_LINK" && pwd -P)" == "$(cd "$DESTINATION" && pwd -P)" ]]; then
+  : # Windows junctions cannot be replaced by Git Bash's ln, but are valid links.
+else
+  ln -sfn "$GENERATION" "$CURRENT_LINK"
+fi
 printf '%s\n' "$CURRENT_LINK"

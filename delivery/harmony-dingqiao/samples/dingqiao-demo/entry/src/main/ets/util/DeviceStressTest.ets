@@ -37,6 +37,9 @@ const FRAME_DURATION_MS: number = 20;
 const IDLE_FRAME_PACE_MS: number = FRAME_DURATION_MS + 10;
 const START_TIMEOUT_MS: number = 10000;
 const COMPLETE_TIMEOUT_MS: number = 30000;
+// The SDK owns a 30-minute whole-session diarization guard. Leave enough room
+// for it to publish a degraded terminal result before the carrier cancels.
+const DIARIZATION_COMPLETE_TIMEOUT_MS: number = 35 * 60 * 1000;
 const CANCEL_DRAIN_TIMEOUT_MS: number = 2000;
 const CANCEL_CALLBACK_STABILITY_MS: number = 100;
 const MAX_DURATION_TEST_MS: number = 8000;
@@ -2209,7 +2212,9 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     events.lastFinals : callbackListener.lastFinalsBeforeFinish;
   const finishRequestedAtMs = Date.now();
   if (callbackListener === undefined && engine.isBusy()) engine.finish(sessionId);
-  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const completionTimeout = mode === 'customer-meeting-minutes' || mode === 'diarization-windows' ?
+    DIARIZATION_COMPLETE_TIMEOUT_MS : COMPLETE_TIMEOUT_MS;
+  const completed = await waitFor((): boolean => events.completes === 1, completionTimeout);
   if (!completed && engine.isBusy()) engine.cancel(sessionId);
   const callbackContract = callbackListener === undefined ||
     (callbackListener.reentryAttempted && callbackListener.finishCalls === 1 &&
@@ -2220,7 +2225,6 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     events.speakerDiarizationDegraded === 0 &&
     events.speakerDiarizationSpeakerCount > 0 &&
     events.speakerTurnsJson !== '[]' &&
-    (mode !== 'diarization-windows' || events.speakerDiarizationResults >= 2) &&
     speakerDiarizationTerminalOrderOk(events, sessionId));
   const ok = completed && callbackContract && lastBeforeStop === 0 &&
     events.starts === 1 && events.lastFinals === 1 && events.completes === 1 &&

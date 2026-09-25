@@ -282,7 +282,7 @@ const STOP_FALLBACK_DELAY_MS: number = 1500;
 // segmentation/embedding/clustering pass can take longer than the ASR tail,
 // especially for long recordings. Do not tear down the local inference job
 // while it is still producing the terminal timeline.
-const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15 * 60 * 1000;
+const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 30 * 60 * 1000;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;

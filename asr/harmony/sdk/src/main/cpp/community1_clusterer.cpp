@@ -13,13 +13,17 @@
 #include <utility>
 #include <vector>
 
+#include <hilog/log.h>
+
 namespace {
 
 constexpr int32_t kEmbeddingDim = 256;
 constexpr int32_t kPldaDim = 128;
 constexpr int32_t kLocalSpeakers = 3;
 constexpr int32_t kFrames = 589;
-constexpr float kAhcThreshold = 0.6F;
+// Community-1's VBxClustering uses scipy's centroid linkage on L2-normalized
+// embeddings and cuts the dendrogram at an Euclidean distance of 0.6.
+constexpr float kAhcDistanceThreshold = 0.6F;
 constexpr float kFa = 0.07F;
 constexpr float kFb = 0.8F;
 constexpr int32_t kMaxIters = 20;
@@ -309,10 +313,11 @@ std::vector<int32_t> CentroidAhc(const std::vector<float>& embeddings,
     float best_squared = std::numeric_limits<float>::infinity();
     for (size_t left = 0; left < active.size(); ++left) {
       for (size_t right = left + 1; right < active.size(); ++right) {
-        const float distance = SquaredDistance(nodes[active[left]].centroid,
-                                               nodes[active[right]].centroid);
-        if (distance < best_squared) {
-          best_squared = distance;
+        const std::vector<float>& left_centroid = nodes[active[left]].centroid;
+        const std::vector<float>& right_centroid = nodes[active[right]].centroid;
+        const float distance_squared = SquaredDistance(left_centroid, right_centroid);
+        if (distance_squared < best_squared) {
+          best_squared = distance_squared;
           best_left = left;
           best_right = right;
         }
@@ -326,6 +331,8 @@ std::vector<int32_t> CentroidAhc(const std::vector<float>& embeddings,
     merged.left = left_id;
     merged.right = right_id;
     merged.size = left.size + right.size;
+    // scipy.cluster.hierarchy.linkage(method="centroid", metric="euclidean")
+    // stores the Euclidean merge distance, not its square.
     merged.distance = std::sqrt(std::max(best_squared, 0.0F));
     merged.max_distance = std::max(merged.distance,
                                    std::max(left.max_distance, right.max_distance));
@@ -342,7 +349,7 @@ std::vector<int32_t> CentroidAhc(const std::vector<float>& embeddings,
 
   std::vector<int32_t> labels(rows, -1);
   int32_t next_label = 0;
-  AssignFlatCluster(nodes, active.front(), kAhcThreshold, &next_label, &labels);
+  AssignFlatCluster(nodes, active.front(), kAhcDistanceThreshold, &next_label, &labels);
   return labels;
 }
 
@@ -481,8 +488,19 @@ void BestUniqueAssignment(const std::vector<float>& scores, int32_t rows,
 
 struct ClusterOutput {
   std::vector<int32_t> hard_clusters;
+  // Row-major [chunk, local speaker, global speaker].  These scores are kept
+  // separate from the hard assignment so timeline reconstruction can perform
+  // weighted overlap-add and exclusive reconciliation.
+  std::vector<float> cluster_scores;
   int32_t speaker_count = 0;
   bool constraint_violated = false;
+  int32_t valid_embedding_count = 0;
+  int32_t ahc_cluster_count = 0;
+  int32_t auto_speaker_count = 0;
+  std::vector<int32_t> clean_frame_counts;
+  std::vector<int32_t> mask_histogram;
+  float min_embedding_norm = 0.0F;
+  float max_embedding_norm = 0.0F;
 };
 
 ClusterOutput Cluster(const PldaParameters& parameters,
@@ -504,15 +522,27 @@ ClusterOutput Cluster(const PldaParameters& parameters,
         std::to_string(expected_masks));
   }
 
+  ClusterOutput output;
+  const auto violates_constraints = [min_speakers, max_speakers](int32_t auto_speakers) {
+    return (min_speakers > 0 && auto_speakers < min_speakers) ||
+           (max_speakers > 0 && auto_speakers > max_speakers);
+  };
+  output.clean_frame_counts.assign(static_cast<size_t>(chunks) * kLocalSpeakers, 0);
+  output.mask_histogram.assign(7, 0);
   std::vector<int32_t> train_indexes;
   std::vector<float> train_embeddings;
   for (int32_t chunk = 0; chunk < chunks; ++chunk) {
     int32_t clean_counts[kLocalSpeakers] = {0, 0, 0};
     for (int32_t frame = 0; frame < kFrames; ++frame) {
       const int32_t mask = frame_masks[static_cast<size_t>(chunk) * kFrames + frame];
+      if (mask >= 0 && mask < 7) ++output.mask_histogram[mask];
       if (mask == 1) ++clean_counts[0];
       if (mask == 2) ++clean_counts[1];
       if (mask == 4) ++clean_counts[2];
+    }
+    for (int32_t local = 0; local < kLocalSpeakers; ++local) {
+      output.clean_frame_counts[static_cast<size_t>(chunk) * kLocalSpeakers + local] =
+          clean_counts[local];
     }
     for (int32_t local = 0; local < kLocalSpeakers; ++local) {
       const int32_t flat = chunk * kLocalSpeakers + local;
@@ -526,11 +556,37 @@ ClusterOutput Cluster(const PldaParameters& parameters,
     }
   }
 
-  ClusterOutput output;
+  output.valid_embedding_count = static_cast<int32_t>(train_indexes.size());
+  if (!train_embeddings.empty()) {
+    output.min_embedding_norm = std::numeric_limits<float>::infinity();
+    for (size_t row = 0; row < train_indexes.size(); ++row) {
+      float norm = 0.0F;
+      for (int32_t d = 0; d < kEmbeddingDim; ++d) {
+        const float value = train_embeddings[row * kEmbeddingDim + d];
+        norm += value * value;
+      }
+      norm = std::sqrt(norm);
+      output.min_embedding_norm = std::min(output.min_embedding_norm, norm);
+      output.max_embedding_norm = std::max(output.max_embedding_norm, norm);
+    }
+  }
+  OH_LOG_INFO(LOG_APP,
+              "C1_STATS chunks=%{public}d valid=%{public}d masks=%{public}d,%{public}d,%{public}d,%{public}d,%{public}d,%{public}d,%{public}d minNorm=%{public}f maxNorm=%{public}f",
+              chunks, output.valid_embedding_count,
+              output.mask_histogram[0], output.mask_histogram[1],
+              output.mask_histogram[2], output.mask_histogram[3],
+              output.mask_histogram[4], output.mask_histogram[5],
+              output.mask_histogram[6], output.min_embedding_norm,
+              output.max_embedding_norm);
   output.hard_clusters.assign(static_cast<size_t>(chunks) * kLocalSpeakers, -2);
-  if (train_indexes.empty()) return output;
+  if (train_indexes.empty()) {
+    output.constraint_violated = violates_constraints(0);
+    return output;
+  }
   if (train_indexes.size() == 1) {
     output.speaker_count = 1;
+    output.auto_speaker_count = 1;
+    output.cluster_scores.assign(static_cast<size_t>(chunks) * kLocalSpeakers, -1e30F);
     // With a single usable embedding the official pipeline cannot satisfy a
     // larger explicit minimum. Keep every active local channel together.
     for (int32_t chunk = 0; chunk < chunks; ++chunk) {
@@ -551,6 +607,7 @@ ClusterOutput Cluster(const PldaParameters& parameters,
   } else {
     const int32_t rows = static_cast<int32_t>(train_indexes.size());
     const std::vector<int32_t> ahc = CentroidAhc(train_embeddings, rows);
+    output.ahc_cluster_count = ahc.empty() ? 0 : *std::max_element(ahc.begin(), ahc.end()) + 1;
     const std::vector<float> features = parameters.Transform(train_embeddings, rows);
     const VbxResult vbx = RunVbx(ahc, features, parameters.phi, rows);
     std::vector<int32_t> retained;
@@ -558,6 +615,12 @@ ClusterOutput Cluster(const PldaParameters& parameters,
       if (vbx.priors[speaker] > kPiFloor) retained.push_back(speaker);
     }
     const int32_t auto_speakers = static_cast<int32_t>(retained.size());
+    output.auto_speaker_count = auto_speakers;
+    output.constraint_violated = violates_constraints(auto_speakers);
+    OH_LOG_INFO(LOG_APP,
+                "C1_CLUSTER rows=%{public}d ahc=%{public}d auto=%{public}d retained=%{public}d",
+                rows, output.ahc_cluster_count, output.auto_speaker_count,
+                static_cast<int32_t>(retained.size()));
     int32_t requested_speakers = auto_speakers;
     if (min_speakers > 0 && requested_speakers < min_speakers) {
       requested_speakers = min_speakers;
@@ -571,6 +634,8 @@ ClusterOutput Cluster(const PldaParameters& parameters,
                               requested_speakers > 0 && requested_speakers <= rows;
     output.speaker_count = force_kmeans ? requested_speakers : auto_speakers;
     if (output.speaker_count <= 0) return output;
+    output.cluster_scores.assign(static_cast<size_t>(chunks) * kLocalSpeakers *
+                                 output.speaker_count, -1e30F);
     std::vector<int32_t> kmeans_labels;
     if (force_kmeans) kmeans_labels = KmeansLabels(train_embeddings, rows,
                                                    output.speaker_count);
@@ -629,6 +694,11 @@ ClusterOutput Cluster(const PldaParameters& parameters,
             if (score > best_score) { best_score = score; best = target; }
           }
           output.hard_clusters[chunk * kLocalSpeakers + local] = best;
+          for (int32_t target = 0; target < output.speaker_count; ++target) {
+            output.cluster_scores[(static_cast<size_t>(chunk) * kLocalSpeakers + local) *
+                                  output.speaker_count + target] =
+                scores[static_cast<size_t>(local) * output.speaker_count + target];
+          }
         }
       } else {
         std::vector<int32_t> current(kLocalSpeakers, -2);
@@ -638,14 +708,17 @@ ClusterOutput Cluster(const PldaParameters& parameters,
                              &current, &best_score, &best);
         for (int32_t local = 0; local < kLocalSpeakers; ++local) {
           output.hard_clusters[chunk * kLocalSpeakers + local] = best[local];
+          for (int32_t target = 0; target < output.speaker_count; ++target) {
+            output.cluster_scores[(static_cast<size_t>(chunk) * kLocalSpeakers + local) *
+                                  output.speaker_count + target] =
+                scores[static_cast<size_t>(local) * output.speaker_count + target];
+          }
         }
       }
     }
   }
 
-  output.constraint_violated =
-      (min_speakers > 0 && output.speaker_count < min_speakers) ||
-      (max_speakers > 0 && output.speaker_count > max_speakers);
+  output.constraint_violated = violates_constraints(output.auto_speaker_count);
   return output;
 }
 
@@ -721,12 +794,51 @@ void CompleteCluster(napi_env env, napi_status status, void* data) {
     napi_set_element(env, clusters, index, value);
   }
   napi_set_named_property(env, result, "hardClusters", clusters);
+  napi_value scores = nullptr;
+  napi_create_array_with_length(env, context->output.cluster_scores.size(), &scores);
+  for (uint32_t index = 0; index < context->output.cluster_scores.size(); ++index) {
+    napi_value value = nullptr;
+    napi_create_double(env, static_cast<double>(context->output.cluster_scores[index]), &value);
+    napi_set_element(env, scores, index, value);
+  }
+  napi_set_named_property(env, result, "clusterScores", scores);
   napi_value speaker_count = nullptr;
   napi_create_int32(env, context->output.speaker_count, &speaker_count);
   napi_set_named_property(env, result, "speakerCount", speaker_count);
   napi_value violated = nullptr;
   napi_get_boolean(env, context->output.constraint_violated, &violated);
   napi_set_named_property(env, result, "constraintViolated", violated);
+  napi_value valid_count = nullptr;
+  napi_create_int32(env, context->output.valid_embedding_count, &valid_count);
+  napi_set_named_property(env, result, "validEmbeddingCount", valid_count);
+  napi_value ahc_count = nullptr;
+  napi_create_int32(env, context->output.ahc_cluster_count, &ahc_count);
+  napi_set_named_property(env, result, "ahcClusterCount", ahc_count);
+  napi_value auto_count = nullptr;
+  napi_create_int32(env, context->output.auto_speaker_count, &auto_count);
+  napi_set_named_property(env, result, "autoSpeakerCount", auto_count);
+  napi_value clean_counts = nullptr;
+  napi_create_array_with_length(env, context->output.clean_frame_counts.size(), &clean_counts);
+  for (uint32_t index = 0; index < context->output.clean_frame_counts.size(); ++index) {
+    napi_value value = nullptr;
+    napi_create_int32(env, context->output.clean_frame_counts[index], &value);
+    napi_set_element(env, clean_counts, index, value);
+  }
+  napi_set_named_property(env, result, "cleanFrameCounts", clean_counts);
+  napi_value mask_histogram = nullptr;
+  napi_create_array_with_length(env, context->output.mask_histogram.size(), &mask_histogram);
+  for (uint32_t index = 0; index < context->output.mask_histogram.size(); ++index) {
+    napi_value value = nullptr;
+    napi_create_int32(env, context->output.mask_histogram[index], &value);
+    napi_set_element(env, mask_histogram, index, value);
+  }
+  napi_set_named_property(env, result, "maskHistogram", mask_histogram);
+  napi_value min_norm = nullptr;
+  napi_create_double(env, static_cast<double>(context->output.min_embedding_norm), &min_norm);
+  napi_set_named_property(env, result, "minEmbeddingNorm", min_norm);
+  napi_value max_norm = nullptr;
+  napi_create_double(env, static_cast<double>(context->output.max_embedding_norm), &max_norm);
+  napi_set_named_property(env, result, "maxEmbeddingNorm", max_norm);
   napi_resolve_deferred(env, context->deferred, result);
   napi_delete_async_work(env, context->work);
 }

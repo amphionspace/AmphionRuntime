@@ -29,6 +29,8 @@ import {
 } from './Community1TimelineReconstructor';
 
 const SAMPLE_RATE: number = 16000;
+const PROVISIONAL_MIN_WINDOWS: number = 2;
+const PROVISIONAL_REWRITE_MS: number = 12_000;
 
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
@@ -63,6 +65,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private lastAsrEndMs: number = 0;
   private inferenceMs: number = 0;
   private finalSpeakerCount: number = 0;
+  private communityDiagnostics: Record<string, Object> = {};
   private degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
   private degradedMessage?: string;
   private finishRequested: boolean = false;
@@ -70,6 +73,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private asrTailObserved: boolean = false;
   private finished: boolean = false;
   private finalizing: boolean = false;
+  private provisionalRunning: boolean = false;
+  private provisionalPending: boolean = false;
+  private provisionalPromise?: Promise<void>;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
 
@@ -129,7 +135,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   }
 
   asrFinalDelivered(_result: AsrResult): void {
-    // Community-1 jointly estimates identities after all chunks are available.
+    // ASR finalization is independent from acoustic clustering.  A provisional
+    // Community-1 pass is scheduled by onWindow so role labels can be revised
+    // while recognition continues.
+    this.scheduleProvisionalCommunity();
   }
 
   finish(): void {
@@ -166,6 +175,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finished) return;
     this.windows.push(window);
     this.inferenceMs += window.result.inferenceMs;
+    this.scheduleProvisionalCommunity();
   }
 
   onDrained(): void {
@@ -188,26 +198,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   private async finalizeCommunity(): Promise<void> {
     try {
+      if (this.provisionalPromise !== undefined) await this.provisionalPromise;
       if (this.windows.length > 0 &&
         this.degradedReason === SpeakerDiarizationDegradedReason.NONE) {
-        const clustering = await this.client.clusterCommunity(
-          this.windows.map(window => window.result), this.minSpeakers, this.maxSpeakers);
-        const timeline: Community1TimelineResult = this.reconstructor.reconstruct(
-          this.windows, clustering, this.totalSamples, this.maxSpeakers);
-        this.standardTurns = timeline.speakerTurns;
-        this.exclusiveTurns = timeline.exclusiveSpeakerTurns;
-        this.finalSpeakerCount = timeline.speakerCount;
-        const updates = this.transcript.applySpeakerTurns(this.exclusiveTurns);
-        for (let index = 0; index < updates.length; index++) {
-          this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[index]));
-        }
-        if (clustering.constraintViolated ||
-          (this.minSpeakers !== undefined && this.finalSpeakerCount < this.minSpeakers) ||
-          (this.maxSpeakers !== undefined && this.finalSpeakerCount > this.maxSpeakers)) {
-          this.onDegraded(SpeakerDiarizationDegradedReason.SPEAKER_LIMIT_EXCEEDED,
-            `automatic speaker count ${this.finalSpeakerCount} is outside configured range ` +
-            `[${this.minSpeakers ?? 1}, ${this.maxSpeakers ?? 'unbounded'}]`);
-        }
+        await this.refreshCommunity(true);
       }
     } catch (error) {
       this.onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
@@ -215,6 +209,74 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
     this.processDrained = true;
     this.finalizeIfReady();
+  }
+
+  private scheduleProvisionalCommunity(): void {
+    if (this.finished || this.finalizing || this.degradedReason !== SpeakerDiarizationDegradedReason.NONE ||
+      this.windows.length < PROVISIONAL_MIN_WINDOWS) return;
+    if (this.provisionalRunning) {
+      this.provisionalPending = true;
+      return;
+    }
+    this.provisionalRunning = true;
+    this.provisionalPromise = this.refreshCommunity(false).catch((error: Object): void => {
+      this.onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
+        `Community-1 provisional clustering failed: ${error}`);
+    }).finally((): void => {
+      this.provisionalRunning = false;
+      this.provisionalPromise = undefined;
+      if (this.provisionalPending) {
+        this.provisionalPending = false;
+        this.scheduleProvisionalCommunity();
+      }
+    });
+  }
+
+  private async refreshCommunity(finalPass: boolean): Promise<void> {
+    if (this.windows.length === 0) return;
+    const clustering = await this.client.clusterCommunity(
+      this.windows.map(window => window.result), this.minSpeakers, this.maxSpeakers);
+    const timeline: Community1TimelineResult = this.reconstructor.reconstruct(
+      this.windows, clustering, this.totalSamples, this.maxSpeakers);
+    this.standardTurns = timeline.speakerTurns;
+    this.exclusiveTurns = timeline.exclusiveSpeakerTurns;
+    this.finalSpeakerCount = timeline.speakerCount;
+    this.communityDiagnostics = {};
+    this.communityDiagnostics['windowCount'] = this.windows.length;
+    this.communityDiagnostics['validEmbeddingCount'] = clustering.validEmbeddingCount;
+    this.communityDiagnostics['ahcClusterCount'] = clustering.ahcClusterCount;
+    this.communityDiagnostics['autoSpeakerCount'] = clustering.autoSpeakerCount;
+    this.communityDiagnostics['speakerCount'] = clustering.speakerCount;
+    this.communityDiagnostics['minEmbeddingNorm'] = clustering.minEmbeddingNorm;
+    this.communityDiagnostics['maxEmbeddingNorm'] = clustering.maxEmbeddingNorm;
+    this.communityDiagnostics['cleanFrameCounts'] = clustering.cleanFrameCounts;
+    this.communityDiagnostics['maskHistogram'] = clustering.maskHistogram;
+    const rewriteFrom = finalPass ? 0 : Math.max(0,
+      Math.round(this.totalSamples * 1000 / SAMPLE_RATE) - PROVISIONAL_REWRITE_MS);
+    const updates = this.transcript.replaceSpeakerTurns(this.exclusiveTurns, rewriteFrom);
+    for (let index = 0; index < updates.length; index++) {
+      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(updates[index]));
+    }
+    if (finalPass && this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['windowCount'] = this.windows.length;
+      fields['validEmbeddingCount'] = clustering.validEmbeddingCount;
+      fields['ahcClusterCount'] = clustering.ahcClusterCount;
+      fields['autoSpeakerCount'] = clustering.autoSpeakerCount;
+      fields['speakerCount'] = clustering.speakerCount;
+      fields['minEmbeddingNorm'] = clustering.minEmbeddingNorm;
+      fields['maxEmbeddingNorm'] = clustering.maxEmbeddingNorm;
+      fields['cleanFrameCounts'] = clustering.cleanFrameCounts;
+      fields['maskHistogram'] = clustering.maskHistogram;
+      this.diagnostic('COMMUNITY1_CLUSTER_DIAGNOSTICS', fields);
+    }
+    if (finalPass && (clustering.constraintViolated ||
+      (this.minSpeakers !== undefined && this.finalSpeakerCount < this.minSpeakers) ||
+      (this.maxSpeakers !== undefined && this.finalSpeakerCount > this.maxSpeakers))) {
+      this.onDegraded(SpeakerDiarizationDegradedReason.SPEAKER_LIMIT_EXCEEDED,
+        `automatic speaker count ${clustering.autoSpeakerCount} is outside configured range ` +
+        `[${this.minSpeakers ?? 1}, ${this.maxSpeakers ?? 'unbounded'}]`);
+    }
   }
 
   private finalizeIfReady(): void {
@@ -246,6 +308,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     result.inferenceMs = this.inferenceMs;
     result.rtf = this.inferenceMs /
       Math.max(1, this.totalSamples * 1000 / SAMPLE_RATE);
+    result.communityDiagnostics = this.communityDiagnostics;
     return result;
   }
 

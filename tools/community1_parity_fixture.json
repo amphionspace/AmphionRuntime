@@ -1,0 +1,13 @@
+{
+  "seed": 20260925,
+  "chunks": 4,
+  "localSpeakers": 3,
+  "framesPerChunk": 589,
+  "embeddingDimension": 256,
+  "plda": "shared/models/asr/dingqiao/community1-plda.npz",
+  "xvecTransform": "shared/models/asr/dingqiao/community1-xvec-transform.npz",
+  "nativeTolerance": {
+    "absolute": 0.002,
+    "relative": 0.002
+  }
+}

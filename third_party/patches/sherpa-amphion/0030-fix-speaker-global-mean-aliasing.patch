@@ -1,0 +1,27 @@
+From: Amphion Runtime <runtime@amphion.local>
+Date: Fri, 25 Sep 2026 12:30:00 +0800
+Subject: [PATCH] fix(speaker): materialize global feature mean
+
+Avoid evaluating the column mean through the same Eigen map while its rows are
+being overwritten. Community-1 requires every feature frame to be centered by
+one fixed whole-window mean.
+---
+ .../csrc/speaker-embedding-extractor-general-impl.h       | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h b/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
+index 5b10da2..882857b 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
+@@ -139,7 +139,8 @@ class SpeakerEmbeddingExtractorGeneralImpl
+         Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>>(
+         p, num_frames, feat_dim);
+ 
+-    m = m.rowwise() - m.colwise().mean();
++    const Eigen::RowVectorXf mean = m.colwise().mean();
++    m.rowwise() -= mean;
+   }
+ 
+  private:
+-- 
+2.51.0.windows.1

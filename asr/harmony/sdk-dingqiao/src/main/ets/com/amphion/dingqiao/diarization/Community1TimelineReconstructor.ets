@@ -30,7 +30,7 @@ export class Community1TimelineReconstructor {
     const globalFrames = Math.max(1,
       Math.round((finalChunkStart + WINDOW_SAMPLES) / FRAME_SHIFT_SAMPLES) + 1);
     const countSums = new Float32Array(globalFrames);
-    const countWeights = new Uint16Array(globalFrames);
+    const countWeights = new Float32Array(globalFrames);
     let speakerCount = clustering.speakerCount;
     const activations = new Float32Array(globalFrames * speakerCount);
 
@@ -41,13 +41,22 @@ export class Community1TimelineReconstructor {
         const targetFrame = offset + frame;
         if (targetFrame < 0 || targetFrame >= globalFrames) continue;
         const mask = window.frameMasks[frame] ?? 0;
-        countSums[targetFrame] += this.bitCount(mask);
-        countWeights[targetFrame] += 1;
+        const frameWeight = Math.max(0.0, window.frameWeights[frame] ?? 1.0);
+        if (frameWeight <= 0) continue;
+        countSums[targetFrame] += this.bitCount(mask) * frameWeight;
+        countWeights[targetFrame] += frameWeight;
         for (let local = 0; local < LOCAL_SPEAKERS; local++) {
           if ((mask & (1 << local)) === 0) continue;
           const cluster = clustering.hardClusters[chunk * LOCAL_SPEAKERS + local] ?? -2;
           if (cluster >= 0 && cluster < speakerCount) {
-            activations[targetFrame * speakerCount + cluster] += 1;
+            const scoreWidth = speakerCount;
+            const scoreIndex = (chunk * LOCAL_SPEAKERS + local) * scoreWidth + cluster;
+            const rawScore = clustering.clusterScores[scoreIndex];
+            // Native scores are 1 + cosine.  Convert them to a positive
+            // overlap-add weight while retaining a hard-cluster fallback for
+            // old native libraries.
+            const scoreWeight = Number.isFinite(rawScore) ? Math.max(0.001, rawScore / 2.0) : 1.0;
+            activations[targetFrame * speakerCount + cluster] += frameWeight * scoreWeight;
           }
         }
       }
@@ -58,7 +67,9 @@ export class Community1TimelineReconstructor {
     for (let frame = 0; frame < globalFrames; frame++) {
       const count = countWeights[frame] === 0 ? 0 :
         Math.round(countSums[frame] / countWeights[frame]);
-      counts[frame] = Math.min(count, maxSpeakers ?? count);
+      // Speaker bounds are enforced by the clustering stage and reported as a
+      // constraint violation.  Do not silently discard active channels here.
+      counts[frame] = Math.min(count, speakerCount);
       maximumCount = Math.max(maximumCount, counts[frame]);
     }
     // This mirrors Community-1's zero-column padding when segmentation counts
@@ -114,14 +125,17 @@ export class Community1TimelineReconstructor {
   private activeSpeakers(activations: Float32Array, frame: number,
     speakerCount: number, count: number): number[] {
     if (count <= 0) return [];
-    const indexes = new Array<number>(speakerCount);
-    for (let speaker = 0; speaker < speakerCount; speaker++) indexes[speaker] = speaker;
+    const indexes: number[] = [];
+    for (let speaker = 0; speaker < speakerCount; speaker++) {
+      if (activations[frame * speakerCount + speaker] > 0) indexes.push(speaker);
+    }
+    if (indexes.length === 0) return [];
     indexes.sort((left: number, right: number): number => {
       const difference = activations[frame * speakerCount + right] -
         activations[frame * speakerCount + left];
       return difference === 0 ? left - right : difference;
     });
-    return indexes.slice(0, Math.min(count, speakerCount));
+    return indexes.slice(0, Math.min(count, indexes.length));
   }
 
   private bitCount(value: number): number {

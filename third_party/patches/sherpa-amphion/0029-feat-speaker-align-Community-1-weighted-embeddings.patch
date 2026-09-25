@@ -1,0 +1,420 @@
+From a8662d336d46ece98415283c4fb92bf9b34ce362 Mon Sep 17 00:00:00 2001
+From: Amphion Build <build@amphion.local>
+Date: Fri, 25 Sep 2026 12:06:02 +0800
+Subject: [PATCH] feat(speaker): align Community-1 weighted embeddings
+
+---
+ .../src/main/cpp/speaker-identification.cc    | 64 +++++++++++++++++--
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  3 +
+ .../ets/components/SpeakerIdentification.ets  |  6 ++
+ sherpa-onnx/c-api/c-api.cc                    | 11 ++++
+ sherpa-onnx/c-api/c-api.h                     |  5 ++
+ ...speaker-embedding-extractor-general-impl.h | 37 ++++++++++-
+ .../csrc/speaker-embedding-extractor-impl.h   |  6 ++
+ ...aker-embedding-extractor-model-meta-data.h |  4 ++
+ .../csrc/speaker-embedding-extractor-model.cc | 36 ++++++++++-
+ .../csrc/speaker-embedding-extractor-model.h  |  4 ++
+ .../csrc/speaker-embedding-extractor.cc       |  5 ++
+ .../csrc/speaker-embedding-extractor.h        |  4 ++
+ 12 files changed, 178 insertions(+), 7 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+index f942448..ba7e70b 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/speaker-identification.cc
+@@ -537,11 +537,13 @@ class SpeakerEmbeddingExtractorComputeAsyncWorker : public Napi::AsyncWorker {
+       Napi::Env env,
+       std::shared_ptr<SpeakerEmbeddingExtractorState> extractor,
+       std::shared_ptr<OnlineStreamState> stream,
+-      Napi::Promise::Deferred deferred)
++      Napi::Promise::Deferred deferred,
++      std::vector<float> weights = {})
+       : Napi::AsyncWorker(env, "SpeakerEmbeddingExtractorComputeAsyncWorker"),
+         extractor_(std::move(extractor)),
+         stream_(std::move(stream)),
+-        deferred_(deferred) {}
++        deferred_(deferred),
++        weights_(std::move(weights)) {}
+ 
+   void Execute() override {
+     try {
+@@ -554,8 +556,11 @@ class SpeakerEmbeddingExtractorComputeAsyncWorker : public Napi::AsyncWorker {
+         return;
+       }
+       std::lock_guard<std::mutex> lock(extractor_->InferenceMutex());
+-      const float *embedding =
+-          SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor, stream);
++      const float *embedding = weights_.empty()
++          ? SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(extractor, stream)
++          : SherpaOnnxSpeakerEmbeddingExtractorComputeEmbeddingWeighted(
++              extractor, stream, weights_.data(),
++              static_cast<int32_t>(weights_.size()));
+       if (embedding == nullptr) {
+         error_ = "Speaker embedding extraction returned no result";
+         return;
+@@ -594,6 +599,7 @@ class SpeakerEmbeddingExtractorComputeAsyncWorker : public Napi::AsyncWorker {
+   std::shared_ptr<OnlineStreamState> stream_;
+   Napi::Promise::Deferred deferred_;
+   std::vector<float> values_;
++  std::vector<float> weights_;
+   std::string error_;
+ };
+ 
+@@ -629,6 +635,50 @@ static Napi::Value SpeakerEmbeddingExtractorComputeEmbeddingAsyncWrapper(
+   return deferred.Promise();
+ }
+ 
++static Napi::Value SpeakerEmbeddingExtractorComputeEmbeddingWeightedAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 3 || !info[0].IsExternal() ||
++      !info[1].IsExternal() || !info[2].IsTypedArray()) {
++    Napi::TypeError::New(env,
++        "Expected speaker extractor, stream, and Float32Array weights")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++  auto *extractor_handle = GetSpeakerEmbeddingExtractorHandle(info, 0);
++  auto *stream_handle = GetOnlineStreamHandle(info, 1);
++  auto extractor = extractor_handle == nullptr ? nullptr : extractor_handle->Lease();
++  auto stream = stream_handle == nullptr ? nullptr : stream_handle->Lease();
++  if (extractor == nullptr || extractor->Get() == nullptr ||
++      stream == nullptr || stream->Get() == nullptr) {
++    Napi::Error::New(env, "Speaker embedding extractor or stream is closed")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++  Napi::TypedArray input = info[2].As<Napi::TypedArray>();
++  if (input.TypedArrayType() != napi_float32_array) {
++    Napi::TypeError::New(env, "weights must be Float32Array")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++  auto float_input = info[2].As<Napi::Float32Array>();
++  std::vector<float> weights(float_input.Data(),
++                             float_input.Data() + float_input.ElementLength());
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new SpeakerEmbeddingExtractorComputeAsyncWorker(
++      env, std::move(extractor), std::move(stream), deferred,
++      std::move(weights));
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    deferred.Reject(Napi::Error::New(env,
++        "Failed to queue weighted speaker embedding work").Value());
++    return deferred.Promise();
++  }
++  return deferred.Promise();
++}
++
+ class SpeakerEmbeddingExtractorComputeBatchAsyncWorker
+     : public Napi::AsyncWorker {
+  public:
+@@ -1312,6 +1362,12 @@ void InitSpeakerID(Napi::Env env, Napi::Object exports) {
+       Napi::Function::New(
+           env, SpeakerEmbeddingExtractorComputeEmbeddingAsyncWrapper));
+ 
++  exports.Set(
++      Napi::String::New(env,
++                        "speakerEmbeddingExtractorComputeEmbeddingWeightedAsync"),
++      Napi::Function::New(
++          env, SpeakerEmbeddingExtractorComputeEmbeddingWeightedAsyncWrapper));
++
+   exports.Set(
+       Napi::String::New(
+           env, "speakerEmbeddingExtractorComputeEmbeddingBatchAsync"),
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 86a58a7..ac0be80 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -88,6 +88,9 @@ export const speakerEmbeddingExtractorComputeEmbedding: (handle: object, stream:
+ export const speakerEmbeddingExtractorComputeEmbeddingAsync: (
+   handle: object, stream: object
+ ) => Promise<Float32Array>;
++export const speakerEmbeddingExtractorComputeEmbeddingWeightedAsync: (
++  handle: object, stream: object, weights: Float32Array
++) => Promise<Float32Array>;
+ export const speakerEmbeddingExtractorComputeEmbeddingBatchAsync: (
+   handle: object, streams: object[]
+ ) => Promise<Array<Float32Array>>;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
+index 3899d1b..b24897c 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/SpeakerIdentification.ets
+@@ -5,6 +5,7 @@ import {
+   destroySpeakerEmbeddingExtractor,
+   speakerEmbeddingExtractorComputeEmbedding,
+   speakerEmbeddingExtractorComputeEmbeddingAsync,
++  speakerEmbeddingExtractorComputeEmbeddingWeightedAsync,
+   speakerEmbeddingExtractorComputeEmbeddingBatchAsync,
+   speakerEmbeddingExtractorCreateStream,
+   speakerEmbeddingExtractorDim,
+@@ -74,6 +75,11 @@ export class SpeakerEmbeddingExtractor {
+     return speakerEmbeddingExtractorComputeEmbeddingAsync(this.handle, stream.handle);
+   }
+ 
++  computeWeightedAsync(stream: OnlineStream, weights: Float32Array): Promise<Float32Array> {
++    return speakerEmbeddingExtractorComputeEmbeddingWeightedAsync(
++      this.handle, stream.handle, weights);
++  }
++
+   computeBatchAsync(streams: OnlineStream[]): Promise<Array<Float32Array>> {
+     return speakerEmbeddingExtractorComputeEmbeddingBatchAsync(
+       this.handle, streams.map((stream: OnlineStream): object => stream.handle));
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 9211f42..f786a2f 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -2484,6 +2484,17 @@ const float *SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(
+   return ans;
+ }
+ 
++const float *SherpaOnnxSpeakerEmbeddingExtractorComputeEmbeddingWeighted(
++    const SherpaOnnxSpeakerEmbeddingExtractor *p,
++    const SherpaOnnxOnlineStream *s, const float *weights, int32_t num_weights) {
++  if (!p || !s || !weights || num_weights <= 0) return nullptr;
++  std::vector<float> mask(weights, weights + num_weights);
++  std::vector<float> v = p->impl->ComputeWeighted(s->impl.get(), mask);
++  float *ans = new float[v.size()];
++  std::copy(v.begin(), v.end(), ans);
++  return ans;
++}
++
+ void SherpaOnnxSpeakerEmbeddingExtractorDestroyEmbedding(const float *v) {
+   if (!v) return;
+   delete[] v;
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 63797a9..3bf6872 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -3179,6 +3179,11 @@ SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding(
+     const SherpaOnnxSpeakerEmbeddingExtractor *p,
+     const SherpaOnnxOnlineStream *s);
+ 
++SHERPA_ONNX_API const float *
++SherpaOnnxSpeakerEmbeddingExtractorComputeEmbeddingWeighted(
++    const SherpaOnnxSpeakerEmbeddingExtractor *p,
++    const SherpaOnnxOnlineStream *s, const float *weights, int32_t num_weights);
++
+ /**
+  * @brief Destroy an embedding vector returned by
+  * SherpaOnnxSpeakerEmbeddingExtractorComputeEmbedding().
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h b/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
+index 19a8321..1c75b57 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-general-impl.h
+@@ -35,6 +35,16 @@ class SpeakerEmbeddingExtractorGeneralImpl
+     const auto &meta_data = model_.GetMetaData();
+     feat_config.sampling_rate = meta_data.sample_rate;
+     feat_config.normalize_samples = meta_data.normalize_samples;
++    if (meta_data.weighted_pooling) {
++      // Match pyannote.audio's WeSpeakerResNet34 frontend used by
++      // speaker-diarization-community-1. The generic sherpa defaults differ
++      // in amplitude, edge framing, window shape, and upper mel frequency.
++      feat_config.normalize_samples = false;
++      feat_config.snip_edges = true;
++      feat_config.window_type = "hamming";
++      feat_config.high_freq = 0.0f;
++      feat_config.use_energy = false;
++    }
+ 
+     return std::make_unique<OnlineStream>(feat_config);
+   }
+@@ -44,6 +54,18 @@ class SpeakerEmbeddingExtractorGeneralImpl
+   }
+ 
+   std::vector<float> Compute(OnlineStream *s) const override {
++    return ComputeInternal(s, nullptr);
++  }
++
++  std::vector<float> ComputeWeighted(
++      OnlineStream *s, const std::vector<float> &weights) const override {
++    if (weights.empty()) return ComputeInternal(s, nullptr);
++    return ComputeInternal(s, &weights);
++  }
++
++ private:
++  std::vector<float> ComputeInternal(
++      OnlineStream *s, const std::vector<float> *weights) const {
+     int32_t num_frames = s->NumFramesReady() - s->GetNumProcessedFrames();
+     if (num_frames <= 0) {
+ #if __OHOS__
+@@ -88,7 +110,19 @@ class SpeakerEmbeddingExtractorGeneralImpl
+     Ort::Value x =
+         Ort::Value::CreateTensor(memory_info, features.data(), features.size(),
+                                  x_shape.data(), x_shape.size());
+-    Ort::Value embedding = model_.Compute(std::move(x));
++    Ort::Value embedding{nullptr};
++    if (weights == nullptr) {
++      embedding = model_.Compute(std::move(x));
++    } else {
++      auto memory_info =
++          Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
++      std::array<int64_t, 2> weights_shape{1,
++                                            static_cast<int64_t>(weights->size())};
++      Ort::Value mask = Ort::Value::CreateTensor(
++          memory_info, const_cast<float *>(weights->data()), weights->size(),
++          weights_shape.data(), weights_shape.size());
++      embedding = model_.Compute(std::move(x), std::move(mask));
++    }
+     std::vector<int64_t> embedding_shape =
+         embedding.GetTensorTypeAndShapeInfo().GetShape();
+ 
+@@ -99,7 +133,6 @@ class SpeakerEmbeddingExtractorGeneralImpl
+     return ans;
+   }
+ 
+- private:
+   void SubtractGlobalMean(float *p, int32_t num_frames,
+                           int32_t feat_dim) const {
+     auto m = Eigen::Map<
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-impl.h b/sherpa-onnx/csrc/speaker-embedding-extractor-impl.h
+index 6299dce..7b4c12a 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-impl.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-impl.h
+@@ -31,6 +31,12 @@ class SpeakerEmbeddingExtractorImpl {
+   virtual bool IsReady(OnlineStream *s) const = 0;
+ 
+   virtual std::vector<float> Compute(OnlineStream *s) const = 0;
++
++  virtual std::vector<float> ComputeWeighted(
++      OnlineStream *s, const std::vector<float> &weights) const {
++    (void)weights;
++    return Compute(s);
++  }
+ };
+ 
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-model-meta-data.h b/sherpa-onnx/csrc/speaker-embedding-extractor-model-meta-data.h
+index 530938b..5b0bcbc 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-model-meta-data.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-model-meta-data.h
+@@ -22,6 +22,10 @@ struct SpeakerEmbeddingExtractorModelMetaData {
+ 
+   // for 3d-speaker, it is global-mean
+   std::string feature_normalize_type;
++
++  // Community-1's exported WeSpeaker graph has a second frame-weight input.
++  // This also identifies the pyannote-compatible fbank frontend it expects.
++  bool weighted_pooling = false;
+ };
+ 
+ }  // namespace sherpa_onnx
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-model.cc b/sherpa-onnx/csrc/speaker-embedding-extractor-model.cc
+index a014712..fc201a1 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-model.cc
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-model.cc
+@@ -52,7 +52,26 @@ class SpeakerEmbeddingExtractorModel::Impl {
+   }
+ 
+   Ort::Value Compute(Ort::Value x) const {
+-    std::array<Ort::Value, 1> inputs = {std::move(x)};
++    if (input_names_ptr_.size() < 2) {
++      std::array<Ort::Value, 1> inputs = {std::move(x)};
++      auto outputs =
++          sess_->Run({}, input_names_ptr_.data(), inputs.data(), inputs.size(),
++                     output_names_ptr_.data(), output_names_ptr_.size());
++      return std::move(outputs[0]);
++    }
++    // The weighted Community-1 graph requires a second input. The legacy
++    // unweighted API means all frames are active, so provide an all-ones mask.
++    auto shape = x.GetTensorTypeAndShapeInfo().GetShape();
++    const int64_t frames = shape.size() > 1 ? shape[1] : 1;
++    std::vector<float> ones(589, 1.0F);
++    if (frames <= 0) ones.assign(1, 1.0F);
++    auto memory_info =
++        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
++    std::array<int64_t, 2> weights_shape{1, static_cast<int64_t>(ones.size())};
++    Ort::Value weights = Ort::Value::CreateTensor(
++        memory_info, ones.data(), ones.size(), weights_shape.data(),
++        weights_shape.size());
++    std::array<Ort::Value, 2> inputs = {std::move(x), std::move(weights)};
+ 
+     auto outputs =
+         sess_->Run({}, input_names_ptr_.data(), inputs.data(), inputs.size(),
+@@ -60,6 +79,14 @@ class SpeakerEmbeddingExtractorModel::Impl {
+     return std::move(outputs[0]);
+   }
+ 
++  Ort::Value Compute(Ort::Value x, Ort::Value weights) const {
++    std::array<Ort::Value, 2> inputs = {std::move(x), std::move(weights)};
++    auto outputs = sess_->Run({}, input_names_ptr_.data(), inputs.data(),
++                              inputs.size(), output_names_ptr_.data(),
++                              output_names_ptr_.size());
++    return std::move(outputs[0]);
++  }
++
+   const SpeakerEmbeddingExtractorModelMetaData &GetMetaData() const {
+     return meta_data_;
+   }
+@@ -78,6 +105,8 @@ class SpeakerEmbeddingExtractorModel::Impl {
+ 
+     GetInputNames(sess_.get(), &input_names_, &input_names_ptr_);
+ 
++    meta_data_.weighted_pooling = input_names_.size() == 2;
++
+     GetOutputNames(sess_.get(), &output_names_, &output_names_ptr_);
+ 
+     // get meta data
+@@ -154,6 +183,11 @@ Ort::Value SpeakerEmbeddingExtractorModel::Compute(Ort::Value x) const {
+   return impl_->Compute(std::move(x));
+ }
+ 
++Ort::Value SpeakerEmbeddingExtractorModel::Compute(Ort::Value x,
++                                                   Ort::Value weights) const {
++  return impl_->Compute(std::move(x), std::move(weights));
++}
++
+ #if __ANDROID_API__ >= 9
+ template SpeakerEmbeddingExtractorModel::SpeakerEmbeddingExtractorModel(
+     AAssetManager *mgr, const SpeakerEmbeddingExtractorConfig &config);
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor-model.h b/sherpa-onnx/csrc/speaker-embedding-extractor-model.h
+index 6c6bdd0..365a996 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor-model.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor-model.h
+@@ -31,6 +31,10 @@ class SpeakerEmbeddingExtractorModel {
+    */
+   Ort::Value Compute(Ort::Value x) const;
+ 
++  // Community-1 WeSpeaker accepts a frame mask for weighted statistics
++  // pooling. Other extractor models may ignore this overload.
++  Ort::Value Compute(Ort::Value x, Ort::Value weights) const;
++
+  private:
+   class Impl;
+   std::unique_ptr<Impl> impl_;
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor.cc b/sherpa-onnx/csrc/speaker-embedding-extractor.cc
+index 237678b..bc32ca4 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor.cc
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor.cc
+@@ -87,6 +87,11 @@ std::vector<float> SpeakerEmbeddingExtractor::Compute(OnlineStream *s) const {
+   return impl_->Compute(s);
+ }
+ 
++std::vector<float> SpeakerEmbeddingExtractor::ComputeWeighted(
++    OnlineStream *s, const std::vector<float> &weights) const {
++  return impl_->ComputeWeighted(s, weights);
++}
++
+ #if __ANDROID_API__ >= 9
+ template SpeakerEmbeddingExtractor::SpeakerEmbeddingExtractor(
+     AAssetManager *mgr, const SpeakerEmbeddingExtractorConfig &config);
+diff --git a/sherpa-onnx/csrc/speaker-embedding-extractor.h b/sherpa-onnx/csrc/speaker-embedding-extractor.h
+index 068e6b8..164818b 100644
+--- a/sherpa-onnx/csrc/speaker-embedding-extractor.h
++++ b/sherpa-onnx/csrc/speaker-embedding-extractor.h
+@@ -62,6 +62,10 @@ class SpeakerEmbeddingExtractor {
+   // You have to ensure IsReady(s) returns true before you call this method.
+   std::vector<float> Compute(OnlineStream *s) const;
+ 
++  // Compute using a frame mask on the complete stream feature map.
++  std::vector<float> ComputeWeighted(OnlineStream *s,
++                                     const std::vector<float> &weights) const;
++
+  private:
+   std::unique_ptr<SpeakerEmbeddingExtractorImpl> impl_;
+ };
+-- 
+2.55.0.windows.2
+
