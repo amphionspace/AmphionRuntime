@@ -1,0 +1,20 @@
+From: Amphion Runtime <runtime@amphion.local>
+Date: Fri, 25 Sep 2026 14:50:00 +0800
+Subject: [PATCH] perf(harmony): stop idle ASR workers between inference runs
+
+Keep in-run spinning and thread ownership unchanged. Streaming ASR otherwise
+leaves its encoder, decoder and joiner pools competing with offline diarization
+after their Run calls complete.
+
+--- a/sherpa-onnx/csrc/harmony-scheduling.cc
++++ b/sherpa-onnx/csrc/harmony-scheduling.cc
+@@ -89,6 +89,9 @@
+ void ConfigureHarmonyScheduling(Ort::SessionOptions *options) {
+   const auto *policy = construction_policy;
+   if (policy == nullptr) return;
++  // Streaming ASR yields between decode calls. Idle workers must not compete
++  // with other on-device models; retain spinning while Run is active.
++  options->AddConfigEntry("session.force_spinning_stop", "1");
+   if (!policy->allow_spinning) {
+     options->AddConfigEntry("session.intra_op.allow_spinning", "0");
+     options->AddConfigEntry("session.inter_op.allow_spinning", "0");

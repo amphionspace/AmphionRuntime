@@ -238,3 +238,7 @@ asr/android/keystore/
 
 # TN slim build outputs (arm64 ICU cross-build + relinked binaries)
 tts/harmony/build-ohos-tn/
+
+# Community-1 global model statistics are restored with the pinned private asset manifest.
+shared/models/asr/dingqiao/community-feature.f32
+shared/models/asr/dingqiao/community-plda.f64

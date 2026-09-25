@@ -6,6 +6,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 POLICY = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/AsrSchedulingConfig.ts'
 PATCH = ROOT / 'third_party/patches/sherpa-amphion/0027-feat-harmony-asr-thread-scheduling.patch'
+IDLE_PATCH = ROOT / 'third_party/patches/sherpa-amphion/0029-perf-harmony-stop-idle-asr-spinning.patch'
 FIXTURES = Path(__file__).with_name('harmony_scheduling')
 
 
@@ -38,6 +39,7 @@ assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }})
             destination = Path(tmp)
             subprocess.run(['git', 'apply', '--include=sherpa-onnx/csrc/harmony-scheduling.*',
                             str(PATCH)], cwd=destination, check=True)
+            subprocess.run(['git', 'apply', str(IDLE_PATCH)], cwd=destination, check=True)
             binary = destination / 'scheduling-test'
             subprocess.run(['c++', '-std=c++17', '-pthread', '-D__OHOS__',
                             '-I' + str(FIXTURES), '-I' + str(destination),

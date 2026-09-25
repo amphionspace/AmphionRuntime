@@ -1,4 +1,5 @@
 import subprocess
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -140,6 +141,113 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("class HilogDiagnosticSink", sinks)
         self.assertIn("class NdjsonDiagnosticSink", sinks)
         self.assertIn("class MemoryDiagnosticSink", sinks)
+
+    def test_wav_export_preserves_pcm_without_copying_the_recording(self) -> None:
+        source = MODULE.read_text()
+        writer = source[source.index('function writeWav('):source.index('function writeText(')]
+        header = source[source.index('function writeAscii('):source.index('function csvOf(')]
+        script = r"""
+          import assert from 'node:assert/strict';
+          const WAV_HEADER_BYTES=44;
+          let parts=[],closed=0,failAt=0,writes=0,allocated=0;
+          const fs={OpenMode:{WRITE_ONLY:1,CREATE:2,TRUNC:4},
+            openSync(){return {fd:7}},
+            writeSync(fd,value){
+              assert.equal(fd,7);writes++;
+              if(writes===failAt)throw new Error('disk unavailable');
+              parts.push(value);
+            },closeSync(fp){assert.equal(fp.fd,7);closed++}};
+          const OriginalArrayBuffer=globalThis.ArrayBuffer;
+          globalThis.ArrayBuffer=class extends OriginalArrayBuffer {
+            constructor(size){super(size);allocated+=size}
+          };
+        """ + writer + header + r"""
+          for(const size of [0,640,300*32000]) {
+            const pcm=new OriginalArrayBuffer(size),bytes=new Uint8Array(pcm);
+            for(let i=0;i<size;i++)bytes[i]=i%251;
+            parts=[];writes=0;allocated=0;const before=closed;
+            writeWav('capture.wav',pcm);
+            assert.equal(closed,before+1);
+            assert.ok(allocated<=44,'encoding overhead must not grow with recording length');
+            const wav=Buffer.concat(parts.map(p=>Buffer.from(p)));
+            assert.equal(wav.length,44+size);
+            assert.equal(wav.toString('ascii',0,4),'RIFF');
+            assert.equal(wav.readUInt32LE(4),36+size);
+            assert.equal(wav.toString('ascii',8,16),'WAVEfmt ');
+            assert.equal(wav.readUInt32LE(16),16);
+            assert.equal(wav.readUInt16LE(20),1);
+            assert.equal(wav.readUInt16LE(22),1);
+            assert.equal(wav.readUInt32LE(24),16000);
+            assert.equal(wav.readUInt32LE(28),32000);
+            assert.equal(wav.readUInt16LE(32),2);
+            assert.equal(wav.readUInt16LE(34),16);
+            assert.equal(wav.toString('ascii',36,40),'data');
+            assert.equal(wav.readUInt32LE(40),size);
+            assert.deepEqual(wav.subarray(44),Buffer.from(pcm));
+          }
+          for(const failure of [1,2]) {
+            writes=0;failAt=failure;const before=closed;
+            assert.throws(()=>writeWav('capture.wav',new OriginalArrayBuffer(640)),/disk unavailable/);
+            assert.equal(closed,before+1);
+          }
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'streamed-wav.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True)
+
+    def test_streamed_event_files_preserve_bytes_and_close_on_write_failure(self) -> None:
+        sink = SINKS.read_text().split("export class NdjsonDiagnosticSink", 1)[1]
+        sink = "export class NdjsonDiagnosticSink" + sink
+        module = MODULE.read_text()
+        writer = module[module.index("  private static writeEvents("):
+                        module.index("  private static writeSnapshot(")]
+        script = r"""
+          import assert from 'node:assert/strict';
+          import { createHash } from 'node:crypto';
+          type DiagnosticEvent = object;
+        """ + sink + r"""
+          let closed=0, writes=0, fail=false, maximum=0, hash;
+          const fs={OpenMode:{WRITE_ONLY:1,CREATE:2,TRUNC:4},
+            openSync(){return {fd:7}},
+            writeSync(fd,value){
+              assert.equal(fd,7);writes++;
+              if(fail)throw new Error('disk unavailable');
+              maximum=Math.max(maximum,Buffer.byteLength(value));hash.update(value);
+            }, closeSync(fp){assert.equal(fp.fd,7);closed++}};
+          class DiagnosticsModule {
+            static ndjsonSink = new NdjsonDiagnosticSink();
+        """ + writer.replace('private static', 'static') + r"""
+          }
+          const events=Array.from({length:1000},(_,i)=>({sequence:i,event:'WINDOW',
+            fields:{text:'中文 / English \" \n',scores:Array.from({length:768},(_,j)=>(i+j)/997)}}));
+          for(const values of [[],events.slice(0,1),events])for(const asArray of [false,true]) {
+            hash=createHash('sha256');maximum=0;
+            const before=closed;
+            DiagnosticsModule.writeEvents('trace',values,asArray);
+            const expected=asArray?JSON.stringify(values)+'\n':values.map(e=>JSON.stringify(e)+'\n').join('');
+            assert.equal(hash.digest('hex'),createHash('sha256').update(expected).digest('hex'));
+            assert.equal(closed,before+1);
+            assert.ok(maximum<64*1024,'temporary encoding must remain bounded by one event');
+          }
+          const tensor=new Float32Array([0,1,-0,NaN,Infinity,-Infinity,Math.fround(1/3)]);
+          const compact=[{sequence:1001,event:'WINDOW',fields:{segmentations:tensor,embeddings:tensor.slice()}}];
+          const plain=[{sequence:1001,event:'WINDOW',fields:{segmentations:Array.from(tensor),embeddings:Array.from(tensor)}}];
+          for(const asArray of [false,true]) {
+            hash=createHash('sha256');
+            DiagnosticsModule.writeEvents('tensor-trace',compact,asArray);
+            const expected=asArray?JSON.stringify(plain)+'\n':plain.map(e=>JSON.stringify(e)+'\n').join('');
+            assert.equal(hash.digest('hex'),createHash('sha256').update(expected).digest('hex'),
+              'compact tensors must retain the flat array schema and every raw numeric score');
+          }
+          fail=true;const before=closed;
+          assert.throws(()=>DiagnosticsModule.writeEvents('trace',events),/disk unavailable/);
+          assert.equal(closed,before+1,'write failure must still release the file');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'streamed-events.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True)
 
     def test_disabled_core_has_no_capture_or_event_overhead(self) -> None:
         self.run_core(
@@ -316,6 +424,39 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             """
         )
 
+    def test_audio_statistics_match_retained_pcm_after_partial_trims_and_trigger(self) -> None:
+        self.run_core(
+            """
+            for (const mode of ['CUSTOMER_SUPPORT', 'FAILURE_ONLY']) {
+              const core = new DiagnosticsCore();
+              core.configure({enabled:true,mode,captureAudio:true,includeRecognitionText:false,
+                maxSessionAudioSec:2,failureRingAudioSec:1},1000);
+              const engine=core.nextEngineId();core.beginSession('s',engine,{},1000);
+              let expected=[],triggered=mode==='CUSTOMER_SUPPORT',position=0;
+              const pattern=[32767,-32768,0,1000,-1234,7];
+              for (const length of [11003,9999,7013,9001,27007]) {
+                const pcm=Int16Array.from({length},()=>pattern[position++%pattern.length]);
+                expected.push(...pcm);
+                expected=expected.slice(-(triggered?32000:16000));
+                core.captureAudio('s',pcm.buffer,1000+position);
+                pcm.fill(0); // A caller-owned buffer can be reused immediately.
+                const audio=core.snapshot(true).sessions[0].audio;
+                assert.deepEqual(Array.from(new Int16Array(audio.pcm)),expected);
+                const energy=expected.reduce((sum,value)=>sum+value*value,0);
+                const peak=Math.max(...expected.map(Math.abs));
+                const clipped=expected.filter(value=>Math.abs(value)>=32767).length;
+                assert.equal(audio.rms,Math.sqrt(energy/expected.length)/32768);
+                assert.equal(audio.peak,peak/32768);
+                assert.equal(audio.clipRate,clipped/expected.length);
+                assert.deepEqual(core.snapshot(true).sessions[0].audio,audio);
+                if(position>16000&&!triggered){
+                  core.record('s',engine,'CALLBACK_ERROR',{},1000+position);triggered=true;
+                }
+              }
+            }
+            """
+        )
+
     def test_event_ring_is_bounded_without_losing_final_classification_state(self) -> None:
         self.run_core(
             """
@@ -348,6 +489,89 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             "const emptyFinal = session.abnormalReasons.indexOf('empty-final') >= 0;",
             module,
         )
+
+    def test_journal_materializes_retained_audio_once_without_changing_evidence(self) -> None:
+        from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
+
+        module = MODULE.read_text(encoding="utf-8")
+        body = method_body(module.replace("private static ", "private "), "flushBackground")
+        filter_function = module[
+            module.index("function snapshotWithSessions(") : module.index("/** File adapter.")
+        ]
+        script = f"""
+            import assert from 'node:assert/strict';
+            import {{ DiagnosticsCore, DiagnosticModeValue }} from {CORE.as_uri()!r};
+            import type {{ DiagnosticsSnapshot, DiagnosticSessionSnapshot,
+              DiagnosticEvent }} from {CORE.as_uri()!r};
+            {filter_function}
+            const fs = {{ accessSync: () => false, renameSync: () => {{}} }};
+            const ensureDirectory = () => {{}};
+            const removeTree = () => {{}};
+            const sampleResources = () => ({{}});
+            const writes = [];
+            class DiagnosticsModule {{
+              static core;
+              static resourceSamples = [];
+              static exportRoot() {{ return 'export'; }}
+              static pendingRoot() {{ return 'pending'; }}
+              static rotateRuns() {{}}
+              static writeSnapshot(path, snapshot, automatic) {{
+                writes.push({{path, snapshot: structuredClone(snapshot), automatic}});
+              }}
+              static flushBackground() {{ {body} }}
+            }}
+            for (const mode of ['BASIC', 'CUSTOMER_SUPPORT', 'FAILURE_ONLY']) {{
+              const core = new DiagnosticsCore();
+              core.configure({{enabled: true, mode, captureAudio: true,
+                includeRecognitionText: true, maxSessionAudioSec: 300}}, 1000);
+              DiagnosticsModule.core = core;
+              const engine = core.nextEngineId();
+              core.beginSession('active', engine, {{}}, 1000);
+              const pcm = Int16Array.from({{length: 16000}}, (_, i) => i % 30000);
+              core.captureAudio('active', pcm.buffer, 1000);
+              const snapshot = core.snapshot.bind(core);
+              for (let stage = 0; stage < 4; stage++) {{
+                if (stage === 1) {{
+                  core.beginSession('normal', engine, {{}}, 1100);
+                  core.captureAudio('normal', pcm.buffer, 1100);
+                  core.record('normal', engine, 'CANCEL_REQUESTED', {{}}, 1110);
+                }}
+                if (stage === 2) {{
+                  core.beginSession('failed', engine, {{}}, 1200);
+                  core.captureAudio('failed', pcm.buffer, 1200);
+                  core.record('failed', engine, 'CALLBACK_ERROR', {{}}, 1210);
+                }}
+                if (stage === 3) core.record('active', engine, 'CANCEL_REQUESTED', {{}}, 1300);
+                const journal = snapshot(true), completed = snapshot(false);
+                const expectedPending = snapshotWithSessions(journal,
+                  journal.sessions.filter(s => !s.terminal));
+                const persist = mode === 'CUSTOMER_SUPPORT' ?
+                  completed.sessions.some(s => s.terminal) : completed.sessions.length > 0;
+                const retainedBytes = journal.sessions.reduce((n, s) => n + (s.audio?.bytes ?? 0), 0);
+                let materializedBytes = 0;
+                core.snapshot = (pending = false) => {{
+                  const value = snapshot(pending);
+                  materializedBytes += value.sessions.reduce((n, s) => n + (s.audio?.bytes ?? 0), 0);
+                  return value;
+                }};
+                writes.length = 0;
+                DiagnosticsModule.flushBackground();
+                const exported = writes.find(w => w.path.startsWith('export/'));
+                const pending = writes.find(w => w.path.startsWith('pending/'));
+                assert.equal(Boolean(exported), persist);
+                if (exported) assert.deepEqual(exported.snapshot, completed);
+                assert.equal(Boolean(pending), expectedPending.sessions.length > 0);
+                if (pending) assert.deepEqual(pending.snapshot, expectedPending);
+                assert.ok(materializedBytes <= retainedBytes,
+                  `${{mode}} stage=${{stage}} copied ${{materializedBytes}} retained=${{retainedBytes}}`);
+              }}
+            }}
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / "journal.mts"
+            entry.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(entry)],
+                           check=True, cwd=REPO_ROOT)
 
 
 if __name__ == "__main__":

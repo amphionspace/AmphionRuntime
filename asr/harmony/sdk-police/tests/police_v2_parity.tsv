@@ -819,3 +819,12 @@ pipeline	equals	请把合肥市包河区五湖路派出所近三天的处警情�
 station	equals	把银川市兴庆区兴华街派出所端午假期期间的接警数据按派警时段列一下。	把银川市兴庆区新华街派出所端午假期期间的接警数据按派警时段列一下。
 station	equals	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。	请把合肥市包河区芜湖路派出所近三天的处警情况整理一下。
 station	equals	请把长安新城派出所近三天的处警情况整理一下。	请把长安新城派出所近三天的处警情况整理一下。
+# Ordinary meeting words are not Latin province aliases.
+pipeline	equals	THROUGH JUST THEIR HABITS	THROUGH JUST THEIR HABITS
+pipeline	equals	TOGETHER WE SHOULD DISCUSS THIS	TOGETHER WE SHOULD DISCUSS THIS
+pipeline	equals	USER GROUP NEEDS A REMOTE CONTROL	USER GROUP NEEDS A REMOTE CONTROL
+pipeline	equals	今天讨论 THROUGH JUST THEIR HABITS 的意思	今天讨论 THROUGH JUST THEIR HABITS 的意思
+pipeline	equals	through just their habits	through just their habits
+plate	equals	UG12345	豫G12345
+plate	equals	车牌号UGABCDE	车牌号豫GABCDE
+plate	equals	冀R一二三四五	冀R12345

@@ -1,0 +1,44 @@
+# Community-1 会话测试迁移
+
+公共字段、参数、ASR 回调顺序、取消语义和 finish barrier 保持不变。角色内部模型改用 Community 分割张量、masked WeSpeaker、PLDA 和 VBx；原 ERes/CAMP 会话的 context/query/registry 注入接口不再存在。
+
+旧 `OnlineSpeakerRegistry`、`SpeakerDiarizationGlobalClusterer` 和导出的 `SpeakerDiarizationInference` 保留主线实现及其组件测试，排除没有接入 Community 的旧模型实验改动。原有本地取样、模型副本释放和异步队列顺序的五项组件测试全部保留。
+
+## 新实现保留的外部断言
+
+| 行为 | 回归位置 |
+|---|---|
+| 四个不同声音、音量变化、短发言和短插话不被适配层过滤 | `test_harmony_diarization_foreground_level.py`；`test_harmony_community_public_contract.py` |
+| 已发布身份不被聚类合并或重命名抹掉；未发布上下文不能占角色名额 | `test_harmony_community_diarization.py` |
+| 已提交区间和文字冻结；未知和重叠保留；文字不被副角色变化拆碎 | `test_harmony_community_public_contract.py`；原 transcript、句子输出和窗口定稿套件 |
+| 诊断只观察实际模型输入输出，不改变公开结果 | `test_diagnostics_report_actual_evidence_and_do_not_change_public_results` |
+| finish、取消、重入、迟到结果、初始静音和资源归属 | Community 会话/客户端套件；原 timeout、runtime-release、finish-barrier 套件 |
+| 人数上限、有效建档与 UNKNOWN 重叠、特征计算数值一致 | `test_harmony_community_native.py` |
+
+原实现的双模型匹配阈值、累计建档时长、局部查询和相对音量规则属于被替换算法的内部步骤，不移植到 Community，也不为使旧步骤断言通过而修改模型阈值。下面逐项列出相对基线 `de5bdd358925653c6cd54b89659b54d892c5456e` 迁移的会话用例，避免把中途原型测试当作主线测试清单。
+
+## 迁移的基线会话用例
+
+- `test_harmony_diarization_boundary_refinement.py::test_commit_uses_independently_matched_children_without_enrolling_or_expanding`
+- `test_harmony_diarization_foreground_level.py::test_later_louder_speech_revises_only_uncommitted_quiet_evidence`
+- `test_harmony_diarization_foreground_level.py::test_quieter_background_cannot_displace_four_principal_voices`
+- `test_harmony_diarization_foreground_level.py::test_unknown_diagnostics_are_observational_and_explain_filtering`
+- `test_harmony_diarization_identity_stability.py::test_complementary_recovery_preserves_known_roles_and_quiet_exclusion`
+- `test_harmony_diarization_identity_stability.py::test_context_only_candidate_leaves_capacity_for_a_supported_fourth_speaker`
+- `test_harmony_diarization_identity_stability.py::test_context_without_output_query_cannot_enroll_or_redirect_another_speaker`
+- `test_harmony_diarization_identity_stability.py::test_final_overlap_does_not_depend_on_provisional_unknown_collisions`
+- `test_harmony_diarization_identity_stability.py::test_historical_admission_still_requires_unique_speech_and_available_capacity`
+- `test_harmony_diarization_identity_stability.py::test_historical_admission_uses_a_previous_committed_foreground_reference`
+- `test_harmony_diarization_identity_stability.py::test_historical_context_cannot_compete_with_current_speech`
+- `test_harmony_diarization_identity_stability.py::test_independent_output_queries_can_confirm_an_ambiguous_context_cluster`
+- `test_harmony_diarization_identity_stability.py::test_later_loud_voice_does_not_erase_an_independently_admitted_new_person`
+- `test_harmony_diarization_identity_stability.py::test_leading_initial_short_voice_keeps_first_identity_eligibility`
+- `test_harmony_diarization_identity_stability.py::test_quiet_independent_context_prevents_duplicate_without_enrolling_quiet_speech`
+- `test_harmony_diarization_identity_stability.py::test_repeated_short_context_cannot_enroll_a_new_speaker`
+- `test_harmony_diarization_identity_stability.py::test_separate_runs_on_one_local_channel_keep_their_own_query_and_commit_boundary`
+- `test_harmony_diarization_query.py::test_session_queries_only_established_output_and_preserves_profiles`
+- `test_harmony_diarization_quiet_local_query.py::test_quiet_recovery_requires_local_agreement_and_preserves_other_evidence`
+
+## 验收边界
+
+上述合成测试验证状态归属和接口行为，不能代替真实音频身份精度。AISHELL-4、AliMeeting 和客户原音仍分别用同输入的 SDK 公共角色区间、最终文字及调用方显示验收；任何漏人、误并、错误定稿或不可读结果均保留为交付阻断，不以单测通过解除。
