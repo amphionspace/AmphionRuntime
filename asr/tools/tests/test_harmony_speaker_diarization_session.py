@@ -140,7 +140,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("this.inference.load(context)", client)
         inference = (CORE_DIARIZATION.parent / "CommunityDiarizationInference.ets").read_text()
         self.assertIn("context.resourceManager", inference)
-        self.assertIn("getRawFileContent", inference)
+        self.assertIn("loadCommunityDiarizationResources(context.resourceManager)", inference)
         self.assertNotIn("NetworkKit", client)
         self.assertNotIn("http.createHttp", client)
         self.assertNotIn("startArkChildProcess", client)
