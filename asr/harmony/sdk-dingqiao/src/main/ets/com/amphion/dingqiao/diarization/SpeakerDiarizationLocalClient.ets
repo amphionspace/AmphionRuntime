@@ -1,7 +1,6 @@
 import { DiarizationPcmSpool } from './DiarizationPcmSpool';
-import { SpeakerDiarizationInference, SpeakerDiarizationWindowResult } from 'amphion_asr';
+import { CommunityDiarizationInference, CommunityDiarizationWindow, CommunityDiarizationCluster } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { DingqiaoSpeakerModelAssets } from '../DingqiaoSpeakerModelAssets';
 import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
 import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './DiarizationWindowScheduler';
 
@@ -18,7 +17,7 @@ export interface DiarizationLocalWindowResult {
   commitStartSample: number;
   stableEndSample: number;
   finalWindow: boolean;
-  result: SpeakerDiarizationWindowResult;
+  result: CommunityDiarizationWindow;
 }
 
 export interface SpeakerDiarizationLocalObserver {
@@ -53,7 +52,8 @@ export class SpeakerDiarizationLocalClient {
   private readonly jobDir: string;
   private readonly spool: DiarizationPcmSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
-  private readonly inference: SpeakerDiarizationInference = new SpeakerDiarizationInference();
+  private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference();
+  private pendingClusters: number = 0;
   private readonly inferenceLoad: Promise<void>;
   private readonly quiescentCallbacks: Array<() => void> = [];
   private nextJobId: number = 1;
@@ -63,16 +63,18 @@ export class SpeakerDiarizationLocalClient {
   private degraded: boolean = false;
   private resourcesClosed: boolean = false;
   private loadSettled: boolean = false;
+  private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
 
-  constructor(context: Context, workPath: string, observer: SpeakerDiarizationLocalObserver) {
+  constructor(context: Context, workPath: string, observer: SpeakerDiarizationLocalObserver,
+    diagnostic?: (event: string, fields: Record<string, Object>) => void) {
     this.observer = observer;
+    this.diagnostic = diagnostic;
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
-    this.inferenceLoad = this.inference.load(context, DingqiaoSpeakerModelAssets.bundledPath(),
-      DingqiaoSpeakerModelAssets.complementaryDiarizationPath());
+    this.inferenceLoad = this.inference.load(context);
     this.inferenceLoad.then((): void => {
       this.loadSettled = true;
       this.closeWhenQuiescent();
@@ -124,19 +126,33 @@ export class SpeakerDiarizationLocalClient {
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
+  async cluster(segments: Float32Array, embeddings: Float32Array,
+    maxSpeakers: number): Promise<CommunityDiarizationCluster> {
+    if (this.closed) throw new Error('speaker diarization client is closed');
+    this.pendingClusters += 1;
+    try {
+      await this.inferenceLoad;
+      if (this.closed) throw new Error('speaker diarization client is closed');
+      return await this.inference.cluster(segments, embeddings, maxSpeakers);
+    } finally {
+      this.pendingClusters -= 1;
+      this.closeWhenQuiescent();
+    }
+  }
 
-  private submit(window: DiarizationInferenceWindow): void {
+  private submit(window: DiarizationInferenceWindow | undefined): void {
+    if (window === undefined) return;
     const jobId = `w${this.nextJobId.toString().padStart(8, '0')}`;
     this.nextJobId += 1;
     const realSamples = Math.max(0, window.realEndSample - window.startSample);
     const sampleCount = Math.min(WINDOW_SAMPLES, realSamples);
-    const contentStartInWindowSample = WINDOW_SAMPLES - sampleCount;
-    const offsetSample = Math.max(0, window.realEndSample - sampleCount);
+    const contentStartInWindowSample = 0;
+    const offsetSample = window.startSample;
     this.queue.push({
       jobId,
       offsetBytes: offsetSample * 2,
       sampleCount,
-      windowStartSample: Math.max(0, window.realEndSample - WINDOW_SAMPLES),
+      windowStartSample: window.startSample,
       contentStartInWindowSample,
       realEndSample: window.realEndSample,
       commitStartSample: window.commitStartSample,
@@ -159,10 +175,10 @@ export class SpeakerDiarizationLocalClient {
   private async execute(job: DiarizationLocalJob): Promise<void> {
     let timeout: number = -1;
     let inferenceTimedOut: boolean = false;
-    let inferencePromise: Promise<SpeakerDiarizationWindowResult> | undefined;
+    let inferencePromise: Promise<CommunityDiarizationWindow> | undefined;
     try {
       const samples = this.readWindow(job);
-      const timeoutPromise = new Promise<SpeakerDiarizationWindowResult>((_resolve,
+      const timeoutPromise = new Promise<CommunityDiarizationWindow>((_resolve,
         reject: (reason?: Object) => void): void => {
         timeout = setTimeout((): void => {
           inferenceTimedOut = true;
@@ -170,10 +186,7 @@ export class SpeakerDiarizationLocalClient {
         }, INFERENCE_TIMEOUT_MS);
       });
       inferencePromise = this.inferenceLoad.then(
-        (): Promise<SpeakerDiarizationWindowResult> => this.inference.process(samples,
-          job.commitStartSample - job.windowStartSample + job.contentStartInWindowSample,
-          job.stableEndSample - job.windowStartSample + job.contentStartInWindowSample,
-          job.windowStartSample - job.contentStartInWindowSample));
+        (): Promise<CommunityDiarizationWindow> => this.inference.process(samples));
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
@@ -181,6 +194,7 @@ export class SpeakerDiarizationLocalClient {
         await this.settleInference(inferencePromise);
         return;
       }
+      this.recordWindowSamples(job, samples, result);
       this.observer.onWindow({
         jobId: job.jobId,
         windowStartSample: job.windowStartSample,
@@ -225,14 +239,74 @@ export class SpeakerDiarizationLocalClient {
     try { await promise; } catch (_ignored) {}
   }
 
+  private recordWindowSamples(job: DiarizationLocalJob, samples: Float32Array,
+    result: CommunityDiarizationWindow): void {
+    if (this.diagnostic === undefined) return;
+    try {
+      for (let channel = 0; channel < 3; channel++) {
+        const active: number[] = [];
+        const clean: number[] = [];
+        let cleanCount: number = 0;
+        for (let frame = 0; frame < 589; frame++) {
+          const count = result.segments[frame * 3] + result.segments[frame * 3 + 1] +
+            result.segments[frame * 3 + 2];
+          active.push(result.segments[frame * 3 + channel]);
+          clean.push(count === 1 ? active[frame] : 0);
+          cleanCount += clean[frame];
+        }
+        const mask = cleanCount > 2 ? clean : active;
+        const ranges: number[][] = [];
+        for (let frame = 0; frame < 589; frame++) {
+          if (mask[frame] === 0) continue;
+          const begin = frame * 270;
+          const end = Math.min(job.sampleCount, begin + 991);
+          if (begin >= end) continue;
+          const previous = ranges[ranges.length - 1];
+          if (previous !== undefined && previous[1] >= begin) previous[1] = end;
+          else ranges.push([begin, end]);
+        }
+        let energy: number = 0;
+        let count: number = 0;
+        for (const range of ranges) {
+          for (let sample = range[0]; sample < range[1]; sample++) {
+            energy += samples[sample] * samples[sample]; count += 1;
+          }
+        }
+        const valid = result.embeddings.slice(channel * 256, (channel + 1) * 256)
+          .every((value: number): boolean => Number.isFinite(value));
+        const fields: Record<string, Object> = {};
+        fields['jobId'] = job.jobId;
+        fields['evidenceKey'] = `${job.jobId}:${channel}`;
+        fields['localChannel'] = channel;
+        fields['realPcmRange'] = [job.windowStartSample, job.realEndSample];
+        fields['featurePcmRange'] = [job.windowStartSample, job.windowStartSample + WINDOW_SAMPLES];
+        fields['rightZeroPadSamples'] = WINDOW_SAMPLES - job.sampleCount;
+        fields['featureSampleRate'] = SAMPLE_RATE;
+        fields['featureFrames'] = 998;
+        fields['selectedSegmentationMask'] = mask;
+        fields['maskReason'] = cleanCount > 2 ? 'CLEAN_FRAMES' : 'FULL_ACTIVITY_TOO_FEW_CLEAN_FRAMES';
+        fields['cleanFrames'] = cleanCount;
+        fields['maskReceptivePcmRanges'] = ranges.map(range =>
+          [range[0] + job.windowStartSample, range[1] + job.windowStartSample]);
+        fields['maskReceptivePcmRms'] = count > 0 ? Math.sqrt(energy / count) : 0;
+        fields['levelFilter'] = 'NONE';
+        fields['embeddingSelection'] = 'FULL_WINDOW_FEATURES_WITH_MASKED_STATISTICS';
+        fields['clusteringEligibility'] = !valid ? 'INVALID_EMBEDDING' :
+          cleanCount >= 0.2 * 589 ? 'ELIGIBLE' : 'INSUFFICIENT_CLEAN_ACTIVITY';
+        this.diagnostic('DIARIZATION_COMMUNITY_SAMPLES', fields);
+      }
+    } catch (_ignored) {
+      // Diagnostic bookkeeping cannot alter sampling or publication.
+    }
+  }
+
   private readWindow(job: DiarizationLocalJob): Float32Array {
     let data: ArrayBuffer;
     try { data = this.spool.read(job.offsetBytes, job.sampleCount * 2); }
     catch (error) { throw new SpeakerDiarizationStorageError(`diarization PCM read failed: ${error}`); }
     const pcm = new Int16Array(data);
     const result = new Float32Array(WINDOW_SAMPLES);
-    const offset = WINDOW_SAMPLES - pcm.length;
-    for (let index = 0; index < pcm.length; index++) result[offset + index] = pcm[index] / 32768.0;
+    for (let index = 0; index < pcm.length; index++) result[index] = pcm[index] / 32768.0;
     return result;
   }
 
@@ -251,7 +325,8 @@ export class SpeakerDiarizationLocalClient {
   }
 
   private closeWhenQuiescent(): void {
-    if (!this.closed || !this.loadSettled || this.activeJob !== undefined || this.resourcesClosed) return;
+    if (!this.closed || !this.loadSettled || this.activeJob !== undefined ||
+      this.pendingClusters > 0 || this.resourcesClosed) return;
     this.resourcesClosed = true;
     this.inference.close();
     this.removeJobFiles();

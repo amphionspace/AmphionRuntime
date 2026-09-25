@@ -1135,20 +1135,13 @@ struct Index {
     const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
     const next = this.finalSegments.filter(item =>
       item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
-    const paragraphs = new Map<string, FinalSegment>();
     for (const utterance of result.utterances) {
-      let paragraph = paragraphs.get(utterance.sourceUtteranceId);
-      if (paragraph === undefined) {
-        paragraph = new FinalSegment('', undefined, utterance.sourceUtteranceId,
-          utterance.speakerIndex, utterance.endTime, true, true);
-        paragraphs.set(utterance.sourceUtteranceId, paragraph);
-        next.push(paragraph);
-      }
-      paragraph.text += utterance.text;
-      paragraph.endTime = Math.max(paragraph.endTime, utterance.endTime);
+      // The SDK publishes readable units. One source endpoint can contain
+      // multiple complete sentences with different confirmed speakers.
+      const paragraph = new FinalSegment(utterance.text, undefined, utterance.utteranceId,
+        utterance.speakerIndex, utterance.endTime, true, true);
       paragraph.speakerParts.push(utterance);
-      // Mixed or partly unknown speech has no single confirmed paragraph owner.
-      if (paragraph.speakerIndex !== utterance.speakerIndex) paragraph.speakerIndex = -1;
+      next.push(paragraph);
     }
     next.sort((left: FinalSegment, right: FinalSegment): number => left.endTime - right.endTime);
     this.refreshSpeakerDisplayIndexes(next);

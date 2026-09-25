@@ -136,8 +136,11 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertNotIn("SpeakerDiarizationChild", entry_ability)
 
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("SpeakerDiarizationInference", client)
-        self.assertIn("DingqiaoSpeakerModelAssets.bundledPath()", client)
+        self.assertIn("CommunityDiarizationInference", client)
+        self.assertIn("this.inference.load(context)", client)
+        inference = (CORE_DIARIZATION.parent / "CommunityDiarizationInference.ets").read_text()
+        self.assertIn("context.resourceManager", inference)
+        self.assertIn("getRawFileContent", inference)
         self.assertNotIn("NetworkKit", client)
         self.assertNotIn("http.createHttp", client)
         self.assertNotIn("startArkChildProcess", client)
@@ -211,7 +214,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("speakerMask: number", types)
 
         session = SESSION.read_text(encoding="utf-8")
-        self.assertIn("channelIds.get(localSpeaker) ?? 'UNKNOWN_SECONDARY'", session)
+        self.assertIn("communityTimeline(clustered.turns, identity.mapping", session)
         self.assertIn("assignment.secondarySpeakerIds, this.maxSpeakers, true", session)
 
     def test_rejected_speaker_vad_final_redacts_raw_and_processed_text(self) -> None:
@@ -268,9 +271,20 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
 
     def test_local_executor_preserves_padded_window_offset(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        self.assertGreaterEqual(client.count("contentStartInWindowSample: number"), 2)
-        self.assertIn("const offset = WINDOW_SAMPLES - pcm.length", client)
-        self.assertIn("result[offset + index]", client)
+        method = client[client.index("  private readWindow("):client.index("  private fail(")]
+        method = method.replace("private ", "").replace(": DiarizationLocalJob", "").replace(": Float32Array", "").replace(": ArrayBuffer", "")
+        run_node("class Reader {\n" + method + "}\n" + """
+          import assert from 'node:assert/strict';
+          const WINDOW_SAMPLES=160000;
+          const samples=new Int16Array([-32768,16384,0,32767]);
+          const r=new Reader();let observed;
+          r.spool={read(offset,bytes){observed=[offset,bytes];return samples.buffer;}};
+          const pcm=r.readWindow({offsetBytes:32000,sampleCount:4});
+          assert.deepEqual(observed,[32000,8]);
+          assert.equal(pcm.length,160000);
+          assert.deepEqual(Array.from(pcm.slice(0,4)),[-1,.5,0,32767/32768]);
+          assert.ok(pcm.slice(4).every(v=>v===0),'right padding cannot move real PCM');
+        """)
 
     def test_spool_failure_is_isolated_from_asr_and_finish(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
@@ -313,14 +327,17 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertNotIn("/speaker-diarization-jobs/${sessionId}", constructor)
 
     def test_segments_crossing_a_stable_boundary_are_clipped_not_dropped(self) -> None:
-        session = SESSION.read_text(encoding="utf-8")
-        self.assertIn(
-            "Math.min(window.realEndSample, window.stableEndSample,", session
-        )
-        self.assertNotIn("globalEnd > window.stableEndSample", session)
-        self.assertIn(
-            "this.committedRegistry.speakerIds().length", session
-        )
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ communityTimeline }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
+          const tracks=[[100,1500,0],[900,1100,1]];
+          const first=communityTimeline(tracks,[0,1],0,1000);
+          const next=communityTimeline(tracks,[0,1],1000,2000);
+          assert.deepEqual(first.map(t=>[t.beginTime,t.endTime,t.speakerId,t.secondarySpeakerIds]),
+            [[100,900,'S1',[]],[900,1000,'S1',['S2']]]);
+          assert.deepEqual(next.map(t=>[t.beginTime,t.endTime,t.speakerId,t.secondarySpeakerIds]),
+            [[1000,1100,'S1',['S2']],[1100,1500,'S1',[]]]);
+        """)
 
     def test_window_schedule_is_frame_independent_and_finish_flushes_tail(self) -> None:
         run_node(
@@ -336,19 +353,15 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
               framedWindows.push(...framed.acceptSamples(320));
             }}
             assert.deepEqual(framedWindows, wholeWindows);
-            assert.deepEqual(wholeWindows.map(window => [window.startSample, window.endSample]), [
-              [0, 40_000], [0, 80_000], [0, 120_000], [0, 160_000],
-              [40_000, 200_000], [80_000, 240_000]
-            ]);
-            assert.deepEqual(wholeWindows.map(window => window.commitStartSample),
-              [0, 16_000, 56_000, 96_000, 136_000, 176_000]);
-            assert.equal(wholeWindows[0].stableEndSample, 16_000);
-            const tail = whole.finish();
-            assert.equal(tail.startSample, 112_000);
-            assert.equal(tail.endSample, 272_000);
-            assert.equal(tail.realEndSample, 272_000);
-            assert.equal(tail.commitStartSample, 216_000);
-            assert.equal(tail.stableEndSample, 272_000);
+            assert.deepEqual(wholeWindows.map(window => [window.startSample, window.endSample]),
+              Array.from({{length:8}},(_,i)=>[i*16000,(i+10)*16000]));
+            assert.equal(whole.finish(),undefined,'an exact complete window must not be duplicated');
+            framed.acceptSamples(320);
+            const tail=framed.finish();
+            assert.equal(tail.startSample,128000);
+            assert.equal(tail.endSample,288000);
+            assert.equal(tail.realEndSample,272320);
+            assert.equal(tail.stableEndSample,272320);
             """
         )
 
@@ -556,8 +569,8 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             {{beginTime:600,endTime:1000,speakerId:'S2',secondarySpeakerIds:[]}}
           ]);
           const split=short.commitThrough(1000);
-          assert.deepEqual(split.map(x=>[x.text,x.speakerId]),[['嗯，好。','UNKNOWN']],
-            'a sentence containing a real short turn must not acquire a single owner');
+          assert.deepEqual(split.map(x=>[x.text,x.speakerId]),[['嗯，','UNKNOWN'],['好。','S2']],
+            'punctuation may expose the supported short answer but cannot resolve the overlapping clause');
           assert.deepEqual(split[0].secondarySpeakerIds,['S1','S2']);
           assert.equal(split[0].overlap,true);
           assert.deepEqual(short.finalUtterances(),[]);
@@ -726,14 +739,16 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
               {{beginTime:900,endTime:2000,speakerId:'UNKNOWN',secondarySpeakerIds:['S2'],overlap:true}}
             ]);
             const split = state.commitThrough(2000);
-            assert.deepEqual(split.map(x => x.speakerId), ['UNKNOWN'], text);
+            assert.deepEqual(split.map(x => x.speakerId),
+              text === '甲乙丙丁' ? ['UNKNOWN'] : ['UNKNOWN','UNKNOWN'], text);
             assert.equal(split.map(x => x.text).join(''), text);
             assert.equal(split.map(x => x.rawText).join(''), '甲乙丙丁');
-            assert.deepEqual(split.map(x => [x.beginTime,x.endTime]), [[0,2000]]);
-            assert.deepEqual(split.map(x => x.sourceUtteranceId), ['u1']);
-            assert.equal(split[0].overlap, true);
+            assert.deepEqual(split.map(x => [x.beginTime,x.endTime]),
+              text === '甲乙丙丁' ? [[0,2000]] : [[0,1000],[1000,2000]]);
+            assert.ok(split.every(x => x.sourceUtteranceId === 'u1' && x.overlap));
             assert.deepEqual(state.finalUtterances(), []);
-            assert.deepEqual(split.map(x => x.text), [text]);
+            assert.deepEqual(split.map(x => x.text), text === '甲乙丙丁' ? [text] :
+              text === '甲乙，丙丁。' ? ['甲乙，','丙丁。'] : [' 甲乙！','丙丁？']);
           }}
           // Lexical edits (ITN or rewritten words) have no safe character mapping.
           for (const text of ['23。', '甲戊，丙丁。']) {{

@@ -1,0 +1,42 @@
+{
+  "model": "pyannote/speaker-diarization-community-1",
+  "status": "candidate-not-delivery-accepted",
+  "implementation": "FP32 masked WeSpeaker + PLDA/VBx; segmentation-3.0 retained",
+  "sampleRate": 16000,
+  "windowSamples": 160000,
+  "hopSamples": 16000,
+  "segmentationFrames": 589,
+  "localSpeakerChannels": 3,
+  "embeddingDimension": 256,
+  "publicMaxSpeakers": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "storagePrefix": "cos-amphion-audio-backup:customer-asr-sdk/2026-09-23-offline-meeting-timeout/followup-2026-09-25/issue59-final-identity-20260924/community-compat-20260925/model-assets/",
+  "destination": "shared/models/asr/dingqiao",
+  "files": [
+    {
+      "file": "community-wespeaker-masked.fp32.onnx",
+      "sizeBytes": 26553489,
+      "sha256": "bc3912904210f19c7a249a2fca8cfc587b82b4142b73231570839e9dd9041375"
+    },
+    {
+      "file": "community-feature.f32",
+      "sizeBytes": 83840,
+      "sha256": "379fcc7bc891b5172cb5dd84899cc96124e7d191c76fbb68a8342b0ddffcdc33"
+    },
+    {
+      "file": "community-plda.f64",
+      "sizeBytes": 398352,
+      "sha256": "b6e0f558d31272e1ed2f00a7c26aa4142602fbabf4cdf97ff251d1c8ab24f50c"
+    }
+  ],
+  "segmentationManifest": "pyannote_segmentation_3_0.json",
+  "runtimeNetworkRequired": false,
+  "limitations": [
+    "Public corpus short-speaker and independent holdout recall gates remain unresolved.",
+    "These are global model parameters, not customer embeddings or enrollment templates."
+  ]
+}

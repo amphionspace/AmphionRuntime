@@ -37,6 +37,44 @@ DEVICE_STRESS = (
 
 
 class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
+    def test_diarization_progress_waits_for_native_completion_and_keeps_session_ownership(self) -> None:
+        source = ADAPTER.read_text()
+        start = source.index('      let processedAsrSamples: number = 0;')
+        end = source.index('}, DiagnosticsModule.isEnabled());', start) + len('}, DiagnosticsModule.isEnabled());')
+        install = source[start:end]
+        for annotation in (': number', ': ArrayBuffer', ': Float32Array', ': Promise<void>', ': string', ': void'):
+            install = install.replace(annotation, '')
+        self.run_dispatcher("""
+          const DiagnosticsModule={isEnabled:()=>false};
+          function install(session,audioGeneration,audioSessionId) {
+        """ + install + """
+          }
+          const events=[];
+          let release,started;
+          const pending=new Promise(resolve=>release=resolve);
+          const processing=new Promise(resolve=>started=resolve);
+          const old={acceptPcmBytesAsync:async()=>{started();await pending;}};
+          const next={acceptPcmBytesAsync:async()=>{},acceptPcmFloatAsync:async()=>{}};
+          const owner={generation:1,id:'old',session:old,
+            speakerDiarizationSession:{asrAudioProcessed:n=>events.push(['old',n])},
+            ownsAudioSession(g,id,s){return this.generation===g && this.id===id && this.session===s;},
+            handleAsrError(){assert.fail('unexpected native error');}};
+          install.call(owner,old,1,'old');
+          const previous=owner.audioDispatcher;
+          previous.write(new ArrayBuffer(640));
+          await processing;
+          assert.deepEqual(events,[],'queued input is not processed ASR evidence');
+          owner.generation=2;owner.id='next';owner.session=next;
+          owner.speakerDiarizationSession={asrAudioProcessed:n=>events.push(['next',n])};
+          install.call(owner,next,2,'next');
+          release();await previous.whenIdle();
+          assert.deepEqual(events,[],'old native completion must not advance the replacement');
+          owner.audioDispatcher.write(new ArrayBuffer(640));
+          owner.audioDispatcher.writeFloat(new Float32Array(320));
+          await owner.audioDispatcher.whenIdle();
+          assert.deepEqual(events,[['next',320],['next',640]],'both input forms use the new session PCM clock');
+        """)
+
     def run_dispatcher(self, body: str) -> None:
         script = textwrap.dedent(
             f"""
