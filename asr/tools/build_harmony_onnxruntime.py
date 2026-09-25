@@ -65,6 +65,7 @@ def main():
         run("git", "apply", PATCH, cwd=source)
     if source_diff(source) != PATCH.read_bytes():
         raise RuntimeError(f"ORT source differs from the approved patch; preserve and inspect {source}")
+    run(sys.executable, REPO / "asr/tools/verify_harmony_ort_completion.py", "--source", source)
     run("git", "submodule", "update", "--init", "--depth", "1", "cmake/external/onnx", cwd=source)
 
     # The old Eigen archive has changed bytes upstream. Use its exact pinned Git
@@ -130,6 +131,7 @@ def main():
         "protocArchiveSha256": sha256(archive), "librarySha256": sha256(output),
         "compiler": run(sdk / "llvm/bin/clang++", "--version", capture=True).decode().strip(),
         "workerSpinLog2": 14,
+        "parallelCompletionWait": "mutex-predicate-notification",
     }
     output.with_suffix(".provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     print(json.dumps(provenance, indent=2))

@@ -1,0 +1,239 @@
+// Controlled state test for the pinned ONNX Runtime completion method.
+// Method and notifier bodies are inserted from the actual patched source.
+#include <atomic>
+#include <condition_variable>
+#include <ctime>
+#include <mutex>
+using OrtMutex = std::mutex;
+using OrtCondVar = std::condition_variable;
+#include <cassert>
+#include <chrono>
+#include <functional>
+#include <iostream>
+#include <thread>
+#include <utility>
+#include <vector>
+namespace onnxruntime {
+namespace concurrency {
+inline void SpinPause() {}
+} // namespace concurrency
+} // namespace onnxruntime
+struct ThreadPoolProfiler {
+  enum { WAIT_REVOKE };
+  void LogStart() {}
+  void LogEnd(int) {}
+};
+struct Section {
+  OrtMutex completion_mutex;
+  OrtCondVar completion_cv;
+  std::atomic<bool> active{true}, dispatch_started{false}, dispatch_done{false},
+      work_done{false};
+  std::atomic<unsigned> tasks_finished{0};
+  int dispatch_q_idx = -1;
+  unsigned dispatch_w_idx = 0, tasks_revoked = 0;
+  std::vector<std::pair<int, unsigned>> tasks;
+};
+using ThreadPoolParallelSection = Section;
+struct PerThread {
+  bool leading_par_section = true;
+  int tag = 1;
+};
+struct Queue {
+  bool revoke = false;
+  bool RevokeWithTag(int, unsigned) { return revoke; }
+};
+struct Worker {
+  Queue queue;
+};
+struct Pool {
+  ThreadPoolProfiler profiler_;
+  std::vector<Worker> worker_data_ = std::vector<Worker>(4);
+  /* END_PARALLEL_SECTION */
+};
+/* COMPLETION_NOTIFIERS */
+int main() {
+  // Delayed dispatcher publishes its child task before the caller may revoke
+  // it. Delayed child/dispatcher completion must publish their writes before
+  // return.
+  for (int reverse = 0; reverse < 2; ++reverse)
+    for (int revoked = 0; revoked < 2; ++revoked) {
+      Pool p;
+      PerThread pt;
+      Section s;
+      s.dispatch_q_idx = 0;
+      s.dispatch_started = true;
+      std::atomic<bool> released{false}, caller_returned{false};
+      int child_value = 0, dispatcher_value = 0;
+      p.worker_data_[1].queue.revoke = revoked;
+      std::thread caller([&] {
+        p.EndParallelSectionInternal(pt, s);
+        caller_returned = true;
+      });
+      std::thread dispatch([&] {
+        while (s.active.load())
+          std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        assert(!caller_returned);
+        s.tasks.emplace_back(1, 1);
+        FinishDispatch(s);
+        if (reverse)
+          while (!released.load())
+            std::this_thread::yield();
+        else
+          std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        dispatcher_value = 73;
+        FinishWork(s);
+      });
+      std::thread child([&] {
+        while (!s.dispatch_done.load(std::memory_order_acquire))
+          std::this_thread::yield();
+        if (!reverse)
+          while (!s.work_done.load(std::memory_order_acquire))
+            std::this_thread::yield();
+        std::this_thread::sleep_for(std::chrono::milliseconds(3));
+        if (!revoked) {
+          assert(!caller_returned);
+          child_value = 42;
+          FinishChild(s);
+        }
+        released = true;
+      });
+      caller.join();
+      dispatch.join();
+      child.join();
+      assert(dispatcher_value == 73);
+      assert(revoked || child_value == 42);
+      assert(s.tasks_finished == 0);
+      assert(!pt.leading_par_section && !s.active && s.tasks.empty());
+      assert(s.tasks_revoked == unsigned(revoked));
+      // Same storage is reusable only after all previous workers have stopped.
+      pt.leading_par_section = true;
+      s.active = true;
+      s.dispatch_q_idx = -1;
+      s.tasks_revoked = 0;
+      p.EndParallelSectionInternal(pt, s);
+      assert(s.tasks_finished == 0 && !s.active);
+    }
+  // Revoke an unstarted dispatch task; no wait may be added for work that will
+  // never run.
+  {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.dispatch_q_idx = 0;
+    p.worker_data_[0].queue.revoke = true;
+    p.EndParallelSectionInternal(pt, s);
+    assert(s.dispatch_q_idx == -1 && s.tasks_finished == 0);
+  }
+  // Synchronous workers, delayed and reverse completion, retain distinct output
+  // slots.
+  for (int reverse = 0; reverse < 2; ++reverse) {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.tasks = {{1, 1}, {2, 2}};
+    int out[2] = {};
+    std::vector<std::thread> t;
+    for (int i = 0; i < 2; ++i)
+      t.emplace_back([&, i] {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds((reverse ? 2 - i : i + 1) * 3));
+        out[i] = i + 21;
+        FinishChild(s);
+      });
+    p.EndParallelSectionInternal(pt, s);
+    assert(out[0] == 21 && out[1] == 22 && s.tasks_finished == 0);
+    for (auto &w : t)
+      w.join();
+  }
+
+  // Completed-before-wait and duplicate/spurious notifications do not create
+  // work.
+  {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.dispatch_q_idx = 0;
+    s.dispatch_started = true;
+    s.tasks = {{1, 1}};
+    FinishDispatch(s);
+    FinishChild(s);
+    FinishWork(s);
+    s.completion_cv.notify_one();
+    p.EndParallelSectionInternal(pt, s);
+    assert(s.tasks_finished == 0);
+  }
+  // A final flag can be visible while its notifier still owns/touches the
+  // section. Destruction/reset must wait for that notifier's final unlock.
+  {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.dispatch_q_idx = 0;
+    s.dispatch_started = true;
+    FinishDispatch(s);
+    std::atomic<bool> entered{false}, returned{false};
+    std::thread notifier([&] {
+      std::lock_guard<OrtMutex> lock(s.completion_mutex);
+      s.work_done.store(true, std::memory_order_release);
+      s.completion_cv.notify_one();
+      entered = true;
+      std::this_thread::sleep_for(std::chrono::milliseconds(15));
+      assert(!returned);
+    });
+    while (!entered.load())
+      std::this_thread::yield();
+    p.EndParallelSectionInternal(pt, s);
+    returned = true;
+    notifier.join();
+  }
+  // An unrelated/spurious notification cannot let the caller release unfinished
+  // work.
+  {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.tasks = {{1, 1}};
+    std::atomic<bool> returned{false};
+    std::thread caller([&] {
+      p.EndParallelSectionInternal(pt, s);
+      returned = true;
+    });
+    while (s.active.load())
+      std::this_thread::yield();
+    for (int i = 0; i < 4; ++i) {
+      s.completion_cv.notify_one();
+      std::this_thread::sleep_for(std::chrono::milliseconds(2));
+      assert(!returned);
+    }
+    FinishChild(s);
+    caller.join();
+    assert(returned);
+  }
+
+  {
+    Pool p;
+    PerThread pt;
+    Section s;
+    s.tasks = {{1, 1}};
+    std::thread worker([&] {
+      while (s.active.load())
+        std::this_thread::yield();
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));
+      FinishChild(s);
+    });
+    timespec before{}, after{};
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &before);
+    p.EndParallelSectionInternal(pt, s);
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &after);
+    worker.join();
+    double cpu_ms = (after.tv_sec - before.tv_sec) * 1000. +
+                    (after.tv_nsec - before.tv_nsec) / 1e6;
+    std::cout << "completion owner CPU while worker delayed 50ms: " << cpu_ms
+              << " ms\n";
+    assert(cpu_ms < 12.5);
+  }
+
+  std::cout << "PASS: delayed dispatch, reversed completion, queued "
+               "revocation, output visibility, section reuse\n";
+}
