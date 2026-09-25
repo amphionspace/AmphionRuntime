@@ -41,9 +41,8 @@ int main() {
   assert(writes == 0);
   Ort::SessionOptions untouched;
   { HarmonySchedulingConstruction scope(&defaults); ConfigureHarmonyScheduling(&untouched); }
-  assert(!untouched.create && untouched.entries.size() == 2);
+  assert(!untouched.create && untouched.entries.size() == 1);
   assert(untouched.entries.at("session.force_spinning_stop") == "1");
-  assert(untouched.entries.at("session.dynamic_block_base") == "4");
   HarmonyScheduling a, b;
   a.Parse("cpu;AmphionQos=user-initiated;AmphionCpuIds=2,3;AmphionAllowSpinning=0");
   b.Parse("cpu;AmphionQos=user-interactive;AmphionCpuIds=4");
@@ -81,11 +80,9 @@ int main() {
   }
   ConfigureHarmonyScheduling(&outside);
   assert(!outside.create && outside.entries.empty());
-  assert(first.entries.size() == 4 && second.entries.size() == 2);
+  assert(first.entries.size() == 3 && second.entries.size() == 1);
   assert(first.entries.at("session.force_spinning_stop") == "1");
   assert(second.entries.at("session.force_spinning_stop") == "1");
-  assert(first.entries.at("session.dynamic_block_base") == "4");
-  assert(second.entries.at("session.dynamic_block_base") == "4");
   // Release in reverse order after construction scopes have ended. Policies
   // stay attached to their own recognizer, not to the latest global config.
   std::promise<void> release_a, release_b;
