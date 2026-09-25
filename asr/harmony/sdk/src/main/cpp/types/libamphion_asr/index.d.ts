@@ -71,6 +71,7 @@ export interface CommunityDiarizationWindow {
 }
 export function loadCommunityDiarization(segmentation: Uint8Array, embedding: Uint8Array,
   features: Uint8Array, plda: Uint8Array): Promise<number>;
+export function loadCommunityDiarizationResources(resourceManager: Object): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function clusterCommunityDiarization(handle: number, segments: Float32Array,
   embeddings: Float32Array, maxSpeakers: number): Promise<string>;
