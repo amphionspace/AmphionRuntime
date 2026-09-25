@@ -37,12 +37,27 @@ export class NdjsonDiagnosticSink {
       const separator = jsonArray ? (i + 1 < events.length ? ',' : '') : '\n';
       // Tensor snapshots stay compact while retained. Materialize flat JSON
       // arrays for one event only, preserving the existing diagnostic schema.
-      const fields: Record<string, Object> = { ...events[i].fields };
-      for (const key of Object.keys(fields)) {
-        const value = fields[key];
-        if (value instanceof Float32Array) fields[key] = Array.from(value);
+      const event = events[i];
+      const fields: Record<string, Object> = {};
+      for (const key of Object.keys(event.fields)) {
+        const value = event.fields[key];
+        fields[key] = value instanceof Float32Array ? Array.from(value) : value;
       }
-      const encoded = JSON.stringify({ ...events[i], fields });
+      const serializable: DiagnosticEvent = {
+        schemaVersion: event.schemaVersion,
+        sequence: event.sequence,
+        wallTimeMs: event.wallTimeMs,
+        monotonicTimeNs: event.monotonicTimeNs,
+        runId: event.runId,
+        engineId: event.engineId,
+        sessionId: event.sessionId,
+        sessionGeneration: event.sessionGeneration,
+        streamGeneration: event.streamGeneration,
+        thread: event.thread,
+        event: event.event,
+        fields
+      };
+      const encoded = JSON.stringify(serializable);
       append(`${encoded}${separator}`);
     }
     if (jsonArray) append(']\n');
