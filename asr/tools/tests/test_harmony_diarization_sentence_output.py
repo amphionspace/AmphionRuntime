@@ -6,6 +6,25 @@ from asr.tools.tests.test_harmony_speaker_diarization_session import ROOT, TIMEL
 
 
 class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
+    def test_punctuation_replacing_english_space_preserves_speaker_boundaries(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='HELLO WORLD YES THANK YOU', text='HELLO WORLD。YES。THANK YOU。';
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],...extra}});
+          const sample=(turns,display=text)=>{{const s=new State();s.addUtterance({{rawText:raw,text:display,tokens:['▁HELLO','▁WORLD','▁YES','▁THANK','▁YOU'],tokenTimesMs:[0,100,200,300,400],beginTime:0,endTime:500}});s.applySpeakerTurns(turns);return s;}};
+          const turns=[turn(0,200,'S1'),turn(200,300,'S2'),turn(300,500,'S1')];
+          const s=sample(turns),before=s.allTurns(),out=s.sentenceUtterances();
+          assert.deepEqual(out.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','S1']]);
+          assert.equal(out.map(x=>x.rawText).join(''),raw);assert.equal(out.map(x=>x.text).join(''),text);assert.deepEqual(s.allTurns(),before);
+          assert.equal(new Set(out.map(x=>x.utteranceId)).size,3);assert(out.every(x=>!x.speakerInferred));
+          const overlap=sample([turns[0],turns[1],turn(300,400,'S1'),turn(400,450,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}}),turn(450,500,'S1')]).sentenceUtterances();
+          assert.deepEqual(overlap.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','UNKNOWN']]);assert(overlap[2].overlap);
+          const lexical=sample(turns,'HELLOWORLD。YES。THANK YOU。').sentenceUtterances();assert.equal(lexical.length,1);assert.equal(lexical[0].speakerId,'UNKNOWN','deleting an inter-word space without replacement punctuation remains unaligned');
+          const trailing=new State();trailing.addUtterance({{rawText:'HELLO ',text:'HELLO。',tokens:[...'HELLO '],tokenTimesMs:[0,0,0,0,0,100],beginTime:0,endTime:200}});trailing.applySpeakerTurns([turn(0,200,'S1')]);assert.equal(trailing.sentenceUtterances().length,1);assert.equal(trailing.sentenceUtterances()[0].text,'HELLO。');
+          const frozen=s.commitThrough(500);s.applySpeakerRemap({{S1:'S3'}});assert.deepEqual(frozen,out);assert.equal(s.sentenceUtterances().length,0);
+        """)
+
     def test_punctuated_endpoint_keeps_supported_sentence_owners(self):
         run_node(f"""
           import assert from 'node:assert/strict';

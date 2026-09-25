@@ -75,12 +75,19 @@ function tokenTextBoundaries(tokens: string[], text: string): number[] | undefin
     const token = tokens[index];
     if (token.length === 0) return undefined;
     for (let character = 0; character < token.length; character++) {
+      const beforeInserted = cursor;
       while (cursor < text.length && text[cursor] !== token[character] &&
         inserted.indexOf(text[cursor]) >= 0) cursor++;
-      if (cursor >= text.length || text[cursor] !== token[character]) return undefined;
+      const matches = cursor < text.length && text[cursor] === token[character];
+      // Punctuation can replace a word separator. Keep its timestamp boundary
+      // without treating the following lexical character as that separator.
+      // A sliced clause can also start with the replaced separator.
+      const replacedSpace = !matches && ' \t\r\n'.indexOf(token[character]) >= 0 &&
+        (cursor === 0 || /[,.!?，。！？、;；:：]/.test(text.slice(beforeInserted, cursor)));
+      if (!matches && !replacedSpace) return undefined;
       // Keep inserted sentence punctuation with the preceding token.
       if (index > 0 && character === 0) boundaries.push(cursor);
-      cursor++;
+      if (matches) cursor++;
     }
   }
   while (cursor < text.length && inserted.indexOf(text[cursor]) >= 0) cursor++;
@@ -344,7 +351,9 @@ export class SpeakerDiarizationTranscriptState {
       cuts = [{ tokenIndex: 0, textOffset: 0 }];
       for (let index = 1; index < utterance.tokens.length; index++) {
         if (/[，。！？；]\s*$/.test(utterance.text.slice(boundaries[index - 1], boundaries[index]))) {
-          cuts.push({ tokenIndex: index, textOffset: boundaries[index] });
+          if (boundaries[index] < utterance.text.length) {
+            cuts.push({ tokenIndex: index, textOffset: boundaries[index] });
+          }
         }
       }
       cuts.push({ tokenIndex: utterance.tokens.length, textOffset: utterance.text.length });
