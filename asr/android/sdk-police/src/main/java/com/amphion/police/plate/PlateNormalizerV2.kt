@@ -413,6 +413,13 @@ class PlateNormalizerV2 private constructor(
      */
     private fun acceptSpan(text: String, start: Int, end: Int, cand: Candidate): Boolean {
         if (cand.cost == 0) return true
+        // Ordinary Latin words also fit the permissive province-alias shape.
+        // Require an explicit plate noun before converting an all-letter span.
+        if ((start until end).all {
+                val c = text[it]
+                c in 'A'..'Z' || c in 'a'..'z' || c in 'Ａ'..'Ｚ' || c in 'ａ'..'ｚ' || isSeparator(c)
+            } && !hasExplicitPlateContext(text, start, end, requirePlateNoun = true)
+        ) return false
         // 国标码守护：源串以 Latin「GB」开头（如 GB28181、GB/T 标准）结构上与「冀B+序号」车牌无法区分，
         // 无车牌锚词时一律不纠（有锚词如「车牌GB28181」仍会纠）。仅拦 GB，不影响 U→豫 等单字母省份近音。
         if (startsWithGb(text, start)) return hasAnchor(text, start, end)
