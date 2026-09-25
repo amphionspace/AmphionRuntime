@@ -62,3 +62,16 @@ export const processTargetSpeakerChunk: (
   samples: Float32Array
 ) => Promise<TargetSpeakerEnhancementNativeResult>;
 export const closeTargetSpeakerEnhancer: (handle: TargetSpeakerEnhancerHandle) => void;
+export interface CommunityDiarizationWindow {
+  segments: Float32Array;
+  embeddings: Float32Array;
+  segmentationMs: number;
+  featureMs: number;
+  embeddingMs: number;
+}
+export function loadCommunityDiarization(segmentation: Uint8Array, embedding: Uint8Array,
+  features: Uint8Array, plda: Uint8Array): Promise<number>;
+export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
+export function clusterCommunityDiarization(handle: number, segments: Float32Array,
+  embeddings: Float32Array, maxSpeakers: number): Promise<string>;
+export function closeCommunityDiarization(handle: number): void;

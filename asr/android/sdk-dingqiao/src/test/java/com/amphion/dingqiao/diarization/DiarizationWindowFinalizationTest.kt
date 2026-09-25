@@ -14,6 +14,50 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.Executors
 
 class DiarizationWindowFinalizationTest {
+    @Test fun oneMixedAnchorCannotCommitADifferentSpeakerCluster() {
+        for ((speakerAngle, mixedAngle) in listOf(65 to 43, 30 to 10, 50 to 43))
+            mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
+            val newPerson = speakerAngle == 65
+            val directory = Files.createTempDirectory("diarization-anchor-consensus").toFile()
+            val session = SpeakerDiarizationSession(mock<Context>(), directory, 4,
+                object : SpeakerDiarizationSessionObserver {
+                    override fun onUpdate(update: SpeakerDiarizationUpdate) = Unit
+                    override fun onFinished(result: SpeakerDiarizationResult) = Unit
+                })
+            try {
+                fun vector(degrees: Int) = floatArrayOf(
+                    kotlin.math.cos(degrees * Math.PI / 180).toFloat(),
+                    kotlin.math.sin(degrees * Math.PI / 180).toFloat())
+                val committed = session.javaClass.getDeclaredField("committedRegistry")
+                    .apply { isAccessible = true }.get(session) as OnlineSpeakerRegistry
+                committed.assignBatch(listOf(vector(0)), listOf(6000), 0)
+                session.javaClass.getDeclaredField("registry").apply { isAccessible = true }
+                    .set(session, committed.fork())
+                @Suppress("UNCHECKED_CAST")
+                val published = session.javaClass.getDeclaredField("publishedSpeakerIds")
+                    .apply { isAccessible = true }.get(session) as MutableSet<String>
+                published.add("S1")
+                session.append(ByteArray(30_000 * 32))
+                repeat(5) { i ->
+                    val begin = i * 96000L
+                    val owned = vector(speakerAngle)
+                    val context = if (i == 4) vector(mixedAngle) else owned
+                    session.onWindow(DiarizationLocalWindowResult("w$i", begin, 0,
+                        begin + 96000, begin, begin + 96000, false, DiarizationWindowInferenceResult(
+                            listOf(SpeakerSegmentationSegment(0, 96000, 0, 1, owned)),
+                            listOf(DiarizationEmbedding(0, 96000, context, owned, .1)), 0)))
+                }
+                val commit = session.javaClass.getDeclaredMethod("commitWindowLocked", Int::class.javaPrimitiveType,
+                    Int::class.javaPrimitiveType, Boolean::class.javaPrimitiveType, Int::class.javaPrimitiveType)
+                    .apply { isAccessible = true }
+                val result = commit.invoke(session, 30000, Int.MAX_VALUE, true, 0) as SpeakerDiarizationResult
+                assertEquals(if (newPerson) 2 else 1, result.speakerCount)
+                assertTrue(result.speakerTurns.all { it.speakerIndex == if (newPerson) 1 else 0 })
+                assertEquals("S1", committed.matchKnown(vector(0)))
+            } finally { session.cancel(); directory.deleteRecursively() }
+        }
+    }
+
     @Test fun independentOutputQueriesPreserveTheSecondPersonAtFinalization() {
         for (queryCount in listOf(2, 1)) mockConstruction(SpeakerDiarizationLocalClient::class.java).use {
             val directory = Files.createTempDirectory("diarization-query-consensus").toFile()

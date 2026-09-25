@@ -12,6 +12,9 @@ const sharedModelFiles = [
   'eres2net.onnx',
   'campplus.onnx',
   'campplus.LICENSE',
+  'community-wespeaker-masked.fp32.onnx',
+  'community-feature.f32',
+  'community-plda.f64',
   'pyannote-segmentation-3.0.onnx',
   'pyannote-segmentation-3.0.LICENSE'
 ];

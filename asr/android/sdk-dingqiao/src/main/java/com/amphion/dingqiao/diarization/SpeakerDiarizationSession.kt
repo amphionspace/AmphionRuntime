@@ -342,7 +342,9 @@ internal class SpeakerDiarizationSession(
         }
         for (cluster in clusters) {
             val anchor = cluster.indexes.mapNotNull { observations[it].anchorId }.firstOrNull()
-            val id = if (anchor != null) {
+            // A mixed member cannot assign the entire cluster to an old person.
+            val id = if (anchor != null && committedRegistry.matchQuery(cluster.centroid,
+                    committedRegistry.speakerIds().toSet())?.speakerId == anchor) {
                 committedRegistry.commitKnown(anchor, cluster.centroid, cluster.durationMs, endTime)
                 anchor
             } else {

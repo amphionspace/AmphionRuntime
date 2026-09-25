@@ -38,6 +38,42 @@ def run_node(script: str) -> None:
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_all_lifecycle_listeners_record_diarization_and_cancel_violations(self) -> None:
+        carrier = CARRIER.read_text()
+        prefix = carrier[carrier.index('class SessionEvents'):carrier.index('class OnStartSpeakerVadListener')]
+        listeners = carrier[carrier.index('class CallbackRecord'):carrier.index('class TargetSpeakerEnhancementOnStartListener')]
+        script = "import assert from 'node:assert/strict';\n" + prefix + listeners + """
+            const engine = { cancel() {}, isBusy: () => false, startListening() {} };
+            const result = { windowIndex: 0, windowBeginTime: 0, windowEndTime: 1000,
+                isSessionFinal: true, utterances: [], speakerTurns: [], speakerCount: 1,
+                degraded: false, degradedReason: 0, inferenceMs: 123, rtf: 0.12 };
+            for (const create of [
+                events => new StartWriteListener(events, engine, [], false),
+                events => new ReentrantCompleteListener(events, engine, 'a', 'b'),
+                events => new StartCancelListener(events, engine),
+                events => { const listener = new SequenceListener(); listener.events = events; return listener; },
+            ]) {
+                const events = new SessionEvents();
+                const listener = create(events);
+                listener.onSpeakerDiarizationUpdate('a', { speakerIndex: 0, secondarySpeakerIndexes: [] });
+                listener.onSpeakerDiarizationResult('a', result);
+                assert.equal(events.speakerDiarizationUpdates, 1);
+                assert.equal(events.speakerDiarizationTerminalResults, 1);
+                assert.deepEqual(events.diarizationWindows, [result]);
+                assert.deepEqual(events.callbackTrace, ['a:diarization-update', 'a:diarization-result']);
+            }
+            for (const callback of ['onSpeakerDiarizationUpdate', 'onSpeakerDiarizationResult']) {
+                const listener = new StartCancelListener(new SessionEvents(), engine);
+                listener.onStart('cancelled');
+                listener[callback]('cancelled', result);
+                assert.equal(listener.eventAfterCancel, true, 'late speaker callbacks must fail cancel');
+            }
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'carrier-listeners.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
     def test_diarization_profile_shortens_pause_without_changing_other_limits(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
         script = f"""
@@ -192,31 +228,32 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             assert.equal(render().at(-1), '说话人 2（最终结果）');
             const mixed = new Page();
             const parts = [
-              {{sourceUtteranceId:'u1',utteranceId:'u1',text:'张',beginTime:0,endTime:200,
+              {{sourceUtteranceId:'u1',utteranceId:'u1',text:'张三。',beginTime:0,endTime:200,
+                speakerIndex:-1,secondarySpeakerIndexes:[0,1],overlap:true}},
+              {{sourceUtteranceId:'u1',utteranceId:'u1.2',text:'下一句。',beginTime:200,endTime:400,
                 speakerIndex:0,secondarySpeakerIndexes:[],overlap:false}},
-              {{sourceUtteranceId:'u1',utteranceId:'u1.2',text:'三。',beginTime:200,endTime:400,
-                speakerIndex:-1,secondarySpeakerIndexes:[1],overlap:true}},
               {{sourceUtteranceId:'u2',utteranceId:'u2',text:'你好。',beginTime:500,endTime:1000,
                 speakerIndex:1,secondarySpeakerIndexes:[],overlap:false}},
             ];
             mixed.handleSpeakerDiarizationResult('live', {{
               windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
             }});
-            assert.deepEqual(mixed.finalSegments.map(x=>x.text),['张三。','你好。'],
-              'one source sentence must stay readable despite uncertain role fragments');
-            assert.deepEqual(mixed.finalSegments.map(x=>x.speakerIndex),[-1,1],
-              'readability must not assign the uncertain character to its neighbour');
-            assert.deepEqual(mixed.finalSegments[0].speakerParts,parts.slice(0,2),
+            assert.deepEqual(mixed.finalSegments.map(x=>x.text),['张三。','下一句。','你好。'],
+              'readable SDK units sharing a source endpoint must keep their separate owners');
+            assert.deepEqual(mixed.finalSegments.map(x=>x.speakerIndex),[-1,0,1],
+              'the uncertain sentence must not acquire its neighbours identity');
+            assert.deepEqual(mixed.finalSegments[0].speakerParts,parts.slice(0,1),
               'exact known/unknown text, times and overlap remain inspectable');
             assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[0]),
               '多人／不确定 · 含重叠发言');
-            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[1]),'说话人 2');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[1]),'说话人 1');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[2]),'说话人 2');
             const multi = new FinalSegment('甲乙',undefined,'both',-1,1000,true,true);
-            multi.speakerParts = [parts[0],parts[2]];
+            multi.speakerParts = [parts[1],parts[2]];
             assert.equal(mixed.segmentSpeakerLabel(multi),'多人／不确定',
               'do not relabel a multi-speaker paragraph using its majority speaker');
             const inferred = new FinalSegment('张三',undefined,'inferred',0,1000,true,true);
-            inferred.speakerParts = [{{...parts[0],text:'张三',confidence:0,speakerInferred:true}}];
+            inferred.speakerParts = [{{...parts[1],text:'张三',confidence:0,speakerInferred:true}}];
             assert.equal(mixed.segmentSpeakerLabel(inferred),'说话人 1 · 含推断补全',
               'bounded UNKNOWN backfill must be visible as an inference');
             mixed.handleSpeakerDiarizationUpdate('live',{{utteranceId:'u1',revision:99,speakerIndex:2}});
@@ -224,7 +261,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             mixed.handleSpeakerDiarizationResult('live', {{
               windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
             }});
-            assert.equal(mixed.finalSegments.length,2,'a repeated window must not duplicate paragraphs');
+            assert.equal(mixed.finalSegments.length,3,'a repeated window must not duplicate paragraphs');
         """
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / "speaker-display.mts"

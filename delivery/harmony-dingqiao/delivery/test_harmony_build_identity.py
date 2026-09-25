@@ -112,6 +112,20 @@ class VerifyIdentityTest(unittest.TestCase):
 
 
 class OptionalModelIdentityTest(unittest.TestCase):
+    def test_records_all_community_assets_from_hap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hap = Path(directory) / 'test.hap'
+            names = ['community_speaker_embedding', 'community_feature_transform', 'community_plda']
+            with zipfile.ZipFile(hap, 'w') as archive:
+                for name in names:
+                    archive.writestr(MODULE.OPTIONAL_HAP_MODELS[name], name.encode())
+            with mock.patch.object(MODULE, 'HAP', hap):
+                models = MODULE.optional_hap_models()
+            import hashlib
+            for name in names:
+                self.assertEqual(hashlib.sha256(name.encode()).hexdigest(), models[name]['sha256'])
+                self.assertEqual(len(name), models[name]['size_bytes'])
+
     def test_records_separator_bytes_from_hap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             hap = Path(directory) / "test.hap"

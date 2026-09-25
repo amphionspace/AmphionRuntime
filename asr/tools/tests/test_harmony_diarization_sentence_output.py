@@ -1,11 +1,162 @@
 """Whole ASR sentences must not imply a single speaker when evidence disagrees."""
 import unittest
 
-from asr.tools.tests.test_harmony_diarization_identity_stability import run_session
+from asr.tools.tests.test_harmony_community_diarization import run_community_session as run_session
 from asr.tools.tests.test_harmony_speaker_diarization_session import ROOT, TIMELINE, run_node
 
 
 class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
+    def test_punctuated_endpoint_keeps_supported_sentence_owners(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const text='先讨论方案。张三说明结论。嗯。', raw='先讨论方案张三说明结论嗯';
+          const turn=(beginTime,endTime,speakerId)=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          function sample(turns) {{
+            const s=new State();
+            s.addUtterance({{rawText:raw,text,tokens:[...raw],
+              tokenTimesMs:[...raw].map((_,i)=>i*100),beginTime:0,endTime:1200}});
+            s.applySpeakerTurns(turns);return s;
+          }}
+          const s=sample([turn(0,500,'S1'),turn(500,1100,'S2'),turn(1100,1200,'S1')]);
+          const before=s.allTurns(), result=s.sentenceUtterances();
+          assert.deepEqual(result.map(x=>[x.text,x.speakerId]),
+            [['先讨论方案。','S1'],['张三说明结论。','S2'],['嗯。','S1']]);
+          assert.equal(result.map(x=>x.rawText).join(''),raw);
+          assert.equal(result.map(x=>x.text).join(''),text);
+          assert.ok(result.every(x=>x.sourceUtteranceId==='u1'&&!x.speakerInferred));
+          assert.equal(new Set(result.map(x=>x.utteranceId)).size,3);
+          assert.deepEqual(s.allTurns(),before);
+          assert.equal(sample([turn(0,1200,'S1')]).sentenceUtterances().length,1);
+          const mixed=sample([turn(0,600,'S1'),turn(600,1100,'S2'),turn(1100,1200,'S1')]);
+          assert.ok(mixed.sentenceUtterances().some(x=>x.text==='张三说明结论。'&&x.speakerId==='UNKNOWN'));
+          const frozen=s.commitThrough(1200);s.applySpeakerRemap({{S1:'S3'}});
+          assert.deepEqual(frozen,result);assert.deepEqual(s.sentenceUtterances(),[]);
+        """)
+
+    def test_punctuation_cannot_shorten_unknown_or_propagate_inference(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId)=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          const s=new State();
+          s.addUtterance({{rawText:'甲乙丙丁戊己庚',text:'甲乙，丙丁，戊己，庚。',
+            tokens:[...'甲乙丙丁戊己庚'],tokenTimesMs:[0,500,2000,3000,4000,6000,6500],
+            beginTime:0,endTime:7000}});
+          s.applySpeakerTurns([turn(0,500,'S1'),turn(500,6000,'UNKNOWN'),turn(6000,7000,'S1')]);
+          const result=s.sentenceUtterances();
+          assert.ok(result.filter(x=>x.beginTime<6000).every(x=>x.speakerId==='UNKNOWN'),
+            'punctuation must not turn a 5500 ms UNKNOWN into separate eligible gaps');
+          const known=result.find(x=>x.text==='庚。');
+          assert.equal(known.speakerId,'S1');assert.equal(known.speakerInferred,false);
+          const separate=new State();
+          separate.addUtterance({{rawText:'甲乙',text:'甲。乙。',tokens:['甲','乙'],
+            tokenTimesMs:[0,500],beginTime:0,endTime:1000}});
+          separate.applySpeakerTurns([turn(0,500,'S1'),turn(500,1000,'UNKNOWN')]);
+          assert.deepEqual(separate.sentenceUtterances().map(x=>x.speakerId),['S1','UNKNOWN']);
+        """)
+
+    def test_lexical_rewrite_keeps_independently_aligned_clauses(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='先讨论方案这这个我理解然后继续嗯', text='先讨论方案。这J个我理解。然后继续。嗯。';
+          const s=new State();
+          s.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>i*100),
+            beginTime:0,endTime:raw.length*100}});
+          s.applySpeakerTurns([[0,500,'S1'],[500,1100,'S2'],[1100,1500,'S1'],[1500,1600,'S2']]
+            .map(([beginTime,endTime,speakerId])=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}})));
+          const before=s.allTurns(), result=s.sentenceUtterances();
+          assert.deepEqual(result.map(x=>[x.text,x.speakerId]),
+            [['先讨论方案。','S1'],['这J个我理解。','UNKNOWN'],['然后继续。','S1'],['嗯。','S2']]);
+          assert.equal(result.map(x=>x.text).join(''),text);
+          assert.equal(result.map(x=>x.rawText).join(''),raw);
+          assert.deepEqual(s.allTurns(),before);
+          assert.ok(result.every(x=>x.sourceUtteranceId==='u1'));
+        """)
+
+    def test_repeated_deleted_text_cannot_supply_an_ambiguous_punctuation_cut(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          for (const [raw,text] of [['甲乙甲乙丙丁','甲乙。丙丁。'],['甲乙丙丁','甲乙。甲乙。丙丁。'],
+            ['一百一百元然后继续','100元。然后继续。']]) {{
+            const s=new State();
+            s.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>i*100),
+              beginTime:0,endTime:raw.length*100}});
+            s.applySpeakerTurns([{{beginTime:0,endTime:200,speakerId:'S1',secondarySpeakerIds:[]}},
+              {{beginTime:200,endTime:raw.length*100,speakerId:'S2',secondarySpeakerIds:[]}}]);
+            const result=s.sentenceUtterances();
+            assert.equal(result.map(x=>x.text).join(''),text);
+            assert.equal(result.map(x=>x.rawText).join(''),raw);
+            assert.equal(result[0].speakerId,'UNKNOWN');
+            if(raw==='甲乙甲乙丙丁') assert.equal(result.length,1,'either repeated occurrence may have been deleted');
+          }}
+        """)
+
+    def test_partial_alignment_cuts_agree_with_exhaustive_edit_paths(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const words=[];
+          function wordsAt(prefix,n) {{if(prefix)words.push(prefix);if(n)for(const c of ['甲','乙'])wordsAt(prefix+c,n-1);}}
+          wordsAt('',3);
+          function minimumPaths(raw,text) {{
+            let best=Infinity, paths=[];
+            function walk(i,j,cost,owners) {{
+              if(cost>best)return;
+              if(i===raw.length&&j===text.length) {{
+                if(cost<best){{best=cost;paths=[];}}paths.push(owners);return;
+              }}
+              if(i<raw.length)walk(i+1,j,cost+1,owners);
+              if(j<text.length)walk(i,j+1,cost+1,owners.concat(-1));
+              if(i<raw.length&&j<text.length)walk(i+1,j+1,cost+(raw[i]===text[j]?0:1),
+                owners.concat(raw[i]===text[j]?i:-1));
+            }}
+            walk(0,0,0,[]);return paths;
+          }}
+          for(const raw of words)for(const target of words) {{
+            const paths=minimumPaths(raw,target);
+            for(let cut=1;cut<target.length;cut++) {{
+              const text=target.slice(0,cut)+'。'+target.slice(cut)+'。';
+              const input={{utteranceId:'u1',rawText:raw,text,tokens:[...raw],
+                tokenTimesMs:[...raw].map((_,i)=>i*100),beginTime:0,endTime:raw.length*100}};
+              const parts=new State().punctuationUnits(input);
+              const left=paths[0][cut-1],right=paths[0][cut];
+              const safe=left>=0&&right===left+1&&paths.every(p=>p[cut-1]===left&&p[cut]===right);
+              assert.equal(parts.length,safe?2:1,JSON.stringify({{raw,text,paths}}));
+              if(safe)assert.equal(parts[1].beginTime,right*100);
+              assert.equal(parts.map(p=>p.rawText).join(''),raw);
+              assert.equal(parts.map(p=>p.text).join(''),text);
+            }}
+          }}
+          const unicode=new State().punctuationUnits({{utteranceId:'u1',rawText:'𠮷野继续一百元完',
+            text:'𠮷野。继续100元。完。',tokens:['𠮷','野','继','续','一','百','元','完'],
+            tokenTimesMs:[0,100,200,300,400,500,600,700],beginTime:0,endTime:800}});
+          assert.equal(unicode.map(x=>x.rawText).join(''),'𠮷野继续一百元完');
+          assert.equal(unicode[1].beginTime,200);
+          const interior=new State().punctuationUnits({{utteranceId:'u1',rawText:'甲乙一百元',
+            text:'甲。乙100元。',tokens:['甲乙','一百','元'],tokenTimesMs:[0,100,200],beginTime:0,endTime:300}});
+          assert.equal(interior.length,1,'a punctuation cut inside one native token has no timestamp');
+        """)
+
+    def test_unaligned_rewrite_preserves_uncertain_clause_and_raw_text(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const s=new State();
+          s.addUtterance({{rawText:'一百元然后继续',text:'100元。然后继续。',tokens:[...'一百元然后继续'],
+            tokenTimesMs:[0,100,200,300,400,500,600],beginTime:0,endTime:700}});
+          s.applySpeakerTurns([{{beginTime:0,endTime:300,speakerId:'S1',secondarySpeakerIds:[]}},
+            {{beginTime:300,endTime:700,speakerId:'S2',secondarySpeakerIds:[]}}]);
+          const result=s.sentenceUtterances();
+          assert.deepEqual(result.map(x=>[x.text,x.speakerId]),[['100元。','UNKNOWN'],['然后继续。','S2']]);
+          assert.equal(result.map(x=>x.rawText).join(''),'一百元然后继续');
+          assert.equal(result.map(x=>x.text).join(''),'100元。然后继续。');
+        """)
+
     def test_whole_sentence_preserves_short_changes_overlap_and_unknown(self):
         run_node(f"""
           import assert from 'node:assert/strict';

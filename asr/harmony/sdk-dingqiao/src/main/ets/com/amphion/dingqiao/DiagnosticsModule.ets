@@ -50,7 +50,8 @@ function createDiagnosticsCore(): DiagnosticsCore {
       includeRecognitionText: true,
       maxSessionAudioSec: 300,
       failureRingAudioSec: 20,
-      maxSessionEvents: 512
+      // Detailed per-window identity traces for the bounded diagnostic replay.
+      maxSessionEvents: 8192
     });
   }
   return core;
