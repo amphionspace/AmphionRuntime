@@ -142,6 +142,60 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
         self.assertIn("class NdjsonDiagnosticSink", sinks)
         self.assertIn("class MemoryDiagnosticSink", sinks)
 
+    def test_wav_export_preserves_pcm_without_copying_the_recording(self) -> None:
+        source = MODULE.read_text()
+        writer = source[source.index('function writeWav('):source.index('function writeText(')]
+        header = source[source.index('function writeAscii('):source.index('function csvOf(')]
+        script = r"""
+          import assert from 'node:assert/strict';
+          const WAV_HEADER_BYTES=44;
+          let parts=[],closed=0,failAt=0,writes=0,allocated=0;
+          const fs={OpenMode:{WRITE_ONLY:1,CREATE:2,TRUNC:4},
+            openSync(){return {fd:7}},
+            writeSync(fd,value){
+              assert.equal(fd,7);writes++;
+              if(writes===failAt)throw new Error('disk unavailable');
+              parts.push(value);
+            },closeSync(fp){assert.equal(fp.fd,7);closed++}};
+          const OriginalArrayBuffer=globalThis.ArrayBuffer;
+          globalThis.ArrayBuffer=class extends OriginalArrayBuffer {
+            constructor(size){super(size);allocated+=size}
+          };
+        """ + writer + header + r"""
+          for(const size of [0,640,300*32000]) {
+            const pcm=new OriginalArrayBuffer(size),bytes=new Uint8Array(pcm);
+            for(let i=0;i<size;i++)bytes[i]=i%251;
+            parts=[];writes=0;allocated=0;const before=closed;
+            writeWav('capture.wav',pcm);
+            assert.equal(closed,before+1);
+            assert.ok(allocated<=44,'encoding overhead must not grow with recording length');
+            const wav=Buffer.concat(parts.map(p=>Buffer.from(p)));
+            assert.equal(wav.length,44+size);
+            assert.equal(wav.toString('ascii',0,4),'RIFF');
+            assert.equal(wav.readUInt32LE(4),36+size);
+            assert.equal(wav.toString('ascii',8,16),'WAVEfmt ');
+            assert.equal(wav.readUInt32LE(16),16);
+            assert.equal(wav.readUInt16LE(20),1);
+            assert.equal(wav.readUInt16LE(22),1);
+            assert.equal(wav.readUInt32LE(24),16000);
+            assert.equal(wav.readUInt32LE(28),32000);
+            assert.equal(wav.readUInt16LE(32),2);
+            assert.equal(wav.readUInt16LE(34),16);
+            assert.equal(wav.toString('ascii',36,40),'data');
+            assert.equal(wav.readUInt32LE(40),size);
+            assert.deepEqual(wav.subarray(44),Buffer.from(pcm));
+          }
+          for(const failure of [1,2]) {
+            writes=0;failAt=failure;const before=closed;
+            assert.throws(()=>writeWav('capture.wav',new OriginalArrayBuffer(640)),/disk unavailable/);
+            assert.equal(closed,before+1);
+          }
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'streamed-wav.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True)
+
     def test_streamed_event_files_preserve_bytes_and_close_on_write_failure(self) -> None:
         sink = SINKS.read_text().split("export class NdjsonDiagnosticSink", 1)[1]
         sink = "export class NdjsonDiagnosticSink" + sink
