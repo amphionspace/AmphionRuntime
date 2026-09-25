@@ -88,6 +88,23 @@ class HarmonyCommunityPublicContractTest(unittest.TestCase):
           assert.equal(out.speakerCount,0);
         """)
 
+    def test_unenrolled_overlap_keeps_known_role_and_readable_sentence(self):
+        run_community_session("""
+          const s=session();s.totalSamples=160000;s.onWindow(window(0));
+          s.observeAsrFinal({result:'张三你好',beginTime:100,endTime:2000,isLast:false},
+            {rawText:'张三你好',tokens:['张','三','你','好'],timestamps:[.1,.3,.8,1.2],isLast:false,audioEndSample:32000});
+          s.client.cluster=async()=>({...clusterResult(1),hard:[0,-2,-2],
+            turns:[[0,10000,0],[400,450,-1]]});
+          const out=await s.commitWindow(10000,Infinity,true,0);
+          assert.equal(out.speakerCount,1,'anonymous overlap cannot reserve a role');
+          assert.ok(out.speakerTurns.every(t=>t.speakerIndex===0));
+          const overlap=out.speakerTurns.find(t=>t.overlap);
+          assert.ok(overlap);assert.deepEqual(overlap.secondarySpeakerIndexes,[-1]);
+          assert.equal(overlap.beginTime,400);assert.equal(overlap.endTime,450);
+          assert.equal(out.utterances.length,1);
+          assert.equal(out.utterances[0].text,'张三你好');
+        """)
+
     def test_no_enrollment_does_not_consume_a_role_or_rewrite_frozen_unknown(self):
         run_community_session("""
           const s=session();s.totalSamples=16000;s.onWindow(window(0));

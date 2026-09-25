@@ -267,6 +267,30 @@ int main() {
   assert(known.centroids.size()==1 && known.centroids[0][0]==1);
   auto named=community::Reconstruct(speech,known.hard,1);
   assert(named.size()==1 && named[0].speaker==0);
+  // A single enrolled voice must not erase a simultaneous unenrolled voice.
+  // The upstream reconstruction pads zero-score tracks to the observed count.
+  for(int frame=150;frame<170;++frame)speech[frame*3+1]=1;
+  auto partial=community::Reconstruct(speech,{-2,-2,0},1);
+  assert(partial.size()==2);
+  int namedCount=0,unknownCount=0;
+  for(const auto& turn:partial) {
+    if(turn.speaker==0) { ++namedCount;assert(turn.begin==named[0].begin && turn.end==named[0].end); }
+    else { ++unknownCount;assert(turn.speaker==-1 && turn.begin>named[0].begin && turn.end<named[0].end); }
+  }
+  assert(namedCount==1 && unknownCount==1);
+  auto capped=community::Reconstruct(speech,{-2,-2,0},1,1);
+  assert(capped.size()==1 && capped[0].speaker==0);
+  assert(capped[0].begin==named[0].begin && capped[0].end==named[0].end);
+  auto anonymousCapped=community::Reconstruct(segments,unknown.hard,1,1);
+  assert(anonymousCapped.size()==1 && anonymousCapped[0].speaker==-1);
+  // Two named voices plus a third anonymous one retain all three tracks.
+  for(int frame=155;frame<165;++frame)speech[frame*3]=1;
+  auto three=community::Reconstruct(speech,{-2,1,0},1);
+  assert(three.size()==3);
+  std::vector<int> speakers;
+  for(const auto& turn:three)speakers.push_back(turn.speaker);
+  std::sort(speakers.begin(),speakers.end());
+  assert(speakers==std::vector<int>({-1,0,1}));
 }
 '''
         with tempfile.TemporaryDirectory() as directory:

@@ -112,36 +112,41 @@ struct ClusterResult {
 };
 struct Turn { double begin,end; int speaker; };
 inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
-                                    const std::vector<int>& hard,int windows) {
+                                    const std::vector<int>& hard,int windows,int maxSpeakers=4) {
   constexpr int local=3,frames=589;
   constexpr double step=270./16000.,halfFrame=991./32000.;
-  const int knownClusters=*std::max_element(hard.begin(),hard.end())+1;
-  const bool unknown=knownClusters<=0;
-  // Without enrollment, retain anonymous speech and simultaneous-voice counts.
-  const int clusters=unknown?local:knownClusters;
+  const int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
   const int total=static_cast<int>(std::nearbyint((10.+windows-1)/step))+1;
-  Matrix activation(total,Vec(clusters));Vec counts(total),weights(total);
+  Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
     int start=std::nearbyint(w/step);
     for(int f=0;f<frames;++f){
-      Vec active(clusters);int n=0;
+      Vec active(knownClusters);int n=0;
       for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=hard[w*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
       int t=start+f;counts[t]+=n;weights[t]+=1;
-      for(int k=0;k<clusters;++k)activation[t][k]+=active[k];
+      for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
     }
   }
+  // Upstream pads zero-score tracks to the maximum observed voice count.
+  // An unenrolled simultaneous voice stays anonymous, even when another voice
+  // has a centroid. Enrollment count must not discard overlap evidence.
+  int clusters=knownClusters;
+  for(int t=0;t<total;++t){
+    counts[t]=weights[t]>0?std::min(static_cast<int>(std::nearbyint(counts[t]/weights[t])),maxSpeakers):0;
+    clusters=std::max(clusters,static_cast<int>(counts[t]));
+  }
+  for(auto& row:activation)row.resize(clusters);
   std::vector<Turn> turns;std::vector<int> start(clusters,-1);
   for(int t=0;t<total;++t){
-    int count=weights[t]>0?static_cast<int>(std::nearbyint(counts[t]/weights[t])):0;
-    count=std::min(count,clusters);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
+    int count=static_cast<int>(counts[t]);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
     std::stable_sort(order.begin(),order.end(),[&](int a,int b){return activation[t][a]>activation[t][b];});
     std::vector<bool> on(clusters,false);for(int j=0;j<count;++j)on[order[j]]=true;
     for(int k=0;k<clusters;++k){
       if(on[k]&&start[k]<0)start[k]=t;
-      if(!on[k]&&start[k]>=0){turns.push_back({start[k]*step+halfFrame,t*step+halfFrame,unknown?-1:k});start[k]=-1;}
+      if(!on[k]&&start[k]>=0){turns.push_back({start[k]*step+halfFrame,t*step+halfFrame,k<knownClusters?k:-1});start[k]=-1;}
     }
   }
-  for(int k=0;k<clusters;++k)if(start[k]>=0)turns.push_back({start[k]*step+halfFrame,(total-1)*step+halfFrame,unknown?-1:k});
+  for(int k=0;k<clusters;++k)if(start[k]>=0)turns.push_back({start[k]*step+halfFrame,(total-1)*step+halfFrame,k<knownClusters?k:-1});
   return turns;
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4) {
