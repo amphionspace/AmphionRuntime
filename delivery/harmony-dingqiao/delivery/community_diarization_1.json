@@ -36,7 +36,7 @@
   "segmentationManifest": "pyannote_segmentation_3_0.json",
   "runtimeNetworkRequired": false,
   "limitations": [
-    "Public corpus short-speaker and independent holdout recall gates remain unresolved.",
+    "Basic four-speaker usability, migration parity and final device resource/lifecycle acceptance remain pending. Per-speaker recall is observational, not an independent delivery gate or tuning trigger.",
     "These are global model parameters, not customer embeddings or enrollment templates."
   ]
 }
