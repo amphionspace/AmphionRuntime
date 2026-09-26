@@ -365,6 +365,37 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_window_schedule_can_pull_a_two_second_hop_without_dropping_windows(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ DiarizationWindowScheduler }} from {SCHEDULER.as_uri()!r};
+            const scheduler = new DiarizationWindowScheduler(16_000, 10_000, 2_000, 1_500);
+            scheduler.acceptSamples(16_000 * 30, 0);
+            assert.equal(scheduler.hasAvailable(), true);
+            const first = scheduler.takeAvailable(2);
+            assert.deepEqual(first.map(w => [w.startSample, w.endSample]),
+              [[0, 160000], [32000, 192000]]);
+            const rest = scheduler.takeAvailable(99);
+            assert.equal(first.length + rest.length, 11);
+            assert.deepEqual(rest.at(-1) && [rest.at(-1).startSample, rest.at(-1).endSample],
+              [320000, 480000]);
+            assert.equal(scheduler.finish(), undefined,
+              'an exact full final window must not be duplicated at a 2 s hop');
+            """
+        )
+
+    def test_local_executor_uses_bounded_pull_queue_and_window_generation_identity(self) -> None:
+        client = LOCAL_CLIENT.read_text(encoding='utf-8')
+        self.assertIn('maxPendingJobs', client)
+        self.assertIn('scheduler.takeAvailable(capacity)', client)
+        self.assertIn('activeJob?.generation !== job.generation', client)
+        self.assertIn('finishWindowQueued', client)
+        session = SESSION.read_text(encoding='utf-8')
+        self.assertIn('clientOptions?: SpeakerDiarizationLocalClientOptions', session)
+        self.assertIn('diagnostic, clientOptions)', session)
+        self.assertIn('this.windows.splice(0, removable)', session)
+
     def test_registry_keeps_ids_stable_and_never_forces_a_fifth_speaker(self) -> None:
         run_node(
             f"""
@@ -469,6 +500,73 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             assert.deepEqual(missingAsr, [{{
               asr: 'actual-tail', speaker: 'speakers', degraded: false
             }}]);
+            """
+        )
+
+    def test_stopped_fallback_preserves_real_tail_waiting_for_speaker_decoration(self) -> None:
+        from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
+
+        stopped = method_body(ADAPTER.read_text(), "handleSessionStopped").replace("(): void =>", "() =>")
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            const STOP_FALLBACK_DELAY_MS = 1500;
+            let timers = [];
+            globalThis.setTimeout = (fn,ms) => {{ timers.push({{fn,ms}}); return timers.length; }};
+            globalThis.clearTimeout = () => {{}};
+            class SpeechRecognitionResult {{ result=''; isFinal=false; isLast=false; speakerIndex=-1; }}
+            class AsrResult {{ isLast=false; }}
+            class Engine {{
+              generation=1; busy=true; finishRequested=true; completeSent=false;
+              currentSessionId='s1'; finalResultSent=true; targetSpeakerEnhancementEnabled=false;
+              sessionStartGate={{isCurrent: generation => generation===this.generation}};
+              speakerDiarizationSession; speakerDiarizationFinishBarrier;
+              listener={{onResult: (_id,value) => this.published.push(value)}};
+              observed=[]; published=[]; tail;
+              diagnosticResult() {{}}
+              completeCurrentSession() {{ this.completeSent=true; }}
+              tearDownSession() {{ this.busy=false; }}
+              handleSessionStopped(generation) {{ {stopped} }}
+            }}
+            for (const arrival of ['before-stop','before-fallback','missing','cancelled']) {{
+              timers=[];
+              const engine=new Engine();
+              const barrier=new SpeakerDiarizationFinishBarrier(15000, result => {{
+                engine.published.push(result.asr); engine.completeCurrentSession();
+              }});
+              engine.speakerDiarizationFinishBarrier=barrier;
+              engine.speakerDiarizationSession={{observeAsrFinal: value => {{
+                engine.observed.push(value); engine.tail=value;
+              }}}};
+              barrier.begin();
+              const real=new SpeechRecognitionResult(); real.result='真实尾句'; real.isLast=true;
+              const arrive=() => {{ engine.speakerDiarizationSession.observeAsrFinal(real);
+                barrier.resolveAsr(real); }};
+              if (arrival==='before-stop') arrive();
+              engine.handleSessionStopped(1);
+              if (arrival==='before-fallback') arrive();
+              if (arrival==='cancelled') {{ engine.generation=2; engine.currentSessionId='s2'; }}
+              timers.find(timer => timer.ms===1500).fn();
+              if (arrival==='cancelled') {{
+                assert.deepEqual(engine.observed,[]); assert.deepEqual(engine.published,[]); continue;
+              }}
+              assert.equal(engine.observed.length,1,'fallback replaced an already available ASR tail');
+              if (arrival!=='missing') assert.equal(engine.tail,real);
+              else assert.equal(engine.tail.result,'','missing ASR tail still needs the stopped fallback');
+              engine.tail.speakerIndex=2;
+              assert.deepEqual(engine.published,[],'speaker work still pending');
+              barrier.resolveSpeaker({{degraded:false,value:'final-speakers'}});
+              assert.equal(engine.published.length,1);
+              assert.equal(engine.published[0].speakerIndex,2,'decoration applied to the wrong tail');
+              assert.equal(engine.published[0].result,arrival==='missing'?'':'真实尾句');
+              assert.equal(engine.completeSent,true);
+            }}
+            timers=[];
+            const plain=new Engine(); plain.handleSessionStopped(1); timers[0].fn();
+            assert.equal(plain.published.length,1,'non-diarization stopped fallback changed');
+            assert.equal(plain.published[0].isLast,true);
+            assert.equal(plain.completeSent,true);
             """
         )
 

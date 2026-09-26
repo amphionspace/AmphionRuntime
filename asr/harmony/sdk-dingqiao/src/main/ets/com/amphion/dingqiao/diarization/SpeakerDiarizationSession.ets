@@ -5,7 +5,7 @@ import {
   SpeakerDiarizationUpdate, SpeakerTurn, SpeechRecognitionResult
 } from '../DingqiaoModels';
 import { DiarizationLocalWindowResult, SpeakerDiarizationLocalClient,
-  SpeakerDiarizationLocalObserver } from './SpeakerDiarizationLocalClient';
+  SpeakerDiarizationLocalObserver, SpeakerDiarizationLocalClientOptions } from './SpeakerDiarizationLocalClient';
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import { speakerIndexFromInternalId, speakerIndexesFromInternalIds } from './SpeakerDiarizationSpeakerIndex';
 import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
@@ -60,13 +60,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver,
-    diagnostic?: (event: string, fields: Record<string, Object>) => void) {
+    diagnostic?: (event: string, fields: Record<string, Object>) => void,
+    clientOptions?: SpeakerDiarizationLocalClientOptions) {
     this.observer = observer;
     this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
     this.identities = new CommunitySpeakerIdentity(maxSpeakers);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
-    try { this.client = new SpeakerDiarizationLocalClient(context, workPath, this, diagnostic); }
+    try {
+      this.client = new SpeakerDiarizationLocalClient(context, workPath, this, diagnostic, clientOptions);
+    }
     catch (error) {
       this.runtimeLease.release();
       this.runtimeLease = undefined;
@@ -363,6 +366,19 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
     this.transcript.commitThrough(endTime);
     this.publishedThrough = endTime;
+    // A window whose stable owned range is behind the public boundary can no
+    // longer contribute evidence to a later result. Keep crossing lookahead
+    // windows so the next commit retains its acoustic context.
+    if (isSessionFinal) {
+      this.windows.splice(0, this.windows.length);
+    } else if (Number.isFinite(evidenceEndTime)) {
+      let removable = 0;
+      while (removable < this.windows.length &&
+        this.windows[removable].stableEndSample * 1000 / SAMPLE_RATE <= endTime) {
+        removable += 1;
+      }
+      if (removable > 0) this.windows.splice(0, removable);
+    }
     return result;
   }
 
