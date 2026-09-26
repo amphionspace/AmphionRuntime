@@ -1135,6 +1135,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       setTimeout((): void => {
         if (!this.sessionStartGate.isCurrent(generation) || !this.busy || !this.finishRequested ||
           this.completeSent || this.currentSessionId !== sessionId) return;
+        // The real tail may be waiting for speaker decoration. A fallback must
+        // not replace that payload while the speaker worker is still draining.
+        if (this.speakerDiarizationFinishBarrier?.hasAsrTail() === true) return;
         const result = new SpeechRecognitionResult();
         result.isFinal = true;
         result.isLast = true;
