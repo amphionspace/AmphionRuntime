@@ -263,7 +263,8 @@ export class SpeakerDiarizationLocalClient {
       if (timeout >= 0) clearTimeout(timeout);
       if (this.activeJob?.jobId === job.jobId) this.activeJob = undefined;
       if (!this.closed) {
-        const scheduledStart = this.scheduler.nextWindowStartSample();
+        // Keep the executor's isolated timeout harness independent of the full scheduler.
+        const scheduledStart = this.scheduler?.nextWindowStartSample();
         const retainedOffset = this.queue.length > 0 ? this.queue[0].offsetBytes :
           (scheduledStart === undefined ?
             Math.max(0, this.spool.endOffset() - WINDOW_SAMPLES * 2) : scheduledStart * 2);
