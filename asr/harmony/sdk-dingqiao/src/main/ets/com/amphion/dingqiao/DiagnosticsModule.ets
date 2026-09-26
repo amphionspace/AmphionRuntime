@@ -50,7 +50,8 @@ function createDiagnosticsCore(): DiagnosticsCore {
       includeRecognitionText: true,
       maxSessionAudioSec: 300,
       failureRingAudioSec: 20,
-      maxSessionEvents: 512
+      // Detailed per-window identity traces for the bounded diagnostic replay.
+      maxSessionEvents: 8192
     });
   }
   return core;
@@ -60,10 +61,11 @@ function ensureDirectory(path: string): void {
   if (!fs.accessSync(path)) fs.mkdirSync(path, true);
 }
 
-function writeBytes(path: string, value: ArrayBuffer): void {
+function writeWav(path: string, pcm: ArrayBuffer): void {
   const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
   try {
-    fs.writeSync(fp.fd, value);
+    fs.writeSync(fp.fd, wavHeader(pcm.byteLength));
+    if (pcm.byteLength > 0) fs.writeSync(fp.fd, pcm);
   } finally {
     fs.closeSync(fp);
   }
@@ -152,11 +154,11 @@ function writeAscii(view: DataView, offset: number, value: string): void {
   for (let i = 0; i < value.length; i++) view.setUint8(offset + i, value.charCodeAt(i));
 }
 
-function wavOf(pcm: ArrayBuffer): ArrayBuffer {
-  const wav = new ArrayBuffer(WAV_HEADER_BYTES + pcm.byteLength);
+function wavHeader(pcmBytes: number): ArrayBuffer {
+  const wav = new ArrayBuffer(WAV_HEADER_BYTES);
   const view = new DataView(wav);
   writeAscii(view, 0, 'RIFF');
-  view.setUint32(4, 36 + pcm.byteLength, true);
+  view.setUint32(4, 36 + pcmBytes, true);
   writeAscii(view, 8, 'WAVE');
   writeAscii(view, 12, 'fmt ');
   view.setUint32(16, 16, true);
@@ -167,8 +169,7 @@ function wavOf(pcm: ArrayBuffer): ArrayBuffer {
   view.setUint16(32, 2, true);
   view.setUint16(34, 16, true);
   writeAscii(view, 36, 'data');
-  view.setUint32(40, pcm.byteLength, true);
-  new Uint8Array(wav).set(new Uint8Array(pcm), WAV_HEADER_BYTES);
+  view.setUint32(40, pcmBytes, true);
   return wav;
 }
 
@@ -331,7 +332,11 @@ export class DiagnosticsModule {
     DiagnosticsModule.resourceSamples.push(sampleResources(journalSnapshot));
     if (DiagnosticsModule.resourceSamples.length > 256) DiagnosticsModule.resourceSamples.shift();
 
-    const completedSnapshot = DiagnosticsModule.core.snapshot(false);
+    // Both views describe the same synchronous state. Reuse captured PCM rather
+    // than materializing the whole recording twice on every journal flush.
+    const completedSnapshot = journalSnapshot.config.mode === DiagnosticModeValue.FAILURE_ONLY ?
+      snapshotWithSessions(journalSnapshot, journalSnapshot.sessions.filter(
+        (session: DiagnosticSessionSnapshot): boolean => session.abnormal)) : journalSnapshot;
     const hasTerminalSession = completedSnapshot.sessions.some(
       (session: DiagnosticSessionSnapshot): boolean => session.terminal);
     const shouldPersist = journalSnapshot.config.mode === DiagnosticModeValue.CUSTOMER_SUPPORT ?
@@ -419,13 +424,26 @@ export class DiagnosticsModule {
     }
   }
 
+  private static writeEvents(path: string, events: DiagnosticEvent[], jsonArray: boolean = false): void {
+    const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      // Long meetings carry per-window tensors. Do not materialize a second
+      // whole-session JSON string on each five-second crash-journal flush.
+      DiagnosticsModule.ndjsonSink.write(events, (value: string): void => {
+        fs.writeSync(fp.fd, value);
+      }, jsonArray);
+    } finally {
+      fs.closeSync(fp);
+    }
+  }
+
   private static writeSnapshot(runDir: string, snapshot: DiagnosticsSnapshot,
     automatic: boolean): void {
     ensureDirectory(runDir);
-    writeText(`${runDir}/events.ndjson`, DiagnosticsModule.ndjsonSink.serialize(snapshot.events));
+    DiagnosticsModule.writeEvents(`${runDir}/events.ndjson`, snapshot.events);
     const callbacks = snapshot.events.filter((event: DiagnosticEvent): boolean =>
       event.event.indexOf('CALLBACK_') === 0);
-    writeText(`${runDir}/callbacks.ndjson`, DiagnosticsModule.ndjsonSink.serialize(callbacks));
+    DiagnosticsModule.writeEvents(`${runDir}/callbacks.ndjson`, callbacks);
     for (let i = 0; i < snapshot.sessions.length; i++) {
       DiagnosticsModule.writeSession(runDir, snapshot.sessions[i]);
     }
@@ -484,11 +502,11 @@ export class DiagnosticsModule {
   private static writeSession(runDir: string, session: DiagnosticSessionSnapshot): void {
     const sessionDir = `${runDir}/sessions/${session.sessionId}`;
     ensureDirectory(sessionDir);
-    writeText(`${sessionDir}/timeline.json`, `${JSON.stringify(session.events)}\n`);
+    DiagnosticsModule.writeEvents(`${sessionDir}/timeline.json`, session.events, true);
     const result = DiagnosticsModule.sessionSummary(session);
     writeText(`${sessionDir}/result.json`, `${JSON.stringify(result)}\n`);
     if (session.audio === undefined) return;
-    writeBytes(`${sessionDir}/sdk-input.wav`, wavOf(session.audio.pcm));
+    writeWav(`${sessionDir}/sdk-input.wav`, session.audio.pcm);
     const audio = session.audio;
     const metadata: Record<string, Object> = {};
     metadata['sampleRate'] = 16000;

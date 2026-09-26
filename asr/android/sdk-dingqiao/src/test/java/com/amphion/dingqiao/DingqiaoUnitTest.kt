@@ -180,6 +180,16 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
+    fun buildAsrConfig_usesCalibratedPoliceWeight() {
+        val config = DingqiaoEngineConfig.buildAsrConfig(
+            CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
+            speakerModelPath = null,
+        )
+        assertEquals(1.0f, config.hotwordsScore)
+        assertTrue(config.hotwords.isNotEmpty())
+    }
+
+    @Test
     fun buildAsrConfig_readsVadEndFromStartParams() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(

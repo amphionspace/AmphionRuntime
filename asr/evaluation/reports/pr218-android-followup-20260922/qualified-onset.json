@@ -1,0 +1,23 @@
+{
+  "source": {
+    "id": "SSB07020026",
+    "speaker": "SSB0702",
+    "text": "费利恰诺主教的殉教。",
+    "duration": 2.6006349206349206
+  },
+  "source_sha256": "9860a67a615bb4d9346de2228e05b50007720137acd6403a30ab1f1641a77a78",
+  "recognition_file": "03_识别.wav",
+  "recognition_sha256": "235485761e141bfe434ae800e51fc8f1da16faa5a527bddcd4f49a0eed75c9ad",
+  "enrollment_source": {
+    "id": "SSB07020307",
+    "speaker": "SSB0702",
+    "text": "图片来自国家统计局网站截屏。",
+    "duration": 3.575875
+  },
+  "enrollment_source_sha256": "15f69b0cd25f8f68b6cbaca146080f3197b3d684435b5ccc2f699846b7cbc89e",
+  "enrollment_sha256": "05708e5070068a80b2c3524a0218305cc048469becf14b3cf91f5be4ab679ef7",
+  "vad_model_sha256": "9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6",
+  "processing": "Full independent utterance resampled to 16k PCM16; no cropping, repeating or padding. The test adds its unchanged 300 ms prefix.",
+  "native_equivalent_first_confirmed_ms_with_300ms_prefix": 704.0,
+  "scope": "Host qualification; device test still required. Original failed input preserved as 01_target.wav."
+}

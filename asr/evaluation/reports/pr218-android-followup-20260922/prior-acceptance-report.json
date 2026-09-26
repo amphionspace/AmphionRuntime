@@ -1,0 +1,62 @@
+{
+  "status": "ACCEPTANCE_BLOCKED",
+  "source_commit": "3334c80d6810f1dda6b275685438c242044df99b",
+  "installation": {
+    "status": "PASS",
+    "identity": "android-install-enrollment-v2-verified.json",
+    "app_sha256": "73355369d173809a5163174d1ca5da17b7af4472fd4eb21fc9238e80c9454fc1",
+    "test_apk_sha256": "6587cd54f1d454697202f64d5071f6d6fe2ba55918728e2d40fd27a44429b3c1"
+  },
+  "device": {
+    "model": "V2505A",
+    "android_version": "16",
+    "build": "PD2505D_A_16.0.30.8.W10"
+  },
+  "targeted_gates": [
+    {
+      "test": "a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint",
+      "status": "PASS",
+      "evidence": "qualified-gates",
+      "scope": "One start/end speech event; zero last before finish; one last then one complete after finish."
+    },
+    {
+      "test": "v06_speakerVad_overlapRuns",
+      "status": "PASS",
+      "evidence": "qualified-gates-enrollment-v2",
+      "scope": "Registration, error-free completion and unique last/complete on deterministic two-speaker mixture; not target filtering accuracy."
+    },
+    {
+      "test": "v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad",
+      "status": "FAIL",
+      "evidence": "qualified-gates-enrollment-v2",
+      "root_cause_status": "INCONCLUSIVE",
+      "scope": "Registration succeeds, but last/complete precede finish. Initial input qualification missed 250 ms VAD confirmation; do not declare an SDK fix or regression."
+    }
+  ],
+  "content": {
+    "status": "FAIL",
+    "samples": 12,
+    "before_failures": 7,
+    "after_failures": 4,
+    "improved": 3,
+    "regressed": 0,
+    "failed_fixtures": [
+      "v6_1_1.wav",
+      "v6_2_1.wav",
+      "v6_2_2.wav",
+      "v6_6_2.wav"
+    ],
+    "process_smoke": "PASS: no ERROR/TIMEOUT; this is not a full callback-contract assertion."
+  },
+  "evidence_reuse": "a11a and content ran on test APK 3c65e8b5... before enrollment replacement; code, all their input bytes and the app APK are identical. ZIP entry comparison shows only two enrollment WAV entries changed. Harmony evidence remains bound to the unchanged app/SDK source.",
+  "remaining": [
+    "NFC missing N and resolution command prefix/tail errors remain on both platforms.",
+    "Android v6_2_2 yields 第一 and v6_6_2 yields 零; incomplete words are not guessed or corrected by the new exact rules.",
+    "v04d remains failed with root cause not fully resolved; full PR acceptance is not passed."
+  ],
+  "limitations": [
+    "V6 is a synthetic targeted corpus, not customer original audio or representative recognition accuracy.",
+    "Speaker VAD overlap test proves lifecycle only; it does not assert correct speaker filtering or similarity accuracy.",
+    "Short resource sampling is INCONCLUSIVE for leaks. No new full release matrix, current-HEAD CI, GitHub push/merge or customer package was completed."
+  ]
+}

@@ -1,5 +1,7 @@
 # HarmonyOS HAP build with local model resources
 
+This is a historical branch handoff. For current DevEco CLI and standalone Command Line Tools commands, follow [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md).
+
 This note is for colleagues who pull the remote branch and use the separately provided local model/frontend resource package to build the sample HAP.
 
 The remote branch contains the HarmonyOS native TN source and ICU static build dependencies needed by `liblitsttsnative.so`. You do not need a sibling training checkout or any files from the original local training/export workspace.

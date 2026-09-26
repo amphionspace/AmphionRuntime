@@ -1,0 +1,14 @@
+{
+  "source_commit": "7dd914494b47cef848b012fb45a502532bceb334",
+  "status": "PASS",
+  "limit_bytes": 335544320,
+  "scope": "SDK-only PR preview; full public documentation, all existing model capabilities; no customer release",
+  "zip": {
+    "bytes": 325962247,
+    "sha256": "b5712c455e1ddc66aefdd2650b0effc3a93cfaa7c6cfe7a5bc55c103b503ec9d"
+  },
+  "har": {
+    "bytes": 326010618,
+    "sha256": "60d6636037eeb172b205ed0aac1e93eabc738da4b73c5b94b67d2abc9c893136"
+  }
+}

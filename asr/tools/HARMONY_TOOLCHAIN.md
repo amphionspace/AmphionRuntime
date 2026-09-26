@@ -1,29 +1,78 @@
 # HarmonyOS / OpenHarmony 工具链
 
-纯血鸿蒙 SDK 需要使用 DevEco Studio 或 HarmonyOS Command Line Tools，不能复用 Android NDK。
+本仓库使用 **DevEco CLI + 独立 Command Line Tools（CLT）**，构建和设备测试不再依赖 DevEco Studio 的安装目录。
 
-## 需要的工具
+## 安装
 
-- DevEco Studio 5.x 或 HarmonyOS Command Line Tools 5.x
-- OHOS SDK Native 工具链，目录中应包含：
-  - `build/cmake/ohos.toolchain.cmake`
-  - `llvm/bin/aarch64-unknown-linux-ohos-clang`
-  - `build-tools/cmake/bin/cmake`
-- `bash`、`curl`、`unzip`、Meson 1.0+、Ninja
+- 系统 Node.js 22+，用于运行 DevEco CLI。
+- `@deveco/deveco-cli@1.3.0-stable`（本次迁移固定版本）。
+- 官方 [Command Line Tools](https://developer.huawei.com/consumer/cn/download/command-line-tools-for-hmos) 26.0.0+，按本机系统和 CPU 架构下载、解压。
+- 独立 JDK 17；CLT 不提供 Studio 的 JBR。
+- native 构建还需要 `bash`、`curl`、`unzip`、Meson 1.0+、Ninja，不能使用 Android NDK 代替 OHOS 编译器。
+
+```bash
+npm install -g @deveco/deveco-cli@1.3.0-stable
+```
+
+需要账号能力时，在自己的终端运行下面的命令。登录页过期后重新运行 `auth login` 即可打开新的页面，无需等待他人重开：
+
+```bash
+devecocli auth login
+devecocli auth status
+```
+
+CLT 下载使用开发者网站的网页登录。macOS 可随时重开固定下载入口：
+
+```bash
+open 'https://developer.huawei.com/consumer/cn/download/command-line-tools-for-hmos'
+```
+
+官方下载可能需要登录华为开发者账号。CLT 根目录应包含 `version.txt`、`tool/node/`、`ohpm/`、`hvigor/` 和 `sdk/`。推荐解压到 `~/.local/share/harmony/command-line-tools/`；其他位置通过下面的变量指定。CLI 的要求与工具路径依据 [官方包说明](https://www.npmjs.com/package/@deveco/deveco-cli)。
 
 ## 环境变量
 
-优先设置：
+在仓库根目录执行（路径换成本机实际位置）：
 
 ```bash
-export OHOS_SDK_NATIVE_DIR=/path/to/command-line-tools/sdk/default/openharmony/native
+export DEVECO_CLI_CLT_PATH="$HOME/.local/share/harmony/command-line-tools"
+export JAVA_HOME=/path/to/jdk-17
+source asr/tools/harmony_env.sh
+bash asr/tools/deveco_cli.sh --version
+bash asr/tools/deveco_cli.sh device list
 ```
 
-脚本也会尝试从以下路径自动查找：
+macOS 使用 Homebrew 安装独立 JDK 的示例：
 
-- `$DEVECO_SDK_HOME/default/openharmony/native`
-- `$HOME/Library/Huawei/Sdk/default/openharmony/native`
-- `$HOME/Library/OpenHarmony/Sdk/default/openharmony/native`
+```bash
+brew install openjdk@17
+export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
+```
+
+`harmony_env.sh` 为构建、签名和设备脚本统一设置 CLT 路径，并清除优先级更高的 `DEVECO_CLI_STUDIO_PATH`，防止 CLI 被旧配置切回 Studio。仓库入口关闭 CLI 遥测。`JAVA_HOME` 使用独立 JDK；本地证书、授权及签名口令仍按原流程从 `.secure/` 读取，不提交到仓库。
+
+可显式覆盖 `DEVECO_SDK_HOME`、`OHOS_SDK_NATIVE_DIR`、`HDC`、`LLVM_NM` 和 `HAP_SIGN_TOOL_JAR`。默认 SDK 为 `$DEVECO_CLI_CLT_PATH/sdk`，native 为其 `default/openharmony/native`。Python 设备脚本也直接读取 `DEVECO_CLI_CLT_PATH`，无需依赖当前终端是否已经 source。
+
+## 日常编译
+
+先完成下文的 native 与模型准备，再在对应 Harmony 工程目录调用 CLI。CLI 会执行依赖安装和 Hvigor 构建：
+
+```bash
+cd delivery/harmony-dingqiao
+../../asr/tools/deveco_cli.sh build --product default --modules amphion_asr_demo@default --build-mode debug
+../../asr/tools/deveco_cli.sh build --product default --modules sherpa_onnx@default amphion_asr@default amphion_police@default amphion_dingqiao@default --build-mode release
+```
+
+TTS 工程使用 `cd tts/harmony`，再执行 `../../asr/tools/deveco_cli.sh build --modules sdk@default --build-mode release`；宿主模块是 `sample@default`。
+
+正式 USB 验收继续使用 `delivery/harmony-dingqiao/delivery/build_install_smoke.sh`。该脚本及打包门禁直接调用 **CLT 中的 Hvigor、ohpm、hdc 和签名工具**，保留原有 `--no-daemon`、隔离签名、构建身份核对及 SDK 生命周期断言。CLI 的 `run` 冒烟检查不能代替 SDK 验收。
+
+迁移工具链不修改工程的 `compatibleSdkVersion`、`targetSdkVersion`、模型、签名或交付范围。更换 SDK 后新生成的 HAP/HAR 必须按现有规则重新绑定构建身份和相关验收证据，旧二进制的通过结果不能自动用于新产物。
+
+### 已验证的工具组合（2026-09-20）
+
+macOS ARM64：DevEco CLI `1.3.0-stable`、CLT `26.0.0.821`、Hvigor `6.26.4`、ohpm `26.0.0.630`、CLT Node.js `24.14.1`、独立 JDK `17.0.20.1`。
+
+在隔离工程内执行 `devecocli build --product default --modules amphion_asr_demo@default --build-mode debug`，成功生成中英 signed HAP，并通过现有签名、证书链、授权、模型身份与 native ABI 预检。`devecocli device list` 能识别连接的真机。该记录只证明工具链迁移和构建预检，不代替 SDK 生命周期、识别精度或发布真机矩阵。
 
 ## 构建 native
 
@@ -32,6 +81,20 @@ bash asr/tools/03_build_agc_native.sh ohos-arm64-v8a
 bash asr/tools/04_build_harmony_so.sh
 bash asr/tools/05_package_har_libs.sh
 ```
+
+`04_build_harmony_so.sh` 会从固定提交重建 ONNX Runtime 1.16.3，应用
+`third_party/patches/onnxruntime-amphion/` 中的 OHOS 补丁和工作线程等待修复。
+它保留原有公开 spinning 开关和算子计算分工，缩短没有任务时的空转等待，
+并在等待并行任务完成时使用条件通知。完成标志与通知由同一互斥锁保护，
+调用方必须等最后一个通知者退出后才能复用或释放状态。
+源码、Eigen 和主机 protoc 均固定版本；构建参数见 `harmony_onnxruntime_flags.cmake`。
+首次构建需要下载依赖，后续使用 `third_party/.derived/` 下的构建目录。
+输出旁的 `libonnxruntime.provenance.json` 记录源码、补丁、编译器和库哈希；
+HAP/HAR 仍须通过原有构建身份与真机门禁。
+
+构建前会使用主机 `c++` 执行 `verify_harmony_ort_completion.py`，从实际补丁源码
+提取完成方法与通知代码，检查延迟、倒序完成、撤销、丢唤醒、状态复用与等待 CPU 开销。
+该检查隔离完成状态机，不能代替真机线程池、SDK 回调和资源验收。
 
 产物：
 
@@ -51,14 +114,14 @@ bash asr/tools/08_pack_harmony_assets.sh
 
 该脚本不依赖 Android assets，会直接从以下默认目录组装五类模型：
 
-- 中英：`asr/tools/demo-model/zhen`
+- 中英：`asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-fp32`（[恢复说明](demo-model/README.md)）
 - 粤英：`asr/tools/demo-model/yueen`
 - 标点：`asr/tools/punct-model/...-int8`
 - ITN：`asr/tools/weitn-fsts-v2`（保留“啊、呃”）
 - VAD：`asr/tools/vad-model/silero_vad.onnx`
 
-中英模型接受 `decoder.int8.onnx`，并兼容旧的 `decoder.onnx`。构建时会并行把中英
-encoder / decoder / joiner 和标点图转换成 ORT FlatBuffer：
+当前中英模型使用 FP32 `encoder.onnx`、`decoder.onnx` 和 `joiner.onnx`。构建时会并行把
+三张图和标点图转换成 ORT FlatBuffer；运行期沿用历史文件名，名称中的 `int8` 不代表当前模型精度：
 
 ```text
 zh-en/v1/{encoder.int8.ort,decoder.ort,joiner.int8.ort}

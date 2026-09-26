@@ -110,6 +110,8 @@ dependencies {
         implementation(files(fatAarPath))
     } else {
         implementation(project(":sdk-dingqiao"))
+        androidTestImplementation(project(":sdk"))
+        androidTestImplementation(project(":sdk-police"))
     }
 
     implementation(libs.androidx.core.ktx)

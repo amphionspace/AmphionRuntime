@@ -1,0 +1,18 @@
+{
+  "command": [
+    "<LOCAL_PATH>",
+    "shell",
+    "am",
+    "instrument",
+    "-w",
+    "-r",
+    "-e",
+    "class",
+    "com.amphion.dingqiao.demo.Pr218NativeBoundaryDiagnosticTest",
+    "com.amphion.dingqiao.demo.test/androidx.test.runner.AndroidJUnitRunner"
+  ],
+  "elapsed_seconds": 8.741,
+  "exit_code": 0,
+  "status": "PASS",
+  "source_commit": "0978911167bee4c978b8b3909a9194a87306784e"
+}

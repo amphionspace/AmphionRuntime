@@ -1,0 +1,790 @@
+{
+  "base_commit": "78b294e66717b02a732a34ed1ca587fd97c5f5e1",
+  "evaluated_current_code_commit": "2c6185c2c7c401d19a0e0a804068be7d5bbf908c",
+  "conclusion": "No demonstrated overall accuracy gain on these 4305 police terminology cases: default hotword score 3.0 regresses sentence accuracy and CER; no-hotword sentence accuracy is nearly flat and CER slightly worsens. Rule improvements do not establish model-upgrade benefit.",
+  "configuration": {
+    "old_model": "police-179m-v1-1 / 1.1.0 / INT8 encoder, FP32 decoder and joiner",
+    "new_model": "police-179m-v1.4 / 1.4.0 / FP32 encoder, decoder and joiner",
+    "old_model_zip_sha256": "b2aace0db10e84faa561a025b9d0ea88cf7eb07edc5f7b7d217a18d637166cab",
+    "new_model_tar_sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+    "corpus_tar_sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
+    "selection_cases": 4305,
+    "runtime": {
+      "sherpa_onnx": "1.13.1",
+      "platform": "Linux-5.15.0-60-generic-x86_64-with-glibc2.31",
+      "num_threads": 1,
+      "sample_rate": 16000,
+      "frame_samples": 320,
+      "feature_dim": 80,
+      "model_type": "zipformer2",
+      "decoding_method": "modified_beam_search",
+      "max_active_paths": 8,
+      "endpoint_rules_sec": [
+        2.4,
+        1.4,
+        20
+      ],
+      "tail_silence_samples": 19200,
+      "hotword_scores": [
+        0,
+        3
+      ],
+      "hotwords_count": 370,
+      "hotword_modeling_unit": "bbpe",
+      "WeTextProcessing": "1.0.4.1",
+      "pynini": "2.1.6"
+    },
+    "scope": "All six updated police terminology datasets, paired host evaluation; fixed old/new normalization; not mobile SDK acceptance"
+  },
+  "model_files": {
+    "old": {
+      "bbpe.model": {
+        "bytes": 380510,
+        "sha256": "6232b8a79b91b3831a3ab7ab71168a21abac87cd85449982857f9de3bc578d73"
+      },
+      "bbpe.vocab": {
+        "bytes": 232130,
+        "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+      },
+      "decoder.onnx": {
+        "bytes": 17453084,
+        "sha256": "5e4a812403ff3ae47b191aba81805d2e9df6e839f3dd8200d0e529d1fc82e418"
+      },
+      "encoder.int8.onnx": {
+        "bytes": 161135709,
+        "sha256": "5b8f9c3b40a5dfe3c82a53513a11a68751abee0e9af56f72aeaa1ff7516e8888"
+      },
+      "joiner.onnx": {
+        "bytes": 16416467,
+        "sha256": "d67214dbe287b904b6f49c5d68399f9a68813f764a5833c8bf554156634ae869"
+      },
+      "tokens.txt": {
+        "bytes": 115253,
+        "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
+      }
+    },
+    "new": {
+      "bbpe.model": {
+        "bytes": 380510,
+        "sha256": "6232b8a79b91b3831a3ab7ab71168a21abac87cd85449982857f9de3bc578d73"
+      },
+      "bbpe.vocab": {
+        "bytes": 232130,
+        "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+      },
+      "decoder.onnx": {
+        "bytes": 17453084,
+        "sha256": "5ac4956a33520b2184b71ecabeb7925fa85a8ade9d3ada90df56b6593bffe460"
+      },
+      "encoder.onnx": {
+        "bytes": 616801465,
+        "sha256": "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932"
+      },
+      "joiner.onnx": {
+        "bytes": 16416467,
+        "sha256": "cab74315925720da98b8ffb53ef235ef90b706d92fa7c8c061a072218d202ef5"
+      },
+      "tokens.txt": {
+        "bytes": 115253,
+        "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
+      }
+    }
+  },
+  "profiles": {
+    "0": {
+      "all": {
+        "cases": 4305,
+        "strict": {
+          "old_raw": {
+            "exact": 3513,
+            "sentence_accuracy": 0.8160278745644599,
+            "edits": 1823,
+            "reference_chars": 85455,
+            "cer": 0.021332865250716752
+          },
+          "new_raw": {
+            "exact": 3482,
+            "sentence_accuracy": 0.8088269454123113,
+            "edits": 1894,
+            "reference_chars": 85455,
+            "cer": 0.022163711895149495
+          },
+          "old_base": {
+            "exact": 3632,
+            "sentence_accuracy": 0.8436701509872242,
+            "edits": 1675,
+            "reference_chars": 85455,
+            "cer": 0.01960095956936399
+          },
+          "new_base": {
+            "exact": 3616,
+            "sentence_accuracy": 0.8399535423925668,
+            "edits": 1732,
+            "reference_chars": 85455,
+            "cer": 0.020267977297993095
+          },
+          "new_current": {
+            "exact": 3636,
+            "sentence_accuracy": 0.8445993031358885,
+            "edits": 1695,
+            "reference_chars": 85455,
+            "cer": 0.019835000877654906
+          }
+        },
+        "numeric_equivalent": {
+          "old_raw": {
+            "exact": 3575,
+            "sentence_accuracy": 0.8304297328687572,
+            "edits": 1728,
+            "reference_chars": 86015,
+            "cer": 0.020089519269894787
+          },
+          "new_raw": {
+            "exact": 3544,
+            "sentence_accuracy": 0.8232288037166086,
+            "edits": 1790,
+            "reference_chars": 86015,
+            "cer": 0.02081032378073592
+          },
+          "old_base": {
+            "exact": 3703,
+            "sentence_accuracy": 0.8601626016260162,
+            "edits": 1567,
+            "reference_chars": 86015,
+            "cer": 0.018217752717549263
+          },
+          "new_base": {
+            "exact": 3686,
+            "sentence_accuracy": 0.8562137049941928,
+            "edits": 1615,
+            "reference_chars": 86015,
+            "cer": 0.018775794919490787
+          },
+          "new_current": {
+            "exact": 3705,
+            "sentence_accuracy": 0.8606271777003485,
+            "edits": 1585,
+            "reference_chars": 86015,
+            "cer": 0.018427018543277336
+          }
+        },
+        "frozen_project_lexicon": {
+          "old_base": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5038,
+            "hit_rate": 0.9843688940992575,
+            "all_targets_hit_rows": 2827
+          },
+          "new_base": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5032,
+            "hit_rate": 0.9831965611567018,
+            "all_targets_hit_rows": 2821
+          },
+          "new_current": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5041,
+            "hit_rate": 0.9849550605705354,
+            "all_targets_hit_rows": 2830
+          }
+        },
+        "model_at_base_rules": {
+          "changed": 160,
+          "improved": 55,
+          "regressed": 75,
+          "became_exact": 30,
+          "lost_exact": 47
+        },
+        "rules_at_new_model": {
+          "changed": 33,
+          "improved": 25,
+          "regressed": 0,
+          "became_exact": 19,
+          "lost_exact": 0
+        },
+        "whole_pr": {
+          "changed": 182,
+          "improved": 75,
+          "regressed": 72,
+          "became_exact": 46,
+          "lost_exact": 44
+        }
+      },
+      "datasets": {
+        "current_police_terms_20260711_application_names_62": {
+          "cases": 62,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 59,
+              "sentence_accuracy": 0.9516129032258065,
+              "edits": 4,
+              "reference_chars": 557,
+              "cer": 0.00718132854578097
+            },
+            "new_base": {
+              "exact": 58,
+              "sentence_accuracy": 0.9354838709677419,
+              "edits": 6,
+              "reference_chars": 557,
+              "cer": 0.010771992818671455
+            },
+            "new_current": {
+              "exact": 59,
+              "sentence_accuracy": 0.9516129032258065,
+              "edits": 5,
+              "reference_chars": 557,
+              "cer": 0.008976660682226212
+            }
+          },
+          "whole_pr": {
+            "changed": 3,
+            "improved": 1,
+            "regressed": 1,
+            "became_exact": 1,
+            "lost_exact": 1
+          }
+        },
+        "current_police_terms_20260711_industry_dialogue_189": {
+          "cases": 189,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 171,
+              "sentence_accuracy": 0.9047619047619048,
+              "edits": 24,
+              "reference_chars": 6318,
+              "cer": 0.003798670465337132
+            },
+            "new_base": {
+              "exact": 172,
+              "sentence_accuracy": 0.91005291005291,
+              "edits": 23,
+              "reference_chars": 6318,
+              "cer": 0.0036403925292814183
+            },
+            "new_current": {
+              "exact": 174,
+              "sentence_accuracy": 0.9206349206349206,
+              "edits": 21,
+              "reference_chars": 6318,
+              "cer": 0.0033238366571699905
+            }
+          },
+          "whole_pr": {
+            "changed": 7,
+            "improved": 5,
+            "regressed": 2,
+            "became_exact": 4,
+            "lost_exact": 1
+          }
+        },
+        "current_police_terms_20260711_industry_vocab_1671": {
+          "cases": 1671,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 1605,
+              "sentence_accuracy": 0.9605026929982047,
+              "edits": 74,
+              "reference_chars": 14013,
+              "cer": 0.005280810675801042
+            },
+            "new_base": {
+              "exact": 1597,
+              "sentence_accuracy": 0.9557151406343507,
+              "edits": 85,
+              "reference_chars": 14013,
+              "cer": 0.006065796046528224
+            },
+            "new_current": {
+              "exact": 1608,
+              "sentence_accuracy": 0.9622980251346499,
+              "edits": 70,
+              "reference_chars": 14013,
+              "cer": 0.0049953614500820665
+            }
+          },
+          "whole_pr": {
+            "changed": 28,
+            "improved": 16,
+            "regressed": 12,
+            "became_exact": 15,
+            "lost_exact": 12
+          }
+        },
+        "current_police_terms_20260711_special_codes_10": {
+          "cases": 10,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            },
+            "new_base": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            },
+            "new_current": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            }
+          },
+          "whole_pr": {
+            "changed": 0,
+            "improved": 0,
+            "regressed": 0,
+            "became_exact": 0,
+            "lost_exact": 0
+          }
+        },
+        "current_police_terms_20260727_190": {
+          "cases": 190,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 186,
+              "sentence_accuracy": 0.9789473684210527,
+              "edits": 4,
+              "reference_chars": 1881,
+              "cer": 0.002126528442317916
+            },
+            "new_base": {
+              "exact": 188,
+              "sentence_accuracy": 0.9894736842105263,
+              "edits": 2,
+              "reference_chars": 1881,
+              "cer": 0.001063264221158958
+            },
+            "new_current": {
+              "exact": 188,
+              "sentence_accuracy": 0.9894736842105263,
+              "edits": 2,
+              "reference_chars": 1881,
+              "cer": 0.001063264221158958
+            }
+          },
+          "whole_pr": {
+            "changed": 2,
+            "improved": 2,
+            "regressed": 0,
+            "became_exact": 2,
+            "lost_exact": 0
+          }
+        },
+        "current_police_terms_2183": {
+          "cases": 2183,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 1674,
+              "sentence_accuracy": 0.7668346312414109,
+              "edits": 1446,
+              "reference_chars": 63054,
+              "cer": 0.02293272433152536
+            },
+            "new_base": {
+              "exact": 1663,
+              "sentence_accuracy": 0.7617956939990839,
+              "edits": 1484,
+              "reference_chars": 63054,
+              "cer": 0.02353538237066641
+            },
+            "new_current": {
+              "exact": 1668,
+              "sentence_accuracy": 0.7640861200183234,
+              "edits": 1472,
+              "reference_chars": 63054,
+              "cer": 0.023345069305674503
+            }
+          },
+          "whole_pr": {
+            "changed": 142,
+            "improved": 51,
+            "regressed": 57,
+            "became_exact": 24,
+            "lost_exact": 30
+          }
+        }
+      }
+    },
+    "3": {
+      "all": {
+        "cases": 4305,
+        "strict": {
+          "old_raw": {
+            "exact": 3376,
+            "sentence_accuracy": 0.7842044134727062,
+            "edits": 2152,
+            "reference_chars": 85455,
+            "cer": 0.025182844772102277
+          },
+          "new_raw": {
+            "exact": 3326,
+            "sentence_accuracy": 0.7725900116144019,
+            "edits": 2309,
+            "reference_chars": 85455,
+            "cer": 0.027020069042185946
+          },
+          "old_base": {
+            "exact": 3481,
+            "sentence_accuracy": 0.8085946573751451,
+            "edits": 2039,
+            "reference_chars": 85455,
+            "cer": 0.023860511380258617
+          },
+          "new_base": {
+            "exact": 3442,
+            "sentence_accuracy": 0.7995354239256678,
+            "edits": 2184,
+            "reference_chars": 85455,
+            "cer": 0.02555731086536774
+          },
+          "new_current": {
+            "exact": 3455,
+            "sentence_accuracy": 0.8025551684088269,
+            "edits": 2156,
+            "reference_chars": 85455,
+            "cer": 0.025229653033760457
+          }
+        },
+        "numeric_equivalent": {
+          "old_raw": {
+            "exact": 3440,
+            "sentence_accuracy": 0.7990708478513356,
+            "edits": 2052,
+            "reference_chars": 86015,
+            "cer": 0.023856304133000057
+          },
+          "new_raw": {
+            "exact": 3394,
+            "sentence_accuracy": 0.7883855981416957,
+            "edits": 2200,
+            "reference_chars": 86015,
+            "cer": 0.025576934255653085
+          },
+          "old_base": {
+            "exact": 3547,
+            "sentence_accuracy": 0.8239256678281068,
+            "edits": 1925,
+            "reference_chars": 86015,
+            "cer": 0.02237981747369645
+          },
+          "new_base": {
+            "exact": 3512,
+            "sentence_accuracy": 0.8157955865272939,
+            "edits": 2062,
+            "reference_chars": 86015,
+            "cer": 0.02397256292507121
+          },
+          "new_current": {
+            "exact": 3525,
+            "sentence_accuracy": 0.818815331010453,
+            "edits": 2040,
+            "reference_chars": 86015,
+            "cer": 0.02371679358251468
+          }
+        },
+        "frozen_project_lexicon": {
+          "old_base": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5074,
+            "hit_rate": 0.9914028917545916,
+            "all_targets_hit_rows": 2862
+          },
+          "new_base": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5070,
+            "hit_rate": 0.9906213364595545,
+            "all_targets_hit_rows": 2858
+          },
+          "new_current": {
+            "covered_rows": 2898,
+            "target_occurrences": 5118,
+            "hit_occurrences": 5073,
+            "hit_rate": 0.9912075029308324,
+            "all_targets_hit_rows": 2861
+          }
+        },
+        "model_at_base_rules": {
+          "changed": 303,
+          "improved": 99,
+          "regressed": 166,
+          "became_exact": 63,
+          "lost_exact": 98
+        },
+        "rules_at_new_model": {
+          "changed": 26,
+          "improved": 19,
+          "regressed": 0,
+          "became_exact": 13,
+          "lost_exact": 0
+        },
+        "whole_pr": {
+          "changed": 324,
+          "improved": 117,
+          "regressed": 166,
+          "became_exact": 76,
+          "lost_exact": 98
+        }
+      },
+      "datasets": {
+        "current_police_terms_20260711_application_names_62": {
+          "cases": 62,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 59,
+              "sentence_accuracy": 0.9516129032258065,
+              "edits": 4,
+              "reference_chars": 557,
+              "cer": 0.00718132854578097
+            },
+            "new_base": {
+              "exact": 60,
+              "sentence_accuracy": 0.967741935483871,
+              "edits": 3,
+              "reference_chars": 557,
+              "cer": 0.005385996409335727
+            },
+            "new_current": {
+              "exact": 60,
+              "sentence_accuracy": 0.967741935483871,
+              "edits": 3,
+              "reference_chars": 557,
+              "cer": 0.005385996409335727
+            }
+          },
+          "whole_pr": {
+            "changed": 1,
+            "improved": 1,
+            "regressed": 0,
+            "became_exact": 1,
+            "lost_exact": 0
+          }
+        },
+        "current_police_terms_20260711_industry_dialogue_189": {
+          "cases": 189,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 158,
+              "sentence_accuracy": 0.8359788359788359,
+              "edits": 42,
+              "reference_chars": 6318,
+              "cer": 0.006647673314339981
+            },
+            "new_base": {
+              "exact": 160,
+              "sentence_accuracy": 0.8465608465608465,
+              "edits": 36,
+              "reference_chars": 6318,
+              "cer": 0.005698005698005698
+            },
+            "new_current": {
+              "exact": 162,
+              "sentence_accuracy": 0.8571428571428571,
+              "edits": 34,
+              "reference_chars": 6318,
+              "cer": 0.0053814498258942705
+            }
+          },
+          "whole_pr": {
+            "changed": 12,
+            "improved": 8,
+            "regressed": 3,
+            "became_exact": 6,
+            "lost_exact": 2
+          }
+        },
+        "current_police_terms_20260711_industry_vocab_1671": {
+          "cases": 1671,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 1557,
+              "sentence_accuracy": 0.9317773788150808,
+              "edits": 193,
+              "reference_chars": 14013,
+              "cer": 0.013772925140940554
+            },
+            "new_base": {
+              "exact": 1550,
+              "sentence_accuracy": 0.9275882704967086,
+              "edits": 206,
+              "reference_chars": 14013,
+              "cer": 0.014700635124527225
+            },
+            "new_current": {
+              "exact": 1556,
+              "sentence_accuracy": 0.931178934769599,
+              "edits": 198,
+              "reference_chars": 14013,
+              "cer": 0.014129736673089274
+            }
+          },
+          "whole_pr": {
+            "changed": 49,
+            "improved": 22,
+            "regressed": 22,
+            "became_exact": 19,
+            "lost_exact": 20
+          }
+        },
+        "current_police_terms_20260711_special_codes_10": {
+          "cases": 10,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            },
+            "new_base": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            },
+            "new_current": {
+              "exact": 8,
+              "sentence_accuracy": 0.8,
+              "edits": 15,
+              "reference_chars": 192,
+              "cer": 0.078125
+            }
+          },
+          "whole_pr": {
+            "changed": 0,
+            "improved": 0,
+            "regressed": 0,
+            "became_exact": 0,
+            "lost_exact": 0
+          }
+        },
+        "current_police_terms_20260727_190": {
+          "cases": 190,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 178,
+              "sentence_accuracy": 0.9368421052631579,
+              "edits": 19,
+              "reference_chars": 1881,
+              "cer": 0.010101010101010102
+            },
+            "new_base": {
+              "exact": 179,
+              "sentence_accuracy": 0.9421052631578948,
+              "edits": 18,
+              "reference_chars": 1881,
+              "cer": 0.009569377990430622
+            },
+            "new_current": {
+              "exact": 179,
+              "sentence_accuracy": 0.9421052631578948,
+              "edits": 18,
+              "reference_chars": 1881,
+              "cer": 0.009569377990430622
+            }
+          },
+          "whole_pr": {
+            "changed": 3,
+            "improved": 2,
+            "regressed": 1,
+            "became_exact": 2,
+            "lost_exact": 1
+          }
+        },
+        "current_police_terms_2183": {
+          "cases": 2183,
+          "numeric_equivalent": {
+            "old_base": {
+              "exact": 1587,
+              "sentence_accuracy": 0.7269812185066422,
+              "edits": 1652,
+              "reference_chars": 63054,
+              "cer": 0.026199765280553178
+            },
+            "new_base": {
+              "exact": 1555,
+              "sentence_accuracy": 0.7123224919835089,
+              "edits": 1784,
+              "reference_chars": 63054,
+              "cer": 0.028293208995464204
+            },
+            "new_current": {
+              "exact": 1560,
+              "sentence_accuracy": 0.7146129180027485,
+              "edits": 1772,
+              "reference_chars": 63054,
+              "cer": 0.028102895930472292
+            }
+          },
+          "whole_pr": {
+            "changed": 259,
+            "improved": 84,
+            "regressed": 140,
+            "became_exact": 48,
+            "lost_exact": 75
+          }
+        }
+      }
+    }
+  },
+  "evidence_sha256": {
+    ".cache/pr218-model-ab-20260922/compare-0.log": "2cf5e8d1a56c42f9cefc383f0d04302e2dd8e182a32e5dcceea3920434f70480",
+    ".cache/pr218-model-ab-20260922/compare-3.log": "5bd1c1a96c396855862473708bf341b01da9c47819bb90eab9000a9a553d344b",
+    ".cache/pr218-model-ab-20260922/compare.py": "e9e6e4e24adc3e162c04d0fd3ecd3e8c6194c72023679e8ca1f85dde5e815018",
+    ".cache/pr218-model-ab-20260922/comparison-0.jsonl": "23416e5892b60b43585179ee2cbea9387c8001329bf38dd406327de043d71c6c",
+    ".cache/pr218-model-ab-20260922/comparison-3.jsonl": "ec1ca68464161f365ad53f15f510d0d3855c1e0c390437c28e3de9e409c42d3e",
+    ".cache/pr218-model-ab-20260922/config.json": "3554a680fa1bbb300d67d54ea4c8722eaf338f3f09ea0572ba0d2fab0df72a9d",
+    ".cache/pr218-model-ab-20260922/decode-new-0.log": "46621dd50e4ccc728fb7f9ab8cbe4b9b8cb4efe038d419eb69b4317d2aa24e85",
+    ".cache/pr218-model-ab-20260922/decode-new-3.log": "c3ce64d4490c59cae72944b06d4392e0881afc99bfd776329370a50ea57a3c7d",
+    ".cache/pr218-model-ab-20260922/decode-old-0.log": "d881c68273808f3904246ddaefe976776e61c9718deee221e2e4e8f5c66d4a8e",
+    ".cache/pr218-model-ab-20260922/decode-old-3.log": "9d5d0eba37e643a292a5429a822c99942363e4105dc2b92786b7bcfbcad2b27e",
+    ".cache/pr218-model-ab-20260922/decode_ab.py": "c454decfc5d490f3c137b32356b63e243d914a633acf366b9ff1f38ebe56fc80",
+    ".cache/pr218-model-ab-20260922/download.log": "a67e2242b4bd8eba72c7dcd66c0847150d048c143fb2c12e7bd5ee2fa16d69d5",
+    ".cache/pr218-model-ab-20260922/hotwords.txt": "b45d189b7e3add1b1e5cc002fdb564f97d266f1b794ae16d7a711bbc6eb40e07",
+    ".cache/pr218-model-ab-20260922/make_summary.py": "7dfe76700e67e9d2fdc453596ded4bfb58151c0cc542d186b917f464dfd8a170",
+    ".cache/pr218-model-ab-20260922/metrics-0.json": "9104493dea4ea74fe4738ab01241535cd57324932d2c0b808e723368442a8357",
+    ".cache/pr218-model-ab-20260922/metrics-3.json": "a03f3c9cbb35c4680f812e76f763ee47f67f7b2e73ff734da15286e3f7170ba0",
+    ".cache/pr218-model-ab-20260922/model-files.json": "818208c63f4c6d16c662485fe6df0262c756e005b940256171d8faefca2d7c1c",
+    ".cache/pr218-model-ab-20260922/new-0-base.jsonl": "70c194b52ba58448c87a98ab934ede39c88cd30b5b5761b52d81433ce34ede25",
+    ".cache/pr218-model-ab-20260922/new-0-current.jsonl": "703c53ff51d770982333a8a75bb14d79cabf06ce8764f2a2317c906c2419f1cc",
+    ".cache/pr218-model-ab-20260922/new-0-itn.jsonl": "26e7a913516ab686ac2b6a58d3cb9de4af700d4f07aca5f83207872474246738",
+    ".cache/pr218-model-ab-20260922/new-0-raw.jsonl": "14b2e2b0096a5fd205f4653e098be3930938978e8ea462d2126bd48a02633ef9",
+    ".cache/pr218-model-ab-20260922/new-3-base.jsonl": "19704dfbebd3f9a969b0dd77a7ae52beec18b58de73c83dcf1d35699a638fd33",
+    ".cache/pr218-model-ab-20260922/new-3-current.jsonl": "e16556df617209e0def32943a34f6b81f64222c907c2371f143690cf3f3aa38d",
+    ".cache/pr218-model-ab-20260922/new-3-itn.jsonl": "291beb27cf3fd2fabebb6f58f389b835bbd1012ab00723fbf661380a5e52562d",
+    ".cache/pr218-model-ab-20260922/new-3-raw.jsonl": "ba795175d2d7b4edf960cd3506356fc0048f67432604ccbcb7d598d95131938c",
+    ".cache/pr218-model-ab-20260922/old-0-base.jsonl": "52e46e6b761724103000e1b9286ad28860f198fa4c0ed2f79161a66366358e31",
+    ".cache/pr218-model-ab-20260922/old-0-itn.jsonl": "dc10788809b176207018f4792c0c7398812ea0ce3f1d758f27ad5fe7df89fbec",
+    ".cache/pr218-model-ab-20260922/old-0-raw.jsonl": "0a562812f2d39f9ec100d3e42632f24b2dcac902d24745b1bac4890d82e5f0cd",
+    ".cache/pr218-model-ab-20260922/old-3-base.jsonl": "de19551187d443bf54f96818be080ff4bd52bb3367431f391104449477e40a80",
+    ".cache/pr218-model-ab-20260922/old-3-itn.jsonl": "a75eac5d619cc5ec440d79d209f94c59632a6dae241a7e82ef544279bb0dc93d",
+    ".cache/pr218-model-ab-20260922/old-3-raw.jsonl": "7596b7a2e1a78c4cf0d95b3e8135e5bbda723f3920277af0c5f7939294c0aa5f",
+    ".cache/pr218-model-ab-20260922/old-model-identity.json": "ecadb870bf0e5268903bcaaea87bfe8c429c0a441c3f325f34a9e3b09ad761ed",
+    ".cache/pr218-model-ab-20260922/pilot-old-0.json": "5a4b9b99fb45769ad5ca513480198bf771f5f17d6df37d0329d96f63cb267f46",
+    ".cache/pr218-model-ab-20260922/pilot-old-0.log": "8baff047130b351097898ac76980f20c4b0f1d4cea8196d5c7cc3ccee81b46f5",
+    ".cache/pr218-model-ab-20260922/pilot-old-3.json": "e604d9895a2cd415864c0150e552176e3c77cda3e2c48034279d37dce0f51cd5",
+    ".cache/pr218-model-ab-20260922/pilot-old-3.log": "5337057dc6ea9eda1c57729c131308ea82f07158bc222cb91245473e313e5713",
+    ".cache/pr218-model-ab-20260922/restore-obs.log": "4fc4d8fbeaec2aec0c06575d51918b2aa49c1b1c8cd2363dcf6d96c4e4251794",
+    ".cache/pr218-model-ab-20260922/restore.log": "8cfd53f0a957b51b65bbc68f1db0123e2d654c2873e481026be68509f0a40853",
+    ".cache/pr218-model-ab-20260922/selection.jsonl": "fae285fdef288f5f39416f1cf265402ca94eb724bee5b21e4f29291b2f6252a6"
+  },
+  "limitations": [
+    "Host stock sherpa-onnx 1.13.1, not SDK native/mobile end-to-end acceptance",
+    "Only all six current_police_terms datasets: no old-model V6/plate/station comparison in this run",
+    "No new independent held-out set or training-data independence claim",
+    "Bundle comparison combines training/version and precision changes, not an isolated quantization experiment",
+    "No ARM memory/latency claim from model byte size",
+    "The uncommitted hotword score 1.0 candidate is excluded"
+  ]
+}

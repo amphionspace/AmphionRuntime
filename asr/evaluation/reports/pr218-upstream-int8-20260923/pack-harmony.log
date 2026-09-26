@@ -1,0 +1,35 @@
+[36m[INFO][0m 在临时目录直接组装 Harmony 模型资产
+[32m[OK][0m   copy tokens.txt -> zh-en/v1/tokens.txt
+[32m[OK][0m   copy bbpe.vocab -> zh-en/v1/bbpe.vocab
+[32m[OK][0m   copy zh_itn_tagger.fst -> itn-zh/v1/zh_itn_tagger.fst
+[32m[OK][0m   copy zh_itn_verbalizer.fst -> itn-zh/v1/zh_itn_verbalizer.fst
+[32m[OK][0m   copy silero_vad.onnx -> vad/v1/silero_vad.onnx
+[36m[INFO][0m 并行预优化 zhen 三图与 punctuation（ARM CPU / Fixed / Nchwc disabled）
+[OK] cache hit: <LOCAL_PATH> -> <LOCAL_PATH> sha256=9a42f7541aef76ed20beb9fec46f95aac16582a0a43d3ca9d2ef749759d7b0f9
+[OK] cache hit: <LOCAL_PATH> -> <LOCAL_PATH> sha256=53d35ebdbc0590d3af419232dc0bd6b9030d113fe21b9a309e2a7e5c66dad5a7
+[OK] cache hit: <LOCAL_PATH> -> <LOCAL_PATH> sha256=7757701f0d3096fda069f96624b2284bc6f26fcbe1b49ed7506c9fa264f2867a
+2026-09-23 10:53:43,221 ort_format_model.utils [INFO] - Created config in <LOCAL_PATH>
+Converting models with optimization style 'Fixed' and level 'all'
+Converting optimized ONNX model <LOCAL_PATH> to ORT format model <LOCAL_PATH>
+Converted 1/1 models successfully.
+Generating config file from ORT format models with optimization style 'Fixed' and level 'all'
+[OK] converted: <LOCAL_PATH> -> <LOCAL_PATH> sha256=34c92e42b4c5397ad4e803d890c6c3572ad3feb2dffccc79539ece30424486c8
+[OK] harmony manifest v2 -> <LOCAL_PATH>
+[OK] verified manifest v2 with 9 model assets in <LOCAL_PATH>
+[32m[OK][0m   Harmony manifest v2 assets -> <LOCAL_PATH>
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/README.md
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/itn-zh/v1/.gitkeep
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/itn-zh/v1/zh_itn_tagger.fst
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/itn-zh/v1/zh_itn_verbalizer.fst
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/punct-zhen/v1/.gitkeep
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/punct-zhen/v1/model.int8.ort
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/vad/v1/.gitkeep
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/vad/v1/silero_vad.onnx
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/yue-en/v1/.gitkeep
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/.gitkeep
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/bbpe.vocab
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/decoder.ort
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/encoder.int8.ort
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/joiner.int8.ort
+asr/harmony/sdk/src/main/resources/rawfile/amphion-models/zh-en/v1/tokens.txt
