@@ -50,6 +50,34 @@ class SoleHarTest(unittest.TestCase):
             MODULE.add_path(after, "input.txt", path)
             self.assertNotEqual(before.hexdigest(), after.hexdigest())
 
+    def test_runtime_recipe_and_patch_changes_invalidate_source_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            inputs = [
+                "asr/tools/build_harmony_onnxruntime.py",
+                "asr/tools/harmony_onnxruntime_flags.cmake",
+                "third_party/patches/onnxruntime-amphion/worker.patch",
+            ]
+            for relative in inputs + ["notes.md"]:
+                path = repo / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("original\n")
+            subprocess.run(["git", "init", "-q"], cwd=repo, check=True)
+            subprocess.run(["git", "add", "."], cwd=repo, check=True)
+            run = MODULE.run
+            with mock.patch.object(MODULE, "REPO_ROOT", repo), mock.patch.object(
+                MODULE, "run", side_effect=lambda command: run(command, cwd=repo)
+            ), mock.patch.object(MODULE, "sherpa_source_fingerprint", return_value="unchanged"):
+                before = MODULE.source_fingerprint()
+                for relative in inputs:
+                    with self.subTest(input=relative):
+                        path = repo / relative
+                        path.write_text("changed\n")
+                        self.assertNotEqual(before, MODULE.source_fingerprint())
+                        path.write_text("original\n")
+                (repo / "notes.md").write_text("documentation only\n")
+                self.assertEqual(before, MODULE.source_fingerprint())
+
     def test_sherpa_fingerprint_is_stable_before_and_after_commit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -112,6 +140,20 @@ class VerifyIdentityTest(unittest.TestCase):
 
 
 class OptionalModelIdentityTest(unittest.TestCase):
+    def test_records_all_community_assets_from_hap(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            hap = Path(directory) / 'test.hap'
+            names = ['community_speaker_embedding', 'community_feature_transform', 'community_plda']
+            with zipfile.ZipFile(hap, 'w') as archive:
+                for name in names:
+                    archive.writestr(MODULE.OPTIONAL_HAP_MODELS[name], name.encode())
+            with mock.patch.object(MODULE, 'HAP', hap):
+                models = MODULE.optional_hap_models()
+            import hashlib
+            for name in names:
+                self.assertEqual(hashlib.sha256(name.encode()).hexdigest(), models[name]['sha256'])
+                self.assertEqual(len(name), models[name]['size_bytes'])
+
     def test_records_separator_bytes_from_hap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             hap = Path(directory) / "test.hap"

@@ -188,7 +188,12 @@ class DqVoiceprintTest {
         val id = registerFromSample(registrationAsset)
         val engine = freshEngine()
         awaitIdle(engine)
-        val speechBytes = minOf(full.size, (DQ_SR * 2 * 0.5).toInt())
+        // The file starts with about 400 ms of weak onset/background. Its first 500 ms
+        // truncates the first word and does not establish ASR speech evidence. Keep the
+        // 500 ms contract, but use the qualified 400..900 ms "帮我" speech interval.
+        val speechStartBytes = DQ_SR * 2 * 400 / 1000
+        val speechBytes = DQ_SR * 2 * 500 / 1000
+        require(full.size >= speechStartBytes + speechBytes)
         repeat(2) { round ->
             val listener = CapturingListener().also { engine.setListener(it) }
             val sid = "vp-fallback-$round-${System.currentTimeMillis()}"
@@ -206,7 +211,7 @@ class DqVoiceprintTest {
             assertTrue("round=$round start failed: ${listener.errorCodes()}",
                 listener.awaitStarted(15_000))
             feedSilence(engine, sid, 350)
-            feedFrames(engine, sid, full.copyOfRange(0, speechBytes), 20)
+            feedFrames(engine, sid, full.copyOfRange(speechStartBytes, speechStartBytes + speechBytes), 20)
             engine.finish(sid)
             val completed = listener.awaitComplete(25_000)
             awaitIdle(engine)
@@ -215,6 +220,7 @@ class DqVoiceprintTest {
             DqReport.append(ctx, mapOf("case" to "v04c_voiceprintFallback",
                 "round" to round, "registrationAsset" to registrationAsset,
                 "recognitionAsset" to recognitionAsset, "completed" to completed,
+                "sourceStartMs" to 400, "pcmDurationMs" to 500, "frontSilenceMs" to 350,
                 "finalText" to firstNonEmpty?.result,
                 "speakerSimilarity" to firstNonEmpty?.speakerSimilarity,
                 "errorCodes" to listener.errorCodes().toString()))
@@ -230,8 +236,16 @@ class DqVoiceprintTest {
     @Test
     fun v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad() {
         ensureReady()
-        val main = mainWavs(testCtx).minByOrNull { readAssetPcm(testCtx, it).size }!!
-        val sample = registrationSampleFor(testCtx, main)
+        // Target-only filtering requires a same-speaker pair. The fallback gate only proves
+        // score availability and provides no identity guarantee for its enrollment sample.
+        // Duration alone does not establish onset before vadBegin: native VAD also needs
+        // its 250 ms confirmation window. Preserve the 300 ms prefix and 1000 ms deadline.
+        val main = InstrumentationRegistry.getArguments().getString("speakerVadAsset")
+            ?: error("Pass -e speakerVadAsset <qualified-onset.wav> with a matching _声纹 enrollment WAV")
+        require(main in mainWavs(testCtx) && !main.contains("重叠")) {
+            "speakerVadAsset must be an available non-overlap recording: $main"
+        }
+        val sample = checkNotNull(voiceprintSampleFor(testCtx, main))
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -256,6 +270,12 @@ class DqVoiceprintTest {
         feedFrames(engine, sid, readAssetPcm(testCtx, main), 20)
         assertTrue("runtime Speaker VAD must not let vadBegin end real speech",
             listener.finals.none { it.isLast } && listener.completes.isEmpty())
+        DqReport.append(ctx, mapOf("case" to "finish_requested", "sessionId" to sid,
+            "main" to main, "sample" to sample,
+            "enableVoiceprintVerification" to false, "enableSpeakerVad" to true,
+            "voiceprintIdCount" to 1, "vadBeginMs" to 1_000, "frontSilenceMs" to 300,
+            "pcmDurationMs" to readAssetPcm(testCtx, main).size * 1_000L / (DQ_SR * 2),
+            "lastBeforeFinish" to listener.finals.count { it.isLast }))
         engine.finish(sid)
         val completed = listener.awaitComplete(25_000)
         awaitIdle(engine)
@@ -269,10 +289,11 @@ class DqVoiceprintTest {
         assertTrue("runtime Speaker VAD session must complete after explicit finish", completed)
         assertTrue("runtime Speaker VAD must not report errors", listener.errors.isEmpty())
         assertTrue("runtime Speaker VAD corpus must produce a non-empty final", eligible.isNotEmpty())
-        assertTrue("runtime Speaker VAD must produce a scored non-empty final",
-            eligible.any { it.speakerSimilarity != null })
-        assertTrue("normal finish must emit exactly one last",
-            listener.finals.count { it.isLast } == 1)
+        assertTrue("every non-empty runtime Speaker VAD final must carry a score",
+            eligible.all { it.speakerSimilarity != null })
+        assertTrue("normal finish must emit exactly one last then one complete",
+            listener.callbackTrace.filter { it.isLast || it.kind == CapturedCallbackKind.COMPLETE }
+                .map { it.kind } == listOf(CapturedCallbackKind.FINAL, CapturedCallbackKind.COMPLETE))
     }
 
     // ---------- v04e: 声纹确认窗有界，纯静音最终仍按 vadBegin 自动结束 ----------
@@ -336,8 +357,10 @@ class DqVoiceprintTest {
     @Test
     fun v06_speakerVad_overlapRuns() {
         ensureReady()
-        val main = mainWavs(testCtx).first { it.contains("重叠") }
-        val sample = registrationSampleFor(testCtx, main)
+        val main = mainWavs(testCtx).firstOrNull { it.contains("重叠") }
+            ?: error("Overlap coverage requires a qualified 重叠 WAV; the fallback corpus does not cover it")
+        val sample = voiceprintSampleFor(testCtx, main)
+            ?: error("Overlap coverage requires the target speaker's matching _声纹 enrollment WAV")
         val id = registerFromSample(sample)
         val engine = engine()
         awaitIdle(engine)
@@ -367,8 +390,11 @@ class DqVoiceprintTest {
         DqReport.append(ctx, mapOf("case" to "v06_speakerVadOverlap", "main" to main, "completed" to completed,
             "finalText" to listener.finalText(), "vadEventCount" to vadEvents.size,
             "errorCodes" to listener.errorCodes().toString()))
-        assertTrue("speaker VAD session should complete without recognition error",
-            !listener.errorCodes().contains(DingqiaoErrorCode.RECOGNITION_ERROR))
+        assertTrue("overlap session must complete", completed)
+        assertTrue("overlap session must not report errors: ${listener.errorCodes()}",
+            listener.errors.isEmpty())
+        assertTrue("overlap session must emit one last and one complete",
+            listener.finals.count { it.isLast } == 1 && listener.completes.size == 1)
     }
 
     // ---------- v07: 删除后再用 -> NOT_FOUND ----------

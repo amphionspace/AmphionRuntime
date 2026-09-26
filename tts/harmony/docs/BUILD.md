@@ -41,34 +41,40 @@ node ..\..\tools\verify_lits_harmony_package.mjs --model-dir ..\..\tools\trial-e
 4. 设置环境变量：
 
 ```powershell
-$env:DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk"
-$env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
+$env:DEVECO_CLI_CLT_PATH="C:\Tools\command-line-tools"
+$env:DEVECO_CLI_STUDIO_PATH=$null
+$env:JAVA_HOME="C:\Tools\jdk-17"
+$env:DEVECO_CLI_DISABLE_TELEMETRY="1"
 ```
 
 5. 构建 HAR：
 
 ```powershell
-& "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat" --mode module -p product=default -p module=sdk@default assembleHar --analyze=normal --parallel --incremental --no-daemon
+devecocli build --product default --modules sdk@default --build-mode debug
 ```
 
 ## 1. 环境前提
 
 构建 `sdk/` 至少需要：
 
-- DevEco Studio 6.x 或其配套 Command Line Tools
-- HarmonyOS SDK `6.0.2.130`
-- Node.js
-- Java 17
+- DevEco CLI `1.3.0-stable`：`npm install -g @deveco/deveco-cli@1.3.0-stable`
+- 独立 Command Line Tools 26.0.0+ 及 HarmonyOS SDK（保留工程声明的 API 版本）
+- 系统 Node.js 22+
+- 独立 Java 17
 - 完整模型包 `dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0`
+
+安装与 macOS 环境配置见 [工具链说明](../../../asr/tools/HARMONY_TOOLCHAIN.md)。
 
 建议显式设置：
 
 ```powershell
-$env:DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk"
-$env:JAVA_HOME="C:\Program Files\Huawei\DevEco Studio\jbr"
+$env:DEVECO_CLI_CLT_PATH="C:\Tools\command-line-tools"
+$env:DEVECO_CLI_STUDIO_PATH=$null
+$env:JAVA_HOME="C:\Tools\jdk-17"
+$env:DEVECO_CLI_DISABLE_TELEMETRY="1"
 ```
 
-如果你机器上 PATH 里混入了别的损坏 JDK，`JAVA_HOME` 不指向 DevEco 自带 JBR 时，`hvigor` 或 `hap-sign-tool.jar` 可能直接失败。
+`JAVA_HOME` 必须指向可用的独立 JDK，供 Hvigor 和 `hap-sign-tool.jar` 使用。
 
 ## 2. 模型包准备
 
@@ -143,7 +149,7 @@ verification/out/verification_report.json
 在 `LitsTtsSdk\HarmonyOS\AmphionRuntime` 目录执行：
 
 ```powershell
-& "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat" --mode module -p product=default -p module=sdk@default assembleHar --analyze=normal --parallel --incremental --no-daemon
+devecocli build --product default --modules sdk@default --build-mode debug
 ```
 
 成功后产物在：
@@ -161,7 +167,7 @@ sdk/build/default/outputs/default/sdk.har
 执行：
 
 ```powershell
-& "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat" --mode module -p product=default -p module=sample@default assembleHap --analyze=normal --parallel --incremental --no-daemon
+devecocli build --product default --modules sample@default --build-mode debug
 ```
 
 成功后产物在：
@@ -176,9 +182,9 @@ sample/build/default/outputs/default/sample-default-unsigned.hap
 
 推荐做法：
 
-1. 用 DevEco Studio 打开 `HarmonyOS/AmphionRuntime`
-2. 给 `sample` 配置你自己的 HarmonyOS debug signing
-3. 让 DevEco Studio 构建并安装 `sample`
+1. 在本地工程配置目标设备信任的 HarmonyOS debug signing，证书及口令保存在受限的本地目录。
+2. 在工程目录执行 `devecocli build --modules sample@default`。
+3. 对签名后的 HAP 验证签名及 profile，再用 CLT 的 `hdc install` 安装。
 
 仓库不会提交以下个人材料：
 

@@ -90,7 +90,7 @@ git submodule update --init --recursive
 | Android ASR | `bash asr/tools/04_build_android_so.sh arm64-v8a` 然后 `bash asr/tools/05_package_aar_libs.sh` 然后 `cd asr/android && ./gradlew :sdk:assembleRelease` | 详见 [asr/android/README.md](asr/android/README.md) |
 | HarmonyOS ASR | `bash asr/tools/04_build_harmony_so.sh` 然后 `bash asr/tools/05_package_har_libs.sh` | 详见 [asr/harmony/README.md](asr/harmony/README.md) |
 | Android TTS | `cd tts/android && ./gradlew :sdk:assembleRelease :sample:assembleDebug` | 详见 [tts/android/README.md](tts/android/README.md) |
-| HarmonyOS TTS | 先构建共享 native，再用 DevEco 打开 `tts/harmony/` | 详见 [tts/harmony/docs/BUILD.md](tts/harmony/docs/BUILD.md) |
+| HarmonyOS TTS | 先构建共享 native，再在 `tts/harmony/` 使用 DevEco CLI | 详见 [tts/harmony/docs/BUILD.md](tts/harmony/docs/BUILD.md) |
 | iOS | `bash asr/ios/build_xcframework.sh` | 详见 [asr/ios/README.md](asr/ios/README.md) |
 | ASR Server | `cmake -DSHERPA_ONNX_DIR=...` | 详见 [asr/server/README.md](asr/server/README.md)，需要先在 `third_party/sherpa-onnx` 内做 cxx-api install |
 | ASR WebSocket | `uv pip install -e asr/ws-server` 后运行 `python -m amphion_asr_ws` | 详见 [asr/ws-server/README.md](asr/ws-server/README.md) |

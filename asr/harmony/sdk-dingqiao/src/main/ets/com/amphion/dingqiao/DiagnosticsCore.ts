@@ -78,10 +78,30 @@ export interface DiagnosticsSnapshot {
 class DiagnosticAudioChunk {
   readonly pcm: ArrayBuffer;
   readonly wallTimeMs: number;
+  readonly squareSum: number;
+  readonly peakValue: number;
+  readonly clippedSamples: number;
 
   constructor(pcm: ArrayBuffer, wallTimeMs: number) {
     this.pcm = pcm;
     this.wallTimeMs = wallTimeMs;
+    // PCM is immutable after capture. Compute its statistics once, including
+    // when retention replaces a partially trimmed chunk, rather than rescanning
+    // the entire recording on every periodic snapshot.
+    const samples = new Int16Array(pcm);
+    let squareSum = 0;
+    let peakValue = 0;
+    let clippedSamples = 0;
+    for (let index = 0; index < samples.length; index++) {
+      const sample = samples[index];
+      const magnitude = Math.abs(sample);
+      squareSum += sample * sample;
+      peakValue = Math.max(peakValue, magnitude);
+      if (magnitude >= 32767) clippedSamples += 1;
+    }
+    this.squareSum = squareSum;
+    this.peakValue = peakValue;
+    this.clippedSamples = clippedSamples;
   }
 }
 
@@ -174,14 +194,9 @@ class DiagnosticAudioCapture {
         maxFrameGapMs = Math.max(maxFrameGapMs,
           chunk.wallTimeMs - this.chunks[i - 1].wallTimeMs);
       }
-      const pcm = new Int16Array(chunk.pcm);
-      for (let j = 0; j < pcm.length; j++) {
-        const sample = pcm[j];
-        const magnitude = Math.abs(sample);
-        squareSum += sample * sample;
-        peakValue = Math.max(peakValue, magnitude);
-        if (magnitude >= 32767) clippedSamples += 1;
-      }
+      squareSum += chunk.squareSum;
+      peakValue = Math.max(peakValue, chunk.peakValue);
+      clippedSamples += chunk.clippedSamples;
     }
     const samples = this.bytes / 2;
     return {

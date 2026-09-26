@@ -65,8 +65,8 @@ function visibleSecondaryIds(ids: string[], primary: string): string[] {
     id !== primary && all.indexOf(id) === index);
 }
 
-// Align only inserted punctuation/spacing. Lexical rewrites (including ITN) must
-// keep the original paragraph until the postprocessor supplies a timed mapping.
+// Exact alignment handles inserted punctuation/spacing. Lexical rewrites fall
+// back to the conservative partial-alignment path below.
 function tokenTextBoundaries(tokens: string[], text: string): number[] | undefined {
   const inserted = ' ,.!?，。！？、;；:：\t\r\n';
   const boundaries: number[] = [0];
@@ -75,18 +75,111 @@ function tokenTextBoundaries(tokens: string[], text: string): number[] | undefin
     const token = tokens[index];
     if (token.length === 0) return undefined;
     for (let character = 0; character < token.length; character++) {
+      const beforeInserted = cursor;
       while (cursor < text.length && text[cursor] !== token[character] &&
         inserted.indexOf(text[cursor]) >= 0) cursor++;
-      if (cursor >= text.length || text[cursor] !== token[character]) return undefined;
+      const matches = cursor < text.length && text[cursor] === token[character];
+      // Punctuation can replace a word separator. Keep its timestamp boundary
+      // without treating the following lexical character as that separator.
+      // A sliced clause can also start with the replaced separator.
+      const replacedSpace = !matches && ' \t\r\n'.indexOf(token[character]) >= 0 &&
+        (cursor === 0 || /[,.!?，。！？、;；:：]/.test(text.slice(beforeInserted, cursor)));
+      if (!matches && !replacedSpace) return undefined;
       // Keep inserted sentence punctuation with the preceding token.
       if (index > 0 && character === 0) boundaries.push(cursor);
-      cursor++;
+      if (matches) cursor++;
     }
   }
   while (cursor < text.length && inserted.indexOf(text[cursor]) >= 0) cursor++;
   if (cursor !== text.length) return undefined;
   boundaries.push(cursor);
   return boundaries;
+}
+
+interface TranscriptCut {
+  tokenIndex: number;
+  textOffset: number;
+}
+
+// A lexical rewrite must not invalidate unrelated clauses. Retain only cuts
+// shared by every minimum-edit path; repeated/deleted text cannot choose a
+// convenient occurrence. Rewritten pieces still use the conservative fallback.
+function unambiguousPunctuationCuts(tokens: string[], text: string): TranscriptCut[] {
+  const original = tokens.join('');
+  const inserted = ' ,.!?，。！？、;；:：\t\r\n';
+  const raw = Array.from(original);
+  const plain: string[] = [];
+  const textOffsets: number[] = [];
+  let offset = 0;
+  for (const character of Array.from(text)) {
+    if (inserted.indexOf(character) < 0) {
+      plain.push(character);
+      textOffsets.push(offset);
+    }
+    offset += character.length;
+  }
+  const fallback = [{ tokenIndex: 0, textOffset: 0 },
+    { tokenIndex: tokens.length, textOffset: text.length }];
+  // Two uint32 matrices use at most 8 MiB. Long or already-punctuated raw
+  // endpoints keep the existing unsplit result instead of allocating unboundedly.
+  const width = plain.length + 1;
+  const cells = (raw.length + 1) * width;
+  if (raw.length === 0 || plain.length === 0 || cells > 1_048_576 ||
+    raw.some(character => inserted.indexOf(character) >= 0)) return fallback;
+  const forward = new Uint32Array(cells);
+  const backward = new Uint32Array(cells);
+  for (let i = 0; i <= raw.length; i++) forward[i * width] = i;
+  for (let j = 0; j <= plain.length; j++) forward[j] = j;
+  for (let i = 1; i <= raw.length; i++) {
+    for (let j = 1; j <= plain.length; j++) {
+      forward[i * width + j] = Math.min(forward[(i - 1) * width + j] + 1,
+        forward[i * width + j - 1] + 1,
+        forward[(i - 1) * width + j - 1] + (raw[i - 1] === plain[j - 1] ? 0 : 1));
+    }
+  }
+  for (let i = 0; i <= raw.length; i++) backward[i * width + plain.length] = raw.length - i;
+  for (let j = 0; j <= plain.length; j++) backward[raw.length * width + j] = plain.length - j;
+  for (let i = raw.length - 1; i >= 0; i--) {
+    for (let j = plain.length - 1; j >= 0; j--) {
+      backward[i * width + j] = Math.min(backward[(i + 1) * width + j] + 1,
+        backward[i * width + j + 1] + 1,
+        backward[(i + 1) * width + j + 1] + (raw[i] === plain[j] ? 0 : 1));
+    }
+  }
+  const cost = forward[cells - 1];
+  const owners: number[] = [];
+  for (let j = 0; j < plain.length; j++) {
+    let owner = -1;
+    let ambiguous = false;
+    for (let i = 0; i <= raw.length; i++) {
+      const prefix = forward[i * width + j];
+      if (prefix + 1 + backward[i * width + j + 1] === cost) ambiguous = true;
+      if (i === raw.length) continue;
+      const exact = raw[i] === plain[j];
+      if (prefix + (exact ? 0 : 1) + backward[(i + 1) * width + j + 1] === cost) {
+        if (!exact || (owner >= 0 && owner !== i)) ambiguous = true;
+        owner = i;
+      }
+    }
+    owners.push(ambiguous ? -1 : owner);
+  }
+  const tokenAt: Map<number, number> = new Map<number, number>();
+  let characters = 0;
+  for (let index = 0; index < tokens.length; index++) {
+    tokenAt.set(characters, index);
+    characters += Array.from(tokens[index]).length;
+  }
+  const cuts: TranscriptCut[] = [fallback[0]];
+  for (let j = 1; j < plain.length; j++) {
+    const gap = text.slice(textOffsets[j - 1] + plain[j - 1].length, textOffsets[j]);
+    const tokenIndex = tokenAt.get(owners[j]);
+    if (/[，。！？；]/.test(gap) && owners[j - 1] >= 0 && owners[j] === owners[j - 1] + 1 &&
+      tokenIndex !== undefined && tokenIndex > 0) {
+      cuts.push({ tokenIndex, textOffset: textOffsets[j] });
+    }
+  }
+  cuts.push(fallback[1]);
+  return cuts;
 }
 
 interface TimedTranscriptTokens {
@@ -247,50 +340,101 @@ export class SpeakerDiarizationTranscriptState {
     return result;
   }
 
-  sentenceUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
-    const aligned = this.finalUtterances(throughTime);
-    return this.utterances.filter(utterance =>
-      (utterance.audioEndTime ?? utterance.endTime) <= throughTime).map(utterance => {
-      const parts = aligned.filter(part => part.sourceUtteranceId === utterance.utteranceId);
-      const turns = this.turns.filter(turn =>
-        overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) > 0);
-      const participants = new Set<string>();
-      for (const turn of turns) {
-        participants.add(turn.speakerId);
-        for (const id of turn.secondarySpeakerIds) participants.add(id);
+  private punctuationUnits(utterance: StoredUtterance): StoredUtterance[] {
+    if (utterance.tokens.length === 0 || utterance.tokens.length !== utterance.tokenTimesMs.length ||
+      utterance.tokens.join('') !== utterance.rawText) return [utterance];
+    const boundaries = tokenTextBoundaries(utterance.tokens, utterance.text);
+    let cuts: TranscriptCut[];
+    if (boundaries === undefined) {
+      cuts = unambiguousPunctuationCuts(utterance.tokens, utterance.text);
+    } else {
+      cuts = [{ tokenIndex: 0, textOffset: 0 }];
+      for (let index = 1; index < utterance.tokens.length; index++) {
+        if (/[，。！？；]\s*$/.test(utterance.text.slice(boundaries[index - 1], boundaries[index]))) {
+          if (boundaries[index] < utterance.text.length) {
+            cuts.push({ tokenIndex: index, textOffset: boundaries[index] });
+          }
+        }
       }
-      const known = Array.from(participants).filter(id => id !== UNKNOWN_SPEAKER && id !== 'UNKNOWN_SECONDARY');
-      const overlap = turns.some(turn => turn.overlap || turn.secondarySpeakerIds.length > 0);
-      // Check actual acoustic UNKNOWN spans too: token timestamps may skip one.
-      const unknown = turns.filter(turn => turn.speakerId === UNKNOWN_SPEAKER)
-        .sort((a, b) => a.beginTime - b.beginTime);
-      let unknownBegin = -1;
-      let unknownEnd = -1;
-      let bounded = true;
-      for (const turn of unknown) {
-        const begin = Math.max(utterance.beginTime, turn.beginTime);
-        const end = Math.min(utterance.endTime, turn.endTime);
-        if (begin > unknownEnd) unknownBegin = begin;
-        unknownEnd = Math.max(unknownEnd, end);
-        if (unknownEnd - unknownBegin > MAX_UNKNOWN_BACKFILL_MS) bounded = false;
-      }
-      const single = known.length === 1 && !overlap && bounded && parts.length > 0 &&
-        parts.every(part => part.speakerId === known[0]);
-      const inferred = single && (unknown.length > 0 || parts.some(part => part.speakerInferred));
-      return {
-        utteranceId: utterance.utteranceId,
-        sourceUtteranceId: utterance.utteranceId,
-        rawText: utterance.rawText,
-        text: utterance.text,
-        beginTime: utterance.beginTime,
-        endTime: utterance.endTime,
-        speakerId: single ? known[0] : UNKNOWN_SPEAKER,
-        secondarySpeakerIds: single ? [] : Array.from(participants).sort(),
-        confidence: single && !inferred ? Math.min(...parts.map(part => part.confidence ?? 0)) : 0,
-        overlap,
-        speakerInferred: inferred,
-      };
+      cuts.push({ tokenIndex: utterance.tokens.length, textOffset: utterance.text.length });
+    }
+    if (cuts.length === 2) return [utterance];
+    return cuts.slice(0, -1).map((cut, index) => {
+      const start = cut.tokenIndex;
+      const end = cuts[index + 1].tokenIndex;
+      return { ...utterance, utteranceId: index === 0 ? utterance.utteranceId : `${utterance.utteranceId}.${index + 1}`,
+        text: utterance.text.slice(cut.textOffset, cuts[index + 1].textOffset),
+        rawText: utterance.tokens.slice(start, end).join(''), tokens: utterance.tokens.slice(start, end),
+        tokenTimesMs: utterance.tokenTimesMs.slice(start, end),
+        beginTime: start === 0 ? utterance.beginTime : utterance.tokenTimesMs[start],
+        endTime: end === utterance.tokens.length ? utterance.endTime : utterance.tokenTimesMs[end] };
     });
+  }
+
+  sentenceUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
+    const result: DiarizedTranscriptUtterance[] = [];
+    for (const original of this.utterances.filter(utterance => (utterance.audioEndTime ?? utterance.endTime) <= throughTime)) {
+      const units = this.punctuationUnits(original).map(utterance => {
+        const boundaries = utterance.tokens.length > 0 && utterance.tokens.length === utterance.tokenTimesMs.length ?
+          tokenTextBoundaries(utterance.tokens, utterance.text) : undefined;
+        const parts = boundaries === undefined ? [this.unsplitUtterance(utterance)] : this.splitByTokenSpeaker(utterance, boundaries);
+        const turns = this.turns.filter(turn =>
+          overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) > 0);
+        const participants = new Set<string>();
+        for (const turn of turns) {
+          participants.add(turn.speakerId);
+          for (const id of turn.secondarySpeakerIds) participants.add(id);
+        }
+        const known = Array.from(participants).filter(id => id !== UNKNOWN_SPEAKER && id !== 'UNKNOWN_SECONDARY');
+        const overlap = turns.some(turn => turn.overlap || turn.secondarySpeakerIds.length > 0);
+        // Check actual acoustic UNKNOWN spans too: token timestamps may skip one.
+        const unknown = this.turns.filter(turn =>
+          overlapMs(original.beginTime, original.endTime, turn.beginTime, turn.endTime) > 0).filter(turn => turn.speakerId === UNKNOWN_SPEAKER)
+          .sort((a, b) => a.beginTime - b.beginTime);
+        let unknownBegin = -1;
+        let unknownEnd = -1;
+        let bounded = true;
+        for (const turn of unknown) {
+          const begin = Math.max(original.beginTime, turn.beginTime);
+          const end = Math.min(original.endTime, turn.endTime);
+          if (begin > unknownEnd) unknownBegin = begin;
+          unknownEnd = Math.max(unknownEnd, end);
+          if (unknownEnd - unknownBegin > MAX_UNKNOWN_BACKFILL_MS &&
+            overlapMs(utterance.beginTime, utterance.endTime, unknownBegin, unknownEnd) > 0) bounded = false;
+        }
+        const single = known.length === 1 && !overlap && bounded && parts.length > 0 &&
+          parts.every(part => part.speakerId === known[0]);
+        const inferred = single && (turns.some(turn => turn.speakerId === UNKNOWN_SPEAKER) || parts.some(part => part.speakerInferred));
+        return {
+          utteranceId: utterance.utteranceId,
+          sourceUtteranceId: original.utteranceId,
+          rawText: utterance.rawText,
+          text: utterance.text,
+          beginTime: utterance.beginTime,
+          endTime: utterance.endTime,
+          speakerId: single ? known[0] : UNKNOWN_SPEAKER,
+          secondarySpeakerIds: single ? [] : Array.from(participants).sort(),
+          confidence: single && !inferred ? Math.min(...parts.map(part => part.confidence ?? 0)) : 0,
+          overlap,
+          speakerInferred: inferred,
+        };
+      });
+      for (const part of units) {
+        const previous = result[result.length - 1];
+        if (previous !== undefined && previous.sourceUtteranceId === part.sourceUtteranceId &&
+          previous.endTime === part.beginTime && previous.speakerId === part.speakerId &&
+          previous.overlap === part.overlap && sameStrings(previous.secondarySpeakerIds, part.secondarySpeakerIds)) {
+          previous.text += part.text;
+          previous.rawText += part.rawText;
+          previous.endTime = part.endTime;
+          previous.confidence = Math.min(previous.confidence ?? 0, part.confidence ?? 0);
+          previous.speakerInferred = previous.speakerInferred || part.speakerInferred;
+        } else {
+          result.push(part);
+        }
+      }
+    }
+    return result;
   }
 
   commitThrough(endTime: number): DiarizedTranscriptUtterance[] {

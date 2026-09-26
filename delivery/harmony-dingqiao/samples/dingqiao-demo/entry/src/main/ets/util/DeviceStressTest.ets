@@ -12,6 +12,7 @@ import {
   LicenseActivationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerDiarizationConfig,
   SpeakerDiarizationResult,
   SpeakerDiarizationUpdate,
   SpeakerTurn,
@@ -54,6 +55,8 @@ const COLD_START_HOTWORDS: string[] = ['鼎桥通信', '警务终端'];
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
 ];
+// Test-carrier option only. Every lifecycle mode uses the same public StartParams.
+let stressEnableDiarization: boolean = false;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -74,6 +77,7 @@ export class DeviceStressOptions {
   speakerVadThreshold: number = -2;
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
+  enableDiarization: boolean = false;
 }
 
 class CorpusEntry {
@@ -173,6 +177,21 @@ function speakerDiarizationTerminalOrderOk(events: SessionEvents, sessionId: str
     if (events.callbackTrace[i] === `${sessionId}:diarization-update`) return false;
   }
   return true;
+}
+
+function recordDiarizationResult(events: SessionEvents, result: SpeakerDiarizationResult): void {
+    events.diarizationWindows.push(result);
+    events.diarizationTurns.push(...result.speakerTurns);
+    if (result.isSessionFinal) events.speakerDiarizationTerminalResults += 1;
+    events.speakerDiarizationResults += 1;
+    events.speakerDiarizationSpeakerCount = result.speakerCount;
+    events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
+    events.speakerDiarizationReason = result.degradedReason;
+    events.speakerDiarizationMessage = result.degradedMessage ?? '';
+    events.speakerTurnsJson = JSON.stringify(events.diarizationTurns);
+    events.speakerDiarizationResultAtMs = Date.now();
+    events.speakerDiarizationInferenceMs = result.inferenceMs;
+    events.speakerDiarizationRtf = result.rtf;
 }
 
 class StressListener implements RecognitionListener {
@@ -285,18 +304,7 @@ class StressListener implements RecognitionListener {
       this.events.frozenUtterances.add(utterance.utteranceId);
       this.events.frozenUtterances.add(utterance.sourceUtteranceId);
     }
-    this.events.diarizationWindows.push(result);
-    this.events.diarizationTurns.push(...result.speakerTurns);
-    if (result.isSessionFinal) this.events.speakerDiarizationTerminalResults += 1;
-    this.events.speakerDiarizationResults += 1;
-    this.events.speakerDiarizationSpeakerCount = result.speakerCount;
-    this.events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
-    this.events.speakerDiarizationReason = result.degradedReason;
-    this.events.speakerDiarizationMessage = result.degradedMessage ?? '';
-    this.events.speakerTurnsJson = JSON.stringify(this.events.diarizationTurns);
-    this.events.speakerDiarizationResultAtMs = Date.now();
-    this.events.speakerDiarizationInferenceMs = result.inferenceMs;
-    this.events.speakerDiarizationRtf = result.rtf;
+    recordDiarizationResult(this.events, result);
     this.record(sessionId, result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`);
   }
 
@@ -357,6 +365,17 @@ class CallbackRecord {
 class SequenceListener implements RecognitionListener {
   events: SessionEvents = new SessionEvents();
   records: CallbackRecord[] = [];
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.record(new CallbackRecord(sessionId, 'diarization-update'));
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    this.record(new CallbackRecord(sessionId,
+      result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`));
+  }
 
   protected record(callback: CallbackRecord): void {
     this.records.push(callback);
@@ -647,6 +666,17 @@ class ReentrantCompleteListener implements RecognitionListener {
     this.secondSessionId = secondSessionId;
   }
 
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
+  }
+
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
     this.events.callbackTrace.push(`${sessionId}:start`);
@@ -691,6 +721,25 @@ class StartCancelListener implements RecognitionListener {
   constructor(events: SessionEvents, engine: SpeechRecognitionEngine) {
     this.events = events;
     this.engine = engine;
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    if (this.cancelledInStart) {
+      this.eventAfterCancel = true;
+      this.eventAfterCancelSessionId = sessionId;
+    }
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    if (this.cancelledInStart) {
+      this.eventAfterCancel = true;
+      this.eventAfterCancelSessionId = sessionId;
+    }
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
   }
 
   onStart(sessionId: string, _eventMessage?: string): void {
@@ -743,6 +792,17 @@ class StartWriteListener implements RecognitionListener {
     this.engine = engine;
     this.bufferedFrames = bufferedFrames;
     this.finishInStart = finishInStart;
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
   }
 
   onStart(sessionId: string, _eventMessage?: string): void {
@@ -940,6 +1000,7 @@ class CycleResult {
   recoveryErrors: number = -1;
   recoveryTerminalOrder: number = -1;
   recoveryUnexpectedCallbacks: number = -1;
+  recoveryTrace: string = '';
   liveStreams: number = 0;
   elapsedMs: number = 0;
   firstNonEmptyResultMs: number = -1;
@@ -988,6 +1049,7 @@ class CycleResult {
       `|recoveryCompletes=${this.recoveryCompletes}|recoveryErrors=${this.recoveryErrors}` +
       `|recoveryTerminalOrder=${this.recoveryTerminalOrder}` +
       `|recoveryUnexpectedCallbacks=${this.recoveryUnexpectedCallbacks}` +
+      `|recoveryTrace=${this.recoveryTrace}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
       `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
@@ -1184,6 +1246,7 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   const params = new StartParams();
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
+  if (stressEnableDiarization) params.speakerDiarization = new SpeakerDiarizationConfig();
   params.extraParams['enablePartialResult'] = false;
   // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
   params.extraParams['maxAudioDuration'] = 28800000;
@@ -2386,6 +2449,7 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   result.recoveryErrors = recoveryEvents.errors;
   result.recoveryTerminalOrder = terminalCallbackOrderOk(recoveryEvents, recoverySessionId) ? 1 : 0;
   result.recoveryUnexpectedCallbacks = recoveryEvents.unexpectedSessionCallbacks;
+  result.recoveryTrace = recoveryEvents.callbackTrace.join('>');
   result.voiceprintIdCount = voiceprintId.length > 0 ? 1 : 0;
   return result;
 }
@@ -2869,6 +2933,7 @@ function safeDetail(value: string): string {
 
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
+  stressEnableDiarization = options.enableDiarization;
   const startedAt = Date.now();
   const lines: string[] = [];
   const totals = new StressTotals();
@@ -3047,6 +3112,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     logLine(`FATAL|runId=${options.runId}|detail=${fatal}`);
   } finally {
     if (engine !== undefined) engine.shutdown();
+    stressEnableDiarization = false;
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }

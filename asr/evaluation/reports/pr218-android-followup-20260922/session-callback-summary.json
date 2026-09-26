@@ -1,0 +1,121 @@
+{
+  "onset-300-1790067633822": {
+    "run": "onset-diagnostic",
+    "events": [
+      "START",
+      "EVENT",
+      "EVENT",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "EVENT": 2,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  },
+  "onset-0-1790067635734": {
+    "run": "onset-diagnostic",
+    "events": [
+      "START",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "EVENT",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "EVENT": 6,
+      "PARTIAL": 2,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  },
+  "vp-onstart-svad-1790068128847": {
+    "run": "qualified-onset-gates",
+    "events": [
+      "START",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "EVENT": 6,
+      "PARTIAL": 3,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  },
+  "vp-vadbegin-silence-1790068132871": {
+    "run": "qualified-onset-gates",
+    "events": [
+      "START",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  },
+  "vp-onstart-svad-1790068621024": {
+    "run": "current-onset-gates",
+    "events": [
+      "START",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "PARTIAL",
+      "EVENT",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "EVENT": 6,
+      "PARTIAL": 3,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  },
+  "vp-vadbegin-silence-1790068625189": {
+    "run": "current-onset-gates",
+    "events": [
+      "START",
+      "FINAL:last",
+      "COMPLETE"
+    ],
+    "counts": {
+      "START": 1,
+      "FINAL": 1,
+      "LAST": 1,
+      "COMPLETE": 1
+    }
+  }
+}

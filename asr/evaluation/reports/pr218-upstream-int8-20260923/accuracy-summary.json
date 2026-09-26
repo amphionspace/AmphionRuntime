@@ -1,0 +1,45 @@
+{
+  "scope": "41 preselected prior mixed-INT8 losses against FP32; not overall accuracy",
+  "cases": 41,
+  "recovered": 21,
+  "remaining_errors": 20,
+  "groups": {
+    "current_plate_number_1276": {
+      "cases": 14,
+      "recovered": 3
+    },
+    "current_police_station_394": {
+      "cases": 4,
+      "recovered": 1
+    },
+    "current_police_terms_20260711_industry_vocab_1671": {
+      "cases": 3,
+      "recovered": 2
+    },
+    "current_police_terms_2183": {
+      "cases": 4,
+      "recovered": 3
+    },
+    "police_v6_acceptance_205": {
+      "cases": 16,
+      "recovered": 12
+    }
+  },
+  "config": {
+    "sherpa_onnx": "1.13.1",
+    "sample_rate": 16000,
+    "frame_samples": 320,
+    "tail_samples": 19200,
+    "num_threads": 1,
+    "max_active_paths": 8,
+    "hotwords_score": 1,
+    "hotwords_sha256": "b45d189b7e3add1b1e5cc002fdb564f97d266f1b794ae16d7a711bbc6eb40e07",
+    "endpoint_rules_seconds": [
+      2.4,
+      1.4,
+      20
+    ],
+    "normalizer_source_commit": "6f645a04",
+    "itn": "WeText per native segment"
+  }
+}

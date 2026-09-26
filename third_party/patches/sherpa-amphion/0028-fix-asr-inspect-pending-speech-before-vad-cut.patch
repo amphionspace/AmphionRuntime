@@ -1,0 +1,426 @@
+From a216ee43e2f47473a8f070b9637e9608a715eb09 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Tue, 22 Sep 2026 17:49:51 +0800
+Subject: [PATCH] fix(asr): inspect pending speech before destructive VAD cut
+
+---
+ .../sherpa_onnx/src/main/cpp/streaming-asr.cc | 114 ++++++++++++++++++
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |   4 +
+ .../src/main/ets/components/StreamingAsr.ets  |  10 ++
+ sherpa-onnx/c-api/c-api.cc                    |   6 +
+ sherpa-onnx/c-api/c-api.h                     |   8 ++
+ sherpa-onnx/csrc/online-recognizer-impl.h     |   5 +
+ .../csrc/online-recognizer-transducer-impl.h  |  80 ++++++++++++
+ sherpa-onnx/csrc/online-recognizer.cc         |   4 +
+ sherpa-onnx/csrc/online-recognizer.h          |   3 +
+ sherpa-onnx/jni/online-recognizer.cc          |   9 ++
+ sherpa-onnx/kotlin-api/OnlineRecognizer.kt    |   5 +
+ 11 files changed, 248 insertions(+)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+index 6ebcb04d..27cc0cef 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/streaming-asr.cc
+@@ -893,6 +893,101 @@ static Napi::Value StartDecodeOnlineStreamAsync(
+   return deferred.Promise();
+ }
+ 
++class VadEndpointProbeAsyncWorker : public Napi::AsyncWorker {
++ public:
++  VadEndpointProbeAsyncWorker(
++      Napi::Env env,
++      std::shared_ptr<OnlineRecognizerState> recognizer,
++      std::shared_ptr<OnlineStreamState> stream,
++      Napi::Promise::Deferred deferred,
++      float silence_seconds)
++      : Napi::AsyncWorker(env, "VadEndpointProbeAsyncWorker"),
++        recognizer_(std::move(recognizer)),
++        stream_(std::move(stream)),
++        deferred_(deferred),
++        silence_seconds_(silence_seconds) {}
++
++  void Execute() override {
++    try {
++      const SherpaOnnxOnlineRecognizer *recognizer =
++          recognizer_ == nullptr ? nullptr : recognizer_->Get();
++      const SherpaOnnxOnlineStream *stream =
++          stream_ == nullptr ? nullptr : stream_->Get();
++      if (recognizer == nullptr || stream == nullptr) {
++        error_ = "Online recognizer or stream is closed";
++        return;
++      }
++      wait_seconds_ = SherpaOnnxOnlineStreamGetVadEndpointWaitSeconds(
++          recognizer, stream, silence_seconds_);
++    } catch (const std::exception &e) {
++      error_ = e.what();
++    } catch (...) {
++      error_ = "Unknown native exception while inspecting pending speech";
++    }
++    // Release native leases on the worker thread. If cancel/unload already
++    // closed the JS handles, native destruction also stays off the UI thread.
++    stream_.reset();
++    recognizer_.reset();
++  }
++
++  void OnOK() override {
++    if (!error_.empty()) {
++      deferred_.Reject(Napi::Error::New(Env(), error_).Value());
++      return;
++    }
++    deferred_.Resolve(Napi::Number::New(Env(), wait_seconds_));
++  }
++
++  void OnError(const Napi::Error &error) override {
++    deferred_.Reject(error.Value());
++  }
++
++ private:
++  std::shared_ptr<OnlineRecognizerState> recognizer_;
++  std::shared_ptr<OnlineStreamState> stream_;
++  Napi::Promise::Deferred deferred_;
++  float wait_seconds_ = 0;
++  std::string error_;
++  float silence_seconds_ = 0;
++};
++
++static Napi::Value GetVadEndpointWaitSecondsAsyncWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 3 || !info[0].IsExternal() ||
++      !info[1].IsExternal() || !info[2].IsNumber()) {
++    Napi::TypeError::New(
++        env, "Expected recognizer, stream, and trailing silence seconds")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++
++  OnlineRecognizerHandle *recognizer_handle =
++      GetOnlineRecognizerHandle(info, 0);
++  OnlineStreamHandle *stream_handle = GetOnlineStreamHandle(info, 1);
++  std::shared_ptr<OnlineRecognizerState> recognizer =
++      recognizer_handle == nullptr ? nullptr : recognizer_handle->Lease();
++  std::shared_ptr<OnlineStreamState> stream =
++      stream_handle == nullptr ? nullptr : stream_handle->Lease();
++  if (recognizer == nullptr || recognizer->Get() == nullptr ||
++      stream == nullptr || stream->Get() == nullptr) {
++    Napi::Error::New(env, "Online recognizer or stream is closed")
++        .ThrowAsJavaScriptException();
++    return env.Null();
++  }
++
++  Napi::Promise::Deferred deferred = Napi::Promise::Deferred::New(env);
++  auto *worker = new VadEndpointProbeAsyncWorker(
++      env, std::move(recognizer), std::move(stream), deferred, info[2].As<Napi::Number>().FloatValue());
++  try {
++    worker->Queue();
++  } catch (...) {
++    delete worker;
++    throw;
++  }
++  return deferred.Promise();
++}
++
+ static Napi::Value DecodeOnlineStreamAsyncWrapper(
+     const Napi::CallbackInfo &info) {
+   return StartDecodeOnlineStreamAsync(info, true);
+@@ -1041,6 +1136,21 @@ static Napi::Boolean IsEndpointWrapper(const Napi::CallbackInfo &info) {
+   return Napi::Boolean::New(env, is_endpoint);
+ }
+ 
++static Napi::Number GetVadEndpointWaitSecondsWrapper(const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++  if (info.Length() != 3 || !info[0].IsExternal() ||
++      !info[1].IsExternal() || !info[2].IsNumber()) {
++    Napi::TypeError::New(env, "Expected recognizer, stream, and trailing silence seconds")
++        .ThrowAsJavaScriptException();
++    return {};
++  }
++  const auto *recognizer = GetOnlineRecognizer(info, 0);
++  const auto *stream = GetOnlineStream(info, 1);
++  if (stream == nullptr) return {};
++  return Napi::Number::New(env, SherpaOnnxOnlineStreamGetVadEndpointWaitSeconds(
++      recognizer, stream, info[2].As<Napi::Number>().FloatValue()));
++}
++
+ static Napi::Number GetEndpointReasonWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 2 || !info[0].IsExternal() ||
+@@ -1211,6 +1321,10 @@ void InitStreamingAsr(Napi::Env env, Napi::Object exports) {
+ 
+   exports.Set(Napi::String::New(env, "isEndpoint"),
+               Napi::Function::New(env, IsEndpointWrapper));
++  exports.Set(Napi::String::New(env, "getVadEndpointWaitSeconds"),
++              Napi::Function::New(env, GetVadEndpointWaitSecondsWrapper));
++  exports.Set(Napi::String::New(env, "getVadEndpointWaitSecondsAsync"),
++              Napi::Function::New(env, GetVadEndpointWaitSecondsAsyncWrapper));
+   exports.Set(Napi::String::New(env, "getEndpointReason"),
+               Napi::Function::New(env, GetEndpointReasonWrapper));
+   exports.Set(Napi::String::New(env, "commitRule3Segment"),
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index c2e5505b..86a58a75 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -43,6 +43,10 @@ export const decodeOnlineStreamAsync: (handle: object,
+ export const decodeOneOnlineStreamAsync: (handle: object,
+   streamHandle: object) => Promise<number>;
+ export const isEndpoint: (handle: object, streamHandle: object) => boolean;
++export const getVadEndpointWaitSeconds: (handle: object, streamHandle: object,
++  silenceSeconds: number) => number;
++export const getVadEndpointWaitSecondsAsync: (handle: object, streamHandle: object,
++  silenceSeconds: number) => Promise<number>;
+ export const getEndpointReason: (handle: object, streamHandle: object) => number;
+ export const commitRule3Segment: (handle: object, streamHandle: object) => boolean;
+ export const commitStablePrefix: (handle: object, streamHandle: object) => boolean;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+index c5f27afb..34780eac 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/StreamingAsr.ets
+@@ -11,6 +11,8 @@ import {
+   decodeOneOnlineStreamAsync,
+   destroyOnlineStream,
+   getOnlineStreamResultAsJson,
++  getVadEndpointWaitSeconds,
++  getVadEndpointWaitSecondsAsync,
+   getEndpointReason,
+   getOnlineStreamLiveCount,
+   inputFinished,
+@@ -193,6 +195,14 @@ export class OnlineRecognizer {
+     return isEndpoint(this.handle, stream.handle);
+   }
+ 
++  getVadEndpointWaitSeconds(stream: OnlineStream, silenceSeconds: number): number {
++    return getVadEndpointWaitSeconds(this.handle, stream.handle, silenceSeconds);
++  }
++
++  getVadEndpointWaitSecondsAsync(stream: OnlineStream, silenceSeconds: number): Promise<number> {
++    return getVadEndpointWaitSecondsAsync(this.handle, stream.handle, silenceSeconds);
++  }
++
+   getEndpointReason(stream: OnlineStream): OnlineEndpointReason {
+     return getEndpointReason(this.handle, stream.handle) as OnlineEndpointReason;
+   }
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 6ce91cae..9211f425 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -569,6 +569,12 @@ int32_t SherpaOnnxOnlineStreamIsEndpoint(
+   return recognizer->impl->IsEndpoint(stream->impl.get());
+ }
+ 
++float SherpaOnnxOnlineStreamGetVadEndpointWaitSeconds(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream, float silence_seconds) {
++  return recognizer->impl->GetVadEndpointWaitSeconds(stream->impl.get(), silence_seconds);
++}
++
+ int32_t SherpaOnnxOnlineStreamGetEndpointReason(
+     const SherpaOnnxOnlineRecognizer *recognizer,
+     const SherpaOnnxOnlineStream *stream) {
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 776d37be..63797a97 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -776,6 +776,14 @@ SherpaOnnxOnlineStreamIsEndpoint(const SherpaOnnxOnlineRecognizer *recognizer,
+  * @return 0 for none, 1 for rule1, 2 for rule2, 3 for rule3, and 4 when the
+  *         recognizer reports an endpoint without a rule-specific reason.
+  */
++/** Query after draining ready chunks. Returns zero when a VAD cut cannot
++ * discard pending speech; otherwise returns the real-audio advance (seconds)
++ * before rechecking. Disposable probe hypotheses are never published.
++ */
++SHERPA_ONNX_API float SherpaOnnxOnlineStreamGetVadEndpointWaitSeconds(
++    const SherpaOnnxOnlineRecognizer *recognizer,
++    const SherpaOnnxOnlineStream *stream, float silence_seconds);
++
+ SHERPA_ONNX_API int32_t SherpaOnnxOnlineStreamGetEndpointReason(
+     const SherpaOnnxOnlineRecognizer *recognizer,
+     const SherpaOnnxOnlineStream *stream);
+diff --git a/sherpa-onnx/csrc/online-recognizer-impl.h b/sherpa-onnx/csrc/online-recognizer-impl.h
+index 17698c51..c05b316f 100644
+--- a/sherpa-onnx/csrc/online-recognizer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-impl.h
+@@ -5,6 +5,7 @@
+ #ifndef SHERPA_ONNX_CSRC_ONLINE_RECOGNIZER_IMPL_H_
+ #define SHERPA_ONNX_CSRC_ONLINE_RECOGNIZER_IMPL_H_
+ 
++#include <limits>
+ #include <memory>
+ #include <string>
+ #include <vector>
+@@ -59,6 +60,10 @@ class OnlineRecognizerImpl {
+     return IsEndpoint(s) ? EndpointReason::kUnknown : EndpointReason::kNone;
+   }
+ 
++  virtual float GetVadEndpointWaitSeconds(OnlineStream * /*s*/, float /*silence_seconds*/) const {
++    return 0.0f;
++  }
++
+   virtual void Reset(OnlineStream *s) const = 0;
+ 
+   virtual bool CommitRule3Segment(OnlineStream * /*s*/) const {
+diff --git a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+index af59d434..baf5d20c 100644
+--- a/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
++++ b/sherpa-onnx/csrc/online-recognizer-transducer-impl.h
+@@ -385,6 +385,86 @@ class OnlineRecognizerTransducerImpl : public OnlineRecognizerImpl {
+     return r;
+   }
+ 
++  float GetVadEndpointWaitSeconds(OnlineStream *s, float silence_seconds) const override {
++    // This is a veto of destructive VAD endpointing, never a public hypothesis.
++    // Future right context is synthetic; only encoder output frames belonging
++    // to the already available real features may reach the disposable decoder.
++    const int32_t ready = s->NumFramesReady();
++    const int32_t begin = s->GetNumProcessedFrames();
++    const int32_t chunk_size = model_->ChunkSize();
++    const int32_t chunk_shift = model_->ChunkShift();
++    const int32_t dim = s->FeatureDim();
++    constexpr int32_t subsampling = 4;
++    std::vector<OnlineTransducerDecoderResult> results{s->GetResult()};
++    std::vector<Ort::Value> states;
++    for (const auto &state : s->GetStates()) {
++      states.push_back(Clone(model_->Allocator(), &state));
++    }
++
++    // GetFrames discards only frames preceding begin, exactly as the next
++    // ordinary decode would. It never consumes pending frames or advances the
++    // stream's frame count, encoder state, hypothesis, or public segment.
++    const int32_t pending_count = std::max(0, ready - begin);
++    auto pending = s->GetFrames(begin, pending_count);
++    FeatureExtractor silence(config_.feat_config);
++    std::vector<float> zero_samples(
++        static_cast<int32_t>(config_.feat_config.sampling_rate), 0.0f);
++    silence.AcceptWaveform(config_.feat_config.sampling_rate,
++                           zero_samples.data(), zero_samples.size());
++    auto silence_frame = silence.GetFrames(0, 1);
++    auto memory_info =
++        Ort::MemoryInfo::CreateCpu(OrtDeviceAllocator, OrtMemTypeDefault);
++    for (int32_t pos = begin; pos + subsampling <= ready; pos += chunk_shift) {
++      std::vector<float> features(chunk_size * dim);
++      for (int32_t t = 0; t < chunk_size; ++t) {
++        const int32_t source = pos - begin + t;
++        const float *frame = source < pending_count ?
++            pending.data() + source * dim : silence_frame.data();
++        std::copy(frame, frame + dim, features.data() + t * dim);
++      }
++      std::array<int64_t, 3> shape{1, chunk_size, dim};
++      auto x = Ort::Value::CreateTensor(memory_info, features.data(), features.size(),
++                                        shape.data(), shape.size());
++      int64_t processed = pos;
++      std::array<int64_t, 1> processed_shape{1};
++      auto processed_frames = Ort::Value::CreateTensor(memory_info, &processed, 1,
++          processed_shape.data(), processed_shape.size());
++      auto pair = model_->RunEncoder(std::move(x), std::move(states),
++                                     std::move(processed_frames));
++      auto output_shape = pair.first.GetTensorTypeAndShapeInfo().GetShape();
++      output_shape[1] = std::min<int64_t>(output_shape[1], (ready - pos) / subsampling);
++      const size_t output_size = output_shape[1] * output_shape[2];
++      auto bounded_output = Ort::Value::CreateTensor(memory_info,
++          pair.first.GetTensorMutableData<float>(), output_size,
++          output_shape.data(), output_shape.size());
++      if (s->GetContextGraph()) {
++        decoder_->Decode(std::move(bounded_output), &s, &results);
++      } else {
++        decoder_->Decode(std::move(bounded_output), &results);
++      }
++      states = std::move(pair.second);
++    }
++    decoder_->StripLeadingBlanks(&results[0]);
++    int32_t last = -1;
++    if (!s->GetCommittedPrefix().timestamps.empty()) {
++      last = s->GetCommittedPrefix().timestamps.back();
++    }
++    if (!results[0].timestamps.empty()) {
++      last = std::max(last, results[0].timestamps.back());
++    }
++    float wait = last < 0 ? 0.0f : std::max(0.0f,
++        silence_seconds - (ready - (last + 1) * subsampling) * 0.01f);
++    auto original = s->GetResult();
++    decoder_->StripLeadingBlanks(&original);
++    if (original.tokens != results[0].tokens) {
++      // Even with a short vadEnd, a newly revealed real token cannot be lost.
++      // Wait until the next natural decode can commit/revise that hypothesis.
++      // IsReady uses a strict inequality, hence the extra feature frame.
++      wait = std::max(wait, (begin + chunk_size + 1 - ready) * 0.01f);
++    }
++    return wait;
++  }
++
+   bool IsEndpoint(OnlineStream *s) const override {
+     return GetEndpointReason(s) != EndpointReason::kNone;
+   }
+diff --git a/sherpa-onnx/csrc/online-recognizer.cc b/sherpa-onnx/csrc/online-recognizer.cc
+index 5ad5fe46..5d36b55e 100644
+--- a/sherpa-onnx/csrc/online-recognizer.cc
++++ b/sherpa-onnx/csrc/online-recognizer.cc
+@@ -259,6 +259,10 @@ bool OnlineRecognizer::IsEndpoint(OnlineStream *s) const {
+   return impl_->IsEndpoint(s);
+ }
+ 
++float OnlineRecognizer::GetVadEndpointWaitSeconds(OnlineStream *s, float silence_seconds) const {
++  return impl_->GetVadEndpointWaitSeconds(s, silence_seconds);
++}
++
+ EndpointReason OnlineRecognizer::GetEndpointReason(OnlineStream *s) const {
+   return impl_->GetEndpointReason(s);
+ }
+diff --git a/sherpa-onnx/csrc/online-recognizer.h b/sherpa-onnx/csrc/online-recognizer.h
+index 5fa57f17..ef2e77c0 100644
+--- a/sherpa-onnx/csrc/online-recognizer.h
++++ b/sherpa-onnx/csrc/online-recognizer.h
+@@ -218,6 +218,9 @@ class OnlineRecognizer {
+   // invoke Reset(s).
+   bool IsEndpoint(OnlineStream *s) const;
+ 
++  // Inspect pending real frames on disposable decoder/encoder state.
++  float GetVadEndpointWaitSeconds(OnlineStream *s, float silence_seconds) const;
++
+   EndpointReason GetEndpointReason(OnlineStream *s) const;
+ 
+   // Clear the state of this stream. If IsEndpoint(s) returns true,
+diff --git a/sherpa-onnx/jni/online-recognizer.cc b/sherpa-onnx/jni/online-recognizer.cc
+index 4249d961..2fe91f18 100644
+--- a/sherpa-onnx/jni/online-recognizer.cc
++++ b/sherpa-onnx/jni/online-recognizer.cc
+@@ -335,6 +335,15 @@ Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_isEndpoint(JNIEnv * /*env*/,
+   return recognizer->IsEndpoint(stream);
+ }
+ 
++SHERPA_ONNX_EXTERN_C
++JNIEXPORT jfloat JNICALL
++Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_getVadEndpointWaitSeconds(
++    JNIEnv * /*env*/, jobject /*obj*/, jlong ptr, jlong stream_ptr, jfloat silence_seconds) {
++  auto recognizer = reinterpret_cast<sherpa_onnx::OnlineRecognizer *>(ptr);
++  auto stream = reinterpret_cast<sherpa_onnx::OnlineStream *>(stream_ptr);
++  return recognizer->GetVadEndpointWaitSeconds(stream, silence_seconds);
++}
++
+ SHERPA_ONNX_EXTERN_C
+ JNIEXPORT jint JNICALL
+ Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_getEndpointReason(
+diff --git a/sherpa-onnx/kotlin-api/OnlineRecognizer.kt b/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
+index 7dbf15b9..24b48a19 100644
+--- a/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
++++ b/sherpa-onnx/kotlin-api/OnlineRecognizer.kt
+@@ -132,6 +132,9 @@ class OnlineRecognizer(
+     fun reset(stream: OnlineStream) = reset(ptr, stream.ptr)
+     fun decode(stream: OnlineStream) = decode(ptr, stream.ptr)
+     fun isEndpoint(stream: OnlineStream) = isEndpoint(ptr, stream.ptr)
++    fun getVadEndpointWaitSeconds(stream: OnlineStream, silenceSeconds: Float): Float =
++        getVadEndpointWaitSeconds(ptr, stream.ptr, silenceSeconds)
++
+     fun getEndpointReason(stream: OnlineStream): OnlineEndpointReason =
+         OnlineEndpointReason.fromNative(getEndpointReason(ptr, stream.ptr))
+     fun commitRule3Segment(stream: OnlineStream): Boolean = commitRule3Segment(ptr, stream.ptr)
+@@ -156,6 +159,8 @@ class OnlineRecognizer(
+     private external fun reset(ptr: Long, streamPtr: Long)
+     private external fun decode(ptr: Long, streamPtr: Long)
+     private external fun isEndpoint(ptr: Long, streamPtr: Long): Boolean
++    private external fun getVadEndpointWaitSeconds(ptr: Long, streamPtr: Long, silenceSeconds: Float): Float
++
+     private external fun getEndpointReason(ptr: Long, streamPtr: Long): Int
+     private external fun commitRule3Segment(ptr: Long, streamPtr: Long): Boolean
+     private external fun commitStablePrefix(ptr: Long, streamPtr: Long): Boolean
+-- 
+2.50.1 (Apple Git-155)
+

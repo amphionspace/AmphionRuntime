@@ -6,7 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/zhen}"
+ZH_EN_DIR="${ZH_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer}"
 YUE_EN_DIR="${YUE_EN_DIR:-${REPO_ROOT}/asr/tools/demo-model/yueen}"
 PUNCT_DIR="${PUNCT_DIR:-${REPO_ROOT}/asr/tools/punct-model/sherpa-onnx-punct-ct-transformer-zh-en-vocab272727-2024-04-12-int8}"
 ITN_DIR="${ITN_DIR:-${REPO_ROOT}/asr/tools/weitn-fsts-v2}"
@@ -36,8 +36,8 @@ Usage: bash asr/tools/08_pack_harmony_assets.sh [--zh-en-only]
 
 Inputs can be overridden with ZH_EN_DIR, YUE_EN_DIR, PUNCT_DIR, ITN_DIR,
 and VAD_FILE. The zhen input intentionally uses the FP32 decoder.onnx and
-joiner.onnx with an INT8 encoder; decoder INT8 quantization causes severe
-Chinese token deletion on the police corpus. Set HARMONY_ORT_PYTHON to reuse an
+joiner.onnx with the police 1.4.0 encoder-only INT8 model. Decoder INT8
+quantization causes severe Chinese token deletion on the police corpus. Set HARMONY_ORT_PYTHON to reuse an
 existing Python environment containing onnxruntime==1.16.3, onnx==1.15.0,
 and numpy==1.26.4.
 
@@ -141,8 +141,12 @@ if [[ "$VAD_FILE" == "$DEFAULT_VAD_FILE" ]] &&
   err "默认 silero_vad.onnx SHA-256 校验失败"
 fi
 
-ensure_dir "$ZH_EN_DIR" "请设置 ZH_EN_DIR 或准备 asr/tools/demo-model/zhen"
-ensure_file "${ZH_EN_DIR}/encoder.int8.onnx" "zhen 缺 encoder.int8.onnx"
+ensure_dir "$ZH_EN_DIR" "请按 asr/tools/demo-model/README.md 恢复 Police 1.4.0，或设置 ZH_EN_DIR"
+ZH_ENCODER="${ZH_EN_DIR}/encoder.onnx"
+if [[ ! -f "$ZH_ENCODER" ]]; then
+  ZH_ENCODER="${ZH_EN_DIR}/encoder.int8.onnx"
+fi
+ensure_file "$ZH_ENCODER" "zhen 缺 encoder.onnx 或 encoder.int8.onnx"
 ensure_file "${ZH_EN_DIR}/joiner.onnx" "zhen 缺 FP32 joiner.onnx"
 ensure_file "${ZH_EN_DIR}/tokens.txt" "zhen 缺 tokens.txt"
 ensure_file "${ZH_EN_DIR}/bbpe.vocab" "zhen 缺 bbpe.vocab"
@@ -235,7 +239,8 @@ convert_one() {
 
 info "并行预优化 zhen 三图与 punctuation（ARM CPU / Fixed / Nchwc disabled）"
 pids=()
-convert_one "${ZH_EN_DIR}/encoder.int8.onnx" \
+# Keep the runtime asset name stable; manifest source_name records FP32/INT8.
+convert_one "$ZH_ENCODER" \
   "$ASSET_ROOT/zh-en/v1/encoder.int8.ort" \
   "$ASSET_ROOT/.conversion-metadata/zh-encoder.json" &
 pids+=("$!")

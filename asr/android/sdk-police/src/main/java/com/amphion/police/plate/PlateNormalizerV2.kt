@@ -95,7 +95,7 @@ class PlateNormalizerV2 private constructor(
         """(?:车牌号|车牌|号牌)$structuralGapPattern(?:为|是)?$structuralGapPattern$""",
     )
     private val explicitPlateContextAfter = Regex(
-        """^$structuralGapPattern(?:这?辆车|车辆|车主|目标车辆|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)""",
+        """^$structuralGapPattern(?:这?辆车|车辆|车主|车窗|目标车辆|停在.{0,12}(?:车位|停车场|装卸区)|通行记录|离开时.{0,20}方向|(?:刚才)?(?:蹭|撞|刮).{0,10}(?:路边车|车辆|车)|请.{0,8}车主)""",
     )
     private val genericIdentifierBefore = Regex(
         """(?:产品型号|设备编号|订单号|序列号|设备序列号|型号|编号)$structuralGapPattern(?:为|是)?$structuralGapPattern$""",
@@ -272,6 +272,10 @@ class PlateNormalizerV2 private constructor(
             if (end < text.length && isPlateNumeric(text[end])) continue
             if (!hasAnchor(text, start, end)) continue
             val bodySeq = body.subList(0, bodyLen)
+            // 报警/登记等弱锚词不能把普通数字串解释为「机关字母 + 序号」。
+            if (bodySeq.all { isPlateNumeric(it) } &&
+                !hasExplicitPlateContext(text, start, end, requirePlateNoun = false)
+            ) continue
             val hits = contextProvinces.mapNotNull { p ->
                 bestCandidateForLength(listOf(p) + bodySeq, plateLen)
             }
@@ -366,6 +370,12 @@ class PlateNormalizerV2 private constructor(
             if (seq.size < len) continue
             val cand = bestCandidateForLength(seq, len) ?: continue
             val end = endForLen(len)
+            // 无明确省份/字母前缀、其余全是数字时，与「登记290000」等普通记录无法区分。
+            val prefix = seq[0].uppercaseChar()
+            if (!kb.isProvinceChar(seq[0]) && prefix !in 'A'..'Z' && prefix !in 'Ａ'..'Ｚ' &&
+                seq.subList(1, len).all { isPlateNumeric(it) } &&
+                !hasExplicitPlateContext(text, start, end, requirePlateNoun = false)
+            ) continue
             if (!acceptSpan(text, start, end, cand)) continue
             return Match(cand.plate, end, coverageForLen(len))
         }
@@ -403,6 +413,13 @@ class PlateNormalizerV2 private constructor(
      */
     private fun acceptSpan(text: String, start: Int, end: Int, cand: Candidate): Boolean {
         if (cand.cost == 0) return true
+        // Ordinary Latin words also fit the permissive province-alias shape.
+        // Require an explicit plate noun before converting an all-letter span.
+        if ((start until end).all {
+                val c = text[it]
+                c in 'A'..'Z' || c in 'a'..'z' || c in 'Ａ'..'Ｚ' || c in 'ａ'..'ｚ' || isSeparator(c)
+            } && !hasExplicitPlateContext(text, start, end, requirePlateNoun = true)
+        ) return false
         // 国标码守护：源串以 Latin「GB」开头（如 GB28181、GB/T 标准）结构上与「冀B+序号」车牌无法区分，
         // 无车牌锚词时一律不纠（有锚词如「车牌GB28181」仍会纠）。仅拦 GB，不影响 U→豫 等单字母省份近音。
         if (startsWithGb(text, start)) return hasAnchor(text, start, end)

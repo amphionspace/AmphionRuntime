@@ -16,8 +16,9 @@ CASE_ROOT = "/data/storage/el2/base/files/asr-cases"
 
 
 def locate_hdc() -> Path:
-    deveco = Path(os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents"))
-    hdc = deveco / "sdk/default/openharmony/toolchains/hdc"
+    clt = Path(os.environ.get("DEVECO_CLI_CLT_PATH", Path.home() / ".local/share/harmony/command-line-tools"))
+    sdk = Path(os.environ.get("DEVECO_SDK_HOME", clt / "sdk"))
+    hdc = Path(os.environ.get("HDC", sdk / "default/openharmony/toolchains/hdc"))
     if not hdc.is_file():
         raise RuntimeError(f"missing hdc: {hdc}")
     return hdc

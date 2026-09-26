@@ -12,15 +12,14 @@ RUNNER = ROOT / "asr/tools/evaluate_automatic_agc_regression.py"
 
 
 class AutomaticAgcEvaluationEvidenceTest(unittest.TestCase):
-    def test_report_separates_level_snr_and_long_audio_claims(self) -> None:
+    def test_report_separates_level_and_long_audio_claims(self) -> None:
         report = json.loads(REPORT.read_text(encoding="utf-8"))
 
         self.assertEqual(
-            ["overall_level_dbfs", "snr_db", "long_audio_time_region"],
+            ["overall_level_dbfs", "long_audio_time_region"],
             report["evaluation_axes"],
         )
-        self.assertEqual("AGC does not improve SNR", report["customer_snr"]["conclusion"])
-        self.assertTrue(all(value < 20 for value in report["customer_snr"]["incorrect_both_modes_db"]))
+        self.assertNotIn("customer_snr", report)
         self.assertEqual(
             "local_benefit_not_complete_transcript",
             report["long_audio"]["claim_scope"],
@@ -40,13 +39,12 @@ class AutomaticAgcEvaluationEvidenceTest(unittest.TestCase):
             self.assertRegex(digest, r"^[0-9a-f]{64}$")
         applicability = report["evaluation_applicability_review"]
         self.assertEqual(
-            "full_accuracy_evaluation_rerun",
+            "canonical_accuracy_evaluation_rerun",
             applicability["decision"],
         )
         self.assertEqual(
             {
                 "aishell3_normal_and_controlled_levels",
-                "customer_snr_scan",
                 "sdk_style_long_audio",
                 "repository_low_volume_regression_off_on",
             },

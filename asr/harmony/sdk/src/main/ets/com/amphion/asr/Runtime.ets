@@ -1368,6 +1368,7 @@ export class AsrSession {
   private svEndpointReady: boolean = false;
   private pendingVadStopAtEndpoint: boolean = false;
   private vadEndpointPending: boolean = false;
+  private vadEndpointRecheckSample: number = 0;
   private pendingNativeEndpointTransition?: NativeEndpointTransition;
   private endpointAtMs: number = -1;
   private callback: AsrCallback;
@@ -1522,7 +1523,7 @@ export class AsrSession {
   }
 
   private acceptPcmFloatNow(samples: Float32Array): void {
-    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.isInputTerminated() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
@@ -1543,7 +1544,7 @@ export class AsrSession {
   }
 
   private async acceptPcmFloatNowAsync(samples: Float32Array): Promise<void> {
-    if (this.callbackGate.isClosed() || samples.length === 0) return;
+    if (this.isInputTerminated() || samples.length === 0) return;
     if (this.firstPcmMs < 0) this.firstPcmMs = Date.now();
     this.pcmBytesAccepted += samples.length * 2;
     this.totalPcmBytes += samples.length * 2;
@@ -1602,12 +1603,13 @@ export class AsrSession {
   }
 
   private stopNow(): void {
-    if (this.callbackGate.isClosed()) return;
+    if (this.isInputTerminated()) return;
     this.streamCallDepth += 1;
     try {
       this.agcIngress.flush((frame: ProcessedAudioFrame): void => {
         this.feedAndDecode(frame);
       });
+      if (this.isInputTerminated()) return;
       if (this.commitSpeakerTurnAtFinish()) return;
       // PCM has been streamed to the recognizer all along; just flush the tail to a final result.
       // Don't rebuild the stream afterwards (session is ending), so a soft reset is enough.
@@ -1633,12 +1635,13 @@ export class AsrSession {
   }
 
   private async stopNowAsync(): Promise<void> {
-    if (this.callbackGate.isClosed()) return;
+    if (this.isInputTerminated()) return;
     this.streamCallDepth += 1;
     try {
       await this.agcIngress.flushAsync(async (frame: ProcessedAudioFrame): Promise<void> => {
         await this.feedAndDecodeAsync(frame);
       });
+      if (this.isInputTerminated()) return;
       if (await this.commitSpeakerTurnAtFinishAsync()) return;
       let tailDecodeMs = 0;
       if (this.speakerVadEnabled) {
@@ -2250,7 +2253,7 @@ export class AsrSession {
   // endpoint rules stay enabled as a backstop in case the VAD active endpoint misses.
   private feedAndDecode(frame: ProcessedAudioFrame): void {
     let offset = 0;
-    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.isInputTerminated() &&
       !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
@@ -2270,7 +2273,7 @@ export class AsrSession {
 
   private async feedAndDecodeAsync(frame: ProcessedAudioFrame): Promise<void> {
     let offset = 0;
-    while (offset < frame.raw.length && !this.callbackGate.isClosed() &&
+    while (offset < frame.raw.length && !this.isInputTerminated() &&
       !this.initialSilenceTracker.hasTimedOut()) {
       const remaining = frame.raw.length - offset;
       let chunkSize = this.initialSilenceTracker.isArmed() ?
@@ -2351,6 +2354,7 @@ export class AsrSession {
       // close this session synchronously and must observe a coherent transition.
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
+      this.vadEndpointRecheckSample = 0;
       if (!replay && notifySpeechBegin && !this.callbackGate.invoke((): void => {
         this.callback.onSpeechBegin?.();
       })) return;
@@ -2369,11 +2373,17 @@ export class AsrSession {
         (this.vadProcessedSamples - this.vadLastSpeechEndSample) * 1000 / ASR_SAMPLE_RATE_HZ :
         this.trailingSilenceMs + i * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
-      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs) {
-        this.vadSpeechActive = false;
-        this.trailingSilenceMs = 0;
-        this.triggerVadActiveEndpoint();
-        return;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs &&
+        this.publicSamplesFed >= this.vadEndpointRecheckSample) {
+        const waitSeconds = this.recognizer.getVadEndpointWaitSeconds(this.stream, activeEpMs / 1000);
+        if (waitSeconds > 0) {
+          this.vadEndpointRecheckSample = this.publicSamplesFed + Math.ceil(waitSeconds * ASR_SAMPLE_RATE_HZ);
+        } else {
+          this.vadSpeechActive = false;
+          this.trailingSilenceMs = 0;
+          this.triggerVadActiveEndpoint();
+          return;
+        }
       }
     }
   }
@@ -2473,6 +2483,12 @@ export class AsrSession {
       return;
     }
     if (vadAdvance.vadEndpoint) {
+      if (!await this.confirmVadEndpointAsync()) {
+        if (!this.callbackGate.isClosed() && this.svEndpointReady) {
+          await this.finalizeReadySpeakerEndpointAsync();
+        }
+        return;
+      }
       if (!await this.drainSpeakerInferenceAsync()) return;
       if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       await this.finalizeAnnouncedVadEndpointAsync();
@@ -2517,6 +2533,7 @@ export class AsrSession {
       const notifySpeechBegin = !this.vadSpeechActive;
       this.vadSpeechActive = true;
       this.trailingSilenceMs = 0;
+      this.vadEndpointRecheckSample = 0;
       if (!replay && notifySpeechBegin && !this.callbackGate.invoke((): void => {
         this.callback.onSpeechBegin?.();
       })) return advance;
@@ -2532,24 +2549,40 @@ export class AsrSession {
         this.trailingSilenceMs + index * 1000 / ASR_SAMPLE_RATE_HZ;
       const activeEpMs = this.sessionConfig.endpointSilenceMs ??
         this.config.vadConfig.activeEndpointSilenceMs;
-      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending) {
-        this.vadSpeechActive = false;
-        this.trailingSilenceMs = 0;
-        Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
-          `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
-          `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
-          `speechEndSample=${this.vadLastSpeechEndSample} ` +
-          `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
-          `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
-        this.endpointAtMs = Date.now();
-        if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return advance;
-        this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
-        this.vadEndpointPending = true;
+      if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending &&
+        this.publicSamplesFed >= this.vadEndpointRecheckSample) {
+        // Candidate only: this slice has not reached ASR yet. Announce the
+        // endpoint only after current PCM and pending native speech agree.
         advance.vadEndpoint = true;
         return advance;
       }
     }
     return advance;
+  }
+
+  private async confirmVadEndpointAsync(): Promise<boolean> {
+    // A native endpoint may already have been announced while decoding this slice.
+    if (this.vadEndpointPending) return true;
+    const activeEpMs = this.sessionConfig.endpointSilenceMs ?? this.config.vadConfig.activeEndpointSilenceMs;
+    const waitSeconds = await this.recognizer.getVadEndpointWaitSecondsAsync(this.stream, activeEpMs / 1000);
+    if (this.callbackGate.isClosed()) return false;
+    if (waitSeconds > 0) {
+      this.vadEndpointRecheckSample = this.publicSamplesFed + Math.ceil(waitSeconds * ASR_SAMPLE_RATE_HZ);
+      return false;
+    }
+    this.vadSpeechActive = false;
+    this.trailingSilenceMs = 0;
+    Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=vad-active ` +
+      `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+      `utterancePcmBytes=${this.pcmBytesAccepted} vadSamples=${this.vadProcessedSamples} ` +
+      `speechEndSample=${this.vadLastSpeechEndSample} ` +
+      `lastDecodeStartedAtMs=${this.lastDecodeStartedAtMs} ` +
+      `lastDecodeFinishedAtMs=${this.lastDecodeFinishedAtMs}`);
+    this.endpointAtMs = Date.now();
+    if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return false;
+    this.pendingVadStopAtEndpoint = this.reentryQueue.consumeStopAtEndpoint();
+    this.vadEndpointPending = true;
+    return true;
   }
 
   private async prepareVadEndpointSpeakerScoreAsync(): Promise<boolean> {
@@ -2762,6 +2795,7 @@ export class AsrSession {
     this.vadEndpointPending = false;
     this.pendingVadStopAtEndpoint = false;
     this.pendingNativeEndpointTransition = undefined;
+    this.vadEndpointRecheckSample = 0;
     this.vadSpeechActive = false;
     this.trailingSilenceMs = 0;
     this.vadCarry = new Float32Array(0);
@@ -4114,6 +4148,12 @@ export class AsrSession {
     metrics.p95Rtf = p95(this.rtfValues);
     this.callback.onMetrics?.(metrics);
     Logger.metric(metrics.toLogLine());
+  }
+
+  private isInputTerminated(): boolean {
+    // An endpoint may consume stop while the adapter still awaits diarization or a
+    // deferred speaker score. Callback lifetime must not reopen native audio input.
+    return this.callbackGate.isClosed() || this.stoppedNotified || this.stopNotificationPending;
   }
 
   private notifyStopped(): void {

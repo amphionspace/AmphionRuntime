@@ -54,9 +54,13 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 
 ### 2.2 灰度发布
 
+以下是支持在线模型更新的产品的通用流程，不代表本仓库已配置发布桶。
+本仓库构建输入使用华为云 OBS，实际桶、对象键和校验信息见
+[资产清单](../../tools/assets/README.md)。鼎桥正式 SDK 按离线交付约束执行，不采用本节的在线拉取流程。
+
 模型走 manifest 灰度：
 
-1. 把模型文件 + manifest.json 上传到 OSS：`s3://your-bucket/asr/<model_id>/<version>/`
+1. 把模型文件 + manifest.json 上传到产品配置的对象存储发布目录；桶和前缀由发布配置明确指定，不能把构建资产桶直接视为客户端发布源
 2. 在配置中心新建 manifest 灰度规则（按 city / app version / 用户 hash 分桶）
 3. 灰度阶段（建议 7 天）：1% → 5% → 25% → 50% → 100%
 4. 每个阶段都看：crash 率不上升 / 上游 WER 报告不劣化 / 用户反馈无突变

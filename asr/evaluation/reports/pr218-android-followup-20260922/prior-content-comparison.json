@@ -1,0 +1,134 @@
+[
+  {
+    "fixture": "v6_1_1.wav",
+    "audio_sha256": "04a632dea17ab3e67acec33b807e4cf073393c4d3779c6b3ab7fc45b28b02bf1",
+    "expected": "开启记录仪N F C",
+    "before": "开启记录仪。 F C。",
+    "after": "开启记录仪。 F C。",
+    "before_pass": false,
+    "after_pass": false,
+    "harmony_after": "开启记录仪。F C。",
+    "harmony_after_pass": false
+  },
+  {
+    "fixture": "v6_1_2.wav",
+    "audio_sha256": "0ab2d4296ff7628ebd87494bd269961e68229b775f00a2de8c6d17acb7cf9acf",
+    "expected": "开启记录仪N F C",
+    "before": "开启记录仪N F C。",
+    "after": "开启记录仪N F C。",
+    "before_pass": true,
+    "after_pass": true,
+    "harmony_after": "开启记录仪N F C。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_2_1.wav",
+    "audio_sha256": "07b0394ecfecd03a35bfcead5acb72ebb2315897b6970216d3a3b9559fc957e0",
+    "expected": "把录像分辨率设置为D 幺",
+    "before": "执法路线分辨率设置为D。",
+    "after": "执法路线分辨率设置为D。",
+    "before_pass": false,
+    "after_pass": false,
+    "harmony_after": "执法路线分辨率设置为D。",
+    "harmony_after_pass": false
+  },
+  {
+    "fixture": "v6_2_2.wav",
+    "audio_sha256": "07c465bfd3f80764d9757296f50fc9aac55407a2be0903345e11a23b1e3ac15a",
+    "expected": "把录像分辨率设置为D 幺",
+    "before": "把录像分辨率设置为第一。",
+    "after": "把录像分辨率设置为第一。",
+    "before_pass": false,
+    "after_pass": false,
+    "harmony_after": "把录像分辨率设置为D 幺。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_3_1.wav",
+    "audio_sha256": "28805ff0342766123f8d90bd35ea087d212e7d4a8bba9049f553909628ffd070",
+    "expected": "把视频分段时长设置为六十分钟",
+    "before": "八、视频分段时长设置为60min。",
+    "after": "把视频分段时长设置为60min。",
+    "before_pass": false,
+    "after_pass": true,
+    "harmony_after": "把视频分段时长设置为60min。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_3_2.wav",
+    "audio_sha256": "37bac3a59627b3be28a53a10e83264933a0caecc20d15eb358cc8c864de053f2",
+    "expected": "把视频分段时长设置为六十分钟",
+    "before": "把视频分段时长设置为60min。",
+    "after": "把视频分段时长设置为60min。",
+    "before_pass": true,
+    "after_pass": true,
+    "harmony_after": "把视频分段时长设置为60min。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_4_1.wav",
+    "audio_sha256": "089f393073d35cc336fc89207a7adfdf3e2c649f0ec8f6a92ba2c3b07b0c1dd9",
+    "expected": "当前延录时长是多少",
+    "before": "当前延录时长是多少？",
+    "after": "当前延录时长是多少？",
+    "before_pass": true,
+    "after_pass": true,
+    "harmony_after": "当前延录时长是多少？",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_4_2.wav",
+    "audio_sha256": "08ac3fd440ec4b99f985b49da58e67cd7680f98558eb0bd5392ca65089a58437",
+    "expected": "当前延录时长是多少",
+    "before": "当前延录时长是多少？",
+    "after": "当前延录时长是多少？",
+    "before_pass": true,
+    "after_pass": true,
+    "harmony_after": "当前延录时长是多少？",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_5_1.wav",
+    "audio_sha256": "03f1e777e84ec1b9797050013f688531bbeadc5d0d7603046aafa7d10c23b351",
+    "expected": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我",
+    "before": "把记录仪的镜头模式分辨率、帧率沿路时长都告诉我。",
+    "after": "把记录仪的镜头模式分辨率、帧率延录时长都告诉我。",
+    "before_pass": false,
+    "after_pass": true,
+    "harmony_after": "把记录仪的镜头模式分辨率、帧率延录时长都告诉我。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_5_2.wav",
+    "audio_sha256": "5249d1c1c9fb139fcc16d00dfce54f924ea80fd05eae057d937e7e5603490d26",
+    "expected": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我",
+    "before": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我。",
+    "after": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我。",
+    "before_pass": true,
+    "after_pass": true,
+    "harmony_after": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_6_1.wav",
+    "audio_sha256": "06610f5f6b6476dd5b4a9345cf90d7c1aeec6c28a769e93530aeea7b61d94b98",
+    "expected": "把记录仪亮度调到零档",
+    "before": "把记录仪亮度调到零到。",
+    "after": "把记录仪亮度调到零档。",
+    "before_pass": false,
+    "after_pass": true,
+    "harmony_after": "把记录仪亮度调到零档。",
+    "harmony_after_pass": true
+  },
+  {
+    "fixture": "v6_6_2.wav",
+    "audio_sha256": "19e3933b545bd02331066360a638965fe747282974b79d09e0cc3a87a28ce5e3",
+    "expected": "把记录仪亮度调到零档",
+    "before": "把记录仪亮度调到零。",
+    "after": "把记录仪亮度调到零。",
+    "before_pass": false,
+    "after_pass": false,
+    "harmony_after": "把记录仪亮度调到零档。",
+    "harmony_after_pass": true
+  }
+]

@@ -32,24 +32,18 @@ HarmonyOS TN 可执行文件会从这个目录编译；HAR 的 native 库 `libli
 
 ## 2. 准备本机环境
 
-需要本机已有：
+按 [命令行工具链说明](../../../asr/tools/HARMONY_TOOLCHAIN.md) 安装 DevEco CLI `1.3.0-stable`、独立 Command Line Tools 26.0.0+、系统 Node.js 22+ 和 JDK 17。保留工程声明的 API 版本。
 
-- DevEco Studio 6.x 或配套命令行工具
-- HarmonyOS SDK
-- OpenHarmony Native SDK
-- Node.js / ohpm
-- JDK 17，通常可使用 DevEco 自带 JBR
-
-常用环境变量示例：
+在仓库根目录设置环境：
 
 ```bash
-export DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk
-export NODE_HOME=/Applications/DevEco-Studio.app/Contents/tools/node
-export JAVA_HOME=/Applications/DevEco-Studio.app/Contents/jbr/Contents/Home
-export OHOS_NATIVE_SDK=/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native
+export DEVECO_CLI_CLT_PATH="$HOME/.local/share/harmony/command-line-tools"
+export JAVA_HOME=/path/to/jdk-17
+source asr/tools/harmony_env.sh
+export OHOS_NATIVE_SDK="$OHOS_SDK_NATIVE_DIR"
 ```
 
-实际路径按本机 DevEco 安装位置调整。不要在构建脚本里临时下载 JDK、hvigor、ohpm 或 SDK。
+实际路径按本机 CLT 安装位置调整。构建脚本不会临时下载工具链。
 
 ## 3. 准备模型包
 
@@ -128,8 +122,7 @@ ohpm install --all
 编译 SDK HAR：
 
 ```bash
-/path/to/DevEco-Studio/tools/hvigor/bin/hvigorw \
-  --mode module -p product=default -p module=sdk@default assembleHar --no-daemon
+../../asr/tools/deveco_cli.sh build --product default --modules sdk@default --build-mode debug
 ```
 
 成功后产物在：
@@ -143,8 +136,7 @@ sdk/build/default/outputs/default/sdk.har
 如需验证 HAR 接入，再执行：
 
 ```bash
-/path/to/DevEco-Studio/tools/hvigor/bin/hvigorw \
-  --mode module -p product=default -p module=sample@default assembleHap --no-daemon
+../../asr/tools/deveco_cli.sh build --product default --modules sample@default --build-mode debug
 ```
 
 成功后产物在：
@@ -173,7 +165,7 @@ HAR 不应包含：
 ## 8. 常见问题
 
 - TN 源码目录为空：确认已检出包含 TN 源码迁入的版本；该目录由本仓库直接跟踪。
-- `ohpm` 或 `hvigorw` 找不到：确认 DevEco Studio 命令行工具路径，并设置 `NODE_HOME` / `DEVECO_SDK_HOME`。
+- `ohpm` 或 `hvigorw` 找不到：确认 `DEVECO_CLI_CLT_PATH` 并加载 `asr/tools/harmony_env.sh`。
 - 找不到 OHOS 编译器：设置 `OHOS_NATIVE_SDK` 到 `openharmony/native`。
 - 找不到 TN 文件：先运行 `tts/tools/tn/build_dingqiao_harmony_tn.sh`，或确认模型包里有 `tn-bin/arm64-v8a/zh_tts` 和 `en_tts`。
 - 不要提交 `.signing-local/`、`build-ohos-tn/`、`build/`、个人签名文件、license 包或本机 DevEco 缓存。

@@ -23,10 +23,21 @@ python3 tools/assets/sync.py fetch all
 python3 tools/assets/sync.py verify all
 ```
 
+`list` 显示逻辑名称、状态、恢复范围、大小、许可、用途和旧名称别名。
+`current` 表示当前受维护的输入，`historical` 表示仅供追溯的旧快照。
+`all` 在下载、校验和上传命令中只选择 `current`；需要追溯时可显式指定历史名称。
+状态不代表模型在所有场景都通过精度验收，仍须查看各资产的用途和限制。
+`catalog-only` 是已登记位置、需要手动下载的语料，不参与 `all`；详见
+[测试语料目录](../../asr/test-data/README.md)。
+
 仓库模型恢复到清单声明的 Git 忽略目录。测试语料默认恢复到
 `~/.cache/amphion-runtime/test-data/v1`；可用 `AMPHION_TEST_DATA_DIR` 指定共享磁盘。
 中断的分片下载保存在 `~/.cache/amphion-runtime/assets`，可用
 `AMPHION_ASSET_CACHE_DIR` 改位置。
+
+当前中英打包默认模型为 Police 1.4.0 上游 encoder INT8、decoder/joiner FP32 包，tar.gz 按
+[模型恢复说明](../../asr/tools/demo-model/README.md) 手动下载并校验；`fetch all` 不包含该模型。
+`asr-zhen-police-179m-v1-1-v1.1.0` 保留为历史 A/B 基线，不再是当前鼎桥模型。
 
 中文 ITN 当前使用 `asr-itn-zh-v2`，保留识别出的“啊、呃”；两端打包默认读取
 `asr/tools/weitn-fsts-v2`。`asr-itn-zh-v1` 仅保留为旧规则记录，不用于新构建。
@@ -42,6 +53,23 @@ OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式
 TTS 协作输入拆成三个用途明确的 bundle：`tts-checkpoints-v3-20260806` 恢复训练 checkpoint，
 `tts-runtime-zhen-v1` 恢复 Android/Harmony 共用的 ONNX 与前端资源，`tts-harmony-tn-v1` 恢复
 HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或真机验证场景只取所需资产。
+
+## 名称与版本含义
+
+逻辑名称用于选择资产，OBS 对象键用于定位既有文件；二者不必相同。整包 SHA-256 才是
+输入内容的身份。为保持已有缓存、脚本和历史证据有效，本轮整理不重命名云端对象或本地目录。
+
+| 资产 | 版本含义 |
+| --- | --- |
+| `aishell3-500` | 共享的 500 条 AISHELL-3 语料；旧名称 `aishell3-hotwords-500` 仍可使用，热词只是用途之一 |
+| `asr-zhen-police-179m-v1-1-v1.1.0` | `model_id=police-179m-v1-1`，`model_version=1.1.0`；名称中的两个版本片段属于不同字段 |
+| `tts-runtime-zhen-v1` | bundle 修订 `v1`，训练流程代次 `v3`，导出模型版本 `0.1.0`；三个数字不能互相代替 |
+| `tts-checkpoints-v3-20260806` | 训练流程代次 `v3`，checkpoint 快照日期 `2026-08-06` |
+| `team-secure-state-v5` | 团队签名及授权材料的第 5 版快照，不是 SDK 或模型版本 |
+
+上述模型版本、流程代次和 checkpoint 日期已在清单中分字段记录。`amphion-runtime/assets/v1` 和
+`amphion-runtime/test-data/v1` 中的 `v1` 是存储命名空间版本，不代表所有资产内容都处于第 1 版。
+后续新资产应分别记录模型版本、bundle 修订或快照日期，避免再把多种版本号拼在名称中。
 
 ## 上传与审计
 

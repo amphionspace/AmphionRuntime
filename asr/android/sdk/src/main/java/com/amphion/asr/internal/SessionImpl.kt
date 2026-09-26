@@ -14,6 +14,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.Vad
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
 import kotlin.math.exp
 
 /**
@@ -173,6 +174,7 @@ internal class SessionImpl(
     /** speech 段后已累计的尾部静音毫秒数。 */
     @Volatile
     private var trailingSilenceMs: Int = 0
+    private var vadEndpointRecheckSample: Long = 0
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
@@ -652,6 +654,7 @@ internal class SessionImpl(
                 }
                 initialSpeechDetected = true
                 trailingSilenceMs = 0
+                vadEndpointRecheckSample = 0
             }
             !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
                 initialSilenceSamples += i.toLong()
@@ -699,13 +702,31 @@ internal class SessionImpl(
                 } else {
                     trailingSilenceMs + (i * 1000L / sampleRate).toInt()
                 }
-                if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs) {
-                    Logger.d(
-                        "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
-                    )
-                    vadSpeechActive = false
-                    trailingSilenceMs = 0
-                    triggerVadActiveEndpoint()
+                if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs &&
+                    publicSamplesFed >= vadEndpointRecheckSample
+                ) {
+                    // A VAD silence decision cannot discard real frames still pending in ASR.
+                    // Inspect disposable native state; never publish its padded hypothesis.
+                    val probe = NativeGuard.run("vad.pendingSpeech") {
+                        recognizer.getVadEndpointWaitSeconds(stream, activeEpSilenceMs / 1000f)
+                    }
+                    if (probe is NativeResult.Err) {
+                        postError(probe.error)
+                        return false
+                    }
+                    val waitSeconds = (probe as NativeResult.Ok).value
+                    if (waitSeconds > 0f) {
+                        // Recheck on the PCM clock when the revealed speech can meet vadEnd
+                        // and pending tokens can reach a natural decode. No wall-clock timer.
+                        vadEndpointRecheckSample = publicSamplesFed + ceil(waitSeconds * sampleRate).toLong()
+                    } else {
+                        Logger.d(
+                            "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
+                        )
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                        triggerVadActiveEndpoint()
+                    }
                 }
             }
         }
@@ -1266,6 +1287,7 @@ internal class SessionImpl(
         vadSpeechActive = false
         trailingSilenceMs = 0
         vadCarry = FloatArray(0)
+        vadEndpointRecheckSample = 0
         resetSpeakerVadState()
     }
 

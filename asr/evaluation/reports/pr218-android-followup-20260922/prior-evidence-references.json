@@ -1,0 +1,17 @@
+{
+  "pr218-device-20260922": {
+    "manifest_sha256": "4b2a0ba19af7304314201725092a05a0cc51e8fa87012daefb8bf99f2000d468",
+    "files_verified": 323,
+    "availability": "Complete historical artifacts retained locally; not current-HEAD PASS."
+  },
+  "pr218-fix-20260922": {
+    "manifest_sha256": "63af66b8521841096ba22dba1664b5798bbaf28fcae05ca70e4fb536b9f30076",
+    "files_verified": 37,
+    "availability": "Complete historical artifacts retained locally; not current-HEAD PASS."
+  },
+  "pr218-android-retest-20260922": {
+    "manifest_sha256": "2293414ac8761763bc0ca8ac3d7a35a2ef2dcd40658d6adec51ec6bd569f0a30",
+    "files_verified": 26,
+    "availability": "Complete historical artifacts retained locally; not current-HEAD PASS."
+  }
+}
