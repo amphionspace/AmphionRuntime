@@ -1,0 +1,18 @@
+{
+  "raw_app_logs_retained_privately": true,
+  "public_logcat_scope": "Runner chronology only, possibly including older buffered runs. Canonical per-session callbacks use explicit snapshot boundaries.",
+  "logs": {
+    "full": {
+      "sha256": "654d5eca54b4178f6757d266b94e7821a465d2a79953df16bf4ca5c5f1f7df58",
+      "size_bytes": 43601
+    },
+    "fixture": {
+      "sha256": "b67e8cf0e6166e83f52b6d014c453f91fd1e53de33fd6b4952ae0669b9bd946f",
+      "size_bytes": 30069
+    },
+    "stress": {
+      "sha256": "0ccd25382dacc03eb49b355da7c260c5e9823cdd3487206c61dac01b3c91cea5",
+      "size_bytes": 253573
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "finalZipSha256": "00b1f760a31cf1e490b1a3776db0c939027a9549c2183e66c385ab2eeaa9141d",
+  "publicAarSha256": "65482522810ddef09e68204351b2bfde195ffa284c7f6ff44d79ee8467c97db1",
+  "independentApkSha256": "e2baf670509532b278255c073a2b04aba9cea6b7dd2031d438c92d7fa567fd9e",
+  "testApkSha256": "267af7a2620718eda762d665b2ec5710c293f62a01029ed3949e6fe2856c3238",
+  "independent_source_build": "PASS",
+  "device": "TECNO KI8 Android 13",
+  "originalSettings": {
+    "screen_off_timeout": "2147483647"
+  },
+  "fixtureCorrectionTestApkSha256": "4c5794020ed773594538df6d344277a1196d3922fac40e2b2ba9053590f3a974",
+  "fixtureCorrection": "Only external test WAV assets supplied; tested app and public AAR unchanged. Test implementation compiled from frozen source."
+}

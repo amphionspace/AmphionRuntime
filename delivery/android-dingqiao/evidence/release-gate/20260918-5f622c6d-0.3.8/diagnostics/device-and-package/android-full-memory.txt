@@ -1,0 +1,1873 @@
+No process found for: com.amphion.dingqiao.demo
+
+SAMPLE 0.001
+Applications Memory Usage (in Kilobytes):
+Uptime: 274227494 Realtime: 276607331
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    97075    97008       28       42    98396   132256   117625     9106
+  Dalvik Heap     2478     2232       28      154     4384     6129     3065     3064
+ Dalvik Other     2482     2128        0        1     4892                           
+        Stack      988      988        0        0     1004                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       57       28       20        0      512                           
+     .so mmap    24416      400    16056       38    57996                           
+    .jar mmap     6789        0      240        0    46440                           
+    .apk mmap    51838      680    50600        0    53928                           
+    .ttf mmap      278        0      120        0      548                           
+    .dex mmap    25888    25824       40        0    26424                           
+    .oat mmap      267        0        0        0     2444                           
+    .art mmap     7281     6788       52       80    17624                           
+   Other mmap       99       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      761      728       20        2     1184                           
+        TOTAL   225649   141464    67204      317   321952   138385   120690    12170
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:     9072                          22008
+         Native Heap:    97008                          98396
+                Code:    93960                         187952
+               Stack:      988                           1004
+            Graphics:     4620                           4620
+       Private Other:     3020
+              System:    16981
+             Unknown:                                    7972
+ 
+           TOTAL PSS:   225649            TOTAL RSS:   321952       TOTAL SWAP PSS:      317
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       14         Parcel count:       27
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 5.496
+THREADS 56
+Applications Memory Usage (in Kilobytes):
+Uptime: 274233248 Realtime: 276613085
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   118914   118832       28       38   120340   324576   307387     7372
+  Dalvik Heap    10815     5528     4956       37    13028     7270     3635     3635
+ Dalvik Other     2899     2424       44        0     5380                           
+        Stack     1812     1812        0        0     1828                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       45       28        8        0      500                           
+     .so mmap    24321      404    15996       35    58624                           
+    .jar mmap     6439        0      240        0    46504                           
+    .apk mmap   203975      708   202552        0   206684                           
+    .ttf mmap      278        0      120        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8348     6796     1036       51    18924                           
+   Other mmap       92       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   409660   167780   225036      163   508612   331846   311022    11007
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13360                          31952
+         Native Heap:   118832                         120340
+                Code:   245892                         341552
+               Stack:     1812                           1828
+            Graphics:     4620                           4620
+       Private Other:     8300
+              System:    16844
+             Unknown:                                    8320
+ 
+           TOTAL PSS:   409660            TOTAL RSS:   508612       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 11.231
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274239074 Realtime: 276618911
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   120526   120444       28       38   121952   324720   302238     7491
+  Dalvik Heap    12092     6792     4976       37    14292    10376     5188     5188
+ Dalvik Other     3003     2452       44        0     5560                           
+        Stack     1832     1832        0        0     1848                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24325      404    15996       35    58688                           
+    .jar mmap     6367        0      236        0    46400                           
+    .apk mmap   205383      708   203960        0   208092                           
+    .ttf mmap      278        0      120        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8348     6796     1036       51    18924                           
+   Other mmap       92       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   414017   170704   226464      163   513060   335096   307426    12679
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14624                          33216
+         Native Heap:   120444                         121952
+                Code:   247308                         343084
+               Stack:     1832                           1848
+            Graphics:     4620                           4620
+       Private Other:     8340
+              System:    16849
+             Unknown:                                    8340
+ 
+           TOTAL PSS:   414017            TOTAL RSS:   513060       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 17.058
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274244943 Realtime: 276624780
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   120898   120816       28       38   122324   322588   292772    10065
+  Dalvik Heap    11657     6360     4972       37    13860    10523     5262     5261
+ Dalvik Other     3018     2456       44        0     5588                           
+        Stack     1840     1840        0        0     1856                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24251      404    15912       35    58624                           
+    .jar mmap     6230        0      236        0    46400                           
+    .apk mmap   206876      708   205376        0   209508                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8346     6796     1032       51    18920                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   415194   170656   227668      163   514384   333111   298034    15326
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14188                          32780
+         Native Heap:   120816                         122324
+                Code:   248516                         344456
+               Stack:     1840                           1856
+            Graphics:     4620                           4620
+       Private Other:     8344
+              System:    16870
+             Unknown:                                    8348
+ 
+           TOTAL PSS:   415194            TOTAL RSS:   514384       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 22.913
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274250780 Realtime: 276630617
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   120650   120568       28       38   122076   326016   293154     7789
+  Dalvik Heap    13413     8116     4972       37    15616     9274     4637     4637
+ Dalvik Other     3018     2428       44        0     5616                           
+        Stack     1840     1840        0        0     1856                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24248      404    15912       35    58624                           
+    .jar mmap     6213        0      236        0    46400                           
+    .apk mmap   207512      708   206012        0   210144                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8346     6796     1032       51    18920                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   417318   172136   228304      163   516556   335290   297791    12426
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15944                          34536
+         Native Heap:   120568                         122076
+                Code:   249136                         345132
+               Stack:     1840                           1856
+            Graphics:     4620                           4620
+       Private Other:     8332
+              System:    16878
+             Unknown:                                    8336
+ 
+           TOTAL PSS:   417318            TOTAL RSS:   516556       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 28.763
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274256565 Realtime: 276636402
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   120952   120872       24       38   122380   322748   282622    10131
+  Dalvik Heap    11625     6328     4972       37    13828    10493     5247     5246
+ Dalvik Other     3022     2432       44        0     5620                           
+        Stack     1836     1836        0        0     1852                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24186      404    15820       35    58596                           
+    .jar mmap     6206        0      236        0    46400                           
+    .apk mmap   207512      708   206012        0   210144                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8346     6796     1032       51    18920                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   415763   170652   228208      163   515044   333241   287869    15377
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14156                          32748
+         Native Heap:   120872                         122380
+                Code:   249044                         345104
+               Stack:     1836                           1852
+            Graphics:     4620                           4620
+       Private Other:     8332
+              System:    16903
+             Unknown:                                    8340
+ 
+           TOTAL PSS:   415763            TOTAL RSS:   515044       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 34.499
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274262377 Realtime: 276642214
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   120728   120648       24       38   122156   322812   277665    10194
+  Dalvik Heap    11913     6616     4972       37    14116    10935     5468     5467
+ Dalvik Other     3026     2436       44        0     5624                           
+        Stack     1844     1844        0        0     1860                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24185      404    15820       35    58596                           
+    .jar mmap     6083        0      236        0    46400                           
+    .apk mmap   207512      708   206012        0   210144                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      250        0        0        0     2444                           
+    .art mmap     8331     6796     1012       51    18920                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   415700   170728   228188      163   515120   333747   283133    15661
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14424                          33036
+         Native Heap:   120648                         122156
+                Code:   249044                         345104
+               Stack:     1844                           1860
+            Graphics:     4620                           4620
+       Private Other:     8336
+              System:    16784
+             Unknown:                                    8344
+ 
+           TOTAL PSS:   415700            TOTAL RSS:   515120       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 40.309
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274268190 Realtime: 276648027
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   121256   121176       24       38   122684   323192   272855    10215
+  Dalvik Heap    11009     5712     4972       37    13212     9031     4516     4515
+ Dalvik Other     3014     2424       44        0     5612                           
+        Stack     1844     1844        0        0     1860                           
+       Ashmem       15        0        0        0      544                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    24120      404    15804       35    58596                           
+    .jar mmap     6064        0      236        0    46400                           
+    .apk mmap   207512      708   206012        0   210144                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25882    25824       40        0    26424                           
+    .oat mmap      249        0        0        0     2444                           
+    .art mmap     8331     6796     1012       51    18920                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4620     4620        0        0     4620                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   415227   170340   228172      163   514732   332223   277371    14730
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13520                          32132
+         Native Heap:   121176                         122684
+                Code:   249028                         345104
+               Stack:     1844                           1860
+            Graphics:     4620                           4620
+       Private Other:     8324
+              System:    16715
+             Unknown:                                    8332
+ 
+           TOTAL PSS:   415227            TOTAL RSS:   514732       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       15        Proxy Binders:       40
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 46.125
+THREADS 61
+Applications Memory Usage (in Kilobytes):
+Uptime: 274274116 Realtime: 276653953
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   112656   112576       24       37   114084   320680   267534    12620
+  Dalvik Heap    11693     6396     4972       38    13892     7630     3815     3815
+ Dalvik Other     2906     2304       44        0     5516                           
+        Stack     1704     1704        0        0     1720                           
+       Ashmem       15        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21960      408    14456       35    58508                           
+    .jar mmap     5894        0      144        0    46380                           
+    .apk mmap   206451      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      186        0        0        0     2444                           
+    .art mmap     8356     6824     1008       51    18936                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4648     4648        0        0     4648                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   403654   162224   225732      163   505536   328310   271349    16435
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14228                          32828
+         Native Heap:   112576                         114084
+                Code:   246608                         344052
+               Stack:     1704                           1720
+            Graphics:     4648                           4648
+       Private Other:     8192
+              System:    15698
+             Unknown:                                    8204
+ 
+           TOTAL PSS:   403654            TOTAL RSS:   505536       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:       28         ViewRootImpl:        4
+         AppContexts:       12           Activities:        4
+              Assets:       37        AssetManagers:        0
+       Local Binders:       22        Proxy Binders:       50
+       Parcel memory:       15         Parcel count:       30
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 52.069
+THREADS 62
+Applications Memory Usage (in Kilobytes):
+Uptime: 274279974 Realtime: 276659811
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   117516   117436       24       37   118944   320936   264478    12811
+  Dalvik Heap    10405     5108     4972       38    12604     7458     3729     3729
+ Dalvik Other     3054     2448       44        0     5668                           
+        Stack     1728     1728        0        0     1744                           
+       Ashmem       15        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21955      408    14456       35    58508                           
+    .jar mmap     5939        0      148        0    46780                           
+    .apk mmap   206529      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      186        0        0        0     2444                           
+    .art mmap     8356     6824     1008       51    18940                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4648     4648        0        0     4648                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   407516   165964   225736      163   509688   328394   268207    16540
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12940                          31544
+         Native Heap:   117436                         118944
+                Code:   246616                         344464
+               Stack:     1728                           1744
+            Graphics:     4648                           4648
+       Private Other:     8332
+              System:    15816
+             Unknown:                                    8344
+ 
+           TOTAL PSS:   407516            TOTAL RSS:   509688       TOTAL SWAP PSS:      163
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       22        Proxy Binders:       57
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 57.927
+THREADS 63
+Applications Memory Usage (in Kilobytes):
+Uptime: 274285834 Realtime: 276665671
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   121604   121524       24       36   123032   323872   266031    10729
+  Dalvik Heap    11864     6568     4972       36    14064    10008     5020     4988
+ Dalvik Other     2929     2312       44        0     5564                           
+        Stack     1832     1832        0        0     1848                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21900      408    14452       35    58508                           
+    .jar mmap     5912        0      148        0    46888                           
+    .apk mmap   206528      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8350     6824     1008       50    18940                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4648     4648        0        0     4648                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   412942   171480   225732      159   515344   333880   271051    15717
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14400                          33004
+         Native Heap:   121524                         123032
+                Code:   246608                         344600
+               Stack:     1832                           1848
+            Graphics:     4648                           4648
+       Private Other:     8200
+              System:    15730
+             Unknown:                                    8212
+ 
+           TOTAL PSS:   412942            TOTAL RSS:   515344       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       26        Proxy Binders:       47
+       Parcel memory:       16         Parcel count:       37
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 63.759
+THREADS 65
+Applications Memory Usage (in Kilobytes):
+Uptime: 274291709 Realtime: 276671546
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   121416   121336       24       36   122844   326656   265633     8728
+  Dalvik Heap    12672     7376     4972       36    14872     8068     4034     4034
+ Dalvik Other     3081     2440       44        0     5740                           
+        Stack     1800     1800        0        0     1816                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21900      408    14452       35    58508                           
+    .jar mmap     5911        0      148        0    46888                           
+    .apk mmap   206528      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8350     6824     1008       50    18940                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4648     4648        0        0     4648                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   413681   172196   225732      159   516108   334724   269667    12762
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15208                          33812
+         Native Heap:   121336                         122844
+                Code:   246600                         344640
+               Stack:     1800                           1816
+            Graphics:     4648                           4648
+       Private Other:     8336
+              System:    15753
+             Unknown:                                    8348
+ 
+           TOTAL PSS:   413681            TOTAL RSS:   516108       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       14         ViewRootImpl:        2
+         AppContexts:        8           Activities:        2
+              Assets:       37        AssetManagers:        0
+       Local Binders:       28        Proxy Binders:       44
+       Parcel memory:       16         Parcel count:       37
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 69.657
+THREADS 64
+Applications Memory Usage (in Kilobytes):
+Uptime: 274297721 Realtime: 276677558
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   122104   122024       24       36   123532   327048   264753     8219
+  Dalvik Heap    11264     5968     4972       36    13464     7511     3756     3755
+ Dalvik Other     3125     2452       44        0     5816                           
+        Stack     1820     1820        0        0     1836                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21899      408    14452       35    58508                           
+    .jar mmap     5856        0      148        0    46888                           
+    .apk mmap   206528      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18940                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4780     4780        0        0     4780                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   413096   171640   225732      159   515616   334559   268509    11974
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13800                          32404
+         Native Heap:   122024                         123532
+                Code:   246612                         344716
+               Stack:     1820                           1836
+            Graphics:     4780                           4780
+       Private Other:     8336
+              System:    15724
+             Unknown:                                    8348
+ 
+           TOTAL PSS:   413096            TOTAL RSS:   515616       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       14         ViewRootImpl:        2
+         AppContexts:        8           Activities:        2
+              Assets:       37        AssetManagers:        0
+       Local Binders:       26        Proxy Binders:       48
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 75.596
+THREADS 65
+Applications Memory Usage (in Kilobytes):
+Uptime: 274303562 Realtime: 276683399
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   117236   117156       24       36   118664   321212   253483    13176
+  Dalvik Heap     9564     4268     4972       36    11764     7471     3736     3735
+ Dalvik Other     3065     2336       44        0     5812                           
+        Stack     1684     1684        0        0     1700                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21894      408    14452       35    58508                           
+    .jar mmap     5781        0       96        0    46780                           
+    .apk mmap   206528      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18940                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4648     4648        0        0     4648                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   406120   164688   225680      159   508668   328683   257219    16911
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12100                          30704
+         Native Heap:   117156                         118664
+                Code:   246580                         344740
+               Stack:     1684                           1700
+            Graphics:     4648                           4648
+       Private Other:     8200
+              System:    15752
+             Unknown:                                    8212
+ 
+           TOTAL PSS:   406120            TOTAL RSS:   508668       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       30        Proxy Binders:       51
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 81.516
+THREADS 62
+Applications Memory Usage (in Kilobytes):
+Uptime: 274309496 Realtime: 276689333
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   116904   116824       24       36   118332   321844   252502    12685
+  Dalvik Heap    10304     5008     4972       36    12504     7659     3830     3829
+ Dalvik Other     3297     2432       44        0     6180                           
+        Stack     1704     1704        0        0     1720                           
+       Ashmem       16        0        0        0      552                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21882      408    14452       35    58508                           
+    .jar mmap     5757        0       96        0    46780                           
+    .apk mmap   206528      708   205032        0   209164                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18944                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4908     4908        0        0     4908                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   407006   165472   225680      159   509732   329503   256332    16514
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12840                          31448
+         Native Heap:   116824                         118332
+                Code:   246544                         344976
+               Stack:     1704                           1720
+            Graphics:     4908                           4908
+       Private Other:     8332
+              System:    15854
+             Unknown:                                    8348
+ 
+           TOTAL PSS:   407006            TOTAL RSS:   509732       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       33        Proxy Binders:       60
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 87.423
+THREADS 62
+Applications Memory Usage (in Kilobytes):
+Uptime: 274315192 Realtime: 276695029
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   122148   122068       24       36   123576   326908   259400     9174
+  Dalvik Heap     9612     4316     4972       36    11812     7416     3708     3708
+ Dalvik Other     3201     2300       44        0     6120                           
+        Stack     1852     1852        0        0     1868                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21878      408    14452       35    58508                           
+    .jar mmap     5757        0       96        0    46780                           
+    .apk mmap   203208      708   201712        0   205844                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18944                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      792      764       16        2     1208                           
+        TOTAL   408032   169788   222360      159   510796   334324   263108    12882
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12148                          30756
+         Native Heap:   122068                         123576
+                Code:   243224                         341728
+               Stack:     1852                           1868
+            Graphics:     4656                           4656
+       Private Other:     8200
+              System:    15884
+             Unknown:                                    8212
+ 
+           TOTAL PSS:   408032            TOTAL RSS:   510796       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       35        Proxy Binders:       47
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 93.126
+THREADS 63
+Applications Memory Usage (in Kilobytes):
+Uptime: 274320264 Realtime: 276700101
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   121116   121036       24       36   122540   328188   259663     8146
+  Dalvik Heap    10781     5488     4968       36    12984     7372     3686     3686
+ Dalvik Other     3419     2452       40        0     6408                           
+        Stack     1884     1884        0        0     1900                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21878      408    14452       35    58508                           
+    .jar mmap     5727        0       96        0    46776                           
+    .apk mmap   204036      708   202540        0   206672                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18944                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4788     4788        0        0     4788                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   409353   170244   223184      159   512212   335560   263349    11832
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13320                          31928
+         Native Heap:   121036                         122540
+                Code:   244068                         342704
+               Stack:     1884                           1900
+            Graphics:     4788                           4788
+       Private Other:     8332
+              System:    15925
+             Unknown:                                    8352
+ 
+           TOTAL PSS:   409353            TOTAL RSS:   512212       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       14         ViewRootImpl:        2
+         AppContexts:        8           Activities:        2
+              Assets:       37        AssetManagers:        0
+       Local Binders:       36        Proxy Binders:       53
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 98.19
+THREADS 67
+Applications Memory Usage (in Kilobytes):
+Uptime: 274326243 Realtime: 276706080
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   117484   117404       24       36   118908   322372   245651    13639
+  Dalvik Heap     9561     4268     4968       36    11764     7515     3758     3757
+ Dalvik Other     3443     2432       40        0     6476                           
+        Stack     1716     1716        0        0     1732                           
+       Ashmem       16        0        0        0      552                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21858      408    14452       35    58472                           
+    .jar mmap     5723        0       96        0    46776                           
+    .apk mmap   204228      708   202732        0   206864                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8345     6824     1008       50    18944                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4908     4908        0        0     4908                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   404647   165324   223376      159   507540   329887   249409    17396
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12100                          30708
+         Native Heap:   117404                         118908
+                Code:   244244                         342932
+               Stack:     1716                           1732
+            Graphics:     4908                           4908
+       Private Other:     8328
+              System:    15947
+             Unknown:                                    8352
+ 
+           TOTAL PSS:   404647            TOTAL RSS:   507540       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       40        Proxy Binders:       51
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 104.165
+THREADS 63
+Applications Memory Usage (in Kilobytes):
+Uptime: 274332042 Realtime: 276711879
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    97760    97680       24       36    99184   301860   223225    14971
+  Dalvik Heap     8235     2944     4968       36    10440     7233     3617     3616
+ Dalvik Other     3500     2444       40        0     6576                           
+        Stack     1072     1072        0        0     1088                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21846      408    14452       35    58472                           
+    .jar mmap     5733        0      100        0    46844                           
+    .apk mmap    54096      708    52600        0    56732                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      180        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   232620   143392    73244      159   335632   309093   226842    18587
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    10772                          29388
+         Native Heap:    97680                          99184
+                Code:    94132                         192972
+               Stack:     1072                           1088
+            Graphics:     4656                           4656
+       Private Other:     8324
+              System:    15984
+             Unknown:                                    8344
+ 
+           TOTAL PSS:   232620            TOTAL RSS:   335632       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       44        Proxy Binders:       54
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 109.979
+THREADS 63
+Applications Memory Usage (in Kilobytes):
+Uptime: 274338004 Realtime: 276717841
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   162076   161996       24       36   163500   363828   288595     9839
+  Dalvik Heap     9747     4456     4968       36    11952     7974     3987     3987
+ Dalvik Other     3584     2444       40        0     6744                           
+        Stack     1936     1936        0        0     1952                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21845      408    14448       35    58536                           
+    .jar mmap     5733        0      100        0    46844                           
+    .apk mmap   202956      708   201460        0   205592                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   448250   210084   222100      159   551416   371802   292582    13826
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    12284                          30900
+         Native Heap:   161996                         163500
+                Code:   242980                         342056
+               Stack:     1936                           1952
+            Graphics:     4656                           4656
+       Private Other:     8332
+              System:    16066
+             Unknown:                                    8352
+ 
+           TOTAL PSS:   448250            TOTAL RSS:   551416       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       28         ViewRootImpl:        1
+         AppContexts:       12           Activities:        4
+              Assets:       37        AssetManagers:        0
+       Local Binders:       46        Proxy Binders:       50
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 115.934
+THREADS 66
+Applications Memory Usage (in Kilobytes):
+Uptime: 274343802 Realtime: 276723639
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   188520   188440       24       36   189944   406064   325833    12144
+  Dalvik Heap     9151     3860     4968       36    11356     7689     3845     3844
+ Dalvik Other     3472     2304       40        0     6660                           
+        Stack     2048     2048        0        0     2064                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21840      408    14448       35    58536                           
+    .jar mmap     5733        0      100        0    46844                           
+    .apk mmap   204522      708   203040        0   207116                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   475659   235904   223680      159   578816   413753   329678    15988
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    11688                          30304
+         Native Heap:   188440                         189944
+                Code:   244552                         343628
+               Stack:     2048                           2064
+            Graphics:     4656                           4656
+       Private Other:     8200
+              System:    16075
+             Unknown:                                    8220
+ 
+           TOTAL PSS:   475659            TOTAL RSS:   578816       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       48        Proxy Binders:       44
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 121.734
+THREADS 67
+Applications Memory Usage (in Kilobytes):
+Uptime: 274349649 Realtime: 276729486
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   201120   201040       24       36   202544   406140   324239    12110
+  Dalvik Heap    10523     5232     4968       36    12728     7705     3853     3852
+ Dalvik Other     3476     2308       40        0     6664                           
+        Stack     1940     1940        0        0     1956                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21467      408    14076       35    58160                           
+    .jar mmap     5723        0       72        0    46880                           
+    .apk mmap   204522      708   203040        0   207116                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   489144   249772   223280      159   592344   413845   328092    15962
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13060                          31676
+         Native Heap:   201040                         202544
+                Code:   244152                         343288
+               Stack:     1940                           1956
+            Graphics:     4656                           4656
+       Private Other:     8204
+              System:    16092
+             Unknown:                                    8224
+ 
+           TOTAL PSS:   489144            TOTAL RSS:   592344       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       50        Proxy Binders:       44
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 127.596
+THREADS 63
+Applications Memory Usage (in Kilobytes):
+Uptime: 274355461 Realtime: 276735298
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   201624   201544       24       36   203048   406076   322543    12036
+  Dalvik Heap    11787     6496     4968       36    13992    11008     5504     5504
+ Dalvik Other     3532     2324       40        0     6760                           
+        Stack     1940     1940        0        0     1956                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21459      408    14076       35    58160                           
+    .jar mmap     5628        0       12        0    46748                           
+    .apk mmap   204767      708   203292        0   207348                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   491110   251556   223472      159   594308   417084   328047    17540
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14324                          32940
+         Native Heap:   201544                         203048
+                Code:   244344                         343468
+               Stack:     1940                           1956
+            Graphics:     4656                           4656
+       Private Other:     8220
+              System:    16082
+             Unknown:                                    8240
+ 
+           TOTAL PSS:   491110            TOTAL RSS:   594308       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       49        Proxy Binders:       44
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 133.412
+THREADS 66
+Applications Memory Usage (in Kilobytes):
+Uptime: 274361369 Realtime: 276741206
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   219308   219228       24       36   220732   439940   353292    12214
+  Dalvik Heap    13375     8084     4968       36    15580    12322     6161     6161
+ Dalvik Other     3672     2460       40        0     6904                           
+        Stack     1960     1960        0        0     1976                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21459      408    14076       35    58160                           
+    .jar mmap     5625        0       12        0    46748                           
+    .apk mmap   205015      708   203540        0   207596                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   510787   270984   223720      159   613992   452262   359453    18375
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    15912                          34528
+         Native Heap:   219228                         220732
+                Code:   244592                         343724
+               Stack:     1960                           1976
+            Graphics:     4656                           4656
+       Private Other:     8356
+              System:    16083
+             Unknown:                                    8376
+ 
+           TOTAL PSS:   510787            TOTAL RSS:   613992       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       49        Proxy Binders:       40
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 139.324
+THREADS 66
+Applications Memory Usage (in Kilobytes):
+Uptime: 274367097 Realtime: 276746934
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   219644   219564       24       36   221068   442880   355468     9887
+  Dalvik Heap    11267     5976     4968       36    13472    10737     5369     5368
+ Dalvik Other     3664     2448       40        0     6900                           
+        Stack     1960     1960        0        0     1976                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21459      408    14076       35    58160                           
+    .jar mmap     5625        0       12        0    46748                           
+    .apk mmap   205423      708   203948        0   208004                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   509415   269200   224128      159   612624   453617   360837    15255
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13804                          32420
+         Native Heap:   219564                         221068
+                Code:   245000                         344140
+               Stack:     1960                           1976
+            Graphics:     4656                           4656
+       Private Other:     8344
+              System:    16087
+             Unknown:                                    8364
+ 
+           TOTAL PSS:   509415            TOTAL RSS:   612624       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       49        Proxy Binders:       40
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 145.029
+THREADS 66
+Applications Memory Usage (in Kilobytes):
+Uptime: 274372851 Realtime: 276752688
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   219984   219904       24       36   221408   439800   347167    12134
+  Dalvik Heap    11795     6504     4968       36    14000    11458     5729     5729
+ Dalvik Other     3672     2452       40        0     6912                           
+        Stack     1960     1960        0        0     1976                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21459      408    14076       35    58160                           
+    .jar mmap     5669        0       52        0    46800                           
+    .apk mmap   205839      708   204364        0   208420                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   510751   270072   224584      159   613972   451258   352896    17863
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14332                          32948
+         Native Heap:   219904                         221408
+                Code:   245456                         344616
+               Stack:     1960                           1976
+            Graphics:     4656                           4656
+       Private Other:     8348
+              System:    16095
+             Unknown:                                    8368
+ 
+           TOTAL PSS:   510751            TOTAL RSS:   613972       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       49        Proxy Binders:       40
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 150.8
+THREADS 66
+Applications Memory Usage (in Kilobytes):
+Uptime: 274378540 Realtime: 276758377
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   219816   219736       24       36   221240   439780   343766    12164
+  Dalvik Heap    11959     6668     4968       36    14164     9617     4809     4808
+ Dalvik Other     3684     2464       40        0     6924                           
+        Stack     1916     1916        0        0     1932                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21471      412    14080       35    58256                           
+    .jar mmap     5669        0       52        0    46800                           
+    .apk mmap   206239      708   204764        0   208820                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   511127   270040   224988      159   614432   449397   348575    16972
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14496                          33112
+         Native Heap:   219736                         221240
+                Code:   245868                         345116
+               Stack:     1916                           1932
+            Graphics:     4656                           4656
+       Private Other:     8356
+              System:    16099
+             Unknown:                                    8376
+ 
+           TOTAL PSS:   511127            TOTAL RSS:   614432       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       48        Proxy Binders:       40
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 156.486
+THREADS 62
+Applications Memory Usage (in Kilobytes):
+Uptime: 274384346 Realtime: 276764183
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   219648   219568       24       36   221072   442924   345720    10147
+  Dalvik Heap    10503     5212     4968       36    12708     7780     3890     3890
+ Dalvik Other     3688     2456       40        0     6940                           
+        Stack     1916     1916        0        0     1932                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21471      412    14080       35    58256                           
+    .jar mmap     5669        0       52        0    46800                           
+    .apk mmap   206375      708   204900        0   208956                           
+    .ttf mmap      218        0        0        0      548                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   509643   268408   225124      159   612960   450704   349610    14037
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13040                          31656
+         Native Heap:   219568                         221072
+                Code:   246004                         345276
+               Stack:     1916                           1932
+            Graphics:     4656                           4656
+       Private Other:     8348
+              System:    16111
+             Unknown:                                    8368
+ 
+           TOTAL PSS:   509643            TOTAL RSS:   612960       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       48        Proxy Binders:       40
+       Parcel memory:       17         Parcel count:       39
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 162.28
+THREADS 62
+Applications Memory Usage (in Kilobytes):
+Uptime: 274390170 Realtime: 276770007
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   254192   254112       24       36   255616   475792   375611    10830
+  Dalvik Heap    11715     6424     4968       36    13920     7755     3878     3877
+ Dalvik Other     3646     2312       40        0     7000                           
+        Stack     1768     1768        0        0     1784                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21458      412    14072       35    58248                           
+    .jar mmap     5673        0       52        0    46860                           
+    .apk mmap   206564      708   205092        0   209148                           
+    .ttf mmap      206        0        0        0      524                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4788     4788        0        0     4788                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   545509   304004   225308      159   648980   483547   379489    14707
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    14252                          32868
+         Native Heap:   254112                         255616
+                Code:   246184                         345696
+               Stack:     1768                           1784
+            Graphics:     4788                           4788
+       Private Other:     8208
+              System:    16197
+             Unknown:                                    8228
+ 
+           TOTAL PSS:   545509            TOTAL RSS:   648980       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:        7         ViewRootImpl:        1
+         AppContexts:        6           Activities:        1
+              Assets:       37        AssetManagers:        0
+       Local Binders:       52        Proxy Binders:       47
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 168.117
+THREADS 59
+Applications Memory Usage (in Kilobytes):
+Uptime: 274396062 Realtime: 276775899
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   216700   216620       24       36   218124   437488   333707    14111
+  Dalvik Heap     8719     3428     4968       36    10924     7407     3704     3703
+ Dalvik Other     3664     2312       40        0     7036                           
+        Stack     1832     1832        0        0     1848                           
+       Ashmem       16        0        0        0      552                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21371      412    13988       35    58164                           
+    .jar mmap     5667        0       52        0    46844                           
+    .apk mmap   206564      708   205092        0   209148                           
+    .ttf mmap      206        0        0        0      524                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4908     4908        0        0     4908                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   505132   263700   225224      159   608616   444895   337411    17814
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    11256                          29872
+         Native Heap:   216620                         218124
+                Code:   246100                         345632
+               Stack:     1832                           1848
+            Graphics:     4908                           4908
+       Private Other:     8208
+              System:    16208
+             Unknown:                                    8232
+ 
+           TOTAL PSS:   505132            TOTAL RSS:   608616       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       14         ViewRootImpl:        2
+         AppContexts:        8           Activities:        2
+              Assets:       37        AssetManagers:        0
+       Local Binders:       57        Proxy Binders:       54
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 173.97
+THREADS 59
+Applications Memory Usage (in Kilobytes):
+Uptime: 274401717 Realtime: 276781554
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap   101904   101824       24       36   103328   145804    36186    20354
+  Dalvik Heap     9179     3888     4968       36    11384     6865     3433     3432
+ Dalvik Other     3688     2320       40        0     7076                           
+        Stack     1168     1168        0        0     1184                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    21371      412    13988       35    58164                           
+    .jar mmap     5664        0       52        0    46844                           
+    .apk mmap    54300      708    52828        0    56884                           
+    .ttf mmap      206        0        0        0      524                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8343     6824     1004       50    18948                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   237635   148456    72960      159   341136   152669    39619    23786
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    11716                          30332
+         Native Heap:   101824                         103328
+                Code:    93844                         193408
+               Stack:     1168                           1184
+            Graphics:     4656                           4656
+       Private Other:     8208
+              System:    16219
+             Unknown:                                    8228
+ 
+           TOTAL PSS:   237635            TOTAL RSS:   341136       TOTAL SWAP PSS:      159
+ 
+ Objects
+               Views:       21         ViewRootImpl:        3
+         AppContexts:       10           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       59        Proxy Binders:       47
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 179.665
+THREADS 54
+Applications Memory Usage (in Kilobytes):
+Uptime: 274407638 Realtime: 276787475
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    97672    97592       24       36    99096   301820   191898    19889
+  Dalvik Heap     8735     3444     4968       36    10940     6728     3364     3364
+ Dalvik Other     3736     2320       40        0     7172                           
+        Stack     1188     1188        0        0     1204                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    20728      412    13356       35    57532                           
+    .jar mmap     5658        0       52        0    46844                           
+    .apk mmap    54016      708    52544        0    56600                           
+    .ttf mmap      179        0        0        0      524                           
+    .dex mmap    25874    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8344     6824     1004       49    18952                           
+   Other mmap       89       40        0        0     1012                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      796      764       20        2     1212                           
+        TOTAL   232067   143800    72044      158   335664   308548   195262    23253
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    11272                          29892
+         Native Heap:    97592                          99096
+                Code:    92928                         192588
+               Stack:     1188                           1204
+            Graphics:     4656                           4656
+       Private Other:     8208
+              System:    16223
+             Unknown:                                    8228
+ 
+           TOTAL PSS:   232067            TOTAL RSS:   335664       TOTAL SWAP PSS:      158
+ 
+ Objects
+               Views:       14         ViewRootImpl:        2
+         AppContexts:        8           Activities:        2
+              Assets:       37        AssetManagers:        0
+       Local Binders:       60        Proxy Binders:       44
+       Parcel memory:       15         Parcel count:       33
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 185.59
+THREADS 59
+Applications Memory Usage (in Kilobytes):
+Uptime: 274413285 Realtime: 276793122
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    96448    96368       24       36    97872   303204   194511    18631
+  Dalvik Heap    10413     5136     4956       36    12604     8431     4216     4215
+ Dalvik Other     4184     2704       40        0     7680                           
+        Stack     1232     1232        0        0     1248                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    20831      412    13272       35    58168                           
+    .jar mmap     5928        0      248        0    47404                           
+    .apk mmap    54413      708    52876        0    57068                           
+    .ttf mmap      421        0       48        0      960                           
+    .dex mmap    25873    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8568     6916     1104       45    19152                           
+   Other mmap     4251       40     4092        0     5432                           
+    GL mtrack     4656     4656        0        0     4656                           
+      Unknown      804      772       20        2     1220                           
+        TOTAL   238414   144796    76716      154   343384   311635   198727    22846
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13156                          31756
+         Native Heap:    96368                          97872
+                Code:    93428                         194824
+               Stack:     1232                           1248
+            Graphics:     4656                           4656
+       Private Other:    12672
+              System:    16902
+             Unknown:                                   13028
+ 
+           TOTAL PSS:   238414            TOTAL RSS:   343384       TOTAL SWAP PSS:      154
+ 
+ Objects
+               Views:       79         ViewRootImpl:        3
+         AppContexts:       11           Activities:        3
+              Assets:       37        AssetManagers:        0
+       Local Binders:       64        Proxy Binders:       48
+       Parcel memory:       16         Parcel count:       38
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 191.246
+THREADS 61
+Applications Memory Usage (in Kilobytes):
+Uptime: 274418936 Realtime: 276798773
+
+** MEMINFO in pid 2836 [com.amphion.dingqiao.demo] **
+                   Pss  Private  Private  SwapPss      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap    62208    62128       24       36    63632    99924        0    60606
+  Dalvik Heap    10858     5588     4952       36    13040     9181     4591     4590
+ Dalvik Other     4384     2740       40        0     8044                           
+        Stack     1088     1088        0        0     1104                           
+       Ashmem       14        0        0        0      548                           
+    Other dev       49       28       12        0      504                           
+     .so mmap    22124      412    14444       35    59724                           
+    .jar mmap     5992        0      312        0    47468                           
+    .apk mmap    21505      708    19976        0    24152                           
+    .ttf mmap      421        0       48        0      960                           
+    .dex mmap    25873    25824       24        0    26424                           
+    .oat mmap      175        0        0        0     2444                           
+    .art mmap     8584     6932     1100       44    19164                           
+   Other mmap     4539       40     4336        0     5872                           
+    GL mtrack     4752     4752        0        0     4752                           
+      Unknown      804      772       20        2     1220                           
+        TOTAL   173523   111012    45288      153   279052   109105     4591    65196
+ 
+ App Summary
+                       Pss(KB)                        Rss(KB)
+                        ------                         ------
+           Java Heap:    13620                          32204
+         Native Heap:    62128                          63632
+                Code:    61756                         163848
+               Stack:     1088                           1104
+            Graphics:     4752                           4752
+       Private Other:    12956
+              System:    17223
+             Unknown:                                   13512
+ 
+           TOTAL PSS:   173523            TOTAL RSS:   279052       TOTAL SWAP PSS:      153
+ 
+ Objects
+               Views:      151         ViewRootImpl:        5
+         AppContexts:       15           Activities:        5
+              Assets:       37        AssetManagers:        0
+       Local Binders:       65        Proxy Binders:       57
+       Parcel memory:       16         Parcel count:       36
+    Death Recipients:        0      OpenSSL Sockets:        0
+            WebViews:        0
+ 
+ SQL
+         MEMORY_USED:        0
+  PAGECACHE_OVERFLOW:        0          MALLOC_SIZE:        0
+ 
+
+SAMPLE 196.888
+THREADS 46

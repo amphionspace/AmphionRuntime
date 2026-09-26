@@ -1,0 +1,32 @@
+{"ts": 1789612589517, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789612591810, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789612591811, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789612591812, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789612591812, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789612591911, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789612591911, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789612594101, "case": "runtime_prepare", "phase": "prepare_complete"}
+{"ts": 1789612594106, "case": "voiceprint_register", "phase": "start", "sample": "000_enroll.wav"}
+{"ts": 1789612595134, "case": "voiceprint_register", "phase": "complete", "sample": "000_enroll.wav", "idCount": 1}
+{"ts": 1789612595135, "case": "engine_create", "phase": "start"}
+{"ts": 1789612595638, "case": "engine_create", "phase": "complete"}
+{"ts": 1789612595659, "case": "callback", "sessionId": "vp-fallback-0-1789612595639", "kind": "START", "isLast": false}
+{"ts": 1789612596886, "case": "callback", "sessionId": "vp-fallback-0-1789612595639", "kind": "EVENT", "isLast": false}
+{"ts": 1789612597127, "case": "callback", "sessionId": "vp-fallback-0-1789612595639", "kind": "FINAL", "isLast": true}
+{"ts": 1789612597130, "case": "callback", "sessionId": "vp-fallback-0-1789612595639", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789612597133, "case": "v04c_voiceprintFallback", "round": 0, "registrationAsset": "000_enroll.wav", "recognitionAsset": "001_recognize.wav", "completed": true, "finalText": {"redacted": true, "sha256": "8fbfad92797f0241d44723a425f00d4eb9bfa9f89e5ace5e16ef7626d101727b"}, "speakerSimilarity": 0.027369006, "errorCodes": "[]"}
+{"ts": 1789612597217, "case": "callback", "sessionId": "vp-fallback-1-1789612597136", "kind": "START", "isLast": false}
+{"ts": 1789612598317, "case": "callback", "sessionId": "vp-fallback-1-1789612597136", "kind": "EVENT", "isLast": false}
+{"ts": 1789612598509, "case": "callback", "sessionId": "vp-fallback-1-1789612597136", "kind": "FINAL", "isLast": true}
+{"ts": 1789612598511, "case": "callback", "sessionId": "vp-fallback-1-1789612597136", "kind": "COMPLETE", "isLast": false}
+{"ts": 1789612598514, "case": "v04c_voiceprintFallback", "round": 1, "registrationAsset": "000_enroll.wav", "recognitionAsset": "001_recognize.wav", "completed": true, "finalText": {"redacted": true, "sha256": "8fbfad92797f0241d44723a425f00d4eb9bfa9f89e5ace5e16ef7626d101727b"}, "speakerSimilarity": 0.027369006, "errorCodes": "[]"}
+{"ts": 1789612600552, "case": "runtime_release", "phase": "start"}
+{"ts": 1789612600686, "case": "runtime_release", "phase": "complete"}
+{"ts": 1789612601282, "case": "runtime_prepare", "phase": "init_start"}
+{"ts": 1789612601283, "case": "runtime_prepare", "phase": "init_complete"}
+{"ts": 1789612601284, "case": "runtime_prepare", "phase": "work_path_complete"}
+{"ts": 1789612601286, "case": "runtime_prepare", "phase": "license_staged"}
+{"ts": 1789612601286, "case": "runtime_prepare", "phase": "license_invoked"}
+{"ts": 1789612601297, "case": "runtime_prepare", "phase": "license_complete"}
+{"ts": 1789612601299, "case": "runtime_prepare", "phase": "prepare_invoked"}
+{"ts": 1789612603586, "case": "runtime_prepare", "phase": "prepare_complete"}
