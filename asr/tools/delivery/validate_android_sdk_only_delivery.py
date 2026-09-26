@@ -46,6 +46,8 @@ REQUIRED_AAR_PREFIXES = {
     "assets/amphion-models/itn-zh/v1/",
     "assets/amphion-models/vad/v1/",
     "assets/amphion-dingqiao/eres2net.onnx",
+    "assets/amphion-dingqiao/campplus.onnx",
+    "assets/amphion-dingqiao/campplus.LICENSE",
     "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
     "assets/lac/v1/lac_encoder.onnx",
     "assets/lac/v1/lac_crf_transitions.npy",

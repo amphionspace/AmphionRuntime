@@ -1,0 +1,75 @@
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqVoiceprintTest:
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.io.FileNotFoundException: 001_recognize.wav
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:913)
+	at android.content.res.AssetManager.open(AssetManager.java:890)
+	at com.amphion.dingqiao.demo.DqSupportKt.readAssetPcm(DqSupport.kt:180)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(DqVoiceprintTest.kt:187)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.io.FileNotFoundException: 001_recognize.wav
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:913)
+	at android.content.res.AssetManager.open(AssetManager.java:890)
+	at com.amphion.dingqiao.demo.DqSupportKt.readAssetPcm(DqSupport.kt:180)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(DqVoiceprintTest.kt:187)
+
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest:
+INSTRUMENTATION_STATUS: test=fastFeedFinishDoesNotDropQueuedFinals
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=2
+INSTRUMENTATION_STATUS: stack=java.lang.IllegalArgumentException: need at least 4 mono PCM16 wav assets; found 2 wav assets but only 2 supported. Run with -PdingqiaoEvalAudioDir=/path/to/audio
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.selectedRegressionWavs(DingqiaoFinishFlushRegressionTest.kt:192)
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.fastFeedFinishDoesNotDropQueuedFinals(DingqiaoFinishFlushRegressionTest.kt:40)
+
+INSTRUMENTATION_STATUS: stream=
+Error in fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest):
+java.lang.IllegalArgumentException: need at least 4 mono PCM16 wav assets; found 2 wav assets but only 2 supported. Run with -PdingqiaoEvalAudioDir=/path/to/audio
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.selectedRegressionWavs(DingqiaoFinishFlushRegressionTest.kt:192)
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.fastFeedFinishDoesNotDropQueuedFinals(DingqiaoFinishFlushRegressionTest.kt:40)
+
+INSTRUMENTATION_STATUS: test=fastFeedFinishDoesNotDropQueuedFinals
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 5.297
+There were 2 failures:
+1) v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.io.FileNotFoundException: 001_recognize.wav
+	at android.content.res.AssetManager.nativeOpenAsset(Native Method)
+	at android.content.res.AssetManager.open(AssetManager.java:913)
+	at android.content.res.AssetManager.open(AssetManager.java:890)
+	at com.amphion.dingqiao.demo.DqSupportKt.readAssetPcm(DqSupport.kt:180)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(DqVoiceprintTest.kt:187)
+2) fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+java.lang.IllegalArgumentException: need at least 4 mono PCM16 wav assets; found 2 wav assets but only 2 supported. Run with -PdingqiaoEvalAudioDir=/path/to/audio
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.selectedRegressionWavs(DingqiaoFinishFlushRegressionTest.kt:192)
+	at com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest.fastFeedFinishDoesNotDropQueuedFinals(DingqiaoFinishFlushRegressionTest.kt:40)
+
+FAILURES!!!
+Tests run: 2,  Failures: 2
+
+
+INSTRUMENTATION_CODE: -1

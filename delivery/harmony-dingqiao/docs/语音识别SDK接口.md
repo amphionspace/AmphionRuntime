@@ -347,7 +347,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 | `utteranceId` | `string?` | 开启角色分离时，final utterance 的稳定 ID |
 | `speakerIndex` | `number` | 说话人索引；默认 `-1`，已分配为 `0..3` |
-| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组。检测到次要说话人但证据不足以分配身份时包含 `-1`，不得据此猜测为上一位或最近一位 |
+| `secondarySpeakerIndexes` | `number[]` | 句内观察到的其他角色；多人或不确定句可汇总全部角色，默认空数组，可含 `-1`。非空不等于重叠，不得据此猜测为上一位或最近一位 |
 | `speakerConfidence` | `number` | speaker 归属分数，范围 `[0,1]`，默认 `0`；不是经校准的概率 |
 
 `SpeakerDiarizationUpdate` 字段：
@@ -357,7 +357,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `utteranceId` | `string` | 需更新的 final utterance |
 | `revision` | `number` | 单调递增修订号；调用方忽略重复或更旧修订 |
 | `speakerIndex` | `number` | `-1` 或稳定的 `0..3` |
-| `secondarySpeakerIndexes` | `number[]` | 次要说话人索引 |
+| `secondarySpeakerIndexes` | `number[]` | 句内观察到的角色证据；多人或不确定句可汇总全部角色，非空不等于重叠 |
 | `beginTime` / `endTime` | `number` | session-global 毫秒时间轴 |
 | `confidence` | `number` | 本次归属分数，范围 `[0,1]` |
 

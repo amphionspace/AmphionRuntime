@@ -223,6 +223,30 @@
       "provenance_sha256": "0307e75e6e104adb553dfec8104faa42c4b4a6d694cf98bc636e86382777b43b",
       "evidence_report": "delivery/android-dingqiao/evidence/release-gate/20260917-91da98de-0.3.7/report.json",
       "evidence_sha256": "036e9d59a20b8e8d9e2a95fa445d71fc2d397f7590a434b954c48c8aab3fb841"
+    },
+    {
+      "platform": "harmony",
+      "version": "0.3.17",
+      "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+      "delivered_at": "2026-09-18",
+      "artifact": "amphion-harmony-asr-sdk-v0.3.17-20260918.zip",
+      "artifact_sha256": "327a3e679c57244eb1f2113118a44b6ec87a58c1ebfee3d7a8d66b9aac18fafa",
+      "artifact_size_bytes": 325964502,
+      "provenance_sha256": "f062965fd10cf37747b81826ce375dd4a39e5a165b4731c8d83b90d3fa4073ee",
+      "evidence_report": "delivery/harmony-dingqiao/evidence/release-gate/20260918-5f622c6d-0.3.17/report.json",
+      "evidence_sha256": "1cd5a7f77d7351a9a040a1de8d7c3cbfdc773ce993b709e55688d42f5b1ddbc9"
+    },
+    {
+      "platform": "android",
+      "version": "0.3.8",
+      "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+      "delivered_at": "2026-09-18",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.8-20260918.zip",
+      "artifact_sha256": "ef4cd9691f846c85ddcc6162494ca31c4a33b7cdcacb4e4fbc3aa0efc680ce0a",
+      "artifact_size_bytes": 324996788,
+      "provenance_sha256": "0fd163ef2b677db9f4d705482c6918d582fae829ad35afaa480b94a170b63670",
+      "evidence_report": "delivery/android-dingqiao/evidence/release-gate/20260918-5f622c6d-0.3.8/report.json",
+      "evidence_sha256": "eff3327364db4f09f5b3c9f6227b64a51693021c381e8c6c1105ecc997c0cf39"
     }
   ]
 }

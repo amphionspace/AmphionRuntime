@@ -241,6 +241,7 @@ import zipfile
 aar_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/campplus.onnx": 26 * 1024 * 1024,
     "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
     "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
     "assets/lac/v1/lac_crf_transitions.npy": 1024,
@@ -370,6 +371,7 @@ import zipfile
 apk_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
+    "assets/amphion-dingqiao/campplus.onnx": 26 * 1024 * 1024,
     "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
     "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
     "assets/lac/v1/lac_crf_transitions.npy": 1024,

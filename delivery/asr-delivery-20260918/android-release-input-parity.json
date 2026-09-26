@@ -1,0 +1,8 @@
+{
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "status": "PASS",
+  "input_pcm_byte_equal": true,
+  "pcm_sha256": "4e805038f34ae11f4bf00af7dd141ffcbde245c2a769fb32f2bc0b392b72c4c2",
+  "pcm_bytes": 5382400,
+  "recorded_wav_sha256": "180944f0fcbcce93cd41b2316345bbe79e68880e28b45674db9574916fdcfbc5"
+}
