@@ -156,7 +156,7 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
               assert.equal(fd,7);writes++;
               if(writes===failAt)throw new Error('disk unavailable');
               parts.push(value);
-            },closeSync(fp){assert.equal(fp.fd,7);closed++}};
+            },closeSync(fp){assert.equal(typeof fp==='number'?fp:fp.fd,7);closed++}};
           const OriginalArrayBuffer=globalThis.ArrayBuffer;
           globalThis.ArrayBuffer=class extends OriginalArrayBuffer {
             constructor(size){super(size);allocated+=size}
@@ -210,13 +210,18 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
           let closed=0, writes=0, fail=false, maximum=0, hash;
           const fs={OpenMode:{WRITE_ONLY:1,CREATE:2,TRUNC:4},
             openSync(){return {fd:7}},
-            writeSync(fd,value){
+            writeSync(fd,value,options){
               assert.equal(fd,7);writes++;
               if(fail)throw new Error('disk unavailable');
-              maximum=Math.max(maximum,Buffer.byteLength(value));hash.update(value);
-            }, closeSync(fp){assert.equal(fp.fd,7);closed++}};
+              const bytes=Buffer.from(value).subarray(0,options.length);
+              maximum=Math.max(maximum,bytes.length);hash.update(bytes);return bytes.length;
+            }, closeSync(fp){assert.equal(typeof fp==='number'?fp:fp.fd,7);closed++}};
           class DiagnosticsModule {
-            static ndjsonSink = new NdjsonDiagnosticSink();
+            static eventJournal = {write(events,append,asArray){
+              new NdjsonDiagnosticSink().write(events,text=>{
+                const bytes=new TextEncoder().encode(text);append(bytes.buffer,bytes.length);
+              },asArray);
+            }};
         """ + writer.replace('private static', 'static') + r"""
           }
           const events=Array.from({length:1000},(_,i)=>({sequence:i,event:'WINDOW',
@@ -490,6 +495,46 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             module,
         )
 
+    def test_crash_recovery_preserves_full_journal_with_the_latest_pending_snapshot(self) -> None:
+        from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
+
+        module = MODULE.read_text(encoding="utf-8")
+        body = method_body(module.replace("private static ", "private "), "recoverCrashJournals")
+        script = f"""
+            import assert from 'node:assert/strict';
+            import fs from 'node:fs';
+            fs.accessSync = fs.existsSync;
+            fs.listFileSync = fs.readdirSync;
+            const JOURNAL_INTERVAL_MS = 5000;
+            const isDirectory = path => fs.statSync(path).isDirectory();
+            const removeTree = path => fs.rmSync(path, {{recursive:true,force:true}});
+            const writeText = (path,text) => fs.writeFileSync(path,text);
+            class DiagnosticsModule {{
+              static rootPath = '.';
+              static exportRoot() {{ return './asr-diagnostics'; }}
+              static markRecoveredCrash() {{}}
+              static rotateRuns() {{}}
+              static recoverCrashJournals() {{ {body} }}
+            }}
+            for (const path of ['asr-diagnostics/run-1', 'asr-diagnostics-pending/run-1',
+              'asr-diagnostics-pending/run-1.next']) fs.mkdirSync(path,{{recursive:true}});
+            const bytes = 'full history before the retained window\\n中文\\n';
+            writeText('asr-diagnostics/run-1/events.full.ndjson',bytes);
+            writeText('asr-diagnostics-pending/run-1/manifest.json','old');
+            writeText('asr-diagnostics-pending/run-1.next/manifest.json','new');
+            writeText('asr-diagnostics-pending/run-1.next/events.ndjson','latest window');
+            DiagnosticsModule.recoverCrashJournals();
+            assert.equal(fs.readFileSync('asr-diagnostics/run-1/events.full.ndjson','utf8'),bytes);
+            assert.equal(fs.readFileSync('asr-diagnostics/run-1/events.ndjson','utf8'),'latest window');
+            assert.equal(fs.readFileSync('asr-diagnostics/run-1/manifest.json','utf8'),'new');
+            assert.equal(JSON.parse(fs.readFileSync('asr-diagnostics/run-1/crash-recovery.json')).possibleTailLossMs,5000);
+            assert.deepEqual(fs.readdirSync('asr-diagnostics-pending'),[]);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            entry = Path(directory) / "recovery.mts"
+            entry.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(entry)], check=True, cwd=directory)
+
     def test_journal_materializes_retained_audio_once_without_changing_evidence(self) -> None:
         from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
 
@@ -512,6 +557,8 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
             class DiagnosticsModule {{
               static core;
               static resourceSamples = [];
+              static lastTerminalExportSequence = -1;
+              static persistEvents() {{}}
               static exportRoot() {{ return 'export'; }}
               static pendingRoot() {{ return 'pending'; }}
               static rotateRuns() {{}}
@@ -525,11 +572,13 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
               core.configure({{enabled: true, mode, captureAudio: true,
                 includeRecognitionText: true, maxSessionAudioSec: 300}}, 1000);
               DiagnosticsModule.core = core;
+              DiagnosticsModule.lastTerminalExportSequence = -1;
               const engine = core.nextEngineId();
               core.beginSession('active', engine, {{}}, 1000);
               const pcm = Int16Array.from({{length: 16000}}, (_, i) => i % 30000);
               core.captureAudio('active', pcm.buffer, 1000);
               const snapshot = core.snapshot.bind(core);
+              let persistedExport;
               for (let stage = 0; stage < 4; stage++) {{
                 if (stage === 1) {{
                   core.beginSession('normal', engine, {{}}, 1100);
@@ -542,7 +591,9 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
                   core.record('failed', engine, 'CALLBACK_ERROR', {{}}, 1210);
                 }}
                 if (stage === 3) core.record('active', engine, 'CANCEL_REQUESTED', {{}}, 1300);
-                const journal = snapshot(true), completed = snapshot(false);
+                const journal = snapshot(true);
+                const completed = mode === 'CUSTOMER_SUPPORT' ?
+                  snapshotWithSessions(journal, journal.sessions.filter(s => s.terminal)) : snapshot(false);
                 const expectedPending = snapshotWithSessions(journal,
                   journal.sessions.filter(s => !s.terminal));
                 const persist = mode === 'CUSTOMER_SUPPORT' ?
@@ -558,12 +609,28 @@ class HarmonyDiagnosticsCoreTest(unittest.TestCase):
                 DiagnosticsModule.flushBackground();
                 const exported = writes.find(w => w.path.startsWith('export/'));
                 const pending = writes.find(w => w.path.startsWith('pending/'));
-                assert.equal(Boolean(exported), persist);
-                if (exported) assert.deepEqual(exported.snapshot, completed);
+                if (exported) persistedExport = exported;
+                assert.equal(Boolean(persistedExport), persist);
+                if (persist) assert.deepEqual(persistedExport.snapshot, completed);
                 assert.equal(Boolean(pending), expectedPending.sessions.length > 0);
                 if (pending) assert.deepEqual(pending.snapshot, expectedPending);
                 assert.ok(materializedBytes <= retainedBytes,
                   `${{mode}} stage=${{stage}} copied ${{materializedBytes}} retained=${{retainedBytes}}`);
+                if (mode === 'CUSTOMER_SUPPORT') {{
+                  writes.length = 0;
+                  DiagnosticsModule.flushBackground();
+                  assert.equal(writes.filter(w => w.path.startsWith('export/')).length, 0,
+                    'unchanged completed session was exported again');
+                  if (stage === 1) {{
+                    core.record('normal', engine, 'DIARIZATION_LOCAL_CLOSED', {{liveSessions:0}}, 1150);
+                    writes.length = 0;
+                    DiagnosticsModule.flushBackground();
+                    const updated = writes.find(w => w.path.startsWith('export/'));
+                    assert.ok(updated, 'late terminal cleanup evidence was lost');
+                    assert.equal(updated.snapshot.sessions[0].events.at(-1).event, 'DIARIZATION_LOCAL_CLOSED');
+                    persistedExport = updated;
+                  }}
+                }}
               }}
             }}
         """
