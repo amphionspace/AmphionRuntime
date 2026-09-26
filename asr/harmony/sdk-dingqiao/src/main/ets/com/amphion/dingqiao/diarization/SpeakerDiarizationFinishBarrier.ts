@@ -66,6 +66,8 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
     this.tryComplete();
   }
 
+  hasAsrTail(): boolean { return this.asrReady; }
+
   resolveSpeaker(result: SpeakerDiarizationFinishInput<S>): void {
     if (this.completed || this.speakerReady) {
       return;

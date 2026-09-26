@@ -12,6 +12,7 @@ import {
   EffectiveDiagnosticConfig
 } from './DiagnosticsCore';
 import { HilogDiagnosticSink, NdjsonDiagnosticSink } from './DiagnosticSinks';
+import { DiagnosticEventJournal } from './DiagnosticEventJournal';
 
 const WAV_HEADER_BYTES: number = 44;
 const DEFAULT_MAX_DIRECTORY_BYTES: number = 200 * 1024 * 1024;
@@ -224,6 +225,8 @@ export class DiagnosticsModule {
   private static readonly core: DiagnosticsCore = createDiagnosticsCore();
   private static readonly hilogSink: HilogDiagnosticSink = new HilogDiagnosticSink();
   private static readonly ndjsonSink: NdjsonDiagnosticSink = new NdjsonDiagnosticSink();
+  private static eventJournal?: DiagnosticEventJournal;
+  private static lastTerminalExportSequence: number = -1;
   private static rootPath: string = '';
   private static journalTimer: number = -1;
   private static maxDirectoryBytes: number = DEFAULT_MAX_DIRECTORY_BYTES;
@@ -286,6 +289,7 @@ export class DiagnosticsModule {
     let stage = 'snapshot';
     try {
       const snapshot = DiagnosticsModule.core.snapshot(false);
+      DiagnosticsModule.persistEvents(snapshot);
       const root = DiagnosticsModule.exportRoot();
       const runDir = `${root}/${snapshot.runId}`;
       stage = 'mkdir';
@@ -329,22 +333,31 @@ export class DiagnosticsModule {
 
   private static flushBackground(): void {
     const journalSnapshot = DiagnosticsModule.core.snapshot(true);
+    DiagnosticsModule.persistEvents(journalSnapshot);
     DiagnosticsModule.resourceSamples.push(sampleResources(journalSnapshot));
     if (DiagnosticsModule.resourceSamples.length > 256) DiagnosticsModule.resourceSamples.shift();
 
     // Both views describe the same synchronous state. Reuse captured PCM rather
     // than materializing the whole recording twice on every journal flush.
-    const completedSnapshot = journalSnapshot.config.mode === DiagnosticModeValue.FAILURE_ONLY ?
+    const completedSnapshot = journalSnapshot.config.mode === DiagnosticModeValue.CUSTOMER_SUPPORT ?
       snapshotWithSessions(journalSnapshot, journalSnapshot.sessions.filter(
-        (session: DiagnosticSessionSnapshot): boolean => session.abnormal)) : journalSnapshot;
+        (session: DiagnosticSessionSnapshot): boolean => session.terminal)) :
+      (journalSnapshot.config.mode === DiagnosticModeValue.FAILURE_ONLY ?
+        snapshotWithSessions(journalSnapshot, journalSnapshot.sessions.filter(
+          (session: DiagnosticSessionSnapshot): boolean => session.abnormal)) : journalSnapshot);
     const hasTerminalSession = completedSnapshot.sessions.some(
       (session: DiagnosticSessionSnapshot): boolean => session.terminal);
     const shouldPersist = journalSnapshot.config.mode === DiagnosticModeValue.CUSTOMER_SUPPORT ?
       hasTerminalSession : completedSnapshot.sessions.length > 0;
-    if (shouldPersist) {
+    const terminalSequence = completedSnapshot.events.length > 0 ?
+      completedSnapshot.events[completedSnapshot.events.length - 1].sequence : -1;
+    const unchangedTerminal = journalSnapshot.config.mode === DiagnosticModeValue.CUSTOMER_SUPPORT &&
+      terminalSequence === DiagnosticsModule.lastTerminalExportSequence;
+    if (shouldPersist && !unchangedTerminal) {
       const runDir = `${DiagnosticsModule.exportRoot()}/${completedSnapshot.runId}`;
       ensureDirectory(runDir);
       DiagnosticsModule.writeSnapshot(runDir, completedSnapshot, true);
+      DiagnosticsModule.lastTerminalExportSequence = terminalSequence;
       DiagnosticsModule.rotateRuns(completedSnapshot.runId);
     }
 
@@ -397,6 +410,9 @@ export class DiagnosticsModule {
         possibleTailLossMs: JOURNAL_INTERVAL_MS
       })}\n`);
       DiagnosticsModule.markRecoveredCrash(source);
+      if (fs.accessSync(`${destination}/events.full.ndjson`)) {
+        fs.renameSync(`${destination}/events.full.ndjson`, `${source}/events.full.ndjson`);
+      }
       if (fs.accessSync(destination)) removeTree(destination);
       fs.renameSync(source, destination);
     }
@@ -424,17 +440,33 @@ export class DiagnosticsModule {
     }
   }
 
+  private static persistEvents(snapshot: DiagnosticsSnapshot): void {
+    // Other modes retain their existing bounded/failure-only export policy.
+    if (snapshot.config.mode !== DiagnosticModeValue.CUSTOMER_SUPPORT) return;
+    if (DiagnosticsModule.eventJournal === undefined) {
+      const runDir = `${DiagnosticsModule.exportRoot()}/${snapshot.runId}`;
+      ensureDirectory(runDir);
+      DiagnosticsModule.eventJournal = new DiagnosticEventJournal(`${runDir}/events.full.ndjson`);
+    }
+    DiagnosticsModule.eventJournal.persist(snapshot.events);
+  }
+
   private static writeEvents(path: string, events: DiagnosticEvent[], jsonArray: boolean = false): void {
+    const journal = DiagnosticsModule.eventJournal;
     const fp = fs.openSync(path, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
     try {
-      // Long meetings carry per-window tensors. Do not materialize a second
-      // whole-session JSON string on each five-second crash-journal flush.
-      DiagnosticsModule.ndjsonSink.write(events, (value: string): void => {
-        fs.writeSync(fp.fd, value);
-      }, jsonArray);
-    } finally {
-      fs.closeSync(fp);
-    }
+      if (journal === undefined) {
+        DiagnosticsModule.ndjsonSink.write(events, (value: string): void => {
+          fs.writeSync(fp.fd, value);
+        }, jsonArray);
+      } else {
+        journal.write(events, (bytes: ArrayBuffer, length: number): void => {
+          if (fs.writeSync(fp.fd, bytes, { length }) !== length) {
+            throw new Error('incomplete diagnostic snapshot write');
+          }
+        }, jsonArray);
+      }
+    } finally { fs.closeSync(fp.fd); }
   }
 
   private static writeSnapshot(runDir: string, snapshot: DiagnosticsSnapshot,
@@ -496,6 +528,10 @@ export class DiagnosticsModule {
       'events.ndjson', 'callbacks.ndjson', 'summary.json', 'effective-config.json',
       'build-identity.json', 'model-manifest.json', 'resource-samples.csv', 'native-state.json'
     ];
+    if (DiagnosticsModule.eventJournal !== undefined) {
+      manifest['fullEventJournal'] = 'events.full.ndjson';
+      manifest['fullEventJournalRunId'] = snapshot.runId;
+    }
     writeText(`${runDir}/manifest.json`, `${JSON.stringify(manifest)}\n`);
   }
 
