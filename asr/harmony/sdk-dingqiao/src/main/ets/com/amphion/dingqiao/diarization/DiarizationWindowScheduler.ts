@@ -36,17 +36,35 @@ export class DiarizationWindowScheduler {
     this.nextWindowEnd = this.windowSamples;
   }
 
-  acceptSamples(sampleCount: number): DiarizationInferenceWindow[] {
+  acceptSamples(sampleCount: number, maxWindows: number = Number.MAX_SAFE_INTEGER): DiarizationInferenceWindow[] {
     if (this.finished) {
       throw new Error('Diarization window scheduler is already finished');
     }
     if (!Number.isInteger(sampleCount) || sampleCount < 0) {
       throw new Error('sampleCount must be a non-negative integer');
     }
+    if (!Number.isInteger(maxWindows) || maxWindows < 0) {
+      throw new Error('maxWindows must be a non-negative integer');
+    }
 
     this.totalSamples += sampleCount;
+    return this.takeAvailable(maxWindows);
+  }
+
+  /**
+   * Returns at most maxWindows descriptors. Keeping descriptor creation pull based
+   * prevents a fast audio producer from allocating one task per hop while the
+   * native worker is behind. The audio remains in the PCM spool until consumed.
+   */
+  takeAvailable(maxWindows: number = Number.MAX_SAFE_INTEGER): DiarizationInferenceWindow[] {
+    if (this.finished) {
+      throw new Error('Diarization window scheduler is already finished');
+    }
+    if (!Number.isInteger(maxWindows) || maxWindows < 0) {
+      throw new Error('maxWindows must be a non-negative integer');
+    }
     const windows: DiarizationInferenceWindow[] = [];
-    while (this.totalSamples >= this.nextWindowEnd) {
+    while (windows.length < maxWindows && this.totalSamples >= this.nextWindowEnd) {
       const endSample = this.nextWindowEnd;
       const stableEndSample = Math.max(endSample - this.rightContextSamples, 0);
       windows.push({
@@ -63,9 +81,22 @@ export class DiarizationWindowScheduler {
     return windows;
   }
 
+  hasAvailable(): boolean {
+    return !this.finished && this.totalSamples >= this.nextWindowEnd;
+  }
+
+  /** Earliest PCM sample still needed by a future normal or final window. */
+  nextWindowStartSample(): number | undefined {
+    if (this.finished) return undefined;
+    return Math.max(0, this.nextWindowEnd - this.windowSamples);
+  }
+
   finish(): DiarizationInferenceWindow | undefined {
     if (this.finished) {
       throw new Error('Diarization window scheduler is already finished');
+    }
+    if (this.totalSamples >= this.nextWindowEnd) {
+      throw new Error('Diarization window scheduler has unissued windows');
     }
     this.finished = true;
     if (this.totalSamples === 0 || (this.nextWindowEnd > this.windowSamples &&

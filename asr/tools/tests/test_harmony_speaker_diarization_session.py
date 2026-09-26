@@ -365,6 +365,37 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_window_schedule_can_pull_a_two_second_hop_without_dropping_windows(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ DiarizationWindowScheduler }} from {SCHEDULER.as_uri()!r};
+            const scheduler = new DiarizationWindowScheduler(16_000, 10_000, 2_000, 1_500);
+            scheduler.acceptSamples(16_000 * 30, 0);
+            assert.equal(scheduler.hasAvailable(), true);
+            const first = scheduler.takeAvailable(2);
+            assert.deepEqual(first.map(w => [w.startSample, w.endSample]),
+              [[0, 160000], [32000, 192000]]);
+            const rest = scheduler.takeAvailable(99);
+            assert.equal(first.length + rest.length, 11);
+            assert.deepEqual(rest.at(-1) && [rest.at(-1).startSample, rest.at(-1).endSample],
+              [320000, 480000]);
+            assert.equal(scheduler.finish(), undefined,
+              'an exact full final window must not be duplicated at a 2 s hop');
+            """
+        )
+
+    def test_local_executor_uses_bounded_pull_queue_and_window_generation_identity(self) -> None:
+        client = LOCAL_CLIENT.read_text(encoding='utf-8')
+        self.assertIn('maxPendingJobs', client)
+        self.assertIn('scheduler.takeAvailable(capacity)', client)
+        self.assertIn('activeJob?.generation !== job.generation', client)
+        self.assertIn('finishWindowQueued', client)
+        session = SESSION.read_text(encoding='utf-8')
+        self.assertIn('clientOptions?: SpeakerDiarizationLocalClientOptions', session)
+        self.assertIn('diagnostic, clientOptions)', session)
+        self.assertIn('this.windows.splice(0, removable)', session)
+
     def test_registry_keeps_ids_stable_and_never_forces_a_fifth_speaker(self) -> None:
         run_node(
             f"""
