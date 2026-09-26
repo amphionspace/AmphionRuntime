@@ -11,6 +11,7 @@ let nextDiarizationJobId: number = 1;
 
 export interface DiarizationLocalWindowResult {
   jobId: string;
+  generation: string;
   windowStartSample: number;
   contentStartInWindowSample: number;
   realEndSample: number;
@@ -28,6 +29,7 @@ export interface SpeakerDiarizationLocalObserver {
 
 interface DiarizationLocalJob {
   jobId: string;
+  generation: string;
   offsetBytes: number;
   sampleCount: number;
   windowStartSample: number;
@@ -42,17 +44,25 @@ export class SpeakerDiarizationStorageError extends Error {
   constructor(message: string) { super(message); }
 }
 
+export interface SpeakerDiarizationLocalClientOptions {
+  /** Community-1 keeps a 10 s native input; this only controls window cadence. */
+  hopMs?: number;
+  /** Maximum queued descriptors behind the single native in-flight job. */
+  maxPendingJobs?: number;
+}
+
 /**
  * Incremental on-device executor. PCM stays in the application sandbox and one
  * bounded 10-second window is processed at a time by SDK-bundled models.
  */
 export class SpeakerDiarizationLocalClient {
-  private readonly scheduler: DiarizationWindowScheduler = new DiarizationWindowScheduler(SAMPLE_RATE);
+  private readonly scheduler: DiarizationWindowScheduler;
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
   private readonly spool: DiarizationPcmSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
   private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference();
+  private readonly maxPendingJobs: number;
   private pendingClusters: number = 0;
   private readonly inferenceLoad: Promise<void>;
   private readonly quiescentCallbacks: Array<() => void> = [];
@@ -60,6 +70,7 @@ export class SpeakerDiarizationLocalClient {
   private activeJob?: DiarizationLocalJob;
   private activeJobStartedMs: number = 0;
   private finishing: boolean = false;
+  private finishWindowQueued: boolean = false;
   private closed: boolean = false;
   private degraded: boolean = false;
   private resourcesClosed: boolean = false;
@@ -67,9 +78,16 @@ export class SpeakerDiarizationLocalClient {
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
 
   constructor(context: Context, workPath: string, observer: SpeakerDiarizationLocalObserver,
-    diagnostic?: (event: string, fields: Record<string, Object>) => void) {
+    diagnostic?: (event: string, fields: Record<string, Object>) => void,
+    options?: SpeakerDiarizationLocalClientOptions) {
     this.observer = observer;
     this.diagnostic = diagnostic;
+    const hopMs = options?.hopMs ?? 2_000;
+    this.maxPendingJobs = options?.maxPendingJobs ?? 2;
+    if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
+      throw new Error('maxPendingJobs must be a positive integer');
+    }
+    this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
@@ -93,8 +111,9 @@ export class SpeakerDiarizationLocalClient {
     if (this.closed || this.finishing || this.degraded) return;
     try {
       this.spool.append(audio);
-      const windows = this.scheduler.acceptSamples(audio.byteLength / 2);
-      for (let index = 0; index < windows.length; index++) this.submit(windows[index]);
+      // Do not materialize every window that a fast producer makes. Descriptors
+      // are pulled only up to the bounded pending capacity in pump().
+      this.scheduler.acceptSamples(audio.byteLength / 2, 0);
       this.pump();
     } catch (error) {
       this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
@@ -105,12 +124,9 @@ export class SpeakerDiarizationLocalClient {
   finish(): void {
     if (this.closed || this.finishing) return;
     this.finishing = true;
-    if (!this.degraded) {
-      try { this.submit(this.scheduler.finish()); } catch (error) {
-        this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-          `speaker diarization finish spool failed: ${error}`);
-      }
-    }
+    // Normal windows are drained before the final padded window is issued.
+    // finish() is called lazily by fillQueue(), after all normal descriptors
+    // have been pulled, so a bounded queue cannot skip an owned interval.
     this.pump();
     this.maybeNotifyDrained();
   }
@@ -151,6 +167,7 @@ export class SpeakerDiarizationLocalClient {
     const offsetSample = window.startSample;
     this.queue.push({
       jobId,
+      generation: jobId,
       offsetBytes: offsetSample * 2,
       sampleCount,
       windowStartSample: window.startSample,
@@ -164,6 +181,7 @@ export class SpeakerDiarizationLocalClient {
 
   private pump(): void {
     if (this.closed || this.degraded || this.activeJob !== undefined) return;
+    this.fillQueue();
     const job = this.queue.shift();
     if (job === undefined) {
       this.maybeNotifyDrained();
@@ -172,6 +190,25 @@ export class SpeakerDiarizationLocalClient {
     this.activeJob = job;
     this.activeJobStartedMs = Date.now();
     void this.execute(job);
+  }
+
+  private fillQueue(): void {
+    if (this.closed || this.degraded || this.finishWindowQueued) return;
+    const capacity = Math.max(0, this.maxPendingJobs - this.queue.length);
+    if (capacity > 0) {
+      const windows = this.scheduler.takeAvailable(capacity);
+      for (let index = 0; index < windows.length; index++) this.submit(windows[index]);
+    }
+    if (this.finishing && !this.scheduler.hasAvailable() && this.queue.length < this.maxPendingJobs) {
+      try {
+        const tail = this.scheduler.finish();
+        this.finishWindowQueued = true;
+        this.submit(tail);
+      } catch (error) {
+        this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+          `speaker diarization finish spool failed: ${error}`);
+      }
+    }
   }
 
   private async execute(job: DiarizationLocalJob): Promise<void> {
@@ -192,13 +229,15 @@ export class SpeakerDiarizationLocalClient {
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
-      if (this.closed || this.degraded || this.activeJob?.jobId !== job.jobId) {
+      if (this.closed || this.degraded || this.activeJob?.jobId !== job.jobId ||
+        this.activeJob?.generation !== job.generation) {
         await this.settleInference(inferencePromise);
         return;
       }
       this.recordWindowSamples(job, samples, result);
       this.observer.onWindow({
         jobId: job.jobId,
+        generation: job.generation,
         windowStartSample: job.windowStartSample,
         contentStartInWindowSample: job.contentStartInWindowSample,
         realEndSample: job.realEndSample,
@@ -224,8 +263,10 @@ export class SpeakerDiarizationLocalClient {
       if (timeout >= 0) clearTimeout(timeout);
       if (this.activeJob?.jobId === job.jobId) this.activeJob = undefined;
       if (!this.closed) {
+        const scheduledStart = this.scheduler.nextWindowStartSample();
         const retainedOffset = this.queue.length > 0 ? this.queue[0].offsetBytes :
-          Math.max(0, this.spool.endOffset() - WINDOW_SAMPLES * 2);
+          (scheduledStart === undefined ?
+            Math.max(0, this.spool.endOffset() - WINDOW_SAMPLES * 2) : scheduledStart * 2);
         try { this.spool.discardBefore(retainedOffset); }
         catch (error) { this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE, `${error}`); }
       }
