@@ -381,6 +381,7 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
 
     def test_public_result_and_real_caller_keep_inferred_flag_and_acoustic_turns(self):
         demo = (ROOT / 'delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/pages/Index.ets').read_text()
+        self.assertIn('this.textRunLabel(run)', demo, 'each visible speaker run needs an explicit SDK ID label')
         segment = demo[demo.index('class FinalSegment {'):demo.index('@Entry')]
         labels = demo[demo.index('  private speakerLabel('):demo.index('  private selectCustomerScenario(')]
         handler = demo[demo.index('  handleSpeakerDiarizationResult('):demo.index('  private async finishAutoEndedCapture(')]
@@ -418,8 +419,29 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const other=new Caller();other.handleSpeakerDiarizationResult('s',full);
           assert.equal(other.finalSegments.length,1,'one original utterance remains one readable paragraph');
           assert.equal(other.finalSegments[0].text,'先说这件事我来回答。');
-          assert.deepEqual(other.segmentTextRuns(other.finalSegments[0]),
+          const runs=other.segmentTextRuns(other.finalSegments[0]);
+          assert.deepEqual(runs.map(({text,speakerIndex})=>({text,speakerIndex})),
             [{text:'先说这件事',speakerIndex:0},{text:'我来回答。',speakerIndex:1}]);
+          assert.deepEqual(runs.map(run=>other.textRunLabel(run)+':'+run.text),
+            ['说话人 1:先说这件事','说话人 2 · 含推断补全:我来回答。']);
+          assert.equal(runs[1].speakerInferred,true);assert.equal(runs[1].confidence,0);
+          const fixture=(text,rows)=>({speakerParts:[{text,speakerIndex:-1,confidence:0,
+            speakerTextSpans:rows.map(([textBegin,textEnd,speakerIndex,extra={}])=>
+              ({textBegin,textEnd,speakerIndex,confidence:.8,overlap:false,speakerInferred:false,...extra}))}]});
+          const uncertain=fixture('你好张三回答。',[[0,1,2],[1,2,-1],[2,3,2],[3,4,2],
+            [4,5,0],[5,6,0,{overlap:true,secondarySpeakerIndexes:[1]}],
+            [6,7,0,{speakerInferred:true,confidence:0}]]);
+          const before=JSON.stringify(uncertain), grouped=other.segmentTextRuns(uncertain);
+          assert.deepEqual(grouped.map(r=>r.text),['你好张三','回答。'],
+            'UNKNOWN and same-speaker token spans must not split intact words');
+          assert.deepEqual(grouped.map(r=>other.textRunLabel(r)),
+            ['说话人 3 · 部分文字归属不确定','说话人 1 · 含重叠发言 · 含推断补全']);
+          assert.equal(grouped[1].confidence,0);assert.equal(JSON.stringify(uncertain),before);
+          const unknown=other.segmentTextRuns(fixture('你好。',[[0,1,-1],[1,3,-1]]));
+          assert.equal(unknown.length,1);assert.equal(other.textRunLabel(unknown[0]),'不确定');
+          const short=other.segmentTextRuns(fixture('对好的',[[0,1,3],[1,2,0],[2,3,0]]));
+          assert.deepEqual(short.map(r=>[r.speakerIndex,r.text]),[[3,'对'],[0,'好的']],
+            'real one-character reply and public ID order are preserved');
           assert.equal(other.segmentSpeakerLabel(other.finalSegments[0]),'句内换人 · 含推断补全');
         """)
 

@@ -7,7 +7,7 @@
 用户确认四人；MOSS 仅接收原音，独立输出四个角色，属于辅助标注，不能当作人工真值。
 
 本次改变：新身份按首次可发布的声学出场顺序编号；ITN 通过实际选中路径提供来源关系；
-SDK 新增原文到展示文字的角色范围 `speakerTextSpans`，调用方连续显示文字并标识角色。
+SDK 新增原文到展示文字的角色范围 `speakerTextSpans`，调用方在明确换人处直接显示“说话人 N：对应文字”。
 句级汇总仍表达整句参与者，不再被调用方当作每个字的归属。已发布身份、原始声学区间、文字、推断标记、
 回调及生命周期语义保持不变。不改模型、FST、阈值、窗口、hop、timeout 或默认定稿周期。
 用户听审确认轻声插话只有不完整单字，并明确要求不要围绕该 hard case 继续投入。
@@ -32,8 +32,11 @@ SDK 新增原文到展示文字的角色范围 `speakerTextSpans`，调用方连
    投影到展示文字；标点分句仅选择已有范围。每段保留主/副角色、UNKNOWN、overlap、
    `speakerInferred` 和 confidence。跨角色的不可拆分 ITN record 保持 UNKNOWN，
    包括未落到 token 起点的短暂相反声学证据；映射不明时返回空范围。
-4. 调用方使用文字范围给完整句子着色并列出角色图例，不在字符间插标签或强制换行。
-   同句顺序换人与声学 overlap 分开显示；推断提示和原始角色时间区间保留。
+4. 调用方根据 SDK 文字范围在明确的主角色变化处分行，直接显示“说话人 N：对应文字”，
+   编号不重排。同人连续范围合并；UNKNOWN、overlap 或推断状态变化本身不触发拆段。
+   含 UNKNOWN 的可读组明确标“部分文字归属不确定”，并保留 SDK 原始范围；不会把这些
+   文字的 SDK 身份改成相邻角色。重叠及推断分别显示提示，confidence=0 继续保留。
+   真实单字回答仍可形成不同角色的可读组，不设置字数或时长阈值。
    只改“句内换人”提示文案的旧候选不算此缺陷修复。旧调用方需要读取新字段才能显示
    句内每段的归属；原句汇总、回调和 final/last/complete 语义均未修改。
 
@@ -81,7 +84,16 @@ pending 最大 0、in-flight 最大 1、完成时音频延迟最大 580 ms；ASR
 结束归零。finish 932 ms，finish 前 last=0，之后 last/complete 各 1，无 error/timeout。
 10 次预览聚类合计 123 ms，finish 聚类 232 ms。RSS 峰值 671.49 MiB，活跃尾部
 450.55 MiB，卸载后 308.01 MiB。该 UI 播放 102.38 秒音频耗时 123.142 秒，
-因此不以 inference/hop 或本次录音单独宣称长期实时无积压。新增字段后的同条件真机待补。
+因此不以 inference/hop 或本次录音单独宣称长期实时无积压。新字段提交 bc78b58d 的同条件真机已通过：48 窗均值 560.662 ms / 最大 673.506 ms，
+pending=0、in-flight≤1、音频延迟最大 560 ms；ASR 未处理音频最大 680 ms，结束归零。
+finish 989 ms，last/complete 各 1，finish 前 last=0，无 error/timeout、无空 endpoint final。
+预览聚类合计 138 ms（10 次），finish 聚类 244 ms；RSS 峰值 671.24 MiB，卸载后 307.84 MiB。
+102.38 秒 PCM 喂入耗时 124.861 秒，不能据此宣称最大实时吞吐或长时 RSS 稳定。
+
+真机 SDK 新字段与在线回放一致，旧公共字段逐项完全不变；实际页面保留完整句子，
+但只用颜色及图例，用户仍无法直接看到每段的 ID，因此该版本的最终可读归属验收为 FAIL，
+阻断合入。新增直接角色标签的调用方回归已通过，Mate80 原录音复验待补。
+完整词语不拆段，短暂的说话人 4 声学区间仍在原始 turns，不补造缺失 token。
 
 ## 定稿周期
 
@@ -120,7 +132,9 @@ pending 最大 0、in-flight 最大 1、完成时音频延迟最大 580 ms；ASR
   Android 381 项单测及 CI 通过，全部 review threads 已拉取（0 条）。这是新增字段之前的证据。
 - 新文字范围：37 项相关回归通过，原始在线回放通过。覆盖只改标点、ITN 跨角色、
   映射不明、短插话、UNKNOWN、overlap、提交冻结及真实公共结果到页面的推断标记传递。
-  对应新提交 HAP、原录音 UI、当前 HEAD CI 和 review 门禁尚待补齐，未宣称合入通过。
+- bc78b58d：新 HAP 构建/签名/安装、原录音 UI、当前 HEAD CI 均通过。
+  同步最新主线后 Android Debug/Release 379 项测试通过；无错误、失败或跳过。
+  最终真机生命周期矩阵、finish 兼容门禁和最后一次 review 检查在汇总中记录。
 
 私有证据根：`~/.cache/amphion-runtime/diagnostics/four-speaker-tail-20260927-135910/`。
 原音及完整转写不入库。`input-map.json` 绑定完整 WAV/PCM；`session-3-events.ndjson` 是原始
@@ -134,3 +148,21 @@ pending 最大 0、in-flight 最大 1、完成时音频延迟最大 580 ms；ASR
 `window-channels.json`、`segmentation-parity.json`、`reconstruction-frames.csv`、
 `reconstruct-label-permutation.json`、`asr-tail-events.json` 以及 `human-review-*.json`。
 轻声短插话/overlap 的未解决范围由 #222 单独跟踪，不能写成本补丁已修复。
+
+最终验证产物绑定运行代码 `bc78b58d545924e3ff40ed6de4f238a617e6d8b5`；
+`device-ui-text-spans/` 保存相同 PCM 校验、窗口/队列/内存/回调数据、公共范围及真实页面截图。
+这次只修 Harmony 文字归属及调用方；Android 生命周期没有另外修改，新增公共文字字段
+尚未迁移 Android。这里的 PASS 分别限于 SDK 对齐、编号顺序和对应生命周期，
+不宣称 ASR 错词、轻声召回或角色分离整体精度问题已解决。
+
+新增调用方红灯：`tail-whitebox/explicit-label-red.log`；修复后 16 项句级/调用方回归
+`explicit-label-green-v1.log` 通过，覆盖原始混合句拓扑、同人连续 span、词中 UNKNOWN、
+真实单字换人、overlap、推断/零置信度及 SDK 公共结果不被展示代码修改。
+旧颜色页面截图保留为 non-canonical 体验失败证据，不当作直接标签版本的验收通过。
+
+bc78b58d 的 24 模式 SDK 生命周期门禁及 finish 兼容门禁已全部通过，已归档至
+`delivery/harmony-dingqiao/build/pr230-bc78-evidence/report.json`（私有构建目录），
+私有证据根同时保留 `pr-gate-evidence-bc78/`。首轮调用方检查未达到 60 秒，保留其有效
+结果并补充 14 轮 paced（超过 60 秒），没有放宽资源门禁。颜色版 UI 的体验失败不影响
+这批 SDK 生命周期数据；直接标签版本须另外比较四个 HAR 内容并完成原录音 UI 验收。
+此为 PR 验证 HAP，不是客户交付 ZIP；未更新正式交付发布账本或宣称已交付。
