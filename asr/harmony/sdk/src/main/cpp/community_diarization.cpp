@@ -195,18 +195,29 @@ class Model {
         if (next_kind != kind && begin >= 0) {
           const int end = frame;
           if (kind == 1 && end - begin >= .2 * 589) {
-            std::vector<float> run_masks(3 * 589, 0.f);
-            for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
-            std::vector<Ort::Value> run_tensors;
-            run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3));
-            run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, run_masks.data(), run_masks.size(), mask_shape.data(), 3));
-            auto run_output = embedding_.Run(Ort::RunOptions{nullptr}, names, run_tensors.data(), 2, outputs, 1);
-            if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
-              throw std::runtime_error("invalid Community run embedding output");
+            // The pinned model pools each mask channel independently. When
+            // this run is the entire selected channel mask, its vector was
+            // already computed from these exact features in this window.
+            // A disconnected tail (including a short one) prevents reuse.
+            const int selected_frames = std::count(masks.begin() + base,
+              masks.begin() + base + 589, 1.f);
+            if (selected_frames == end - begin) {
+              result.run_embeddings.insert(result.run_embeddings.end(), values + channel * 256,
+                                           values + (channel + 1) * 256);
+            } else {
+              std::vector<float> run_masks(3 * 589, 0.f);
+              for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
+              std::vector<Ort::Value> run_tensors;
+              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3));
+              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, run_masks.data(), run_masks.size(), mask_shape.data(), 3));
+              auto run_output = embedding_.Run(Ort::RunOptions{nullptr}, names, run_tensors.data(), 2, outputs, 1);
+              if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
+                throw std::runtime_error("invalid Community run embedding output");
+              }
+              const auto* run_values = run_output[0].GetTensorData<float>();
+              result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
+                                           run_values + (channel + 1) * 256);
             }
-            const auto* run_values = run_output[0].GetTensorData<float>();
-            result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
-                                         run_values + (channel + 1) * 256);
           } else if (kind == 0) {
             // A finite zero vector would become eligible for a long overlap
             // run. NaN is deliberately rejected by the clusterer and keeps

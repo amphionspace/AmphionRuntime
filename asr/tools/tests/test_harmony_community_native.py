@@ -88,6 +88,106 @@ int main() {
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_identical_run_mask_reuses_only_its_own_window_vector(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source = (CPP / 'community_diarization.cpp').read_text()
+        body = source[source.index('    // Keep the full-window vectors above'):
+                      source.index('    result.embedding_ms = Milliseconds(start);')]
+        # Execute production run extraction with a mask-independent model stub.
+        # The pinned ONNX graph pools each mask channel independently as well.
+        program = r'''
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+namespace Ort {
+struct RunOptions { RunOptions(std::nullptr_t) {} };
+struct Value {
+  std::vector<float> values;
+  template<class T> static Value CreateTensor(int,T* data,size_t n,const int64_t*,size_t) {
+    return {std::vector<float>(data,data+n)};
+  }
+  struct Info { size_t count;size_t GetElementCount() const {return count;} };
+  Info GetTensorTypeAndShapeInfo() const {return {values.size()};}
+  template<class T> const T* GetTensorData() const {return values.data();}
+};
+}
+float MaskValue(const std::vector<float>& mask,int channel,float pcm) {
+  float value=pcm;
+  for(int f=0;f<589;++f)value+=mask[channel*589+f]*(f+1);
+  return value;
+}
+struct Encoder {
+  int calls=0;
+  std::vector<Ort::Value> Run(Ort::RunOptions,const char**,Ort::Value* inputs,size_t,const char**,size_t) {
+    ++calls;Ort::Value out;out.values.resize(768);
+    for(int c=0;c<3;++c)std::fill_n(out.values.begin()+c*256,256,
+      MaskValue(inputs[1].values,c,inputs[0].values[0]));
+    return {out};
+  }
+} embedding_;
+struct Window {std::vector<float> embeddings,run_embeddings,run_ranges;};
+Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float pcm) {
+  Window result;result.embeddings.resize(768);
+  for(int c=0;c<3;++c)std::fill_n(result.embeddings.begin()+c*256,256,MaskValue(masks,c,pcm));
+  const auto* values=result.embeddings.data();
+  std::vector<float> features{pcm};int memory=0;
+  std::array<int64_t,3> feature_shape{1,998,80},mask_shape{1,3,589};
+  const char* names[]={"fbank","masks"};const char* outputs[]={"embeddings"};
+''' + body + r'''
+  return result;
+}
+void On(std::vector<float>& m,int channel,int b,int e) {
+  std::fill(m.begin()+channel*589+b,m.begin()+channel*589+e,1.f);
+}
+int main() {
+  std::vector<float> masks(1767);On(masks,0,0,180);On(masks,1,200,340);
+  auto same=ProcessRuns(masks,masks,3);
+  assert(same.run_ranges==std::vector<float>({0,0,0,180,0,1,200,340}));
+  assert(same.run_embeddings.size()==512);
+  for(int i=0;i<256;++i) {
+    assert(same.run_embeddings[i]==same.embeddings[i]);
+    assert(same.run_embeddings[256+i]==same.embeddings[256+i]);
+  }
+  assert(embedding_.calls==0 && "identical same-window mask must not rerun encoder");
+  auto next=ProcessRuns(masks,masks,7);
+  assert(next.run_embeddings[0]==same.run_embeddings[0]+4 && "never reuse another window PCM");
+  std::vector<float> mixed(1767);On(mixed,0,0,130);On(mixed,0,131,261);
+  auto split=ProcessRuns(mixed,mixed,3);
+  assert(embedding_.calls==2);
+  assert(split.run_ranges==std::vector<float>({0,0,0,130,0,0,131,261}));
+  std::vector<float> left(1767),right(1767);On(left,0,0,130);On(right,0,131,261);
+  assert(split.run_embeddings[0]==MaskValue(left,0,3));
+  assert(split.run_embeddings[256]==MaskValue(right,0,3));
+  assert(split.run_embeddings[0]!=split.embeddings[0]);
+  std::vector<float> tail(1767);On(tail,0,0,150);On(tail,0,300,320);
+  auto withShortTail=ProcessRuns(tail,tail,3);
+  std::vector<float> mainRun(1767);On(mainRun,0,0,150);
+  assert(embedding_.calls==3);
+  assert(withShortTail.run_embeddings[0]==MaskValue(mainRun,0,3));
+  assert(withShortTail.run_embeddings[0]!=withShortTail.embeddings[0]);
+  assert(withShortTail.run_embeddings[256]==0);
+  std::vector<float> shortMask(1767);On(shortMask,0,0,80);
+  auto shortRun=ProcessRuns(shortMask,shortMask,3);
+  assert(embedding_.calls==3 && shortRun.run_embeddings==std::vector<float>(256,0));
+  auto overlap=ProcessRuns(masks,std::vector<float>(1767),3);
+  assert(embedding_.calls==3 && overlap.run_embeddings.size()==512);
+  for(float v:overlap.run_embeddings)assert(std::isnan(v));
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            cpp = Path(directory) / 'run-mask.cpp'
+            binary = Path(directory) / 'run-mask'
+            cpp.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', str(cpp), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_native_input_copy_uses_real_view_bounds(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
