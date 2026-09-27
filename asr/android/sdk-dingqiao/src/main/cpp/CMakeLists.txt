@@ -3,9 +3,11 @@ project(amphion_dingqiao_native)
 
 set(CMAKE_CXX_STANDARD 17)
 
-add_library(amphion_diarization_jni SHARED speaker_turn_segmenter_jni.cpp)
+add_library(amphion_diarization_jni SHARED speaker_turn_segmenter_jni.cpp
+  ../../../../../harmony/sdk/src/main/cpp/community_diarization.cpp)
 
 target_include_directories(amphion_diarization_jni PRIVATE
+  ${CMAKE_CURRENT_SOURCE_DIR}
   ${CMAKE_CURRENT_SOURCE_DIR}/../../../../../../tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include)
 
 add_library(onnxruntime SHARED IMPORTED)

@@ -85,8 +85,9 @@ internal class DiarizationTranscriptState {
         return updateFor(utterance, assignment.confidence)
     }
 
-    fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>): List<DiarizationTranscriptUpdate> {
-        if (newTurns.isEmpty()) return emptyList()
+    fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>, replace: Boolean = false): List<DiarizationTranscriptUpdate> {
+        if (replace) turns.clear()
+        if (newTurns.isEmpty()) return refreshUtterances { true }
         turns += newTurns.map { it.copy(
             secondarySpeakerIds = it.secondaryEvidenceSpeakerIds.filter { id -> id != it.speakerId }.distinct(),
             secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
