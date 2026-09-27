@@ -137,10 +137,15 @@ struct Encoder {
     return {out};
   }
 } embedding_, encoder_{0,true}, pooling_;
-struct Window {std::vector<float> embeddings,run_embeddings,run_ranges;};
-Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float pcm) {
+struct Window {std::vector<float> embeddings,run_embeddings,run_ranges,run_rms;};
+Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float level,bool varied=false) {
   Window result;
-  std::vector<float> features{pcm};int memory=0;
+  std::vector<float> features{level},pcm(160000,level);int memory=0;
+  if(varied){
+    std::fill(pcm.begin(),pcm.end(),100.f); // Loud unowned context must be ignored.
+    std::fill(pcm.begin()+496,pcm.begin()+496+130*270,.125f);
+    std::fill(pcm.begin()+496+131*270,pcm.begin()+496+261*270,.5f);
+  }
   struct Clock { static int now() {return 0;} };int start=0;
 ''' + body + r'''
   return result;
@@ -153,6 +158,7 @@ int main() {
   auto same=ProcessRuns(masks,masks,3);
   assert(same.run_ranges==std::vector<float>({0,0,0,180,0,1,200,340}));
   assert(same.run_embeddings.size()==512);
+  assert(same.run_rms==std::vector<float>({3,3}));
   for(int i=0;i<256;++i) {
     assert(same.run_embeddings[i]==same.embeddings[i]);
     assert(same.run_embeddings[256+i]==same.embeddings[256+i]);
@@ -160,6 +166,7 @@ int main() {
   assert(encoderCalls==1 && "one encoder per window");
   auto next=ProcessRuns(masks,masks,7);
   assert(next.run_embeddings[0]==same.run_embeddings[0]+4 && "never reuse another window PCM");
+  assert(next.run_rms==std::vector<float>({7,7}));
   std::vector<float> mixed(1767);On(mixed,0,0,130);On(mixed,0,131,261);
   auto split=ProcessRuns(mixed,mixed,3);
   assert(encoderCalls==3 && "disconnected runs share only this window encoder");
@@ -181,6 +188,9 @@ int main() {
   auto overlap=ProcessRuns(masks,std::vector<float>(1767),3);
   assert(encoderCalls==6 && overlap.run_embeddings.size()==512);
   for(float v:overlap.run_embeddings)assert(std::isnan(v));
+  assert(overlap.run_rms==std::vector<float>({0,0}));
+  auto levels=ProcessRuns(mixed,mixed,3,true);
+  assert(levels.run_rms==std::vector<float>({.125f,.5f}));
 }
 '''
         with tempfile.TemporaryDirectory() as directory:
@@ -701,6 +711,68 @@ int main() {
             source.write_text(program)
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
+    def test_run_capacity_keeps_distinct_foreground_and_anonymous_background(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <set>
+int main() {
+  community::Plda p;
+  p.mean1.resize(256);p.mean2.resize(128);p.mu.resize(128);p.phi.resize(128,1.);
+  p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1;p.transform[i][i]=1;}
+  constexpr int n=48;
+  std::vector<float> segments(n*589*3),embeddings(n*768),runs(n*256),rms(n);
+  std::vector<int32_t> ranges;
+  for(int w=0;w<n;++w){
+    for(int f=0;f<589;++f)segments[(w*589+f)*3]=1;
+    embeddings[w*768+w%6]=runs[w*256+w%6]=1.;
+    ranges.insert(ranges.end(),{w,0,0,589});
+    rms[w]=w%6<4?(.7f+.1f*(w%6)):.1f;
+  }
+  auto result=community::Cluster(segments,embeddings,n,p,4,runs,ranges,rms);
+  std::set<int> foreground;
+  for(int w=0;w<n;++w){
+    int label=result.hard[w*3];
+    if(w%6<4){assert(label>=0);foreground.insert(label);assert(label==result.hard[(w%6)*3]);}
+    else assert(label==-2 && "capacity must not turn background into a foreground speaker");
+    for(int f=0;f<589;++f)assert(result.frame_hard[(w*589+f)*3]==label);
+  }
+  assert(foreground.size()==4 && !result.usedKMeans);
+  auto scaled=rms;for(auto& value:scaled)value*=.01f;
+  auto quiet=community::Cluster(segments,embeddings,n,p,4,runs,ranges,scaled);
+  assert(quiet.hard==result.hard && quiet.frame_hard==result.frame_hard);
+  // A tighter caller capacity can leave more voices unknown but never merge
+  // them. Selection does not manufacture additional groups to fill the cap.
+  auto limited=community::Cluster(segments,embeddings,n,p,2,runs,ranges,rms);
+  assert(limited.centroids.size()==2 && !limited.usedKMeans);
+  for(int w=0;w<n;++w)assert((limited.hard[w*3]>=0)==(w%6==2||w%6==3));
+  // Quiet speakers remain enrolled while all identities fit. A session-level
+  // RMS gate here would erase a valid minority speaker in public recordings.
+  constexpr int count=4;
+  segments.resize(count*589*3);embeddings.resize(count*768);runs.resize(count*256);
+  ranges.resize(count*4);rms.resize(count);rms[0]=.001f;
+  auto original=community::Cluster(segments,embeddings,count,p,4,runs,ranges);
+  auto within=community::Cluster(segments,embeddings,count,p,4,runs,ranges,rms);
+  assert(within.hard==original.hard && within.frame_hard==original.frame_hard);
+  assert(within.centroids==original.centroids && within.capacityRms.empty());
+  // Level snapshots must belong to exactly these runs, not another window.
+  bool rejected=false;rms.pop_back();
+  try {community::Cluster(segments,embeddings,count,p,4,runs,ranges,rms);}
+  catch(const std::runtime_error&){rejected=true;}assert(rejected);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'capacity.cpp'
+            binary = Path(directory) / 'capacity'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
     def test_speaker_cap_uses_unconstrained_kmeans_and_keeps_active_channels(self):

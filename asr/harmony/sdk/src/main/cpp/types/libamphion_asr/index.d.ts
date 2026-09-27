@@ -67,6 +67,7 @@ export interface CommunityDiarizationWindow {
   embeddings: Float32Array;
   runEmbeddings: Float32Array;
   runRanges: Float32Array;
+  runRms: Float32Array;
   segmentationMs: number;
   featureMs: number;
   embeddingMs: number;
@@ -77,5 +78,6 @@ export function loadCommunityDiarizationResources(resourceManager: Object): Prom
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function clusterCommunityDiarization(handle: number, segments: Float32Array,
   embeddings: Float32Array, runEmbeddings: Float32Array, runRanges: Float32Array,
-  maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number): Promise<string>;
+  maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
+  runRms: Float32Array): Promise<string>;
 export function closeCommunityDiarization(handle: number): void;

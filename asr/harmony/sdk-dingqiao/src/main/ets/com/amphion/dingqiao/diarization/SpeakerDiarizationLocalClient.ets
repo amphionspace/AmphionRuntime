@@ -149,7 +149,7 @@ export class SpeakerDiarizationLocalClient {
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
   retainEvidence(window: CommunityDiarizationWindow): void {
-    try { this.evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges); }
+    try { this.evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms); }
     catch (error) { throw new SpeakerDiarizationStorageError(`${error}`); }
   }
 
@@ -163,14 +163,15 @@ export class SpeakerDiarizationLocalClient {
 
   async cluster(segments: Float32Array, embeddings: Float32Array,
     maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
-    runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0)): Promise<CommunityDiarizationCluster> {
+    runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0),
+    runRms: Float32Array = new Float32Array(0)): Promise<CommunityDiarizationCluster> {
     if (this.closed) throw new Error('speaker diarization client is closed');
     this.pendingClusters += 1;
     try {
       await this.inferenceLoad;
       if (this.closed) throw new Error('speaker diarization client is closed');
       return await this.inference.cluster(segments, embeddings, runEmbeddings, runRanges,
-        maxSpeakers, windowStartSamples, beginSample);
+        maxSpeakers, windowStartSamples, beginSample, runRms);
     } finally {
       this.pendingClusters -= 1;
       this.closeWhenQuiescent();

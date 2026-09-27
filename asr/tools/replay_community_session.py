@@ -41,19 +41,22 @@ class SpeakerDiarizationLocalClient {
   const selected=this.evidence.slice(0,n);
   const segments=new Float32Array(n*589*3),embeddings=new Float32Array(n*768);
   const rows=selected.reduce((a,w)=>a+w.runRanges.length/4,0);
-  const runEmbeddings=new Float32Array(rows*256),runRanges=new Float32Array(rows*4);let offset=0;
+  const hasLevels=selected.some(w=>w.runRms.length>0);
+  if(hasLevels)assert.ok(selected.every(w=>w.runRms.length===w.runRanges.length/4),'mixed or incomplete level evidence');
+  const runEmbeddings=new Float32Array(rows*256),runRanges=new Float32Array(rows*4),runRms=new Float32Array(hasLevels?rows:0);let offset=0;
   for(let i=0;i<n;i++){
    const w=selected[i];segments.set(w.segments,i*589*3);embeddings.set(w.embeddings,i*768);
    runEmbeddings.set(w.runEmbeddings,offset*256);runRanges.set(w.runRanges,offset*4);
+   if(hasLevels)runRms.set(w.runRms,offset);
    for(let j=0;j<w.runRanges.length/4;j++)runRanges[(offset+j)*4]=i;
    offset+=w.runRanges.length/4;
   }
-  return {segments,embeddings,runEmbeddings,runRanges};
+  return {segments,embeddings,runEmbeddings,runRanges,runRms};
  }
- async cluster(segments,embeddings,cap,starts,begin,runEmbeddings,runRanges){
-  const header=Buffer.alloc(24);header.writeUInt32LE(0x43525031,0);header.writeUInt32LE(starts.length,4);
+ async cluster(segments,embeddings,cap,starts,begin,runEmbeddings,runRanges,runRms){
+  const header=Buffer.alloc(24);header.writeUInt32LE(runRms.length?0x43525032:0x43525031,0);header.writeUInt32LE(starts.length,4);
   header.writeUInt32LE(runRanges.length/4,8);header.writeUInt32LE(cap,12);header.writeDoubleLE(begin,16);
-  const arrays=[starts,segments,embeddings,runEmbeddings,new Int32Array(runRanges)];
+  const arrays=[starts,segments,embeddings,runEmbeddings,new Int32Array(runRanges),runRms];
   const file=path.join(output,`cluster-${this.clusterCalls++}.bin`);
   fs.writeFileSync(file,Buffer.concat([header,...arrays.map(a=>Buffer.from(a.buffer,a.byteOffset,a.byteLength))]));
   return JSON.parse(execFileSync(replay,[plda,file],{maxBuffer:16*1024*1024}).toString());
@@ -71,7 +74,7 @@ let next=0;
 function window(w){
  const f=v=>new Float32Array(v.map(x=>x===null?NaN:x));
  return {jobId:`sample-${w.windowStartSample}`,windowStartSample:w.windowStartSample,realEndSample:w.realEndSample,
- result:{segments:f(w.segmentations),embeddings:f(w.embeddings),runEmbeddings:f(w.runEmbeddings),runRanges:f(w.runRanges),segmentationMs:0,featureMs:0,embeddingMs:0}};
+ result:{segments:f(w.segmentations),embeddings:f(w.embeddings),runEmbeddings:f(w.runEmbeddings),runRanges:f(w.runRanges),runRms:f(w.runRms??[]),segmentationMs:0,featureMs:0,embeddingMs:0}};
 }
 async function settle(){await new Promise(r=>setImmediate(r));assert.equal(s.committing,false)}
 for(const e of input.events){

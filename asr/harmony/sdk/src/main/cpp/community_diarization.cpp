@@ -60,6 +60,7 @@ struct Window {
   // [window, channel, begin frame, end frame) for each contiguous clean run.
   std::vector<float> run_embeddings;
   std::vector<float> run_ranges;
+  std::vector<float> run_rms;
   double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
 };
 
@@ -208,6 +209,13 @@ class Model {
         const int next_kind = active ? (clean[base + frame] > 0 ? 1 : 0) : -1;
         if (next_kind != kind && begin >= 0) {
           const int end = frame;
+          // Match the same frame-center cells used for public reconstruction.
+          // Other runs, pauses and overlap must not set this run's level.
+          double squared = 0;
+          const size_t first = std::min(pcm.size(), static_cast<size_t>(std::llround(495.5 + begin * 270.)));
+          const size_t last = std::min(pcm.size(), static_cast<size_t>(std::llround(495.5 + end * 270.)));
+          if (kind == 1) for (size_t i = first; i < last; ++i) squared += static_cast<double>(pcm[i]) * pcm[i];
+          result.run_rms.push_back(kind == 1 && last > first ? std::sqrt(squared / (last - first)) : 0.f);
           if (kind == 1 && end - begin >= .2 * 589) {
             // The pinned model pools each mask channel independently. When
             // this run is the entire selected channel mask, its vector was
@@ -257,7 +265,8 @@ class Model {
 
   std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
                       const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
-                      int max_speakers, const std::vector<double>& starts, double begin_sample) const {
+                      int max_speakers, const std::vector<double>& starts, double begin_sample,
+                      const std::vector<float>& run_rms = {}) const {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
@@ -271,7 +280,7 @@ class Model {
       native_ranges.push_back(static_cast<int32_t>(value));
     }
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers,
-                                     run_embeddings, native_ranges);
+                                     run_embeddings, native_ranges, run_rms);
     auto turns = community::Reconstruct(segments, result.hard, starts, begin_sample, max_speakers,
                                         result.frame_hard);
     std::ostringstream json;
@@ -286,6 +295,7 @@ class Model {
     ints("trainingIndices", result.trainingIndices);
     ints("trainingRunIndices", result.trainingRunIndices);
     ints("ahc", result.ahc);
+    ints("retainedClusters", result.retainedClusters);
     auto matrix = [&](const char* key, const community::Matrix& rows) {
       json << ",\"" << key << "\":[";
       for (size_t i = 0; i < rows.size(); ++i) {
@@ -303,6 +313,9 @@ class Model {
     matrix("scores", result.scores);
     matrix("centroids", result.centroids);
     matrix("posteriors", result.vbx.q);
+    json << ",\"capacityRms\":[";
+    for (size_t i = 0; i < result.capacityRms.size(); ++i) { if (i) json << ','; json << result.capacityRms[i]; }
+    json << ']';
     json << ",\"usedKMeans\":" << (result.usedKMeans ? "true" : "false")
          << ",\"usedAhcFallback\":" << (result.usedAhcFallback ? "true" : "false")
          << ",\"shortRunTrainingCount\":" << result.shortRunTrainingCount;
@@ -346,7 +359,7 @@ struct Work {
     resource_manager{nullptr, OH_ResourceManager_ReleaseNativeResourceManager};
   std::array<std::vector<uint8_t>, 5> assets;
   std::vector<float> pcm, segments, embeddings, run_embeddings;
-  std::vector<float> run_ranges;
+  std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
   Window window;
@@ -376,7 +389,7 @@ void Execute(napi_env, void* data) {
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
                                            task.run_ranges, task.max_speakers, task.window_starts,
-                                           task.begin_sample);
+                                           task.begin_sample, task.run_rms);
   } catch (const std::exception& error) { task.error = error.what(); }
 }
 void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {
@@ -413,6 +426,7 @@ void Complete(napi_env env, napi_status status, void* data) {
       FloatProperty(env, value, "embeddings", task->window.embeddings);
       FloatProperty(env, value, "runEmbeddings", task->window.run_embeddings);
       FloatProperty(env, value, "runRanges", task->window.run_ranges);
+      FloatProperty(env, value, "runRms", task->window.run_rms);
       NumberProperty(env, value, "segmentationMs", task->window.segmentation_ms);
       NumberProperty(env, value, "featureMs", task->window.feature_ms);
       NumberProperty(env, value, "embeddingMs", task->window.embedding_ms);
@@ -422,12 +436,13 @@ void Complete(napi_env env, napi_status status, void* data) {
   napi_delete_async_work(env, task->work);
 }
 napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
-  size_t count = 8;
-  napi_value args[8] = {};
+  size_t count = 9;
+  napi_value args[9] = {};
   napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
   try {
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
-    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : 8u) : 5u)) {
+    const bool clusterLevels = operation == Operation::Cluster && count == 9;
+    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 5u)) {
       throw std::runtime_error("invalid Community arguments");
     }
     auto task = std::make_unique<Work>();
@@ -461,6 +476,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           task->run_embeddings = CopyArray<float>(env, args[3], napi_float32_array);
           task->run_ranges = CopyArray<float>(env, args[4], napi_float32_array);
           offset = 2;
+          if (clusterLevels) task->run_rms = CopyArray<float>(env, args[8], napi_float32_array);
         }
         if (napi_get_value_int32(env, args[3 + offset], &task->max_speakers) != napi_ok) throw std::runtime_error("invalid speaker cap");
         task->window_starts = CopyArray<double>(env, args[4 + offset], napi_float64_array);
