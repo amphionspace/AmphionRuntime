@@ -578,16 +578,15 @@ int main(int argc,char**) {
         # first short run is the only clean evidence for a fourth group and is
         # admitted through the masked full-window vector.  A later unrelated
         # short run would create a fifth group and must remain unknown.  The
-        # deliberately high synthetic PLDA variance makes VBx collapse these
-        # four groups, exercising the guarded AHC fallback without any voice
-        # data or an expected speaker count.
+        # PLDA supports these distinct groups. No voice data or expected
+        # speaker count is supplied to the clusterer.
         program = r'''
 #include "community_cluster.h"
 #include <cassert>
 int main() {
   community::Plda p;
   p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
-  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
   p.transform=community::Matrix(128,community::Vec(128));
   for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
   constexpr int windows=3;
@@ -604,7 +603,6 @@ int main() {
   run(2,0,0,68,4);
   auto result=community::Cluster(segments,embeddings,windows,p,4,runEmbeddings,ranges);
   assert(result.shortRunTrainingCount==1);
-  assert(result.usedAhcFallback);
   assert(result.centroids.size()==4);
   assert(result.frame_hard[20*3]>=0);
   assert(result.frame_hard[20*3+3*589]>=0);
@@ -614,6 +612,51 @@ int main() {
         with tempfile.TemporaryDirectory() as directory:
             source=Path(directory)/'short-enrollment.cpp'
             binary=Path(directory)/'short-enrollment'
+            source.write_text(program)
+            subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
+            subprocess.run([str(binary)],check=True)
+
+    def test_short_admission_does_not_split_long_runs_merged_by_vbx(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # The long runs have two AHC groups but one VBx identity. A new short
+        # candidate must not resurrect the discarded long-run group. This is
+        # the state fork seen in the confirmed single-speaker recording.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  constexpr int windows=6;
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runEmbeddings;
+  std::vector<int32_t> ranges;
+  for(int w=0;w<windows;++w){
+    const int axis=w<4?0:w-3, end=w==5?68:200;
+    for(int f=0;f<end;++f)segments[(w*589+f)*3]=1;
+    embeddings[w*3*256+axis]=1;
+    runEmbeddings.resize(runEmbeddings.size()+256);
+    runEmbeddings[runEmbeddings.size()-256+axis]=1;
+    ranges.insert(ranges.end(),{w,0,0,end});
+  }
+  auto withoutShort=embeddings;
+  std::fill(withoutShort.begin()+5*768,withoutShort.end(),
+            std::numeric_limits<float>::quiet_NaN());
+  auto before=community::Cluster(segments,withoutShort,windows,p,4,runEmbeddings,ranges);
+  assert(before.centroids.size()==1);
+  auto after=community::Cluster(segments,embeddings,windows,p,4,runEmbeddings,ranges);
+  assert(after.shortRunTrainingCount==1);
+  assert(after.centroids.size()==1);
+  for(int w=0;w<5;++w)
+    assert(after.frame_hard[(w*589+20)*3]==after.frame_hard[20*3]);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'short-merge.cpp';binary=Path(directory)/'short-merge'
             source.write_text(program)
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)

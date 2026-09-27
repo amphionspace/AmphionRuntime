@@ -261,10 +261,26 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
      result.ahc.size()&&*std::max_element(result.ahc.begin(),result.ahc.end())+1<=maxSpeakers&&
      result.centroids.size()<static_cast<size_t>(*std::max_element(result.ahc.begin(),result.ahc.end())+1)){
     const int groups=*std::max_element(result.ahc.begin(),result.ahc.end())+1;
-    result.centroids.assign(groups,Vec(dim));std::vector<int> counts(groups);
-    for(size_t i=0;i<train.size();++i){const int c=result.ahc[i];if(c<0||c>=groups)continue;++counts[c];for(int j=0;j<dim;++j)result.centroids[c][j]+=train[i][j];}
-    for(int c=0;c<groups;++c)for(int j=0;j<dim;++j)result.centroids[c][j]/=std::max(1,counts[c]);
-    result.usedAhcFallback=true;
+    // Short-run admission must not undo VBx merges among the long runs.
+    // Only a missing short group can be recovered: the supported long-run
+    // partition must already agree with VBx, independent of label numbering.
+    std::vector<int> ahcToVbx(groups,-1),vbxToAhc(result.vbx.priors.size(),-1);
+    bool sameLongPartition=true;
+    const size_t longCount=train.size()-result.shortRunTrainingCount;
+    for(size_t i=0;i<longCount;++i){
+      const int a=result.ahc[i];
+      const auto& q=result.vbx.q[i];
+      const int v=std::max_element(q.begin(),q.end())-q.begin();
+      if(result.vbx.priors[v]<=1e-7 || (ahcToVbx[a]>=0&&ahcToVbx[a]!=v) ||
+         (vbxToAhc[v]>=0&&vbxToAhc[v]!=a)){sameLongPartition=false;break;}
+      ahcToVbx[a]=v;vbxToAhc[v]=a;
+    }
+    if(sameLongPartition){
+      result.centroids.assign(groups,Vec(dim));std::vector<int> counts(groups);
+      for(size_t i=0;i<train.size();++i){const int c=result.ahc[i];if(c<0||c>=groups)continue;++counts[c];for(int j=0;j<dim;++j)result.centroids[c][j]+=train[i][j];}
+      for(int c=0;c<groups;++c)for(int j=0;j<dim;++j)result.centroids[c][j]/=std::max(1,counts[c]);
+      result.usedAhcFallback=true;
+    }
   }
   if(maxSpeakers<1||maxSpeakers>4)throw std::runtime_error("invalid speaker cap");
   if(result.centroids.size()>static_cast<size_t>(maxSpeakers)) {
