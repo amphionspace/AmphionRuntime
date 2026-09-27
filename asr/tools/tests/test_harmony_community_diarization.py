@@ -23,7 +23,14 @@ def run_community_session(body):
       const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
       class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
-      class SpeakerDiarizationLocalClient {cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}}
+      class SpeakerDiarizationLocalClient {
+        evidence=[];
+        retainEvidence(w){this.evidence.push({segments:w.segments.slice(),embeddings:w.embeddings.slice()});}
+        readEvidence(n){const segments=new Float32Array(n*589*3),embeddings=new Float32Array(n*3*256);
+          for(let i=0;i<n;i++){segments.set(this.evidence[i].segments,i*589*3);embeddings.set(this.evidence[i].embeddings,i*3*256);}
+          return {segments,embeddings};}
+        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}
+      }
       function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
       let released=0;
@@ -45,6 +52,24 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    def test_public_commit_keeps_the_original_inputs_needed_by_later_clustering(self):
+        run_community_session("""
+          const s=session();s.totalSamples=14000*16;
+          const submitted=[];
+          s.client.cluster=async(segments,embeddings,cap,starts,begin)=>{
+            submitted.push([...starts]);
+            return {speakerCount:1,hard:Array(starts.length*3).fill(0),
+              turns:[[begin/16,starts.at(-1)/16+10000,0]]};
+          };
+          s.onWindow(window(0));
+          const first=await s.commitWindow(10000,10000,false,0),frozen=JSON.stringify(first);
+          s.onWindow(window(2));await s.commitWindow(12000,12000,false,10000);
+          s.onWindow(window(4));await s.commitWindow(14000,Infinity,true,12000);
+          assert.deepEqual(submitted,[[0],[0,32000],[0,32000,64000]],
+            'publishing text does not make later acoustic evidence dispensable');
+          assert.equal(JSON.stringify(first),frozen);
+        """)
+
     def test_commit_period_only_changes_freeze_deadline_and_finish_drains_short_tail(self):
         run_community_session("""
           for(const period of [30000,60000,120000]) {
@@ -84,7 +109,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           }
         """)
 
-    def test_window_identity_survives_pruning_and_preview_does_not_enroll(self):
+    def test_window_identity_uses_stable_keys_and_preview_does_not_enroll(self):
         run_node(f"""
           import assert from 'node:assert/strict';
           import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
@@ -93,30 +118,11 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           const preview=ids.fork();
           assert.equal(preview.assign(['a','b','c'],[0,-2,-2,1,-2,-2,2,-2,-2],3,
             [200,0,0,100,0,0,80,0,0]).after,3);
-          ids.retainWindows(['a','b']);
           const next=ids.assign(['b','new','a'],[0,-2,-2,2,-2,-2,1,-2,-2],3,
             [100,0,0,80,0,0,200,0,0],[0,0,0,80,0,0,0,0,0],[false,false,true]);
           assert.deepEqual(next.mapping,[1,0,2],'array movement must not change acoustic ownership');
           assert.equal(next.before,2,'temporary labels must not consume frozen identities');
           assert.equal(next.after,3);
-          assert.deepEqual(new Set(ids.anchorWindowIds()),new Set(['a','b','new']));
-        """)
-
-    def test_enrollment_keeps_the_original_batch_without_growing_on_later_speech(self):
-        run_node(f"""
-          import assert from 'node:assert/strict';
-          import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
-          const ids=new CommunitySpeakerIdentity(4);
-          ids.assign(['a','b','c'],[0,-2,-2,0,-2,-2,1,-2,-2],2,[10,0,0,20,0,0,10,0,0]);
-          assert.deepEqual(ids.anchorWindowIds(),['a','b','c'],'one representative loses the original VBx support');
-          for(let round=0;round<100;round++){{
-            const key=`later-${{round}}`;
-            ids.assign(['a','b','c',key],[0,-2,-2,0,-2,-2,1,-2,-2,0,-2,-2],2,
-              [10,0,0,20,0,0,10,0,0,500,0,0]);
-            ids.retainWindows(ids.anchorWindowIds());
-          }}
-          assert.deepEqual(ids.anchorWindowIds(),['a','b','c']);
-          assert.equal(ids.committedIds.size,3,'discarded windows cannot accumulate identity records');
         """)
 
     def test_live_preview_arrives_before_finish_and_final_can_revoke_it(self):
@@ -402,9 +408,10 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         stubs="""
           import assert from 'node:assert/strict';
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
-          let nextDiarizationJobId=1,closeCount=0,resolveCluster;
+          let nextDiarizationJobId=1,closeCount=0,removeCount=0,resolveCluster;
           class DiarizationWindowScheduler {}
           class DiarizationPcmSpool {close(){} remove(){}}
+          class DiarizationEvidenceSpool {close(){} remove(){removeCount++;}}
           class CommunityDiarizationInference {
             async load(){} close(){closeCount++;}
             cluster(){return new Promise(r=>resolveCluster=r);}
@@ -418,9 +425,9 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
       let released=0;c.cancel(()=>released++);
-          assert.equal(closeCount,0);assert.equal(released,0);
+          assert.equal(closeCount,0);assert.equal(released,0);assert.equal(removeCount,0);
           resolveCluster({});await pending;
-          assert.equal(closeCount,1);assert.equal(released,1);
+          assert.equal(closeCount,1);assert.equal(released,1);assert.equal(removeCount,1);
         """
         with tempfile.TemporaryDirectory() as directory:
             harness=Path(directory)/'client.mts'

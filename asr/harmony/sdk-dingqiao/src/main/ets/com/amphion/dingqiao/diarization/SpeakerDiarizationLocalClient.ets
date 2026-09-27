@@ -1,4 +1,5 @@
 import { DiarizationPcmSpool } from './DiarizationPcmSpool';
+import { DiarizationEvidence, DiarizationEvidenceSpool } from './DiarizationEvidenceSpool';
 import { CommunityDiarizationInference, CommunityDiarizationWindow, CommunityDiarizationCluster } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
@@ -60,6 +61,7 @@ export class SpeakerDiarizationLocalClient {
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
   private readonly spool: DiarizationPcmSpool;
+  private readonly evidence: DiarizationEvidenceSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
   private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference();
   private readonly maxPendingJobs: number;
@@ -93,6 +95,7 @@ export class SpeakerDiarizationLocalClient {
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
+    this.evidence = new DiarizationEvidenceSpool(this.jobDir);
     this.inferenceLoad = this.inference.load(context);
     this.inferenceLoad.then((): void => {
       this.loadSettled = true;
@@ -142,6 +145,19 @@ export class SpeakerDiarizationLocalClient {
   }
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
+
+  retainEvidence(window: CommunityDiarizationWindow): void {
+    try { this.evidence.append(window.segments, window.embeddings); }
+    catch (error) { throw new SpeakerDiarizationStorageError(`${error}`); }
+  }
+
+  readEvidence(windowCount: number): DiarizationEvidence {
+    try { return this.evidence.read(windowCount); }
+    catch (error) {
+      this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE, `diarization evidence read failed: ${error}`);
+      throw new SpeakerDiarizationStorageError(`${error}`);
+    }
+  }
 
   async cluster(segments: Float32Array, embeddings: Float32Array,
     maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number): Promise<CommunityDiarizationCluster> {
@@ -403,11 +419,12 @@ export class SpeakerDiarizationLocalClient {
     for (let index = 0; index < callbacks.length; index++) callbacks[index]();
   }
 
-  private closeSpool(): void { this.spool.close(); }
+  private closeSpool(): void { this.spool.close(); this.evidence.close(); }
 
   private removeJobFiles(): void {
     try {
       this.spool.remove();
+      this.evidence.remove();
       fs.rmdirSync(this.jobDir);
     } catch (_ignored) {}
   }

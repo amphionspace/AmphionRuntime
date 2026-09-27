@@ -9,7 +9,6 @@ export interface CommunityIdentityAssignment {
 export class CommunitySpeakerIdentity {
   private committedIds: Map<string, number> = new Map<string, number>();
   private committedActivity: Map<string, number> = new Map<string, number>();
-  private enrollmentWindows: Set<string> = new Set<string>();
   private nextId: number = 0;
   private readonly maxSpeakers: number;
 
@@ -19,26 +18,8 @@ export class CommunitySpeakerIdentity {
     const copy = new CommunitySpeakerIdentity(this.maxSpeakers);
     copy.committedIds = new Map(this.committedIds);
     copy.committedActivity = new Map(this.committedActivity);
-    copy.enrollmentWindows = new Set(this.enrollmentWindows);
     copy.nextId = this.nextId;
     return copy;
-  }
-
-  /** Keep the evidence that established each identity, once per enrollment.
-   * VBx depends on observation support; a single selected window is not an
-   * equivalent summary of the batch that established a frozen identity.
-   */
-  anchorWindowIds(): string[] {
-    return Array.from(this.enrollmentWindows);
-  }
-
-  retainWindows(windowIds: string[]): void {
-    const retained = new Set<string>(windowIds);
-    this.committedIds.forEach((_id: number, key: string): void => {
-      if (retained.has(key.substring(0, key.lastIndexOf(':')))) return;
-      this.committedIds.delete(key);
-      this.committedActivity.delete(key);
-    });
   }
 
   assign(windowIds: string[], hard: number[], clusterCount: number, activity: number[],
@@ -83,7 +64,6 @@ export class CommunitySpeakerIdentity {
         publishedActivity[index] <= 0 || (visibleClusters !== undefined && !visibleClusters[cluster])) continue;
       this.committedIds.set(keys[index], best[cluster]);
       this.committedActivity.set(keys[index], publishedActivity[index]);
-      if (best[cluster] >= before) this.enrollmentWindows.add(windowIds[Math.floor(index / 3)]);
     }
     return { mapping: best, votes, before, after: this.nextId };
   }
