@@ -3,31 +3,51 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 export interface DiarizationEvidence {
   segments: Float32Array;
   embeddings: Float32Array;
+  runEmbeddings: Float32Array;
+  runRanges: Float32Array;
 }
 
 /** Lossless session evidence. Public transcript commits cannot discard model inputs. */
 export class DiarizationEvidenceSpool {
   private readonly segmentPath: string;
   private readonly embeddingPath: string;
+  private readonly runEmbeddingPath: string;
+  private readonly runRangePath: string;
   private segmentWriter: number = -1;
   private embeddingWriter: number = -1;
+  private runEmbeddingWriter: number = -1;
+  private runRangeWriter: number = -1;
   private windows: number = 0;
+  private readonly runCounts: number[] = [];
 
   constructor(directory: string) {
     this.segmentPath = `${directory}/segments.f32`;
     this.embeddingPath = `${directory}/embeddings.f32`;
+    this.runEmbeddingPath = `${directory}/run-embeddings.f32`;
+    this.runRangePath = `${directory}/run-ranges.f32`;
   }
 
-  append(segments: Float32Array, embeddings: Float32Array): void {
+  append(segments: Float32Array, embeddings: Float32Array,
+    runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0)): void {
     if (segments.length !== 589 * 3 || embeddings.length !== 3 * 256) {
       throw new Error('invalid diarization evidence shape');
+    }
+    if (runRanges.length % 4 !== 0 || runEmbeddings.length !== runRanges.length / 4 * 256) {
+      throw new Error('invalid diarization run evidence shape');
     }
     if (this.segmentWriter < 0) this.segmentWriter = fs.openSync(this.segmentPath,
       fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND).fd;
     if (this.embeddingWriter < 0) this.embeddingWriter = fs.openSync(this.embeddingPath,
       fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND).fd;
-    this.write(this.segmentWriter, segments);
-    this.write(this.embeddingWriter, embeddings);
+    if (runEmbeddings.length > 0 && this.runEmbeddingWriter < 0) this.runEmbeddingWriter = fs.openSync(this.runEmbeddingPath,
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND).fd;
+    if (runRanges.length > 0 && this.runRangeWriter < 0) this.runRangeWriter = fs.openSync(this.runRangePath,
+      fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.APPEND).fd;
+    this.writeFloat32(this.segmentWriter, segments);
+    this.writeFloat32(this.embeddingWriter, embeddings);
+    if (runEmbeddings.length > 0) this.writeFloat32(this.runEmbeddingWriter, runEmbeddings);
+    if (runRanges.length > 0) this.writeFloat32(this.runRangeWriter, runRanges);
+    this.runCounts.push(runRanges.length / 4);
     this.windows += 1;
   }
 
@@ -37,7 +57,10 @@ export class DiarizationEvidenceSpool {
     }
     return {
       segments: new Float32Array(this.readFile(this.segmentPath, windowCount * 589 * 3 * 4)),
-      embeddings: new Float32Array(this.readFile(this.embeddingPath, windowCount * 3 * 256 * 4))
+      embeddings: new Float32Array(this.readFile(this.embeddingPath, windowCount * 3 * 256 * 4)),
+      runEmbeddings: new Float32Array(this.readFile(this.runEmbeddingPath,
+        this.runCountPrefix(windowCount) * 256 * 4)),
+      runRanges: this.readRunRanges(windowCount)
     };
   }
 
@@ -46,15 +69,21 @@ export class DiarizationEvidenceSpool {
     this.segmentWriter = -1;
     if (this.embeddingWriter >= 0) fs.closeSync(this.embeddingWriter);
     this.embeddingWriter = -1;
+    if (this.runEmbeddingWriter >= 0) fs.closeSync(this.runEmbeddingWriter);
+    this.runEmbeddingWriter = -1;
+    if (this.runRangeWriter >= 0) fs.closeSync(this.runRangeWriter);
+    this.runRangeWriter = -1;
   }
 
   remove(): void {
     this.close();
     if (fs.accessSync(this.segmentPath)) fs.unlinkSync(this.segmentPath);
     if (fs.accessSync(this.embeddingPath)) fs.unlinkSync(this.embeddingPath);
+    if (fs.accessSync(this.runEmbeddingPath)) fs.unlinkSync(this.runEmbeddingPath);
+    if (fs.accessSync(this.runRangePath)) fs.unlinkSync(this.runRangePath);
   }
 
-  private write(fd: number, values: Float32Array): void {
+  private writeFloat32(fd: number, values: Float32Array): void {
     const bytes = values.buffer.slice(values.byteOffset, values.byteOffset + values.byteLength);
     if (fs.writeSync(fd, bytes) !== bytes.byteLength) throw new Error('incomplete diarization evidence write');
   }
@@ -69,5 +98,22 @@ export class DiarizationEvidenceSpool {
       }
     } finally { fs.closeSync(file.fd); }
     return result;
+  }
+
+  private runCountPrefix(windowCount: number): number {
+    let count = 0;
+    for (let index = 0; index < windowCount; index++) count += this.runCounts[index] ?? 0;
+    return count;
+  }
+
+  private readRunRanges(windowCount: number): Float32Array {
+    const ranges = new Float32Array(this.readFile(this.runRangePath, this.runCountPrefix(windowCount) * 4 * 4));
+    let offset = 0;
+    for (let window = 0; window < windowCount; window++) {
+      const count = this.runCounts[window] ?? 0;
+      for (let run = 0; run < count; run++) ranges[offset + run * 4] = window;
+      offset += count * 4;
+    }
+    return ranges;
   }
 }
