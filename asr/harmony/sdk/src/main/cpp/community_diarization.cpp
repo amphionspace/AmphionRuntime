@@ -203,7 +203,9 @@ class Model {
     // The split graphs retain the pinned model's weights. Encoded features
     // belong to this Process call and outlive all of its synchronous pooling
     // calls; they are never retained across windows, generations or sessions.
-    auto encoded = encoder_.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
+    Ort::RunOptions encoder_run;
+    encoder_run.AddConfigEntry("memory.enable_memory_arena_shrinkage", "cpu:0");
+    auto encoded = encoder_.Run(encoder_run, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
     if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
       throw std::runtime_error("invalid Community encoder output");
     }
