@@ -1,4 +1,4 @@
-import { AsrResult, ResultAudioTimeline } from 'amphion_asr';
+import { AsrResult, AsrTextNormalizationSpan, ResultAudioTimeline } from 'amphion_asr';
 import { DiarizationCommitClock } from './DiarizationCommitClock';
 import {
   DiarizedUtterance, SpeakerDiarizationDegradedReason, SpeakerDiarizationResult,
@@ -9,7 +9,8 @@ import { DiarizationLocalWindowResult, SpeakerDiarizationLocalClient,
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import { speakerIndexFromInternalId, speakerIndexesFromInternalIds } from './SpeakerDiarizationSpeakerIndex';
 import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
-  DiarizedTranscriptUtterance } from './SpeakerDiarizationTranscriptState';
+  DiarizedTranscriptUtterance, TranscriptTextNormalization,
+  TranscriptNormalizationSpan } from './SpeakerDiarizationTranscriptState';
 import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerIdentity';
 
 const SAMPLE_RATE: number = 16000;
@@ -113,9 +114,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     const endTime = payload.endTime ??
       timestampMs[timestampMs.length - 1] ?? Math.round(this.totalSamples * 1000 / SAMPLE_RATE);
     this.lastAsrEndMs = Math.max(this.lastAsrEndMs, endTime);
+    const normalization: TranscriptTextNormalization | undefined = result.textNormalization === undefined ?
+      undefined : {
+        text: result.textNormalization.text,
+        spans: result.textNormalization.spans.map((span: AsrTextNormalizationSpan): TranscriptNormalizationSpan => ({
+          sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+          textBegin: span.textBegin, textEnd: span.textEnd,
+        })),
+      };
     const utteranceId = this.transcript.addUtterance({
       rawText: result.rawText,
-      textNormalization: result.textNormalization,
+      textNormalization: normalization,
       text: payload.result,
       tokens: result.tokens,
       tokenTimesMs: timestampMs,

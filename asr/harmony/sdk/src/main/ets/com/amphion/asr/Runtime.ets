@@ -17,7 +17,8 @@ import {
   Vad as SherpaVad,
   VadConfig as SherpaVadConfig,
   WetextItn,
-  WetextItnConfig
+  WetextItnConfig,
+  WetextItnSpan
 } from 'sherpa_onnx';
 import { fileIo } from '@kit.CoreFileKit';
 import {
@@ -40,6 +41,7 @@ import {
   AsrErrorCode,
   AsrLanguage,
   AsrResult,
+  AsrTextNormalizationSpan,
   Cancellable,
   EndpointRules,
   LicenseEnforcement,
@@ -2058,7 +2060,14 @@ export class AsrSession {
     const postStartMs = Date.now();
     if (this.itn !== undefined && result.text.length > 0) {
       try {
-        result.textNormalization = this.itn.normalizeWithAlignment(result.text);
+        const normalized = this.itn.normalizeWithAlignment(result.text);
+        result.textNormalization = {
+          text: normalized.text,
+          spans: normalized.spans.map((span: WetextItnSpan): AsrTextNormalizationSpan => ({
+            sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+            textBegin: span.textBegin, textEnd: span.textEnd,
+          })),
+        };
         result.text = result.textNormalization.text;
       } catch (e) {
         if (!this.callbackGate.invoke((): void => {

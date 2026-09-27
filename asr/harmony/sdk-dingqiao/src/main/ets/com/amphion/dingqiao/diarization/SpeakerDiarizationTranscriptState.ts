@@ -9,14 +9,14 @@ export interface DiarizationTranscriptInput {
   textNormalization?: TranscriptTextNormalization;
 }
 
-interface TranscriptNormalizationSpan {
+export interface TranscriptNormalizationSpan {
   sourceBegin: number;
   sourceEnd: number;
   textBegin: number;
   textEnd: number;
 }
 
-interface TranscriptTextNormalization {
+export interface TranscriptTextNormalization {
   text: string;
   spans: TranscriptNormalizationSpan[];
 }
