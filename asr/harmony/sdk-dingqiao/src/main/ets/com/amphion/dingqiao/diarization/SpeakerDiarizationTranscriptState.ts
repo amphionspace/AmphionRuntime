@@ -44,7 +44,7 @@ interface StoredUtterance extends DiarizationTranscriptInput {
 }
 
 const UNKNOWN_SPEAKER = 'UNKNOWN';
-// One current inference hop. See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
+// Fixed authorized inference bound (not the model hop). See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
 // measured bounded/unbounded comparison; this is not an identity threshold.
 const MAX_UNKNOWN_BACKFILL_MS = 2_500;
 
@@ -65,8 +65,8 @@ function visibleSecondaryIds(ids: string[], primary: string): string[] {
     id !== primary && all.indexOf(id) === index);
 }
 
-// Exact alignment handles inserted punctuation/spacing. Lexical rewrites fall
-// back to the conservative partial-alignment path below.
+// Exact alignment handles inserted punctuation/spacing. Lexical rewrites
+// require provenance from the postprocessor; edit distance is not provenance.
 function tokenTextBoundaries(tokens: string[], text: string): number[] | undefined {
   const inserted = ' ,.!?，。！？、;；:：\t\r\n';
   const boundaries: number[] = [0];
@@ -99,87 +99,6 @@ function tokenTextBoundaries(tokens: string[], text: string): number[] | undefin
 interface TranscriptCut {
   tokenIndex: number;
   textOffset: number;
-}
-
-// A lexical rewrite must not invalidate unrelated clauses. Retain only cuts
-// shared by every minimum-edit path; repeated/deleted text cannot choose a
-// convenient occurrence. Rewritten pieces still use the conservative fallback.
-function unambiguousPunctuationCuts(tokens: string[], text: string): TranscriptCut[] {
-  const original = tokens.join('');
-  const inserted = ' ,.!?，。！？、;；:：\t\r\n';
-  const raw = Array.from(original);
-  const plain: string[] = [];
-  const textOffsets: number[] = [];
-  let offset = 0;
-  for (const character of Array.from(text)) {
-    if (inserted.indexOf(character) < 0) {
-      plain.push(character);
-      textOffsets.push(offset);
-    }
-    offset += character.length;
-  }
-  const fallback = [{ tokenIndex: 0, textOffset: 0 },
-    { tokenIndex: tokens.length, textOffset: text.length }];
-  // Two uint32 matrices use at most 8 MiB. Long or already-punctuated raw
-  // endpoints keep the existing unsplit result instead of allocating unboundedly.
-  const width = plain.length + 1;
-  const cells = (raw.length + 1) * width;
-  if (raw.length === 0 || plain.length === 0 || cells > 1_048_576 ||
-    raw.some(character => inserted.indexOf(character) >= 0)) return fallback;
-  const forward = new Uint32Array(cells);
-  const backward = new Uint32Array(cells);
-  for (let i = 0; i <= raw.length; i++) forward[i * width] = i;
-  for (let j = 0; j <= plain.length; j++) forward[j] = j;
-  for (let i = 1; i <= raw.length; i++) {
-    for (let j = 1; j <= plain.length; j++) {
-      forward[i * width + j] = Math.min(forward[(i - 1) * width + j] + 1,
-        forward[i * width + j - 1] + 1,
-        forward[(i - 1) * width + j - 1] + (raw[i - 1] === plain[j - 1] ? 0 : 1));
-    }
-  }
-  for (let i = 0; i <= raw.length; i++) backward[i * width + plain.length] = raw.length - i;
-  for (let j = 0; j <= plain.length; j++) backward[raw.length * width + j] = plain.length - j;
-  for (let i = raw.length - 1; i >= 0; i--) {
-    for (let j = plain.length - 1; j >= 0; j--) {
-      backward[i * width + j] = Math.min(backward[(i + 1) * width + j] + 1,
-        backward[i * width + j + 1] + 1,
-        backward[(i + 1) * width + j + 1] + (raw[i] === plain[j] ? 0 : 1));
-    }
-  }
-  const cost = forward[cells - 1];
-  const owners: number[] = [];
-  for (let j = 0; j < plain.length; j++) {
-    let owner = -1;
-    let ambiguous = false;
-    for (let i = 0; i <= raw.length; i++) {
-      const prefix = forward[i * width + j];
-      if (prefix + 1 + backward[i * width + j + 1] === cost) ambiguous = true;
-      if (i === raw.length) continue;
-      const exact = raw[i] === plain[j];
-      if (prefix + (exact ? 0 : 1) + backward[(i + 1) * width + j + 1] === cost) {
-        if (!exact || (owner >= 0 && owner !== i)) ambiguous = true;
-        owner = i;
-      }
-    }
-    owners.push(ambiguous ? -1 : owner);
-  }
-  const tokenAt: Map<number, number> = new Map<number, number>();
-  let characters = 0;
-  for (let index = 0; index < tokens.length; index++) {
-    tokenAt.set(characters, index);
-    characters += Array.from(tokens[index]).length;
-  }
-  const cuts: TranscriptCut[] = [fallback[0]];
-  for (let j = 1; j < plain.length; j++) {
-    const gap = text.slice(textOffsets[j - 1] + plain[j - 1].length, textOffsets[j]);
-    const tokenIndex = tokenAt.get(owners[j]);
-    if (/[，。！？；]/.test(gap) && owners[j - 1] >= 0 && owners[j] === owners[j - 1] + 1 &&
-      tokenIndex !== undefined && tokenIndex > 0) {
-      cuts.push({ tokenIndex, textOffset: textOffsets[j] });
-    }
-  }
-  cuts.push(fallback[1]);
-  return cuts;
 }
 
 interface TimedTranscriptTokens {
@@ -343,13 +262,21 @@ export class SpeakerDiarizationTranscriptState {
     return result;
   }
 
+  private sourceAssignments(utterance: StoredUtterance): DiarizedTranscriptUtterance[] {
+    const source: StoredUtterance = { ...utterance, text: utterance.rawText };
+    const boundaries = source.tokens.length > 0 && source.tokens.length === source.tokenTimesMs.length &&
+      source.tokens.join('') === source.rawText ? tokenTextBoundaries(source.tokens, source.rawText) : undefined;
+    return boundaries === undefined ? [this.unsplitUtterance(source)] :
+      this.splitByTokenSpeaker(source, boundaries, false);
+  }
+
   private punctuationUnits(utterance: StoredUtterance): StoredUtterance[] {
     if (utterance.tokens.length === 0 || utterance.tokens.length !== utterance.tokenTimesMs.length ||
       utterance.tokens.join('') !== utterance.rawText) return [utterance];
     const boundaries = tokenTextBoundaries(utterance.tokens, utterance.text);
     let cuts: TranscriptCut[];
     if (boundaries === undefined) {
-      cuts = unambiguousPunctuationCuts(utterance.tokens, utterance.text);
+      return [utterance];
     } else {
       cuts = [{ tokenIndex: 0, textOffset: 0 }];
       for (let index = 1; index < utterance.tokens.length; index++) {
@@ -377,16 +304,36 @@ export class SpeakerDiarizationTranscriptState {
   sentenceUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
     for (const original of this.utterances.filter(utterance => (utterance.audioEndTime ?? utterance.endTime) <= throughTime)) {
+      // Associate and infer once within the native utterance. Presentation cuts
+      // may select existing assignments, but must never rerun neighbour inference.
+      const boundaries = original.tokens.length > 0 &&
+        original.tokens.length === original.tokenTimesMs.length && original.tokens.join('') === original.rawText ?
+        tokenTextBoundaries(original.tokens, original.text) : undefined;
+      const source = this.sourceAssignments(original);
+      const aligned = boundaries === undefined ? [this.unsplitUtterance(original)] : source;
+      let sourceOffset = 0;
       const units = this.punctuationUnits(original).map(utterance => {
-        const boundaries = utterance.tokens.length > 0 && utterance.tokens.length === utterance.tokenTimesMs.length ?
-          tokenTextBoundaries(utterance.tokens, utterance.text) : undefined;
-        const parts = boundaries === undefined ? [this.unsplitUtterance(utterance)] : this.splitByTokenSpeaker(utterance, boundaries);
+        const sourceBegin = sourceOffset;
+        sourceOffset += utterance.rawText.length;
+        let partOffset = 0;
+        const parts = aligned.filter(part => {
+          const partBegin = partOffset;
+          partOffset += part.rawText.length;
+          return partBegin < sourceOffset && partOffset > sourceBegin;
+        });
         const turns = this.turns.filter(turn =>
           overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) > 0);
         const participants = new Set<string>();
         for (const turn of turns) {
           participants.add(turn.speakerId);
           for (const id of turn.secondarySpeakerIds) participants.add(id);
+        }
+        // An inferred tail may have no acoustic turn inside this display unit.
+        // Its owner comes from the original utterance's bounded inference above.
+        for (const part of parts) {
+          if (part.speakerId !== UNKNOWN_SPEAKER && part.speakerId !== 'UNKNOWN_SECONDARY') {
+            participants.add(part.speakerId);
+          }
         }
         const known = Array.from(participants).filter(id => id !== UNKNOWN_SPEAKER && id !== 'UNKNOWN_SECONDARY');
         const overlap = turns.some(turn => turn.overlap || turn.secondarySpeakerIds.length > 0);
@@ -407,7 +354,8 @@ export class SpeakerDiarizationTranscriptState {
         }
         const single = known.length === 1 && !overlap && bounded && parts.length > 0 &&
           parts.every(part => part.speakerId === known[0]);
-        const inferred = single && (turns.some(turn => turn.speakerId === UNKNOWN_SPEAKER) || parts.some(part => part.speakerInferred));
+        const inferred = parts.some(part => part.speakerInferred) ||
+          (single && turns.some(turn => turn.speakerId === UNKNOWN_SPEAKER));
         return {
           utteranceId: utterance.utteranceId,
           sourceUtteranceId: original.utteranceId,
@@ -639,14 +587,13 @@ export class SpeakerDiarizationTranscriptState {
   }
 
   private splitByTokenSpeaker(utterance: StoredUtterance,
-    textBoundaries: number[]): DiarizedTranscriptUtterance[] {
+    textBoundaries: number[], merge: boolean = true): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
-    const unanimous = this.unanimousSpeakerTurn(utterance);
     let groupStart = 0;
-    let active = this.turnAt(utterance.tokenTimesMs[0]) ?? unanimous;
+    let active = this.turnAt(utterance.tokenTimesMs[0]);
     for (let index = 1; index <= utterance.tokens.length; index++) {
       const next = index < utterance.tokens.length ?
-        (this.turnAt(utterance.tokenTimesMs[index]) ?? unanimous) : undefined;
+        this.turnAt(utterance.tokenTimesMs[index]) : undefined;
       const same = index < utterance.tokens.length &&
         (next?.speakerId ?? UNKNOWN_SPEAKER) === (active?.speakerId ?? UNKNOWN_SPEAKER);
       if (same) continue;
@@ -682,10 +629,10 @@ export class SpeakerDiarizationTranscriptState {
       groupStart = index;
       active = next;
     }
-    return this.backfillUnknown(result);
+    return this.backfillUnknown(result, merge);
   }
 
-  private backfillUnknown(parts: DiarizedTranscriptUtterance[]): DiarizedTranscriptUtterance[] {
+  private backfillUnknown(parts: DiarizedTranscriptUtterance[], merge: boolean = true): DiarizedTranscriptUtterance[] {
     const resolved = parts.map((part, index): DiarizedTranscriptUtterance => {
       const duration = part.endTime - part.beginTime;
       if (part.speakerId !== UNKNOWN_SPEAKER || duration < 0 || duration > MAX_UNKNOWN_BACKFILL_MS ||
@@ -713,6 +660,7 @@ export class SpeakerDiarizationTranscriptState {
           this.blocksBackfill(turn)))) return part;
       return { ...part, speakerId, confidence: 0, speakerInferred: true };
     });
+    if (!merge) return resolved;
     const merged: DiarizedTranscriptUtterance[] = [];
     for (const part of resolved) {
       const previous = merged[merged.length - 1];
@@ -741,20 +689,11 @@ export class SpeakerDiarizationTranscriptState {
       ((part.overlap ?? false) && part.secondarySpeakerIds.length === 0);
   }
 
-  private unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn | undefined {
-    let candidate: SpeakerTimelineTurn | undefined;
-    for (const turn of this.turns) {
-      if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue;
-      // Missing acoustic coverage is distinct from an explicitly uncertain or overlapping turn.
-      if (turn.speakerId === UNKNOWN_SPEAKER || turn.overlap || turn.secondarySpeakerIds.length > 0 ||
-        (candidate !== undefined && candidate.speakerId !== turn.speakerId)) return undefined;
-      candidate = turn;
-    }
-    return candidate;
-  }
-
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
     const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
+    // Wetext currently returns only a string. Without exact source relations,
+    // lexical merges/expansions/replacements cannot acquire a guessed owner.
+    const exactText = tokenTextBoundaries([utterance.rawText], utterance.text) !== undefined;
     return {
       utteranceId: utterance.utteranceId,
       sourceUtteranceId: utterance.utteranceId,
@@ -762,9 +701,9 @@ export class SpeakerDiarizationTranscriptState {
       text: utterance.text,
       beginTime: utterance.beginTime,
       endTime: utterance.endTime,
-      speakerId: utterance.speakerId,
+      speakerId: exactText ? utterance.speakerId : UNKNOWN_SPEAKER,
       secondarySpeakerIds: utterance.secondarySpeakerIds.slice(),
-      confidence: assignment.confidence,
+      confidence: exactText ? assignment.confidence : 0,
       overlap: this.hasOverlap(utterance.beginTime, utterance.endTime),
     };
   }

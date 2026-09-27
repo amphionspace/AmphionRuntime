@@ -82,7 +82,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
               speakerCount:1,hard:Array(starts.length*3).fill(0),turns:[[begin/16,period+5000,0]]});
             s.totalSamples=(period+5000)*16;
             s.observeAsrFinal({result:'完整原句',beginTime:100,endTime:5000,isLast:false},
-              {tokens:['完','整','原','句'],timestamps:[.1,1,2,3],audioEndSample:6000*16,isLast:false});
+              {rawText:'完整原句',tokens:['完','整','原','句'],timestamps:[.1,1,2,3],audioEndSample:6000*16,isLast:false});
             s.asrFinalDelivered({audioEndSample:6000*16,isLast:false});
             s.onWindow(window(0));s.asrAudioProcessed(10000*16);
             await new Promise(r=>setImmediate(r));
@@ -99,7 +99,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             const frozen=JSON.stringify(published[0]);
             s.finish();s.onDrained();
             s.observeAsrFinal({result:'尾句',beginTime:period,endTime:period+1000,isLast:true},
-              {tokens:['尾','句'],timestamps:[period/1000,period/1000+.5],
+              {rawText:'尾句',tokens:['尾','句'],timestamps:[period/1000,period/1000+.5],
                 audioEndSample:(period+5000)*16,isLast:true});
             await new Promise(r=>setImmediate(r));
             assert.equal(published.length,2);
