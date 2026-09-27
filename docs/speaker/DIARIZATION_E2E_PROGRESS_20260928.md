@@ -76,3 +76,5 @@ Qwen 入口为 `annotate_qwen_audio.py --audio <wav> --output-dir <new-dir> --ap
 45 项相关用例通过（评估门禁、评分器、矩阵/生命周期分析、快照重放/Qwen 解析和 Harmony 公共角色契约）。覆盖输入与 reference 哈希变化、不可覆盖输出、人数塌缩否决、已有失败归因、错误产物 review、缺失前序窗口、同 PCM 重叠向量不算独立证据、逐词换人及 UNKNOWN、失败预检不采旧日志、未通过锚点不扩展长跑等。ZH_EN diagnostics 构建及五个产物 build identity 校验通过；真机范围和红灯如上。未执行最终 Release、Android 全矩阵或完整客户验收，不能将本次测试数量视为整体放行。
 
 后续优化记录：[同窗口 embedding 复用与瓶颈](DIARIZATION_EMBEDDING_REUSE_20260928.md)。运行提交 `83fa0e41` 在三个固定输入上保持窗口张量、原句、临时和冻结结果完全一致，降低重复编码成本；身份塌缩和资源红灯仍阻断整体交付。
+
+后续已完成单窗口共享 encoder 候选 `7b5b7fb0`，三输入 150 个窗口及公开结果逐项等价，124 秒/180 秒 embedding 耗时再降约 44%/51%。当前 run 路径的 1 秒/2 秒采样状态差分与资源未决项见 [共享 encoder 与采样协议差分](DIARIZATION_SHARED_ENCODER_20260928.md)。整体交付仍阻断，不能以性能改善覆盖既有身份红灯。
