@@ -1,0 +1,388 @@
+{
+  "scope": "within-window exact-mask reuse; partial regression evidence, not delivery acceptance",
+  "runtimeCommit": "83fa0e415e8835f345fefe610a18bc3b819aacc1",
+  "device": "7GK0226326015655",
+  "systemVersion": "OpenHarmony-6.1.1.120",
+  "releaseStatus": "BLOCKED",
+  "binding": {
+    "commit": "83fa0e415e8835f345fefe610a18bc3b819aacc1",
+    "sourceFingerprint": "951c7bfee284b8689b2872066285ce80adfda706b334833f5b3401d251f1e2b2",
+    "device": "7GK0226326015655",
+    "systemVersion": "OpenHarmony-6.1.1.120",
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/candidate-artifacts/amphion_asr.har",
+        "sha256": "1198cc57610bef489672af91b570aa6035e3eaa55745b21a7cdc61d020e9b50c"
+      },
+      "amphion_asr_demo.hap": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/candidate-artifacts/amphion_asr_demo.hap",
+        "sha256": "7093094ec1037c01e9dd997cfa82cba5759a35e97db8f670fc4778076908e372"
+      },
+      "amphion_dingqiao.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/candidate-artifacts/amphion_dingqiao.har",
+        "sha256": "030847dd770a8e04b35eadf6bdc5a76ecf26d0590677c3763a8fee2fabcf011e"
+      },
+      "amphion_police.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/candidate-artifacts/amphion_police.har",
+        "sha256": "db733ac3491c926f658eb708ee511b4ebbe452610b1e9d6b7891a8bb7646a66b"
+      },
+      "sherpa_onnx.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/candidate-artifacts/sherpa_onnx.har",
+        "sha256": "8ca2bbaf7ba491a11608f090218c4525e6500716089d4cbd3bece8f35bd1f10c"
+      }
+    }
+  },
+  "baselineCaptures": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/baseline-captures.json",
+    "sha256": "c14b4d2e5859f0814d6d2ed3e0cddb491d164a995fb5c29944ce74941f032263"
+  },
+  "candidateCaptures": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/archived-candidate-captures.json",
+    "sha256": "6c76471070a654e3448f95570cb138b45d6567ba7989773ad92d6b8642dfcaba"
+  },
+  "pairedGates": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/paired-gate-comparison.json",
+    "sha256": "322fed4d5617e020a898537770e341831512f81dc4bf3dae2e9e25a782eedb12"
+  },
+  "cases": {
+    "four-speaker-short": {
+      "inputSha256": "f13ad95b225a88c64161ff9a01770d07718f547c97445b7b6bb61ae146f739e7",
+      "baselineReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-short/device/20260928-002104-paced-16472535/report.json",
+        "sha256": "770d32ab89181130f48436a891b9f295b427ab206ec4f8bd50b512bd55ce4282"
+      },
+      "candidateReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/four-speaker-short/device/20260928-012345-paced-21593ba3/report.json",
+        "sha256": "d20ee81f7b62fd5e46e5ac7cc7b4f06ca031dd4bd15523a972f48d78ee5d58a7"
+      },
+      "exactComparison": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/short-comparison.json",
+        "sha256": "a76a8e26d9b5354c98e77a442d01ec5f8df6d34b7900aa1f19cb932e3a7548e3"
+      },
+      "exactTensorAndPublicPayloadStatus": "PASS",
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 711.833438,
+          "candidateMs": 791.210157,
+          "changeFraction": 0.11151024209121241
+        },
+        "featureMs": {
+          "baselineMs": 144.958124,
+          "candidateMs": 136.3675,
+          "changeFraction": -0.05926279785464106
+        },
+        "embeddingMs": {
+          "baselineMs": 6433.8239060000005,
+          "candidateMs": 2472.899688,
+          "changeFraction": -0.6156407567055349
+        }
+      },
+      "rtfBefore": 0.3736269391215526,
+      "rtfAfter": 0.17801212180796733,
+      "memoryBefore": {
+        "status": "FAIL",
+        "sample_count": 22,
+        "observation_seconds": 27.504,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 438.389,
+        "tail_rss_mb": 555.859,
+        "rss_growth_mb": 117.471,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          440.672,
+          550.881,
+          555.859
+        ],
+        "peak_rss_mb": 560.004,
+        "peak_hwm_mb": 570.066,
+        "head_vm_data_mb": 2769.832,
+        "tail_vm_data_mb": 3078.645,
+        "vm_data_growth_mb": 308.812,
+        "peak_swap_mb": 89.043,
+        "head_threads": 53.0,
+        "tail_threads": 47.0,
+        "thread_growth": -6.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "memoryAfter": {
+        "status": "FAIL",
+        "sample_count": 21,
+        "observation_seconds": 25.618,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 436.418,
+        "tail_rss_mb": 559.586,
+        "rss_growth_mb": 123.168,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          438.137,
+          547.953,
+          559.586
+        ],
+        "peak_rss_mb": 559.586,
+        "peak_hwm_mb": 569.133,
+        "head_vm_data_mb": 2750.801,
+        "tail_vm_data_mb": 3107.613,
+        "vm_data_growth_mb": 356.812,
+        "peak_swap_mb": 90.441,
+        "head_threads": 52.0,
+        "tail_threads": 46.0,
+        "thread_growth": -6.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "lifecycle": {
+        "status": "PASS",
+        "completed_sessions": 1,
+        "failures": []
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 1,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    "four-speaker-124s": {
+      "inputSha256": "c381622174402fd0f7a6d61466e8b736c9ba09419d482e22a4b5d182cb7eb178",
+      "baselineReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-124s/device/20260928-001840-diarization-windows-18a907a7/report.json",
+        "sha256": "f429d9c7d7b1779c1f7676507703344980bb1f65d23fcedac79b2265ad5702f4"
+      },
+      "candidateReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/four-speaker-124s/device/20260928-012559-diarization-windows-9e95417f/report.json",
+        "sha256": "763dd7a162da8492db604c6e3e3c26cdb83d865e595fe290c54f45050bc922a5"
+      },
+      "exactComparison": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/124s-comparison.json",
+        "sha256": "62af056226561d70522290d928c3e700534ab35f5e4b7395c4581621fb42cb50"
+      },
+      "exactTensorAndPublicPayloadStatus": "PASS",
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 7400.49172,
+          "candidateMs": 7189.194213000003,
+          "changeFraction": -0.028551819932310707
+        },
+        "featureMs": {
+          "baselineMs": 1408.6384369999998,
+          "candidateMs": 1313.442036,
+          "changeFraction": -0.06758043689531945
+        },
+        "embeddingMs": {
+          "baselineMs": 58128.642180999996,
+          "candidateMs": 41920.684219,
+          "changeFraction": -0.2788291168324889
+        }
+      },
+      "rtfBefore": 0.5490692434410337,
+      "rtfAfter": 0.4184759326978998,
+      "memoryBefore": {
+        "status": "PASS",
+        "sample_count": 100,
+        "observation_seconds": 131.83,
+        "warmup_samples_excluded": 20,
+        "head_rss_mb": 605.115,
+        "tail_rss_mb": 635.951,
+        "rss_growth_mb": 30.836,
+        "rss_slope_mb_per_minute": -24.653,
+        "rss_third_medians_mb": [
+          613.984,
+          623.379,
+          636.145
+        ],
+        "peak_rss_mb": 650.836,
+        "peak_hwm_mb": 656.25,
+        "head_vm_data_mb": 3165.395,
+        "tail_vm_data_mb": 3190.27,
+        "vm_data_growth_mb": 24.875,
+        "peak_swap_mb": 82.887,
+        "head_threads": 71.0,
+        "tail_threads": 71.0,
+        "thread_growth": 0.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "memoryAfter": {
+        "status": "PASS",
+        "sample_count": 101,
+        "observation_seconds": 131.108,
+        "warmup_samples_excluded": 20,
+        "head_rss_mb": 611.387,
+        "tail_rss_mb": 645.777,
+        "rss_growth_mb": 34.391,
+        "rss_slope_mb_per_minute": -17.0,
+        "rss_third_medians_mb": [
+          617.348,
+          629.059,
+          649.297
+        ],
+        "peak_rss_mb": 665.375,
+        "peak_hwm_mb": 671.066,
+        "head_vm_data_mb": 3187.676,
+        "tail_vm_data_mb": 3212.426,
+        "vm_data_growth_mb": 24.75,
+        "peak_swap_mb": 90.098,
+        "head_threads": 72,
+        "tail_threads": 71,
+        "thread_growth": -1,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "lifecycle": {
+        "status": "PASS",
+        "completed_sessions": 1,
+        "failures": []
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 1,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    "aishell4-4": {
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "baselineReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-run/20260928-000848-diarization-windows-f10018d5/report.json",
+        "sha256": "0df67f1c3203c34fb5c0dbe52e03e020f15eb30396cfffb672d13e234f85547d"
+      },
+      "candidateReport": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/aishell4-4/device/20260928-013228-diarization-windows-386b457b/report.json",
+        "sha256": "141c780a5043f5bdd608621b25e98a39dffe221e4f1e25d07fa400729e002c4b"
+      },
+      "exactComparison": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/public-comparison.json",
+        "sha256": "e643ac108d1786a315c2324242b1c52686ee93a425a7fe039aea3a5a0818ecfe"
+      },
+      "exactTensorAndPublicPayloadStatus": "PASS",
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 10466.775937000002,
+          "candidateMs": 10549.518435000002,
+          "changeFraction": 0.007905251674253044
+        },
+        "featureMs": {
+          "baselineMs": 2081.7228109999996,
+          "candidateMs": 1945.4131259999997,
+          "changeFraction": -0.06547926759495937
+        },
+        "embeddingMs": {
+          "baselineMs": 84058.07203699999,
+          "candidateMs": 73359.43313199999,
+          "changeFraction": -0.12727675814751926
+        }
+      },
+      "rtfBefore": 0.5498753932499999,
+      "rtfAfter": 0.48895758162777786,
+      "memoryBefore": {
+        "status": "PASS",
+        "sample_count": 141,
+        "observation_seconds": 188.026,
+        "warmup_samples_excluded": 28,
+        "head_rss_mb": 611.27,
+        "tail_rss_mb": 636.941,
+        "rss_growth_mb": 25.672,
+        "rss_slope_mb_per_minute": -6.236,
+        "rss_third_medians_mb": [
+          612.896,
+          632.855,
+          635.682
+        ],
+        "peak_rss_mb": 645.805,
+        "peak_hwm_mb": 656.152,
+        "head_vm_data_mb": 3208.863,
+        "tail_vm_data_mb": 3237.395,
+        "vm_data_growth_mb": 28.531,
+        "peak_swap_mb": 89.215,
+        "head_threads": 71,
+        "tail_threads": 71,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "memoryAfter": {
+        "status": "PASS",
+        "sample_count": 142,
+        "observation_seconds": 187.587,
+        "warmup_samples_excluded": 28,
+        "head_rss_mb": 614.539,
+        "tail_rss_mb": 641.664,
+        "rss_growth_mb": 27.125,
+        "rss_slope_mb_per_minute": -8.109,
+        "rss_third_medians_mb": [
+          616.77,
+          629.514,
+          638.822
+        ],
+        "peak_rss_mb": 656.172,
+        "peak_hwm_mb": 665.484,
+        "head_vm_data_mb": 3210.676,
+        "tail_vm_data_mb": 3258.926,
+        "vm_data_growth_mb": 48.25,
+        "peak_swap_mb": 89.043,
+        "head_threads": 72,
+        "tail_threads": 72,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "lifecycle": {
+        "status": "PASS",
+        "completed_sessions": 1,
+        "failures": []
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 1,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    }
+  },
+  "tests": {
+    "communityNativeAndPublic": {
+      "tests": 48,
+      "failures": 0,
+      "log": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/unit-tests.log",
+        "sha256": "8f2002f4a8ed3ad13808fce4183836b0dbe79d49ca04cde50a197c508fb2bcb7"
+      }
+    },
+    "android": {
+      "sdk": {
+        "suites": 21,
+        "tests": 61,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-dingqiao": {
+        "suites": 22,
+        "tests": 129,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "androidNativeBuild": {
+      "before": "FAIL",
+      "after": "PASS",
+      "beforeLog": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/android-native-build.log",
+        "sha256": "7d84dd45f0ee474b523cdbdf6f1ad6bea29b5077fb9b3eb7601986686b8adfdc"
+      },
+      "afterLog": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/embedding-reuse-20260928/android-native-build-fixed.log",
+        "sha256": "3fcd3c7955e8cb2eaabed038bea579aa9d2985e1710a7b12c48073a187ca18b3"
+      }
+    }
+  },
+  "openIssues": [
+    "short cold-run RSS threshold fails in baseline and candidate",
+    "124/180 s RSS medians still increase; long-term memory inconclusive",
+    "2 s sampling still loses public minority identities",
+    "real-caller rendering, four anchors, full 16 recordings and release lifecycle matrix incomplete",
+    "Android JNI still supplies whole-window evidence; run-level parity not implemented"
+  ]
+}
