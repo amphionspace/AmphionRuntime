@@ -162,7 +162,7 @@ index 7cd81d8..c0cf831 100644
          cpu_set_t cpuset;
          CPU_ZERO(&cpuset);
 diff --git a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
-index ba577ac..c45b6e0 100644
+index ba577ac..079fe01 100644
 --- a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
 +++ b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
 @@ -5,6 +5,10 @@
@@ -229,7 +229,7 @@ index ba577ac..c45b6e0 100644
    return std::vector<AllocatorPtr>{stored_allocator};
  }
  
-@@ -322,8 +358,22 @@ std::shared_ptr<KernelRegistry> XnnpackExecutionProvider::GetKernelRegistry() co
+@@ -322,8 +358,24 @@ std::shared_ptr<KernelRegistry> XnnpackExecutionProvider::GetKernelRegistry() co
  }
  
  XnnpackExecutionProvider::~XnnpackExecutionProvider() {
@@ -245,7 +245,9 @@ index ba577ac..c45b6e0 100644
 +    allocator->GetStats(&stats);
 +    if (stats.bytes_in_use == 0) {
 +      auto status = static_cast<BFCArena*>(allocator.get())->Shrink();
-+      if (!status.IsOK()) LOGS_DEFAULT(WARNING) << "XNNPACK idle arena release failed: " << status.ErrorMessage();
++      if (!status.IsOK()) {
++        LOGS_DEFAULT(WARNING) << "XNNPACK idle arena release failed: " << status.ErrorMessage();
++      }
 +    }
 +  }
 +  TraceXnnpackArena("provider-reclaimed");
