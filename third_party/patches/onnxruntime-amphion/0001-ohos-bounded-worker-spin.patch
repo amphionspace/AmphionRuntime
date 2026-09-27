@@ -162,7 +162,7 @@ index 7cd81d8..c0cf831 100644
          cpu_set_t cpuset;
          CPU_ZERO(&cpuset);
 diff --git a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
-index ba577ac..94ed560 100644
+index ba577ac..c45b6e0 100644
 --- a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
 +++ b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
 @@ -5,6 +5,10 @@
@@ -176,7 +176,15 @@ index ba577ac..94ed560 100644
  
  #include "core/graph/function_utils.h"
  #include "xnnpack_execution_provider.h"
-@@ -122,6 +126,36 @@ std::unique_ptr<KernelRegistry> RegisterKernels() {
+@@ -12,6 +16,7 @@
+ #include "detail/node_support_checker.h"
+ 
+ #include "core/framework/compute_capability.h"
++#include "core/framework/bfc_arena.h"
+ #include "core/framework/kernel_registry.h"
+ #include "core/providers/shared/node_unit/node_unit.h"
+ #include "core/session/onnxruntime_session_options_config_keys.h"
+@@ -122,6 +127,36 @@ std::unique_ptr<KernelRegistry> RegisterKernels() {
  
  using namespace xnnpack;
  
@@ -188,7 +196,7 @@ index ba577ac..94ed560 100644
 +  allocator->GetStats(&stats);
 +  long pages = 0, resident = 0;
 +  std::ifstream("/proc/self/statm") >> pages >> resident;
-+  FILE* file = std::fopen("/data/storage/el2/base/haps/amphion_asr_demo/files/community-arena.ndjson", "a");
++  FILE* file = std::fopen("/data/storage/el2/base/haps/amphion_asr_demo/files/community-arena-reclaim.ndjson", "a");
 +  if (!file) return;
 +  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
 +    std::chrono::system_clock::now().time_since_epoch()).count();
@@ -213,7 +221,7 @@ index ba577ac..94ed560 100644
  XnnpackExecutionProvider::XnnpackExecutionProvider(const XnnpackExecutionProviderInfo& info)
      : IExecutionProvider{kXnnpackExecutionProvider, true} {
    int xnn_thread_pool_size = info.xnn_thread_pool_size;
-@@ -165,6 +199,7 @@ std::vector<AllocatorPtr> XnnpackExecutionProvider::CreatePreferredAllocators()
+@@ -165,6 +200,7 @@ std::vector<AllocatorPtr> XnnpackExecutionProvider::CreatePreferredAllocators()
    if (st != xnn_status_success) {
      ORT_THROW("XNNPACK initialization failed with status ", st);
    }
@@ -221,14 +229,29 @@ index ba577ac..94ed560 100644
    return std::vector<AllocatorPtr>{stored_allocator};
  }
  
-@@ -322,6 +357,7 @@ std::shared_ptr<KernelRegistry> XnnpackExecutionProvider::GetKernelRegistry() co
+@@ -322,8 +358,22 @@ std::shared_ptr<KernelRegistry> XnnpackExecutionProvider::GetKernelRegistry() co
  }
  
  XnnpackExecutionProvider::~XnnpackExecutionProvider() {
 +  TraceXnnpackArena("provider-destroy");
    xnn_deinitialize();
    pthreadpool_destroy(xnnpack_thread_pool_);
++  // The XNNPACK allocator outlives every session. Release its empty regions
++  // after the last kernel owner is gone, instead of retaining graph workspace
++  // until process exit. Other sessions' live allocations must remain intact.
++  const auto& [allocator, ignored] = GetStoredAllocator();
++  if (allocator && allocator->Info().alloc_type == OrtArenaAllocator) {
++    AllocatorStats stats{};
++    allocator->GetStats(&stats);
++    if (stats.bytes_in_use == 0) {
++      auto status = static_cast<BFCArena*>(allocator.get())->Shrink();
++      if (!status.IsOK()) LOGS_DEFAULT(WARNING) << "XNNPACK idle arena release failed: " << status.ErrorMessage();
++    }
++  }
++  TraceXnnpackArena("provider-reclaimed");
  }
+ 
+ }  // namespace onnxruntime
 diff --git a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.h b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.h
 index 395dc2f..a186dd8 100644
 --- a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.h
