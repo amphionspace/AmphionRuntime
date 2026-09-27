@@ -42,3 +42,9 @@ python3 tools/delivery/asr_release_tracker.py record \
 SHA-256 与大小；重复的“平台 + 版本”会被拒绝。
 若上一交付 commit 不是本次 source commit 的祖先，更新日志生成也会失败，要求先明确分支或
 回移关系，不能静默生成不完整日志。
+
+## 已发布交付包归档
+
+台账登记后的最终包按 [对象存储归档规范](PUBLISHED_ARTIFACT_ARCHIVE.md) 长期保存在公司交付桶。
+上传、完整回下载及 SHA-256 校验通过，且归档索引已保存后，才移除对应本地副本。
+发布台账继续表示发布身份；[归档索引](published-artifact-archives.json) 记录精确远端位置与恢复校验信息，不改变发布结论。
