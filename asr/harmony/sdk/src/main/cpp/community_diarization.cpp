@@ -5,6 +5,12 @@
 #include <node_api.h>
 #endif
 #include <array>
+#include <fstream>
+#include <malloc.h>
+#include <unistd.h>
+#ifndef __ANDROID__
+#include <hilog/log.h>
+#endif
 #include <chrono>
 #include <cstring>
 #include <iomanip>
@@ -19,6 +25,19 @@
 
 namespace {
 using Clock = std::chrono::steady_clock;
+// Temporary allocation ownership probe; removed before product validation.
+void TraceCommunityMemory(const char* stage) {
+#ifndef __ANDROID__
+  long size = 0, resident = 0;
+  std::ifstream statm("/proc/self/statm");
+  statm >> size >> resident;
+  auto m = mallinfo2();
+  OH_LOG_Print(LOG_APP, LOG_INFO, 0x0000, "CommunityMemory",
+    "stage=%{public}s rss=%{public}ld allocated=%{public}zu free=%{public}zu arena=%{public}zu mmap=%{public}zu",
+    stage, resident * sysconf(_SC_PAGESIZE), m.uordblks, m.fordblks, m.arena, m.hblkhd);
+#endif
+}
+
 double Milliseconds(Clock::time_point start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
@@ -138,6 +157,7 @@ class Model {
   Window Process(std::vector<float>& pcm) {
     if (pcm.size() != 160000) throw std::runtime_error("Community requires a 10 second window");
     std::lock_guard<std::mutex> lock(inference_mutex_);
+    TraceCommunityMemory("window-start");
     Window result;
     auto start = Clock::now();
     auto memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -168,9 +188,11 @@ class Model {
       if (clean_count[channel] > 2) std::copy(clean.begin() + channel * 589,
         clean.begin() + (channel + 1) * 589, masks.begin() + channel * 589);
     }
+    TraceCommunityMemory("segmentation");
     result.segmentation_ms = Milliseconds(start);
     start = Clock::now();
     auto features = community::Fbank(pcm, constants_);
+    TraceCommunityMemory("features");
     result.feature_ms = Milliseconds(start);
     std::array<int64_t, 3> feature_shape{1, 998, 80}, mask_shape{1, 3, 589};
     std::array<int64_t, 3> encoded_shape{1, 2560, 125};
@@ -185,6 +207,7 @@ class Model {
     if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
       throw std::runtime_error("invalid Community encoder output");
     }
+    TraceCommunityMemory("encoder");
     auto* encoded_values = encoded[0].GetTensorMutableData<float>();
     std::vector<Ort::Value> tensors;
     tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values, 2560 * 125, encoded_shape.data(), 3));
@@ -197,6 +220,7 @@ class Model {
     }
     const auto* values = embeddings[0].GetTensorData<float>();
     result.embeddings.assign(values, values + 3 * 256);
+    TraceCommunityMemory("pooling");
     // Keep the full-window vectors above for compatibility, and also export
     // one embedding per disconnected clean run. Overlap runs are exported as
     // non-trainable sentinels so they cannot fall back to a mixed identity.
@@ -259,6 +283,7 @@ class Model {
         kind = next_kind;
       }
     }
+    TraceCommunityMemory("run-pooling");
     result.embedding_ms = Milliseconds(start);
     return result;
   }
@@ -434,6 +459,8 @@ void Complete(napi_env env, napi_status status, void* data) {
     napi_resolve_deferred(env, task->deferred, value);
   }
   napi_delete_async_work(env, task->work);
+  task.reset();
+  TraceCommunityMemory("async-work-freed");
 }
 napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
   size_t count = 9;
