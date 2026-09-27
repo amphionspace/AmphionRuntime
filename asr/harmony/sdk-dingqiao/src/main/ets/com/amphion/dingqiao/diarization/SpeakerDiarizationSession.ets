@@ -84,7 +84,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finishRequested || this.finished) return;
     this.totalSamples += audio.byteLength / 2;
     if (this.diagnostic !== undefined) {
-      this.recordDecision('DIARIZATION_AUDIO_APPENDED', { audioEndSample: this.totalSamples });
+      const fields: Record<string, Object> = {};
+      fields['audioEndSample'] = this.totalSamples;
+      this.recordDecision('DIARIZATION_AUDIO_APPENDED', fields);
     }
     try {
       this.client.append(audio);
@@ -159,7 +161,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finished) return;
     this.processedThroughMs = Math.max(this.processedThroughMs, endSample * 1000 / SAMPLE_RATE);
     if (this.diagnostic !== undefined) {
-      this.recordDecision('DIARIZATION_ASR_PROCESSED', { audioEndSample: endSample });
+      const fields: Record<string, Object> = {};
+      fields['audioEndSample'] = endSample;
+      this.recordDecision('DIARIZATION_ASR_PROCESSED', fields);
     }
     const queued = this.commitClock.observeProcessedAudio(this.processedThroughMs);
     if (queued && this.diagnostic !== undefined) {
@@ -176,7 +180,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.finishRequested = true;
     this.confirmedInitialSilence = confirmedInitialSilence;
     if (this.diagnostic !== undefined) {
-      this.recordDecision('DIARIZATION_FINISH', { confirmedInitialSilence });
+      const fields: Record<string, Object> = {};
+      fields['confirmedInitialSilence'] = confirmedInitialSilence;
+      this.recordDecision('DIARIZATION_FINISH', fields);
     }
     if (confirmedInitialSilence) {
       // The recognizer has already closed the initial-silence decision. A padded
