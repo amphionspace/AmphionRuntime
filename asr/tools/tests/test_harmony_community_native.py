@@ -337,6 +337,7 @@ int main() {
   std::vector<int32_t> ranges={0,0,10,180,0,0,300,470,0,1,100,300};
   auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
   assert(result.trainingRunIndices.size()==2);
+  assert(result.shortRunTrainingCount==0 && !result.usedAhcFallback);
   assert(result.frame_hard.size()==589*3);
   assert(result.frame_hard[20*3]>=0 && result.frame_hard[320*3]>=0);
   assert(result.frame_hard[20*3]!=result.frame_hard[320*3]);
@@ -466,6 +467,54 @@ int main(int argc,char**) {
             for args in [[], ['reconstruction']]:
                 with self.subTest(stage=args or 'single-enrollment'):
                     subprocess.run([str(binary), *args], check=True)
+
+    def test_isolated_short_run_can_open_one_ahc_identity_without_exceeding_cap(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Three repeated eligible runs establish three acoustic groups.  The
+        # first short run is the only clean evidence for a fourth group and is
+        # admitted through the masked full-window vector.  A later unrelated
+        # short run would create a fifth group and must remain unknown.  The
+        # deliberately high synthetic PLDA variance makes VBx collapse these
+        # four groups, exercising the guarded AHC fallback without any voice
+        # data or an expected speaker count.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  constexpr int windows=3;
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runEmbeddings;
+  std::vector<int32_t> ranges;
+  auto run=[&](int w,int ch,int begin,int end,int axis){
+    for(int f=begin;f<end;++f)segments[(w*589+f)*3+ch]=1;
+    embeddings[(w*3+ch)*256+axis]=1;
+    runEmbeddings.resize(runEmbeddings.size()+256);runEmbeddings[runEmbeddings.size()-256+axis]=1;
+    ranges.insert(ranges.end(),{w,ch,begin,end});
+  };
+  run(0,0,0,130,0);run(0,1,150,280,1);run(0,2,300,430,2);
+  run(1,0,0,68,3);run(1,1,150,280,1);run(1,2,300,430,2);
+  run(2,0,0,68,4);
+  auto result=community::Cluster(segments,embeddings,windows,p,4,runEmbeddings,ranges);
+  assert(result.shortRunTrainingCount==1);
+  assert(result.usedAhcFallback);
+  assert(result.centroids.size()==4);
+  assert(result.frame_hard[20*3]>=0);
+  assert(result.frame_hard[20*3+3*589]>=0);
+  assert(result.frame_hard[20*3+6*589]==-2);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'short-enrollment.cpp'
+            binary=Path(directory)/'short-enrollment'
+            source.write_text(program)
+            subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
+            subprocess.run([str(binary)],check=True)
 
     def test_fbank_keeps_sparse_filter_edges_internal_gaps_and_empty_filters(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
