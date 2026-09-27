@@ -27,6 +27,82 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
+class DiarizationLifecycleTest(unittest.TestCase):
+    def test_recovery_and_normal_sessions_are_checked_independently(self):
+        cycle = {"trace": "a:start>a:final-last>a:diarization-result>a:complete",
+                 "recoveryTrace": "b:start>b:final-last>b:diarization-result>b:complete"}
+        result = MODULE.diarization_lifecycle_verdict([cycle])
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual(2, result["completed_sessions"])
+        cycle["recoveryTrace"] = "b:start>b:final-last>b:complete"
+        self.assertEqual("FAIL", MODULE.diarization_lifecycle_verdict([cycle])["status"])
+
+    def test_missing_duplicate_late_or_degraded_role_results_fail(self):
+        for trace in ["s:start>s:final-last>s:complete",
+                      "s:final-last>s:diarization-result>s:diarization-result>s:complete",
+                      "s:diarization-result>s:final-last>s:complete",
+                      "s:final-last>s:diarization-update>s:diarization-result>s:complete",
+                      "s:final-last>s:diarization-result>s:complete>s:diarization-update",
+                      "s:start>s:diarization-result"]:
+            self.assertEqual("FAIL", MODULE.diarization_lifecycle_verdict([{"trace": trace}])["status"], trace)
+        cycle = {"trace": "s:final-last>s:diarization-result>s:complete",
+                 "speakerWindowsHex": json.dumps([{"degraded": True}]).encode("utf-16-be").hex()}
+        self.assertEqual("FAIL", MODULE.diarization_lifecycle_verdict([cycle])["status"])
+
+    def test_cancel_without_terminal_callbacks_and_expected_late_api_errors_are_valid(self):
+        self.assertEqual("PASS", MODULE.diarization_lifecycle_verdict([
+            {"trace": "cancel:start>cancel:final>cancel:diarization-update"},
+            {"trace": "s:start>s:final-last>s:diarization-result>s:complete>s:error-4"}
+        ])["status"])
+
+
+class CustomerStopLatencyTest(unittest.TestCase):
+    def test_meeting_requires_completion_within_customer_fifteen_seconds(self):
+        for mode in ("diarization-windows", "customer-meeting-minutes"):
+            self.assertEqual("PASS", MODULE.customer_stop_latency_verdict(
+                mode, [{"index": "0", "finishToCompleteMs": "15000"}])["status"])
+            result = MODULE.customer_stop_latency_verdict(mode, [
+                {"index": "0", "finishToCompleteMs": "4503"},
+                {"index": "1", "finishToCompleteMs": "16600"},
+            ])
+            self.assertEqual("FAIL", result["status"])
+            self.assertEqual(["1"], result["failed_cycles"])
+
+    def test_missing_or_invalid_finish_measurement_cannot_pass(self):
+        for cycles in ([], [{}], [{"finishToCompleteMs": "-1"}],
+                       [{"finishToCompleteMs": "NaN"}], [{"finishToCompleteMs": "15001"}]):
+            self.assertEqual("FAIL", MODULE.customer_stop_latency_verdict(
+                "diarization-windows", cycles)["status"])
+
+    def test_cancel_and_lifecycle_modes_do_not_require_explicit_finish_timing(self):
+        for mode in ("cancel", "voiceprint-vad-begin-idle", "burst", "start-write"):
+            self.assertEqual("NOT_APPLICABLE", MODULE.customer_stop_latency_verdict(
+                mode, [{}])["status"])
+
+
+class SpeechEndLatencyTest(unittest.TestCase):
+    def verdict(self, *, sample=66048, event=5216, start=4983, end=5200):
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "hilog.txt"
+            log.write_text(f"kind=ENDPOINT source=vad-active vadSamples={sample} "
+                           f"speechEndSample=40032 lastDecodeStartedAtMs={start} "
+                           f"lastDecodeFinishedAtMs={end}\n")
+            return MODULE.speech_end_latency_verdict(log, [{
+                "index": "0", "audioFeedStartedAtMs": "1000", "speechEndAtMs": str(event),
+            }], 2502)
+
+    def test_only_decode_overlapping_the_deadline_can_delay_dispatch(self):
+        result = self.verdict()
+        self.assertEqual("PASS", result["status"])
+        self.assertEqual(80, result["cases"][0]["overlapping_decode_wait_ms"])
+        self.assertEqual(16, result["cases"][0]["dispatch_after_ready_ms"])
+        self.assertEqual("FAIL", self.verdict(start=5150)["status"])
+
+    def test_rejects_repeated_silence_window_and_long_speaker_refinement(self):
+        self.assertEqual("FAIL", self.verdict(sample=69120, event=5320)["status"])
+        self.assertEqual("FAIL", self.verdict(event=6716)["status"])
+
+
 class CorpusPreconditionsTest(unittest.TestCase):
     def source(self, directory, name, samples, rate=16000, channels=1):
         path = Path(directory) / name
@@ -79,6 +155,18 @@ class CorpusPreconditionsTest(unittest.TestCase):
                 probe.return_value.confirmed_at_ms.return_value = None
                 with self.assertRaisesRegex(MODULE.StressFailure, "1000"):
                     MODULE.select_preconditioned_sources([source], "voiceprint-vad-begin", 0)
+
+    def test_diarization_pause_override_is_explicit_and_meeting_only(self):
+        for value in [400, 600, 800]:
+            with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows",
+                                                "--diarization-vad-end-ms", str(value)]):
+                self.assertEqual(value, MODULE.parse_args().diarization_vad_end_ms)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows"]):
+            self.assertIsNone(MODULE.parse_args().diarization_vad_end_ms)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst",
+                                            "--diarization-vad-end-ms", "400"]):
+            with self.assertRaises(SystemExit):
+                MODULE.parse_args()
 
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:

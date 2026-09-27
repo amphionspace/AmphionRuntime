@@ -1,0 +1,6 @@
+{
+  "hypothesis": "Diagnostics overhead versus production behavior: the delivered R8 Release Demo may avoid the degradation seen in Diagnostics. The installed model hashes already match the frozen artifacts.",
+  "change": "Run the already-planned final ZIP R8 Demo with the same PCM and meeting profile; observe UI degradation reason as well as frozen final output.",
+  "stop": "One playback only. If production also degrades, preserve the role capability as blocked; do not lengthen watchdog or add algorithms in the frozen release.",
+  "no_repeat_matrix": true
+}

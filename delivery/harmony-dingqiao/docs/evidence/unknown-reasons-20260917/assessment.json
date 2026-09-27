@@ -1,0 +1,738 @@
+{
+  "status": "PASS_DIAGNOSTIC_PARITY_AND_PR_GATES_WITH_SCOPED_IDENTITY_LIMITATIONS",
+  "sourceCommit": "6579f400a5eb43761ab266ecbb3b641381123628",
+  "hapSha256": "d9ec8bc9fd67cd47bfff16614a5e789d3f953a056067647d0f7956842f803c88",
+  "deviceValidation": [
+    {
+      "sample": "phone",
+      "status": "PASS",
+      "sourceCommit": "6579f400a5eb43761ab266ecbb3b641381123628",
+      "hapSha256": "d9ec8bc9fd67cd47bfff16614a5e789d3f953a056067647d0f7956842f803c88",
+      "reportSha256": "c049d31cf73b08e93055794a9cc8f3cf7a3242e9a79f32a1c265f758a41f4b26",
+      "diagnosticZipSha256": "ebb891e7d56db155cdfd500cb4d8939a08c48d27fcd78b3a42443e38fef4f83a",
+      "publicParityWithIdentityFix": "EXACT for utterances, speakerTurns, speakerCount, window bounds and final flag",
+      "diagnosticHostDeviceParity": "EXACT",
+      "reasonEventCount": 1,
+      "unknownSecondsByCombinedReasons": {
+        "NO_VALID_CONTEXT_EMBEDDING+NO_VALID_QUERY_EMBEDDING": 1.351,
+        "RELATIVE_LEVEL_FILTERED": 2.572
+      },
+      "inferenceMs": 53468,
+      "rtf": 0.5996859578286227,
+      "finishToCompleteMs": 1164
+    },
+    {
+      "sample": "customer",
+      "status": "PASS",
+      "sourceCommit": "6579f400a5eb43761ab266ecbb3b641381123628",
+      "hapSha256": "d9ec8bc9fd67cd47bfff16614a5e789d3f953a056067647d0f7956842f803c88",
+      "reportSha256": "853edf076e2f0abdf2b03492b2de58aaa0d5c8a19d11dbf31c478fb839c768ba",
+      "diagnosticZipSha256": "ce7779515ad38c070131c32a51f526796c63e8ebbca01331c5d2246bb75cbe17",
+      "publicParityWithIdentityFix": "EXACT for utterances, speakerTurns, speakerCount, window bounds and final flag",
+      "diagnosticHostDeviceParity": "EXACT",
+      "reasonEventCount": 2,
+      "unknownSecondsByCombinedReasons": {
+        "NO_VALID_CONTEXT_EMBEDDING+NO_VALID_QUERY_EMBEDDING": 6.599,
+        "RELATIVE_LEVEL_FILTERED+NO_VALID_QUERY_EMBEDDING": 5.825,
+        "RELATIVE_LEVEL_FILTERED": 40.89,
+        "IDENTITY_UNCERTAIN": 0.034
+      },
+      "inferenceMs": 73165,
+      "rtf": 0.45929064657878216,
+      "finishToCompleteMs": 3583
+    }
+  ],
+  "stateParity": {
+    "sourceCommit": "6579f400a5eb43761ab266ecbb3b641381123628",
+    "sessionSourceSha256": "c4084c9e6da73a5bdc96d5b0d52737412f99d959c2efd6f681c7ec929f968e16",
+    "samples": [
+      {
+        "name": "phone",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "7ee7a6001911563e311019baccd24282e2b06051be5fb3015d88f4f4e4b18eda"
+      },
+      {
+        "name": "customer159",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "a7ebb3e494d438028950ba48915bd77e63f76e91eb6f55fff995b1c3179daf3d"
+      },
+      {
+        "name": "S_R003S01C01",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "61ad3b35f3f4002b8a170ca8dd37bee08574d400a77c1a65da07b60a3300832f"
+      },
+      {
+        "name": "M_R003S02C01",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "6319b916ae5331414e627d5b8bea61658ab937330871ad64c8cf54a9264b5fd5"
+      },
+      {
+        "name": "L_R003S01C02",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "29614ef528cbcafe5acb1bc132d6d3fa71a2979e5be25ad0d088ec3bed32e79a"
+      },
+      {
+        "name": "single47",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "c1477b333472bca3da07adab59622fc63b05d367530eabe8be88037d1cff73c7"
+      },
+      {
+        "name": "single69",
+        "publicResultsExactlyUnchanged": true,
+        "registryExactlyUnchanged": true,
+        "diagnosticFieldsExactlyUnchanged": true,
+        "outputSha256": "82bce096cfbb7a0f8225ceafdcde102bcc305c8222c2e29431710c27c069834c"
+      }
+    ]
+  },
+  "candidateDecision": {
+    "decision": "REJECTED",
+    "newWrongSpeakerSeconds": 0.15,
+    "reason": "Strict read-only context/channel/run .72 agreement still introduces labeled two-speaker confusion; no threshold scan or runtime candidate integration",
+    "baselineRuntime": "c19db6d5",
+    "runtimeChanges": "Diagnostic event only; same identity algorithm",
+    "publicFieldDecision": "No new public fields: reasons are evidence-stage diagnostics, not identities or background labels",
+    "savedProductionParity": "Seven fixtures have exactly identical public results and final registry with diagnostics enabled",
+    "newDeviceScope": "One ZH_EN diagnostics HAP; original phone/customer replays verify actual diagnostic events and public parity. Existing 18-mode matrix remains evidence of c19 only; rerun the agreed matrix once on the final changed HAP, without adding release modes or packaging"
+  },
+  "candidateControls": [
+    {
+      "name": "phone",
+      "registryExactlyUnchanged": true,
+      "changedIntervals": [
+        [
+          81000,
+          83500,
+          "UNKNOWN",
+          "S1"
+        ]
+      ]
+    },
+    {
+      "name": "customer159",
+      "registryExactlyUnchanged": true,
+      "changedIntervals": []
+    },
+    {
+      "name": "S_R003S01C01",
+      "registryExactlyUnchanged": true,
+      "confusionBefore": 0.82,
+      "confusionAfter": 0.97,
+      "newWrongSpeakerSeconds": 0.15,
+      "lostCorrectSpeakerSeconds": 0.0
+    },
+    {
+      "name": "M_R003S02C01",
+      "registryExactlyUnchanged": true,
+      "confusionBefore": 0.05,
+      "confusionAfter": 0.05,
+      "newWrongSpeakerSeconds": 0.0,
+      "lostCorrectSpeakerSeconds": 0.0
+    },
+    {
+      "name": "L_R003S01C02",
+      "registryExactlyUnchanged": true,
+      "confusionBefore": 13.86,
+      "confusionAfter": 13.86,
+      "newWrongSpeakerSeconds": 0.0,
+      "lostCorrectSpeakerSeconds": 0.0
+    },
+    {
+      "name": "single47",
+      "registryExactlyUnchanged": true,
+      "changedIntervals": []
+    },
+    {
+      "name": "single69",
+      "registryExactlyUnchanged": true,
+      "changedIntervals": []
+    }
+  ],
+  "intervalCoverage": {
+    "customer": [
+      {
+        "label": "P1 first",
+        "start": 3.67,
+        "end": 5.51,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 1.69,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.15
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P2 first",
+        "start": 17.82,
+        "end": 21.68,
+        "expectedIndex": 1,
+        "coverage": {
+          "expected": 3.84,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.02
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P3 first",
+        "start": 27.24,
+        "end": 29.54,
+        "expectedIndex": 2,
+        "coverage": {
+          "expected": 2.18,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.12
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P4 first",
+        "start": 39.31,
+        "end": 40.54,
+        "expectedIndex": 3,
+        "coverage": {
+          "expected": 1.16,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.07
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 46.94,
+        "end": 49.88,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 2.78,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.16
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 56.52,
+        "end": 59.14,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 2.46,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.16
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 97.85,
+        "end": 100.04,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 2.06,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.13
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 104.12,
+        "end": 106.68,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 2.45,
+          "otherKnown": 0,
+          "unknown": 0.11,
+          "noAcousticTurn": 0
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 107.32,
+        "end": 108.54,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 1.18,
+          "otherKnown": 0,
+          "unknown": 0.04,
+          "noAcousticTurn": 0
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 110.68,
+        "end": 114.54,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 3.64,
+          "otherKnown": 0,
+          "unknown": 0.12,
+          "noAcousticTurn": 0.1
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P1 return",
+        "start": 125.58,
+        "end": 126.74,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 1.05,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.11
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "P4 next phrase",
+        "start": 41.24,
+        "end": 42.86,
+        "expectedIndex": 3,
+        "coverage": {
+          "expected": 1.5,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.12
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      },
+      {
+        "label": "disputed P1 request",
+        "start": 37.65,
+        "end": 38.82,
+        "expectedIndex": 0,
+        "coverage": {
+          "expected": 0,
+          "otherKnown": 0,
+          "unknown": 0.73,
+          "noAcousticTurn": 0.44
+        },
+        "reference": "MOSS auxiliary + user different_speakers constraint for P2/P3; not full human truth"
+      }
+    ],
+    "phone": [
+      {
+        "start": 1.11,
+        "end": 3.72,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 2.45,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.15
+        }
+      },
+      {
+        "start": 7.65,
+        "end": 9.65,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 1.84,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.16
+        }
+      },
+      {
+        "start": 9.94,
+        "end": 15.21,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 5.19,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.08
+        }
+      },
+      {
+        "start": 16.38,
+        "end": 19.81,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 2.98,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.44
+        }
+      },
+      {
+        "start": 20.51,
+        "end": 26.91,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 5.47,
+          "otherKnown": 0,
+          "unknown": 0.17,
+          "noAcousticTurn": 0.76
+        }
+      },
+      {
+        "start": 27.98,
+        "end": 33.66,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 5.59,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.08
+        }
+      },
+      {
+        "start": 34.88,
+        "end": 38.71,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 3.67,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.15
+        }
+      },
+      {
+        "start": 40.02,
+        "end": 42.38,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 2.27,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.08
+        }
+      },
+      {
+        "start": 42.68,
+        "end": 43.98,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 1.09,
+          "otherKnown": 0,
+          "unknown": 0.15,
+          "noAcousticTurn": 0.06
+        }
+      },
+      {
+        "start": 47.28,
+        "end": 50.11,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 2.77,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.06
+        }
+      },
+      {
+        "start": 51.28,
+        "end": 53.78,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 2.47,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.03
+        }
+      },
+      {
+        "start": 54.55,
+        "end": 58.41,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 3.73,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.13
+        }
+      },
+      {
+        "start": 59.25,
+        "end": 59.78,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 0,
+          "otherKnown": 0.32,
+          "unknown": 0,
+          "noAcousticTurn": 0.21
+        }
+      },
+      {
+        "start": 60.41,
+        "end": 66.78,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 6.0,
+          "otherKnown": 0,
+          "unknown": 0.3,
+          "noAcousticTurn": 0.07
+        }
+      },
+      {
+        "start": 66.48,
+        "end": 70.01,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 3.1,
+          "otherKnown": 0.38,
+          "unknown": 0,
+          "noAcousticTurn": 0.05
+        }
+      },
+      {
+        "start": 71.45,
+        "end": 73.45,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 1.97,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0.03
+        }
+      },
+      {
+        "start": 73.41,
+        "end": 73.85,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 0,
+          "otherKnown": 0.43,
+          "unknown": 0,
+          "noAcousticTurn": 0
+        }
+      },
+      {
+        "start": 73.81,
+        "end": 75.11,
+        "speaker": "S01",
+        "coverage": {
+          "expected": 1.3,
+          "otherKnown": 0,
+          "unknown": 0,
+          "noAcousticTurn": 0
+        }
+      },
+      {
+        "start": 80.15,
+        "end": 83.65,
+        "speaker": "S02",
+        "coverage": {
+          "expected": 0.77,
+          "otherKnown": 0,
+          "unknown": 2.57,
+          "noAcousticTurn": 0.15
+        }
+      }
+    ],
+    "missingReturns": [
+      "No independent verified later return for P2/P3"
+    ],
+    "scope": "10ms illustrative coverage against model boundaries; no official accuracy claim"
+  },
+  "humanAdjudications": [
+    {
+      "date": "2026-09-17",
+      "sample": "customer-meeting-0917",
+      "inputWavSha256": "3c263893ebed15454918ee670840f0ba47c218d5e08a4f5f5ffe6e4399ce681b",
+      "beginTimeMs": 130000,
+      "endTimeMs": 159000,
+      "boundaryPrecision": "approximate user listening interval; not frame-level speech annotation",
+      "label": "BACKGROUND_HUMAN_VOICE",
+      "source": "User listened and explicitly confirmed customer 会议0917 approximately 130–159 seconds",
+      "identityWithinBackground": "not adjudicated",
+      "doesNotApplyTo": [
+        "phone-two-speaker 80–89 seconds",
+        "customer 78–88 seconds",
+        "all low-volume speech"
+      ],
+      "finalRuntimeCommit": "6579f400a5eb43761ab266ecbb3b641381123628",
+      "savedPublicOutput": {
+        "turnCount": 16,
+        "utteranceCount": 4,
+        "allPrimarySpeakerIndexesUnknown": true,
+        "unknownAcousticSeconds": 15.392
+      }
+    }
+  ],
+  "matrix": [
+    {
+      "mode": "burst",
+      "cycles": 3,
+      "status": "PASS",
+      "runId": "20260917-172335-burst-eb5aecfb",
+      "rawReportSha256": "034fd753a2437361abc55e17fd0676fa0fd81a2f5c788b0d01d16b5400793a89",
+      "elapsedMs": 5824
+    },
+    {
+      "mode": "paced",
+      "cycles": 12,
+      "status": "PASS",
+      "runId": "20260917-172350-paced-75bf3c2a",
+      "rawReportSha256": "19b13c5248d1374a35ac1cef4d8b3f4d9a4aab045b5a2a60792d606761c05f05",
+      "elapsedMs": 62331
+    },
+    {
+      "mode": "vad-begin",
+      "cycles": 3,
+      "status": "PASS",
+      "runId": "20260917-172502-vad-begin-1b337953",
+      "rawReportSha256": "8e90dcd51ae6cf6e490acc9e1f2b77a3f226063497b4526ba72b1a8ed084e425",
+      "elapsedMs": 5876
+    },
+    {
+      "mode": "vad-begin-silence",
+      "cycles": 1,
+      "status": "PASS",
+      "runId": "20260917-172517-vad-begin-silence-762dd511",
+      "rawReportSha256": "b9ab5205697e75b42d4fd4c4194b70228cb5a992f4d18ca65b473ca1e930bf03",
+      "elapsedMs": 1226
+    },
+    {
+      "mode": "voiceprint",
+      "cycles": 7,
+      "status": "PASS",
+      "runId": "20260917-172527-voiceprint-4c3628c2",
+      "rawReportSha256": "33e9490e282b63b067a78d1437444818926335eb76ab2e4c36a323220dac56d2",
+      "elapsedMs": 13671
+    },
+    {
+      "mode": "voiceprint-fallback",
+      "cycles": 8,
+      "status": "PASS",
+      "runId": "20260917-172550-voiceprint-fallback-3788b62e",
+      "rawReportSha256": "37f08461e0479906f2f404f655906fbb51952709df73b096399ae9f6e3fa9b9c",
+      "elapsedMs": 82649
+    },
+    {
+      "mode": "voiceprint-vad-begin",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-172724-voiceprint-vad-begin-13d06db0",
+      "rawReportSha256": "9037abd68d6389fc540649989186522e485c38ccb810b8136ad9348eef5ae08d",
+      "elapsedMs": 12181
+    },
+    {
+      "mode": "voiceprint-vad-begin-idle",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172746-voiceprint-vad-begin-idle-9ff90651",
+      "rawReportSha256": "2426845ad7fc4824e3bdb16b00a993672ef41df80de3015ce1c30aa225852d5c",
+      "elapsedMs": 5223
+    },
+    {
+      "mode": "cancel",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172800-cancel-09db7bff",
+      "rawReportSha256": "2d23010506fcc589d628ae2eaaabe8d8e40304744f76db22342e9357ef39acaf",
+      "elapsedMs": 966
+    },
+    {
+      "mode": "cancel-full",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172810-cancel-full-ad7c4913",
+      "rawReportSha256": "c227586050bee0d3b9e816bf2d249812112c59432be5444dc444bd94a4be39c5",
+      "elapsedMs": 1000
+    },
+    {
+      "mode": "max-duration",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172820-max-duration-6702dd32",
+      "rawReportSha256": "950875c66559ebcfdd3af229365f287817f115e60b3f68cc58a3adc1fdeea688",
+      "elapsedMs": 12058
+    },
+    {
+      "mode": "edge",
+      "cycles": 1,
+      "status": "PASS",
+      "runId": "20260917-172842-edge-b5bbec53",
+      "rawReportSha256": "8a30028a16d4f0e15d87bc76a571a2cdb520d7d57a15f94ae04ece1fb2794a30",
+      "elapsedMs": 1153
+    },
+    {
+      "mode": "reentrant",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172852-reentrant-86031fa7",
+      "rawReportSha256": "1bd59a9a381a2e3e4c14c5a3959e308a78af44ccd94e189051d152a80544f985",
+      "elapsedMs": 2697
+    },
+    {
+      "mode": "start-cancel",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-172905-start-cancel-f27bbbf4",
+      "rawReportSha256": "9929d5190b2dff98b243043a5e2e7fffe73822c3576100fff5a50ecadfde044d",
+      "elapsedMs": 976
+    },
+    {
+      "mode": "start-write",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-172915-start-write-9d03909a",
+      "rawReportSha256": "cbb266a2fe0b7f65449b9fa88accf573082b8f4432e1180945646c8c6fd2c10e",
+      "elapsedMs": 3666
+    },
+    {
+      "mode": "start-write-reload",
+      "cycles": 4,
+      "status": "PASS",
+      "runId": "20260917-172928-start-write-reload-be8b7773",
+      "rawReportSha256": "4acf22ea3584dfbb3721991c3bd1d1669ebba4517ad6464b4ebabc4d63691709",
+      "elapsedMs": 6414
+    },
+    {
+      "mode": "user-sequence",
+      "cycles": 6,
+      "status": "PASS",
+      "runId": "20260917-172944-user-sequence-d556b4f9",
+      "rawReportSha256": "8b67479d042fabfdc9900931959eff7d22eb5808991a6b66630b21d99ccb5485",
+      "elapsedMs": 14171
+    },
+    {
+      "mode": "numeric-edge",
+      "cycles": 2,
+      "status": "PASS",
+      "runId": "20260917-173007-numeric-edge-6d6968fa",
+      "rawReportSha256": "bc4c30d4ee49f4deb22578ae4ddfbb9b303fd545580c65c99aece598d14a837f",
+      "elapsedMs": 19487
+    }
+  ],
+  "canonicalCycles": 67,
+  "limitations": [
+    "MOSS boundary/identity coverage is auxiliary, not full human truth",
+    "P2/P3 later return not independently verified; P4 only adjacent next phrase",
+    "Customer 37.7-second request: raw acoustic interval UNKNOWN, public whole utterance assigned P4 with speakerInferred=false; exact unsplit trigger not proven; MOSS P1 identity unresolved",
+    "Phone 80.15–83.65 seconds labeled B by MOSS, not human-adjudicated, partly filtered; strict recovery candidate rejected due additional confusion",
+    "Two short interjections deferred; 66.48-second transition/overlap unresolved; tail annotation incomplete",
+    "Independent controls retain existing identity errors; no universal volume/background claim",
+    "Long-term memory not established by finite matrix; old failed artifacts retained",
+    "No new SDK delivery or release ledger update"
+  ],
+  "review": {
+    "localDiff": "No actionable blocking findings",
+    "copilot": "Requester quota exceeded; not counted as passed",
+    "reviewThreads": "No threads at runtime HEAD; recheck final documentation HEAD before merge"
+  }
+}

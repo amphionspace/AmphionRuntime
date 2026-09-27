@@ -115,6 +115,8 @@ def test_data_root(payload: dict) -> Path:
 
 
 def validate_bundle(name: str, definition: dict) -> None:
+    if definition.get("status", "current") not in ("current", "historical"):
+        raise AssetError(f"bundle {name} has an invalid status")
     required = (
         "description",
         "license",
@@ -165,12 +167,21 @@ def load_registry(manifest_path: Path, repo_root: Path) -> tuple[dict, dict[str,
 
 def selected_bundles(bundles: dict[str, Bundle], requested: Iterable[str]) -> list[Bundle]:
     names = list(requested)
+    lookup = {name: name for name in bundles}
+    for name, bundle in bundles.items():
+        for alias in bundle.definition.get("aliases", []):
+            if alias in lookup or alias == "all":
+                raise AssetError(f"duplicate or reserved asset alias: {alias}")
+            lookup[alias] = name
     if names == ["all"]:
-        return [bundles[name] for name in sorted(bundles)]
-    unknown = sorted(set(names) - set(bundles))
+        return [
+            bundles[name] for name in sorted(bundles)
+            if bundles[name].definition.get("status", "current") == "current"
+        ]
+    unknown = sorted(set(names) - set(lookup))
     if unknown:
         raise AssetError(f"unknown asset bundle(s): {', '.join(unknown)}")
-    return [bundles[name] for name in names]
+    return [bundles[name] for name in dict.fromkeys(lookup[name] for name in names)]
 
 
 def expected_files(bundle: Bundle) -> dict[str, dict]:
@@ -640,7 +651,7 @@ def parse_args() -> argparse.Namespace:
     commands.add_parser("list")
     commands.add_parser("audit")
     fetch = commands.add_parser("fetch")
-    fetch.add_argument("bundles", nargs="+", help="bundle names or 'all'")
+    fetch.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
     fetch.add_argument(
         "--replace-existing",
         action="store_true",
@@ -648,7 +659,7 @@ def parse_args() -> argparse.Namespace:
     )
     for command in ("verify", "remote-verify", "publish"):
         child = commands.add_parser(command)
-        child.add_argument("bundles", nargs="+", help="bundle names or 'all'")
+        child.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
     return parser.parse_args()
 
 
@@ -661,10 +672,19 @@ def main() -> int:
         if args.command == "list":
             for name, bundle in sorted(bundles.items()):
                 scope = "repository" if bundle.owned else "test-data-cache"
+                aliases = ",".join(bundle.definition.get("aliases", [])) or "-"
                 print(
-                    f"{name}\t{scope}\t{bundle.definition['size']}\t"
-                    f"{bundle.definition['license']}\t{bundle.definition['description']}"
+                    f"{name}\t{bundle.definition.get('status', 'current')}\t{scope}\t"
+                    f"{bundle.definition['size']}\t{bundle.definition['license']}\t"
+                    f"{bundle.definition['description']}\taliases={aliases}"
                 )
+            for include in manifest.get("included_manifests", []):
+                included = read_json(safe_join(repo_root, str(include["path"])))
+                for name, entry in sorted(included.get("catalog", {}).items()):
+                    print(
+                        f"{name}\tcatalog-only\tobs://{entry['bucket']}/{entry['object_key']}\t"
+                        f"{entry['size']}\t{entry['description']}\tmanual download; see asr/test-data/README.md"
+                    )
             return 0
         if args.command == "audit":
             counts = audit_ignored(repo_root, manifest, bundles)

@@ -20,7 +20,7 @@ FST = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global.f
 FST_META = ROOT / "asr/android/sdk-police/src/main/assets/police_terms/terms_global_meta.json"
 FST_REPO_PATH = FST.relative_to(ROOT).as_posix()
 FST_META_REPO_PATH = FST_META.relative_to(ROOT).as_posix()
-DEVECO_HOME = Path(os.environ.get("DEVECO_HOME", "/Applications/DevEco-Studio.app/Contents"))
+CLT_HOME = Path(os.environ.get("DEVECO_CLI_CLT_PATH", Path.home() / ".local/share/harmony/command-line-tools"))
 
 
 def resolve_tool(env_name: str, command: str, deveco_relative: str) -> Path | None:
@@ -31,7 +31,7 @@ def resolve_tool(env_name: str, command: str, deveco_relative: str) -> Path | No
     on_path = shutil.which(command)
     if on_path:
         return Path(on_path)
-    bundled = DEVECO_HOME / deveco_relative
+    bundled = CLT_HOME / deveco_relative
     return bundled if bundled.is_file() else None
 
 
@@ -123,16 +123,16 @@ console.log(`[OK] Harmony police V2 parity corpus: ${lines.length} cases`);
 
 def main() -> None:
     verify_frozen_fst_metadata()
-    node = resolve_tool("HARMONY_NODE", "node", "tools/node/bin/node")
+    node = resolve_tool("HARMONY_NODE", "node", "tool/node/bin/node")
     tsc = resolve_tool(
         "HARMONY_TSC",
         "tsc",
-        "tools/hvigor/hvigor/node_modules/typescript/bin/tsc",
+        "hvigor/hvigor/node_modules/typescript/bin/tsc",
     )
     if node is None or tsc is None:
         raise SystemExit(
             "Node.js and TypeScript are required; set HARMONY_NODE/HARMONY_TSC, "
-            "put node/tsc on PATH, or set DEVECO_HOME",
+            "put node/tsc on PATH, or set DEVECO_CLI_CLT_PATH",
         )
     with tempfile.TemporaryDirectory(prefix="harmony-police-parity.") as temp:
         work = Path(temp)

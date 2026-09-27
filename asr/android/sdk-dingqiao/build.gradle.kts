@@ -8,6 +8,8 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     from("../../../shared/models/asr/dingqiao") {
         include(
             "eres2net.onnx",
+            "campplus.onnx",
+            "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
         )

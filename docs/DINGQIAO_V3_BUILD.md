@@ -14,8 +14,8 @@ Android TN executables, and ICU source/build outputs are delivered separately.
    ```
 
 2. Install an Android SDK with NDK 27.2.12479018 or a compatible arm64 NDK,
-   Java 17, Gradle wrapper dependencies, and DevEco Studio with HarmonyOS SDK
-   API 12 / API 22 support.
+   Java 17, Gradle wrapper dependencies, and DevEco CLI with standalone HarmonyOS
+   Command Line Tools. See [toolchain setup](../asr/tools/HARMONY_TOOLCHAIN.md); preserve the project API versions.
 
 3. Deliver the pre-exported model package at:
 
@@ -81,14 +81,13 @@ external resources error.
 From `tts/harmony`, after `ohpm install --all`:
 
 ```bash
-/path/to/DevEco-Studio/tools/hvigor/bin/hvigorw \
-  --mode module -p product=default -p module=sdk@default assembleHar --no-daemon
+../../asr/tools/deveco_cli.sh build --product default --modules sdk@default --build-mode debug
 ```
 
 The Harmony CMake target compiles `liblitsttsnative.so` from the repository's
 TN source and OHOS ICU static libraries. The build generates the frontend `.bin`
 dictionaries before packaging, and it does not export ONNX. A HAP sample
-can be built separately with `-p module=sample@default assembleHap`.
+can be built separately with `--modules sample@default`.
 
 ## Files intentionally outside GitHub
 

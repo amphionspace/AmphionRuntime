@@ -1,0 +1,49 @@
+{
+  "artifacts": {
+    "amphion_asr.har": {
+      "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+      "sha256": "f26c41fb6242c5ff724eb5553b483f7d2203ff0d9064d514557e3bb9429cb9ba",
+      "size_bytes": 219610266
+    },
+    "amphion_asr_demo.hap": {
+      "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+      "sha256": "b903c5a45aba780837f03fd184dbbd196e4486786cf17e5e6116ae92ee2ddbf2",
+      "size_bytes": 380772225
+    },
+    "amphion_dingqiao.har": {
+      "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+      "sha256": "f623f515cdcdc5b14c6b016770d020861f27fe08d7dcf39c16e8b1a67840b27e",
+      "size_bytes": 42350034
+    },
+    "amphion_police.har": {
+      "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+      "sha256": "b297210a60a70f87375b82cadc9286e4c4fe61d1cd820279f6bd5425e361c081",
+      "size_bytes": 30201887
+    },
+    "sherpa_onnx.har": {
+      "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+      "sha256": "a6c9d53856cfcdc41317d978d2913a3fb77824a6a3007f4432272172814b18bb",
+      "size_bytes": 6950514
+    }
+  },
+  "build_mode": "diagnostics",
+  "created_at": "2026-09-15T10:20:44.559840+00:00",
+  "git_commit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+  "model_manifest_sha256": "3d68ca19e5ab97706b6f691df29a4ea6908c1dc49281d67dadae737c39321d90",
+  "native_sha256": {
+    "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+    "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+    "libsherpa-onnx-c-api.so": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+  },
+  "optional_models": {
+    "speaker_turn_segmentation": {
+      "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+      "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+      "size_bytes": 5986908
+    }
+  },
+  "schema_version": 3,
+  "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+  "source_fingerprint_sha256": "684892e1f191a21e34fc5d4059b879adfb50207df2c1019cac789527fed85d68",
+  "zh_en_only": true
+}

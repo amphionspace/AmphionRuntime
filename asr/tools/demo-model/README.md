@@ -2,6 +2,39 @@
 
 这个目录的所有内容（包括 manifest.json / tokens.txt / export_meta.json 等元数据）都不入库。
 
+## 当前中英模型：Police 1.4.0（仅 encoder INT8）
+
+Android/Harmony 打包默认使用上游原包目录
+`amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer/`。
+源包位置和身份固定在
+[模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)。
+按以下命令恢复；`tools/assets/sync.py fetch all` 不包含它。
+
+```bash
+ab remotes  # 确认 obs-cuhk-anfeiweng-benchmark 对应 cuhk-anfeiweng-benchmark
+mkdir -p .cache/asr-police-v1.4
+ab pull 'obs-cuhk-anfeiweng-benchmark:icefall/amphion/zh_en/checkpoints/candidates/police-179m-v1.4/onnx/chunk32-lc256/1.4.0/dist/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz' \
+  .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz
+printf '%s  %s\n' \
+  0f46f694ee4858f6959b598bd8eb338750b0f1025e39442313db12eb10af36b7 \
+  .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz | shasum -a 256 -c -
+# 仅在校验成功后解压；已有不同内容时先保留历史候选。
+tar -xzf .cache/asr-police-v1.4/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz -C asr/tools/demo-model
+bash asr/tools/08_pack_harmony_assets.sh --zh-en-only
+bash asr/tools/08_pack_sdk_assets.sh --zh-en-only
+```
+
+直接使用包内 `encoder.int8.onnx`，不再本地量化。decoder、joiner 和词表也保持原包内容。
+两端分别转换为匹配各自 ORT 版本的运行产物。原本地量化脚本
+`prepare_police_1_4_int8.py` 仅用于追溯已被否决的历史候选，不参与当前构建。
+
+运行期资源名 `encoder.int8.ort` / `joiner.int8.ort`（Android 加 `.mp3`）沿用历史名称。
+encoder 为 INT8，joiner 仍为 FP32，实际身份以打包 manifest 的 `source_name`、源哈希及
+[模型策略](../../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json)为准。
+
+SDK-only ZIP 的 320 MiB 门禁保持不变，须以完整组包产物验证。
+精度对照和 Android/Harmony 真机验收均通过后才允许交付，转换或加载成功不能替代验收。
+
 ## 为什么
 
 第一性原理：

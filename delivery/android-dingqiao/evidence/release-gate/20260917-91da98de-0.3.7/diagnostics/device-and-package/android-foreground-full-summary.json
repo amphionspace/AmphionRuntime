@@ -1,0 +1,365 @@
+{
+  "overall_status": "PASS",
+  "methods": [
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a01_tailFrame_abruptFinish_keepsTail",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a02_frameSize_nonStandardRejected",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a03_writeBeforeStart_notListening",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a04_doubleStart_busy",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a05_finishWhenIdle_finishFailed",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a06_cancel_noFinalNoComplete",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a07_invalidSessionId_rejected",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a08_writeWrongSessionId_mismatch",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09_maxAudioDuration_explicitShortLimitAutoFinishes",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a09b_maxAudioDuration_nonFiniteValuesStayDisabled",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10_maxAudioDuration_autoFinish",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10b_autoFinishWindow_ignoresLateFrames",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10c_finishIdempotent_singleComplete",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10d_terminalCallback_reentrantReplacementOwnsCompletion",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10e_onStartSynchronousWrite_thenContinue",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10f_onStartSynchronousWrite_thenImmediateFinish",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10g_onStartSynchronousWrite_afterEngineReload",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10ga_onStartCancel_sameIdReplacementOwnsCallbacks",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10gb_onStartCanWaitForOtherThreadWriteAudio",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10h_lateOldWrite_doesNotAffectReplacement",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10i_lateOldFinish_doesNotAffectReplacement",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a10j_lateOldCancel_doesNotAffectReplacement",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_unsupportedLanguage_createFails",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a12_postShutdown_throwsInsteadOfCallback",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint",
+    "com.amphion.dingqiao.demo.DqSdkCornerCaseTest#a11_vadBegin_initialSilenceAutoFinish",
+    "com.amphion.dingqiao.demo.DqVoiceprintTest",
+    "com.amphion.dingqiao.demo.DqLicenseTest",
+    "com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest"
+  ],
+  "elapsed_seconds": 294.42,
+  "foreground_events": [
+    {
+      "elapsed_seconds": 1.259,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 17.843,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 18.965,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 21.129,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 23.551,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 25.69,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 27.863,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 30.314,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 31.419,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 33.601,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 37.053,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 39.247,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 41.633,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 43.801,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 47.32,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 49.52,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 55.125,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 57.565,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 59.739,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 61.921,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 65.356,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 66.474,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 69.003,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 71.196,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 73.377,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 75.8,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 79.02,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 81.434,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 83.607,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 84.723,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 86.029,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 88.222,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 90.401,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 92.828,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 95.025,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 97.457,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 98.547,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 100.75,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 103.254,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 105.428,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 107.586,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 113.193,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 115.583,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 117.746,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 120.207,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 123.449,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 125.824,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 126.926,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 129.119,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 133.716,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 135.888,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 139.389,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 141.582,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 146.127,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 148.613,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 150.784,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 152.935,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 155.301,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 157.442,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 167.534,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 169.709,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 172.124,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 174.296,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 176.773,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 178.909,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 181.083,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 183.504,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 185.667,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 188.199,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 190.368,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 192.6,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 193.939,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 196.11,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 198.273,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 200.703,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 201.814,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 203.991,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 285.687,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 287.842,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 289.176,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    },
+    {
+      "elapsed_seconds": 291.368,
+      "action": "foreground_existing_debug_keepalive_no_sdk_calls"
+    }
+  ],
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "test_assertions_unchanged": true,
+  "public_aar_from_final_zip": true,
+  "started_epoch_seconds": 1789643228.468432
+}

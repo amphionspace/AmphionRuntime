@@ -1,7 +1,6 @@
 {
   "evaluation_axes": [
     "overall_level_dbfs",
-    "snr_db",
     "long_audio_time_region"
   ],
   "implementation_source_sha256": {
@@ -18,7 +17,7 @@
     "asr/native/audio-processing/src/amphion_audio_processing.cpp": "7ded42aaade2ec76a1567135f9b8ca2bb63e84469ca8616bb152644be79a5acb",
     "asr/native/audio-processing/subprojects/abseil-cpp.wrap": "274e7ae7895ab1300c88ed6ca0e4f744243c998529c4ebcb1341b4e0c566bda0",
     "asr/native/audio-processing/subprojects/webrtc-audio-processing.wrap": "ebf743a17dcb8a83623c98c82b47f1fa8dd82e22d8ad67df6c7a07090d395296",
-    "asr/tools/03_build_agc_native.sh": "e688ed7674e2a5c57b8ac8fa28bb0fa433b3d3551619c8da5142789113b5722b",
+    "asr/tools/03_build_agc_native.sh": "3cd34772e263b6ee3863e99c526099eca595011043461798db5193ed65751eb2",
     "asr/tools/ensure_agc_build_tools.sh": "f02325107d70426fa472b18bfc35a700580567e2a7c694dc6e51ad6de480ffee",
     "asr/tools/evaluate_automatic_agc_regression.py": "c0d39b209ad0177d70a67480f3d29bd2f29e49c207dc0173c092982512f97f84"
   },
@@ -33,15 +32,14 @@
     "current_sha256": {
       "asr/tools/03_build_agc_native.sh": "e688ed7674e2a5c57b8ac8fa28bb0fa433b3d3551619c8da5142789113b5722b"
     },
-    "decision": "full_accuracy_evaluation_rerun",
-    "reason": "The host build script now maps the complete checkout path out of compiler and linker metadata so packaged native libraries do not retain developer-specific directories. The native AGC settings, samples, framing, decoder configuration, and pinned dependencies are unchanged. The complete level, SNR, long-audio, and repository low-volume evaluation was rerun against the frozen evidence model and reproduced the accepted accuracy conclusions.",
+    "decision": "canonical_accuracy_evaluation_rerun",
+    "reason": "The host build script now maps the complete checkout path out of compiler and linker metadata so packaged native libraries do not retain developer-specific directories. The native AGC settings, samples, framing, decoder configuration, and pinned dependencies are unchanged. The canonical OBS-backed level, long-audio, and repository low-volume evaluations were rerun against the frozen evidence model and reproduced the accepted conclusions. The historical customer pink-noise SNR archive is absent from the canonical OBS test-data manifest and is discarded under the evaluation-input policy.",
     "rerun_verification": [
       "aishell3_normal_and_controlled_levels",
-      "customer_snr_scan",
       "sdk_style_long_audio",
       "repository_low_volume_regression_off_on"
     ],
-    "not_claimed": "The rerun does not claim complete transcript accuracy, noise reduction below 20 dB SNR, device microphone equivalence, mobile power measurements, or acceptance of the newer Harmony delivery model.",
+    "not_claimed": "The rerun does not claim SNR robustness or denoising, complete transcript accuracy, device microphone equivalence, mobile power measurements, or acceptance of the newer Harmony delivery model.",
     "evaluation_artifact_note": "The preserved evaluator scripts retain their af81dc8 evaluator-revision marker; source_commit and implementation_source_sha256 bind this rerun to the current evaluated implementation."
   },
   "delivery_model_applicability": {
@@ -87,8 +85,8 @@
       "off_empty": 0.0,
       "agc_empty": 0.0,
       "paired_bootstrap_cer_delta_95_percent_points": [
-        -0.1300,
-        0.1620
+        -0.13,
+        0.162
       ]
     },
     "controlled_levels": [
@@ -105,7 +103,7 @@
         "samples": 100,
         "off_cer": 0.026484018264840183,
         "agc_cer": 0.024657534246575342,
-        "off_exact": 0.80,
+        "off_exact": 0.8,
         "agc_exact": 0.81
       },
       {
@@ -129,28 +127,24 @@
         "samples": 100,
         "off_cer": 0.0593607305936073,
         "agc_cer": 0.0273972602739726,
-        "off_exact": 0.70,
+        "off_exact": 0.7,
         "agc_exact": 0.76,
         "off_empty": 0.02,
         "agc_empty": 0.0
       }
     ]
   },
-  "customer_snr": {
-    "reference": "你好一二三四",
-    "correct_both_modes_db": [
-      30,
-      25,
-      20
+  "evaluation_input_policy": {
+    "canonical_storage": "Huawei OBS manifest asr/test-data/manifest.json",
+    "available_bundles": [
+      "aishell3-hotwords-500",
+      "dingqiao-meeting-20260918"
     ],
-    "incorrect_both_modes_db": [
-      15,
-      10,
-      5,
-      0,
-      -5
+    "discarded_missing_inputs": [
+      "01_你好一二三四.zip (historical customer pink-noise SNR archive)"
     ],
-    "conclusion": "AGC does not improve SNR"
+    "snr_evaluation": "not_evaluated",
+    "reason": "The archive is not present in the canonical object-storage test-data manifest; no local copy is used as a substitute."
   },
   "repository_low_volume_regression": {
     "source": "asr/test-fixtures/voiceprint-fallback/001_recognize.wav",

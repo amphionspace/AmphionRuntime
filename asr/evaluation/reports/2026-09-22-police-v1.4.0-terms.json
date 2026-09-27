@@ -1,0 +1,776 @@
+{
+  "base_commit": "5fb61e1f9d66caaa0f92951db2b4f5f1bf740d0d",
+  "model_archive_sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+  "corpus_archive_sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
+  "scope": "Full six police terminology datasets; same ASR transcripts and pinned ITN for paired before/after police normalization; not mobile SDK acceptance",
+  "runtime": {
+    "sherpa_onnx": "1.13.1",
+    "WeTextProcessing": "1.0.4.1",
+    "pynini": "2.1.6",
+    "itn_fst_sha256": {
+      "zh_itn_tagger.fst": "4983ab817f3f3b206516d576b54d6f925c3a52c58c8348d3ae98e826b4f6d49d",
+      "zh_itn_verbalizer.fst": "89d1b765d526fab21b1ba3402221baa28edb4b380e9b799d764042e842cecf98"
+    }
+  },
+  "split": {
+    "unit": "exact reference text",
+    "previously_seen_references": "development",
+    "hash_assignment": "int(sha256(text).hexdigest()[:8],16) % 5 < 2 => development",
+    "development_audio": 1819,
+    "development_texts": 1376,
+    "held_out_audio": 2486,
+    "held_out_texts": 1843,
+    "exact_reference_overlap": 0,
+    "normalized_reference_overlap": 0
+  },
+  "metrics": {
+    "all": {
+      "cases": 4305,
+      "strict": {
+        "asr_raw": {
+          "exact": 3482,
+          "sentence_accuracy": 0.8088269454123113,
+          "edits": 1894,
+          "reference_chars": 85455,
+          "cer": 0.022163711895149495
+        },
+        "before": {
+          "exact": 3616,
+          "sentence_accuracy": 0.8399535423925668,
+          "edits": 1732,
+          "reference_chars": 85455,
+          "cer": 0.020267977297993095
+        },
+        "after": {
+          "exact": 3632,
+          "sentence_accuracy": 0.8436701509872242,
+          "edits": 1701,
+          "reference_chars": 85455,
+          "cer": 0.01990521327014218
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 3544,
+          "sentence_accuracy": 0.8232288037166086,
+          "edits": 1790,
+          "reference_chars": 86015,
+          "cer": 0.02081032378073592
+        },
+        "before": {
+          "exact": 3686,
+          "sentence_accuracy": 0.8562137049941928,
+          "edits": 1615,
+          "reference_chars": 86015,
+          "cer": 0.018775794919490787
+        },
+        "after": {
+          "exact": 3701,
+          "sentence_accuracy": 0.8596980255516841,
+          "edits": 1591,
+          "reference_chars": 86015,
+          "cer": 0.018496773818520027
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 2898,
+          "target_occurrences": 5118,
+          "hit_occurrences": 4869,
+          "hit_rate": 0.9513481828839391,
+          "all_targets_hit_rows": 2659
+        },
+        "before": {
+          "covered_rows": 2898,
+          "target_occurrences": 5118,
+          "hit_occurrences": 5032,
+          "hit_rate": 0.9831965611567018,
+          "all_targets_hit_rows": 2821
+        },
+        "after": {
+          "covered_rows": 2898,
+          "target_occurrences": 5118,
+          "hit_occurrences": 5039,
+          "hit_rate": 0.9845642829230168,
+          "all_targets_hit_rows": 2828
+        }
+      },
+      "improved": 20,
+      "regressed": 0,
+      "changed": 28,
+      "enhancement_regressions_before": 6,
+      "enhancement_regressions_after": 5
+    },
+    "current_police_terms_20260711_application_names_62": {
+      "cases": 62,
+      "strict": {
+        "asr_raw": {
+          "exact": 57,
+          "sentence_accuracy": 0.9193548387096774,
+          "edits": 7,
+          "reference_chars": 557,
+          "cer": 0.012567324955116697
+        },
+        "before": {
+          "exact": 58,
+          "sentence_accuracy": 0.9354838709677419,
+          "edits": 6,
+          "reference_chars": 557,
+          "cer": 0.010771992818671455
+        },
+        "after": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 57,
+          "sentence_accuracy": 0.9193548387096774,
+          "edits": 7,
+          "reference_chars": 557,
+          "cer": 0.012567324955116697
+        },
+        "before": {
+          "exact": 58,
+          "sentence_accuracy": 0.9354838709677419,
+          "edits": 6,
+          "reference_chars": 557,
+          "cer": 0.010771992818671455
+        },
+        "after": {
+          "exact": 59,
+          "sentence_accuracy": 0.9516129032258065,
+          "edits": 5,
+          "reference_chars": 557,
+          "cer": 0.008976660682226212
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 58,
+          "target_occurrences": 67,
+          "hit_occurrences": 64,
+          "hit_rate": 0.9552238805970149,
+          "all_targets_hit_rows": 55
+        },
+        "before": {
+          "covered_rows": 58,
+          "target_occurrences": 67,
+          "hit_occurrences": 65,
+          "hit_rate": 0.9701492537313433,
+          "all_targets_hit_rows": 56
+        },
+        "after": {
+          "covered_rows": 58,
+          "target_occurrences": 67,
+          "hit_occurrences": 66,
+          "hit_rate": 0.9850746268656716,
+          "all_targets_hit_rows": 57
+        }
+      },
+      "improved": 1,
+      "regressed": 0,
+      "changed": 1,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "development": {
+      "cases": 1819,
+      "strict": {
+        "asr_raw": {
+          "exact": 1493,
+          "sentence_accuracy": 0.8207806487080813,
+          "edits": 795,
+          "reference_chars": 36210,
+          "cer": 0.021955260977630488
+        },
+        "before": {
+          "exact": 1557,
+          "sentence_accuracy": 0.8559648158328752,
+          "edits": 723,
+          "reference_chars": 36210,
+          "cer": 0.01996685998342999
+        },
+        "after": {
+          "exact": 1573,
+          "sentence_accuracy": 0.8647608576140736,
+          "edits": 699,
+          "reference_chars": 36210,
+          "cer": 0.019304059652029824
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 1517,
+          "sentence_accuracy": 0.8339747113798791,
+          "edits": 752,
+          "reference_chars": 36432,
+          "cer": 0.020641194554238032
+        },
+        "before": {
+          "exact": 1586,
+          "sentence_accuracy": 0.8719076415612974,
+          "edits": 667,
+          "reference_chars": 36432,
+          "cer": 0.018308080808080808
+        },
+        "after": {
+          "exact": 1601,
+          "sentence_accuracy": 0.880153930731171,
+          "edits": 646,
+          "reference_chars": 36432,
+          "cer": 0.017731664470794904
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 1220,
+          "target_occurrences": 2135,
+          "hit_occurrences": 2025,
+          "hit_rate": 0.9484777517564403,
+          "all_targets_hit_rows": 1116
+        },
+        "before": {
+          "covered_rows": 1220,
+          "target_occurrences": 2135,
+          "hit_occurrences": 2101,
+          "hit_rate": 0.9840749414519906,
+          "all_targets_hit_rows": 1191
+        },
+        "after": {
+          "covered_rows": 1220,
+          "target_occurrences": 2135,
+          "hit_occurrences": 2108,
+          "hit_rate": 0.9873536299765808,
+          "all_targets_hit_rows": 1198
+        }
+      },
+      "improved": 17,
+      "regressed": 0,
+      "changed": 21,
+      "enhancement_regressions_before": 1,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_industry_dialogue_189": {
+      "cases": 189,
+      "strict": {
+        "asr_raw": {
+          "exact": 159,
+          "sentence_accuracy": 0.8412698412698413,
+          "edits": 65,
+          "reference_chars": 6325,
+          "cer": 0.010276679841897233
+        },
+        "before": {
+          "exact": 159,
+          "sentence_accuracy": 0.8412698412698413,
+          "edits": 65,
+          "reference_chars": 6325,
+          "cer": 0.010276679841897233
+        },
+        "after": {
+          "exact": 161,
+          "sentence_accuracy": 0.8518518518518519,
+          "edits": 63,
+          "reference_chars": 6325,
+          "cer": 0.009960474308300396
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 172,
+          "sentence_accuracy": 0.91005291005291,
+          "edits": 23,
+          "reference_chars": 6318,
+          "cer": 0.0036403925292814183
+        },
+        "before": {
+          "exact": 172,
+          "sentence_accuracy": 0.91005291005291,
+          "edits": 23,
+          "reference_chars": 6318,
+          "cer": 0.0036403925292814183
+        },
+        "after": {
+          "exact": 174,
+          "sentence_accuracy": 0.9206349206349206,
+          "edits": 21,
+          "reference_chars": 6318,
+          "cer": 0.0033238366571699905
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 36,
+          "target_occurrences": 47,
+          "hit_occurrences": 47,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 36
+        },
+        "before": {
+          "covered_rows": 36,
+          "target_occurrences": 47,
+          "hit_occurrences": 46,
+          "hit_rate": 0.9787234042553191,
+          "all_targets_hit_rows": 35
+        },
+        "after": {
+          "covered_rows": 36,
+          "target_occurrences": 47,
+          "hit_occurrences": 47,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 36
+        }
+      },
+      "improved": 2,
+      "regressed": 0,
+      "changed": 2,
+      "enhancement_regressions_before": 1,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260711_industry_vocab_1671": {
+      "cases": 1671,
+      "strict": {
+        "asr_raw": {
+          "exact": 1574,
+          "sentence_accuracy": 0.9419509275882705,
+          "edits": 170,
+          "reference_chars": 14010,
+          "cer": 0.012134189864382585
+        },
+        "before": {
+          "exact": 1574,
+          "sentence_accuracy": 0.9419509275882705,
+          "edits": 170,
+          "reference_chars": 14010,
+          "cer": 0.012134189864382585
+        },
+        "after": {
+          "exact": 1583,
+          "sentence_accuracy": 0.9473369239976063,
+          "edits": 157,
+          "reference_chars": 14010,
+          "cer": 0.011206281227694504
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 1597,
+          "sentence_accuracy": 0.9557151406343507,
+          "edits": 85,
+          "reference_chars": 14013,
+          "cer": 0.006065796046528224
+        },
+        "before": {
+          "exact": 1597,
+          "sentence_accuracy": 0.9557151406343507,
+          "edits": 85,
+          "reference_chars": 14013,
+          "cer": 0.006065796046528224
+        },
+        "after": {
+          "exact": 1606,
+          "sentence_accuracy": 0.9611011370436864,
+          "edits": 72,
+          "reference_chars": 14013,
+          "cer": 0.005138086062941554
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 529,
+          "hit_rate": 0.9412811387900356,
+          "all_targets_hit_rows": 507
+        },
+        "before": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 531,
+          "hit_rate": 0.9448398576512456,
+          "all_targets_hit_rows": 509
+        },
+        "after": {
+          "covered_rows": 540,
+          "target_occurrences": 562,
+          "hit_occurrences": 536,
+          "hit_rate": 0.9537366548042705,
+          "all_targets_hit_rows": 514
+        }
+      },
+      "improved": 9,
+      "regressed": 0,
+      "changed": 9,
+      "enhancement_regressions_before": 2,
+      "enhancement_regressions_after": 2
+    },
+    "current_police_terms_20260711_special_codes_10": {
+      "cases": 10,
+      "strict": {
+        "asr_raw": {
+          "exact": 0,
+          "sentence_accuracy": 0.0,
+          "edits": 61,
+          "reference_chars": 193,
+          "cer": 0.3160621761658031
+        },
+        "before": {
+          "exact": 0,
+          "sentence_accuracy": 0.0,
+          "edits": 68,
+          "reference_chars": 193,
+          "cer": 0.35233160621761656
+        },
+        "after": {
+          "exact": 0,
+          "sentence_accuracy": 0.0,
+          "edits": 68,
+          "reference_chars": 193,
+          "cer": 0.35233160621761656
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 5,
+          "sentence_accuracy": 0.5,
+          "edits": 21,
+          "reference_chars": 192,
+          "cer": 0.109375
+        },
+        "before": {
+          "exact": 8,
+          "sentence_accuracy": 0.8,
+          "edits": 15,
+          "reference_chars": 192,
+          "cer": 0.078125
+        },
+        "after": {
+          "exact": 8,
+          "sentence_accuracy": 0.8,
+          "edits": 15,
+          "reference_chars": 192,
+          "cer": 0.078125
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 1,
+          "target_occurrences": 1,
+          "hit_occurrences": 1,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 1
+        },
+        "before": {
+          "covered_rows": 1,
+          "target_occurrences": 1,
+          "hit_occurrences": 1,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 1
+        },
+        "after": {
+          "covered_rows": 1,
+          "target_occurrences": 1,
+          "hit_occurrences": 1,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 1
+        }
+      },
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_20260727_190": {
+      "cases": 190,
+      "strict": {
+        "asr_raw": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "before": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "after": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "before": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        },
+        "after": {
+          "exact": 188,
+          "sentence_accuracy": 0.9894736842105263,
+          "edits": 2,
+          "reference_chars": 1881,
+          "cer": 0.001063264221158958
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 80,
+          "target_occurrences": 89,
+          "hit_occurrences": 89,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 80
+        },
+        "before": {
+          "covered_rows": 80,
+          "target_occurrences": 89,
+          "hit_occurrences": 89,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 80
+        },
+        "after": {
+          "covered_rows": 80,
+          "target_occurrences": 89,
+          "hit_occurrences": 89,
+          "hit_rate": 1.0,
+          "all_targets_hit_rows": 80
+        }
+      },
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0,
+      "enhancement_regressions_before": 0,
+      "enhancement_regressions_after": 0
+    },
+    "current_police_terms_2183": {
+      "cases": 2183,
+      "strict": {
+        "asr_raw": {
+          "exact": 1504,
+          "sentence_accuracy": 0.6889601465872652,
+          "edits": 1589,
+          "reference_chars": 62489,
+          "cer": 0.025428475411672456
+        },
+        "before": {
+          "exact": 1637,
+          "sentence_accuracy": 0.749885478699038,
+          "edits": 1421,
+          "reference_chars": 62489,
+          "cer": 0.02274000224039431
+        },
+        "after": {
+          "exact": 1641,
+          "sentence_accuracy": 0.7517178195144297,
+          "edits": 1406,
+          "reference_chars": 62489,
+          "cer": 0.02249995999295876
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 1525,
+          "sentence_accuracy": 0.6985799358680714,
+          "edits": 1652,
+          "reference_chars": 63054,
+          "cer": 0.026199765280553178
+        },
+        "before": {
+          "exact": 1663,
+          "sentence_accuracy": 0.7617956939990839,
+          "edits": 1484,
+          "reference_chars": 63054,
+          "cer": 0.02353538237066641
+        },
+        "after": {
+          "exact": 1666,
+          "sentence_accuracy": 0.7631699496106276,
+          "edits": 1476,
+          "reference_chars": 63054,
+          "cer": 0.023408506994005138
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 2183,
+          "target_occurrences": 4352,
+          "hit_occurrences": 4139,
+          "hit_rate": 0.9510569852941176,
+          "all_targets_hit_rows": 1980
+        },
+        "before": {
+          "covered_rows": 2183,
+          "target_occurrences": 4352,
+          "hit_occurrences": 4300,
+          "hit_rate": 0.9880514705882353,
+          "all_targets_hit_rows": 2140
+        },
+        "after": {
+          "covered_rows": 2183,
+          "target_occurrences": 4352,
+          "hit_occurrences": 4300,
+          "hit_rate": 0.9880514705882353,
+          "all_targets_hit_rows": 2140
+        }
+      },
+      "improved": 8,
+      "regressed": 0,
+      "changed": 16,
+      "enhancement_regressions_before": 3,
+      "enhancement_regressions_after": 3
+    },
+    "held_out": {
+      "cases": 2486,
+      "strict": {
+        "asr_raw": {
+          "exact": 1989,
+          "sentence_accuracy": 0.8000804505229284,
+          "edits": 1099,
+          "reference_chars": 49245,
+          "cer": 0.022316986496090974
+        },
+        "before": {
+          "exact": 2059,
+          "sentence_accuracy": 0.828238133547868,
+          "edits": 1009,
+          "reference_chars": 49245,
+          "cer": 0.020489389785765054
+        },
+        "after": {
+          "exact": 2059,
+          "sentence_accuracy": 0.828238133547868,
+          "edits": 1002,
+          "reference_chars": 49245,
+          "cer": 0.020347243374961924
+        }
+      },
+      "numeric_equivalent": {
+        "asr_raw": {
+          "exact": 2027,
+          "sentence_accuracy": 0.8153660498793243,
+          "edits": 1038,
+          "reference_chars": 49583,
+          "cer": 0.020934594518282477
+        },
+        "before": {
+          "exact": 2100,
+          "sentence_accuracy": 0.8447304907481898,
+          "edits": 948,
+          "reference_chars": 49583,
+          "cer": 0.019119456265252202
+        },
+        "after": {
+          "exact": 2100,
+          "sentence_accuracy": 0.8447304907481898,
+          "edits": 945,
+          "reference_chars": 49583,
+          "cer": 0.01905895165681786
+        }
+      },
+      "project_lexicon_terms": {
+        "asr_raw": {
+          "covered_rows": 1678,
+          "target_occurrences": 2983,
+          "hit_occurrences": 2844,
+          "hit_rate": 0.953402614817298,
+          "all_targets_hit_rows": 1543
+        },
+        "before": {
+          "covered_rows": 1678,
+          "target_occurrences": 2983,
+          "hit_occurrences": 2931,
+          "hit_rate": 0.9825678846798525,
+          "all_targets_hit_rows": 1630
+        },
+        "after": {
+          "covered_rows": 1678,
+          "target_occurrences": 2983,
+          "hit_occurrences": 2931,
+          "hit_rate": 0.9825678846798525,
+          "all_targets_hit_rows": 1630
+        }
+      },
+      "improved": 3,
+      "regressed": 0,
+      "changed": 7,
+      "enhancement_regressions_before": 5,
+      "enhancement_regressions_after": 5
+    }
+  },
+  "complete_numeric_codes": {
+    "cases": 10,
+    "before": 9,
+    "after": 9
+  },
+  "prior_regression": {
+    "all": {
+      "cases": 4156,
+      "changed": 61,
+      "improved": 20,
+      "regressed": 0,
+      "equivalent": 41
+    },
+    "prior_other": {
+      "cases": 383,
+      "changed": 9,
+      "improved": 5,
+      "regressed": 0,
+      "equivalent": 4
+    },
+    "V6": {
+      "cases": 3773,
+      "changed": 52,
+      "improved": 15,
+      "regressed": 0,
+      "equivalent": 37
+    }
+  },
+  "term_metric_scope": {
+    "source": "baseline gazetteer plus PoliceTermsHotwords.PRESET",
+    "term_count": 444,
+    "covered_rows": 2898,
+    "all_rows": 4305,
+    "is_customer_full_acceptance_metric": false
+  },
+  "local_evidence_root": ".cache/police-terms-20260922",
+  "evidence_sha256": {
+    "decode_full.py": "a4fe46bb7570db5562a05c7f51da5e5a8ef72c7a5a671d13aea16207d34da60e",
+    "prepare_itn.py": "65f0562fd2249502803a4edc601e97c6ed34cea83eeb5c841a6e780610798db5",
+    "summarize_full.py": "d8b868b05cf7319b8a3cb13f50c95480ccc4dd76b11d326ed9a7138e5f72a105",
+    "selection.jsonl": "fae285fdef288f5f39416f1cf265402ca94eb724bee5b21e4f29291b2f6252a6",
+    "baseline-raw.jsonl": "674063fd3b9fc0f9bd4127a95ce5191c831825d4ac9b43d29ee4bc35c84e6dfc",
+    "baseline-itn.jsonl": "24496273c4fe08196b3f6db0f332bec9dd5f8b2763f3a17cc52a4130b7deb87f",
+    "before-itn.jsonl": "1c6f4a301625af1c68f938cb230a8e9225e82d256574a35b5b8a45db66d6fa7e",
+    "after-itn.jsonl": "30e79f2900bc8354820af75e990c03c042a97bde1a35b375f6ab884d9a4a0a42",
+    "full-comparison.jsonl": "5fb2b8fc205d1fcfd4c9552dd3489a36412b3dda6856414c330885112c358bd7",
+    "metrics.json": "7d46940a0f0cff4be681a416bc8801198ac7afd2abf3ebfc4f569b05bff68953",
+    "code-metrics.json": "f1a9b162e0466a944bd4bb0bee4a99a3bc30850e5b0f9e86608847aa0ea65ff3",
+    "prior-regression.json": "5d2f84eda5e068b858c04c5b0f1cc43a9bf07d3c1e6d2097c27700de4499ce11",
+    "prior-after.jsonl": "61e07c2e0d6e1481f67fd85e75e3e86282f2cac42bd47f906586965f541d3ba7",
+    "frozen-target-terms.json": "5f691a1f8c8a7980cebf78b0d584f69a2040a2ab54927b6699093e2bdf9f6847",
+    "frozen-candidate-sha256.json": "1b9707a57bf306a9230637dbe1df66b9bffdb68a7a09054b953ed60abb55ab07",
+    "red-final.log": "08e7c0d4614c13196dcbf290ce50041e587ec8355b69c6c20969625d7827b106",
+    "green-final.log": "104f50806d083b912d4178440ef6c0e3eb325f1126e1d8182199be4a32c78715"
+  }
+}

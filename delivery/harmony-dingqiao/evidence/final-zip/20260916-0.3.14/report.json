@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "overall_status": "PASS",
+  "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+  "release_version": "0.3.14",
+  "complete_zip": {
+    "status": "PASS",
+    "zip_sha256": "6de2391caf4bcc76fe37c93f33a81409b264d91ab2cf1a514ec11eed8a2d4870",
+    "checked_files": 48,
+    "diagnostics_hap_sha256": "005fe9202fe23bc8fa4505fcd2417d578c1bbbb7a19b199c28aff88fe7f3e258",
+    "release_har_sha256": "997d579b7ed7a5acd18585453c723a7a5b7a04fcd43cbcb9a5be4bee0d42c66f",
+    "source_local_additions": [
+      "existing authorization",
+      "existing signing configuration"
+    ]
+  },
+  "release_source_hap": {
+    "sha256": "9cf39c36d59ab65f722022855d1ab7aafc9ee9be8b1f6bec880268852e24d6a6",
+    "size_bytes": 380800723
+  },
+  "runs": [
+    {
+      "variant": "diag",
+      "status": "PASS",
+      "run_id": "20260916-181253-diarization-windows-f3cf8e9b",
+      "application": {
+        "runId": "20260916-181253-diarization-windows-f3cf8e9b",
+        "status": "PASS",
+        "mode": "diarization-windows",
+        "requested": "1",
+        "completed": "1",
+        "failed": "0",
+        "emptyFinals": "0",
+        "starts": "1",
+        "partials": "175",
+        "finals": "30",
+        "completes": "1",
+        "errors": "0",
+        "elapsedMs": "185607",
+        "fatal": ""
+      },
+      "files": [
+        {
+          "path": "hilog.txt",
+          "sha256": "7d26f1ec10e97ebaac22e437699cd30f58acd0934b1d113b9baf571cd0d69ff0",
+          "size_bytes": 30257
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "badecd7dd7ea43b731c344f740b7e178802fcde42d3f3e258630a9110960df75",
+          "size_bytes": 202
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "a4bca91c79ebc5ecb34f3f061a7051e118b0346c0b28d23bdf8a6e883a2c7275",
+          "size_bytes": 8818
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "2d873d36aabf733ac5fc617eb23077fd65cb7d6988cb1af676690a71e29b81a5",
+          "size_bytes": 370
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "05522809b44d07b1966f46246134c7b97d870651696b10cae242276f58d734f5",
+          "size_bytes": 109
+        },
+        {
+          "path": "report.json",
+          "sha256": "c4b33f7e0db2cd26a78f4065f6240d51985bd52f10563319cd002e299a46b2f3",
+          "size_bytes": 13827
+        },
+        {
+          "path": "result.txt",
+          "sha256": "7cd1552ed0ceb36adbab5ce46216e473d6bd093337b01b5e3ebe4cf50735c9ac",
+          "size_bytes": 9746
+        }
+      ]
+    },
+    {
+      "variant": "release",
+      "status": "PASS",
+      "run_id": "20260916-181650-diarization-windows-121e9f2f",
+      "application": {
+        "runId": "20260916-181650-diarization-windows-121e9f2f",
+        "status": "PASS",
+        "mode": "diarization-windows",
+        "requested": "1",
+        "completed": "1",
+        "failed": "0",
+        "emptyFinals": "0",
+        "starts": "1",
+        "partials": "175",
+        "finals": "30",
+        "completes": "1",
+        "errors": "0",
+        "elapsedMs": "183366",
+        "fatal": ""
+      },
+      "files": [
+        {
+          "path": "hilog.txt",
+          "sha256": "8b94f2dfc54895c69f54df9cdfb43c9032e750abda1f9f8e25dbb806821cfcbb",
+          "size_bytes": 30256
+        },
+        {
+          "path": "inventory.json",
+          "sha256": "badecd7dd7ea43b731c344f740b7e178802fcde42d3f3e258630a9110960df75",
+          "size_bytes": 202
+        },
+        {
+          "path": "memory.csv",
+          "sha256": "99f0630797797fd83279948b8d4fb93813457ecbfd074576ac2155140d9028e7",
+          "size_bytes": 8718
+        },
+        {
+          "path": "payload/corpus.json",
+          "sha256": "2d873d36aabf733ac5fc617eb23077fd65cb7d6988cb1af676690a71e29b81a5",
+          "size_bytes": 370
+        },
+        {
+          "path": "payload/manifest.txt",
+          "sha256": "58331730248f42712e895045a5a16890ddfe86a5e03c2fd41c012f01361ecabc",
+          "size_bytes": 109
+        },
+        {
+          "path": "report.json",
+          "sha256": "f3ce94f900e4f510388f2e03e95fec42cb4deff9f4014702fdecd8e2da8b2e2b",
+          "size_bytes": 13821
+        },
+        {
+          "path": "result.txt",
+          "sha256": "d3577bffda7b6278dc87c2d69c0d4c20a8473650ff8ca3e9a215c5dc257bd12e",
+          "size_bytes": 9747
+        }
+      ]
+    }
+  ],
+  "additional_files": [
+    {
+      "path": "harmony-documentation-only-artifact-reuse.json",
+      "sha256": "7c5ae1a63e9cbc769e24ff4ce691e366354c828c49db593bf46260ff2f974739",
+      "size_bytes": 4965
+    },
+    {
+      "path": "harmony-final-zip-static.json",
+      "sha256": "79e02aface620c219a02adb43104b7fcb1cb5f0bc34da0213bcae33ba6d93a08",
+      "size_bytes": 419
+    },
+    {
+      "path": "harmony-independent-source-build.log",
+      "sha256": "0a5e29fa17b4cbfd5007dcbb93781c4076d9d167f67c2365bc47efe359416292",
+      "size_bytes": 34745
+    }
+  ],
+  "offline": {
+    "wifi": "disabled",
+    "cellular": "no SIM; airplane enabled",
+    "internet_permission": false,
+    "scope": "Both final ZIP real-audio runs; earlier 24-mode matrix is not asserted to be fully offline",
+    "per_syscall_network_trace": "NOT_COVERED"
+  },
+  "limitations": [
+    "Four-speaker overlap accuracy remains OPEN.",
+    "Release source carrier removes private native stream probes; its liveStreams=0 is a placeholder and not measured resource evidence.",
+    "Three-minute memory data does not establish long-meeting stability."
+  ]
+}

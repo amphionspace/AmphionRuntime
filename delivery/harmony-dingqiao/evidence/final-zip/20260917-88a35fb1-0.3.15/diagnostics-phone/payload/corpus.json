@@ -1,0 +1,13 @@
+[
+  {
+    "id": "000000",
+    "source": "input.wav",
+    "source_sha256": "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a",
+    "sample_rate": 16000,
+    "channels": 1,
+    "sample_width": 2,
+    "duration_seconds": 89.16,
+    "pcm_bytes": 2853120,
+    "pcm_sha256": "c1e30f75f3ced6de76b7ec066ef33ce1948aa75dc77d6a2ae74dadba52171fb2"
+  }
+]

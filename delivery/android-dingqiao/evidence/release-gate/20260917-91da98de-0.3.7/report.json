@@ -1,0 +1,683 @@
+{
+  "schema_version": 1,
+  "overall_status": "PASS",
+  "acceptance_scope": "Foreground SDK lifecycle, corrected endpoint timestamp and readable source paragraphs with original role details. Generic identity accuracy remains blocked.",
+  "release_version": "0.3.7",
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "release_artifact": {
+    "name": "amphion-dingqiao-asr-sdk-v0.3.7-20260917.zip",
+    "sha256": "3b1e4b0429b2b676618da6fb2d50d4a0265037abe6dd470e51a8a1ab1d2c9708",
+    "size_bytes": 299184636,
+    "provenance_sha256": "0307e75e6e104adb553dfec8104faa42c4b4a6d694cf98bc636e86382777b43b"
+  },
+  "android_tests_artifact": {
+    "path": "android-tests.json",
+    "sha256": "8f4b6d1c3d6b7ac8e9932cb2f80df19773742a2ff565aa26e47ae189cdc5bdcc",
+    "size_bytes": 880
+  },
+  "android_test_results": [
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "f33e1eaea614ad76dccf186d5a0a9668e659240a1d870972803aa31d94449c28",
+      "size_bytes": 586
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "971e4ec6eb1204e8c6229ec3e7be9e62165fda47fb8f332da9fb12c3af3af7ed",
+      "size_bytes": 467
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "3b4a775cdcd69c4bada48480be6fa6bfaeba209d9b68f11ae1fd189b90b61bbf",
+      "size_bytes": 732
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "a3baa51f6bbd3d00575b65182b0358d0302750cffbd185b029a5cf1bb8c41891",
+      "size_bytes": 619
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "912e26a236a1912a77bad1f8a2d8630e4fba46ba219c257a6bd3eee1de7d66cb",
+      "size_bytes": 646
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "6a6a210cdc6be19191c303c7d59bcd649a153894ed3c0af220ee2618db3ee15b",
+      "size_bytes": 1557
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "8b93f5b5002b3c5ad97e65157133eedb81d1409a706b86c519a4d908fa9ecf5c",
+      "size_bytes": 732
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "fa9e50ae0bddbac18e1532b45f767b6e7b275ba580ea511400350bd3ec0b0bf6",
+      "size_bytes": 1347
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "7ab66d664b4663542dd1b983e581925a8c946a2cb6d9e71e4f435ac1f9e8b33c",
+      "size_bytes": 1406
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "f149c20a9e69c8a6e48423a63a65651de5d4e906095241e97428de2d41c1b6cf",
+      "size_bytes": 826
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "7d7d73ce28480b397311be40ae0aaea25c6f2eb3555542247c51ab02699d22a8",
+      "size_bytes": 482
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "92965f23aef98c27c33d5c6f57f893409913cb3e767280ca54c3f68ad15830eb",
+      "size_bytes": 612
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "9f6b209dc51413edbbf1a840393ae50ab4b2d84ba495d4f9ad8989b373398ada",
+      "size_bytes": 623
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "284bb6bcb2dbf934b5a10e2fd7967f57d95bcb2f22c2c53d4f5cd81eb451f7aa",
+      "size_bytes": 449
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SessionTimestampTest.xml",
+      "sha256": "078f98011cda26ad6228a2434c27f39c25e74f43ac91d2aefbe5b5637686474c",
+      "size_bytes": 839
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "cf37f5deb792218f2d1cfb1b00e3c3d2202cf9cfa150f51d84865cbe2e00df9e",
+      "size_bytes": 740
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "676ca9c904ad2c87577b72058b99ebe38c2951bb4da8c033ba37f611549fd644",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "84c9a7647d5f03f1c8e334a00b2c3a7908084525992e3f640c62c3c576ea066b",
+      "size_bytes": 773
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "00f289e9871cff0e9b74fd30b6bdf3bd1517ee0910be9057e378c6d8fc282df4",
+      "size_bytes": 606
+    },
+    {
+      "path": "android-test-results/sdk/debug/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "70bb00e4587c3dec8e006eabdace7722a37381b0415198fad83ce0a5fce1ebc7",
+      "size_bytes": 954
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.AsrConfigColdStartTest.xml",
+      "sha256": "af16980642f68cf5866f8ad254d66f7d53f685f278edc7857fef35de7681042a",
+      "size_bytes": 584
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.TargetSpeakerConfigTest.xml",
+      "sha256": "642c58c4ecb8d7040a8d8328bef0d8b245d536a2de916021c4783308b4408bdb",
+      "size_bytes": 465
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.AssetRegistryTest.xml",
+      "sha256": "828321a266d8f057f019dfe780213470f798d0220d0ced2db00042303202509f",
+      "size_bytes": 728
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.ClosingSessionBarrierTest.xml",
+      "sha256": "9d1a3e2351895b0df75e346ab0affb8ac8ca486dc81e52f495d45655f9ac0a75",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.DecoderSubmissionFenceTest.xml",
+      "sha256": "6473f026f61e5a2c38532d1e2a979e9a903c9732bbdea33a3baf2face5674508",
+      "size_bytes": 646
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.EffectiveSpeechBufferTest.xml",
+      "sha256": "2ab5244722eff07ec8c626021932b5b606cae484b7ea74b23886c9403f7314a7",
+      "size_bytes": 1557
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.FinalCallbackOrderGateTest.xml",
+      "sha256": "cbbeeaed2712034520521f1f2f51de5419c764e374fb965c9ff4447f6808322f",
+      "size_bytes": 730
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.FinalTailFlushPlannerTest.xml",
+      "sha256": "bf35fb2003563b60d93f1576df0d4b6b3fa88e992dd2bff3c24e1419cf2d33ce",
+      "size_bytes": 1343
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.InitialAcousticActivityTrackerTest.xml",
+      "sha256": "2c4b753a5ae27a04aff9fa590a808ab44f3bd28200d848cc096726136baf860b",
+      "size_bytes": 1401
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.LicenseVerifierTest.xml",
+      "sha256": "3556f083772984af1b715574426c83bc0345d8be4a0bd8324604dd0b83358785",
+      "size_bytes": 828
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.NativeEndpointTransitionPolicyTest.xml",
+      "sha256": "262e9ce26f6abef594ade40d1edf7f7aea96b432472d0955a1dacdfa2f0249b4",
+      "size_bytes": 482
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.PcmSubmissionLimiterTest.xml",
+      "sha256": "8adbbf33dcbe26281ad138990c560813266ac095ed72051ce50a5f77dd995cb2",
+      "size_bytes": 612
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.RecognizerResetGenerationTest.xml",
+      "sha256": "79d921d8d8222d107bf7ddc062347bc9d40982e88b5751c2f0390382eca9d46e",
+      "size_bytes": 619
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SessionConfigTest.xml",
+      "sha256": "d52d0c24909402321d0491dc28fd6af5cb0e11e0aa17ca933c55fd18af80d926",
+      "size_bytes": 445
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerPcmBuffersTest.xml",
+      "sha256": "b7cfb280969f25ea2e8c16b039535f0f9aef96724e4331f8c314dd8b0c223143",
+      "size_bytes": 740
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerVadFinalGateTest.xml",
+      "sha256": "6d92e46407f85993339a58cfed8a0c2e831f31340cd811466f54ab1268e763d6",
+      "size_bytes": 620
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.SpeakerVadScoreSchedulerTest.xml",
+      "sha256": "952fdecf91035b04c84e89bcaba6c5fa6432fd8f516da968637197393510d6a6",
+      "size_bytes": 773
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.StreamingAgcIngressTest.xml",
+      "sha256": "c9114d4e05f90f463b9f4df6f6da1e0373b8f365d3d84964ebc77db03705abe3",
+      "size_bytes": 606
+    },
+    {
+      "path": "android-test-results/sdk/release/TEST-com.amphion.asr.internal.StreamingAgcProcessorTest.xml",
+      "sha256": "d10f84c198026c44c49da803a57272d5680c8f87346667f323b532ea37182cb4",
+      "size_bytes": 954
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "5a8b0d25bc780ab2789cfd60a353c7ce6d256d662710a919f377d4cb51de50d7",
+      "size_bytes": 713
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "128c1a145cf4004c67c5fa73a655344c601a62e08beb54813779be3bc2dfba52",
+      "size_bytes": 642
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "d10b9110e04ca51adcc59db1f611042fa07681a32cf8a2f6ec76c8d28877e8bd",
+      "size_bytes": 730
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DiarizationStoppedFallbackTest.xml",
+      "sha256": "be662407cb4068c58c4414cea1f2ae8e17f28411bac612ab5b80c5cf3bb62f3b",
+      "size_bytes": 1018
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "1778b7c5258c22d9c706773a2ee659260bb44ba45f35ee8290921ea602fdb19d",
+      "size_bytes": 4805
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "2e6dd6fc47b882147ebce2ae05cbe812678f3192f3e1f02e3f0efbb0e5bbf494",
+      "size_bytes": 408
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "cfc3387e3660bbf32ba0fb05263190c3a9a62d89afa099c0db817ba8d0e780db",
+      "size_bytes": 1319
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "3b01bbf374aef979a834efec91e5f3367c33d01718087e8c75b13efb02f5dba7",
+      "size_bytes": 631
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "896f2dda507b1b8981ea0fe4c3e75a44598ee92b1cd431e62cfb2d88760d6a85",
+      "size_bytes": 587
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.ResultTimestampParityTest.xml",
+      "sha256": "a53c600b6de5d98fa4fa9a5d2e0f5021fd55c36082bd0861df1d55920868725d",
+      "size_bytes": 483
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "7d775f85d9814aeec4193b44e1dfa3326e213bd1c9eed8ce7f8fd977649e9841",
+      "size_bytes": 3536
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "e2ce85219877ed079cfadcf29cd4114f88b2a0b5d7f0123f908a1e5e0f37a619",
+      "size_bytes": 776
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "3475d6918c810b4859624859bfbd7ba5ca798cc400d5f2bff25dc8689390e261",
+      "size_bytes": 555
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest.xml",
+      "sha256": "84d63fe18a0d32fb68643ef8c80c51ccd628a5e63ad9603f0596600dcb3a9129",
+      "size_bytes": 666
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "40b428365d77b9b83adce417fe394c6d2c6367905835cb91a22af57117dfc459",
+      "size_bytes": 904
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "55e124908cb487f0ff661f5b63efa9a0d1742b427e31ece1aacb8a43cbfce957",
+      "size_bytes": 3106
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "4dbc9818033176798b7ef8a90e9fe62ce3994c22d531d12ac9b4df6d86e7e647",
+      "size_bytes": 2693
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/debug/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "c421072754141c4c32e3dd98bdd8aa664ecb3567fb3bf920d062e48ee7835439",
+      "size_bytes": 687
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.CallbackEpochTest.xml",
+      "sha256": "ce9e1fd5cde1ef4bce7441541acdddb58334f4f9fa2400bf28834e932af27921",
+      "size_bytes": 715
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.CallbackInvocationContextTest.xml",
+      "sha256": "699c244a646a1efb27e37db8aed2eef853323e6099c0aae3eba3f05e9e920da6",
+      "size_bytes": 644
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DiagnosticsModuleTest.xml",
+      "sha256": "06408dab962e807d5da98a11724b9e9d5ad2801e3d2c20bf188dab28bf8f91b4",
+      "size_bytes": 733
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DiarizationStoppedFallbackTest.xml",
+      "sha256": "753c1bd4b5b53b6b0a62daf99181c91b079b9e71c1a8ad08751ebcaabe9054f5",
+      "size_bytes": 1017
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.DingqiaoEngineConfigTest.xml",
+      "sha256": "837e5330c2f80a09e4500c934673fb9e18c755c99ffbf4ced706d63a86f73645",
+      "size_bytes": 4811
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PcmIoTest.xml",
+      "sha256": "8b82d77fd90b1fffc8a369870a5186bd33eafe6ad9377acc48b3e59b8912d994",
+      "size_bytes": 408
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PoliceEnhancementEngineCallbackTest.xml",
+      "sha256": "ea279bc412aad253820fdb215c39c3ee453b5bacf042ddf192cbe674fb9c5dcd",
+      "size_bytes": 1318
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.PoliceEnhancementPolicyTest.xml",
+      "sha256": "c5991423d912bff3fae503f6fdcce1ce1d013d045b5598c005470d0395f8ff5c",
+      "size_bytes": 633
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.RejectedFinalLifecycleTest.xml",
+      "sha256": "1bf19991d7f33e905560a7329f9d40aeda6b902bb5cf00416a67d646b5e5c368",
+      "size_bytes": 587
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.ResultTimestampParityTest.xml",
+      "sha256": "db8a08b1955cd64949fe4cf00f121896f29dd592ab2cb3596c6dfd95b802b892",
+      "size_bytes": 481
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.SpeechRecognizeSdkRuntimeApiTest.xml",
+      "sha256": "d46a0758e782e0bc136c499a79e0e98325f7e36754f720e6bb4462c6ba8f0089",
+      "size_bytes": 3537
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.VoiceprintRegistrationContractTest.xml",
+      "sha256": "fec95a284888abbb01a08aa46f19da989b336585ab4367e25ccb85b3087be9e1",
+      "size_bytes": 780
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.VoiceprintStoreTest.xml",
+      "sha256": "71db1cce4c7b97f154e0e93d078ee2a8b3bf56b3a6a1d35971b67843687fdbab",
+      "size_bytes": 555
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationForegroundLevelTest.xml",
+      "sha256": "a1039e5bb549d8d3dae752386650c39bfdb90692a2ce2c585d59421b9d278195",
+      "size_bytes": 666
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "5835831adc4f22e104db75a7f4094c83c4e8d300a118386fcf6a8f6422705e8c",
+      "size_bytes": 910
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "2b21409a2ab7e8d213bc4aecbe0d4fb3fc992640518e13a05ac3cd86cb209ba4",
+      "size_bytes": 3110
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "924f69fb5a9e530bd3975abdbb423cb1161dfe5365f779013ad8f81fa7b2331c",
+      "size_bytes": 2699
+    },
+    {
+      "path": "android-test-results/sdk-dingqiao/release/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "91a9456bb4dc06cd2e2370669a4e8445c2c6f22de8c66fe1f0bd2fa43301ae8b",
+      "size_bytes": 686
+    }
+  ],
+  "diagnostics": [
+    {
+      "path": "diagnostics/device-and-package",
+      "files": [
+        {
+          "path": "android-foreground-full-controlled.log",
+          "sha256": "cac92d1d0f366f3cdc20b051ef825b9f22ad34e5394f70faf6445b4ad844db60",
+          "size_bytes": 31244
+        },
+        {
+          "path": "android-foreground-stress-controlled.log",
+          "sha256": "f1e94f8795a955b2e54f9f066851f04b0d6cb2334c60bf963023d80023927377",
+          "size_bytes": 766
+        },
+        {
+          "path": "android-foreground-full-summary.json",
+          "sha256": "50c6ce273d26bb0c4908a966b45d7ab8d722d362d9e71ec5eb1587717d1ef2e6",
+          "size_bytes": 12072
+        },
+        {
+          "path": "android-foreground-stress-summary.json",
+          "sha256": "f19ba17e6c9dbbb810c4a837b34703bc4a3e94b49afc456c944d936405711bfe",
+          "size_bytes": 715
+        },
+        {
+          "path": "android-full-memory.txt",
+          "sha256": "b90bfb078f40073e3bb9d20b8c9c27a066f69622ba7f351788f4a3da5f98b602",
+          "size_bytes": 177414
+        },
+        {
+          "path": "android-stress-memory.txt",
+          "sha256": "3ef558d754809b57b9111f3582790aee6f754daee5096963ef1dfc56cb251fe8",
+          "size_bytes": 142639
+        },
+        {
+          "path": "android-foreground-full-callbacks.jsonl",
+          "sha256": "b778dc678ee7209b9e376cff5a7705274fbc1df4f79ae421d8edbca8b4f3514d",
+          "size_bytes": 58021
+        },
+        {
+          "path": "android-foreground-stress-callbacks.jsonl",
+          "sha256": "8156d26e497ed18ece09b3da6fab89229449f0a6e84876ee02173987162e13ac",
+          "size_bytes": 663326
+        },
+        {
+          "path": "android-foreground-full-logcat.txt",
+          "sha256": "3233a0bf78cd18585a516a99d561c63560105a3f451e2b909af54f05170475df",
+          "size_bytes": 433094
+        },
+        {
+          "path": "android-foreground-stress-logcat.txt",
+          "sha256": "376db25070087d96545245747657e628a90e5754c262bc8aca4f432bcd5c6993",
+          "size_bytes": 1029325
+        },
+        {
+          "path": "android-final-zip-diagnostics-phone.log",
+          "sha256": "0cfca2a05158bbf981b0ceced3d861d66d3ccd4adb0785499f5436ea516b3d17",
+          "size_bytes": 794
+        },
+        {
+          "path": "android-final-zip-diagnostics-phone-callbacks.jsonl",
+          "sha256": "d0c4318e6fe79b506eb58dcc047bc77b87c60f351bfbd26d2f900c0ec546847e",
+          "size_bytes": 20201
+        },
+        {
+          "path": "android-final-zip-diagnostics-customer.log",
+          "sha256": "c453f50bccf8e8d24b540e9e69f8a751f151d29dcaf94194f92f798aff4cadef",
+          "size_bytes": 795
+        },
+        {
+          "path": "android-final-zip-diagnostics-customer-callbacks.jsonl",
+          "sha256": "f742908b479daa0f360b041139a3b104c2a50600c57bb0e082885b5398a33b29",
+          "size_bytes": 27297
+        },
+        {
+          "path": "android-final-zip-diagnostics-summary.json",
+          "sha256": "51fa10e67dc485d8f709331630b68eaf9a6cdacce828472d482267a30799428f",
+          "size_bytes": 1017
+        },
+        {
+          "path": "android-final-zip-release-ui-summary.json",
+          "sha256": "b140acf53e1ce592ab5350668f9c8406725e09c0c572636022677d7bb690f475",
+          "size_bytes": 962
+        },
+        {
+          "path": "android-final-zip-static.json",
+          "sha256": "acdeada802682e0fe3b5b01529e2d2b03259f0f499acb3f4b4ebf70714a644c5",
+          "size_bytes": 285
+        },
+        {
+          "path": "android-artifact-identity.json",
+          "sha256": "531cee64d98cc6cc4cf0bcf904c9abc2cd8b22a57f5bc8f3b270196f27212f2d",
+          "size_bytes": 1199
+        },
+        {
+          "path": "android-independent-source-build.log",
+          "sha256": "840dbf9bda4ef9af4771b83687628fc8a551c108071add71e40e78f81fe30f46",
+          "size_bytes": 5005
+        },
+        {
+          "path": "startup-monitor-note.json",
+          "sha256": "e98db54d02ff975cef632029116e52b05e508c0d2ac9dcf15260c196f6502967",
+          "size_bytes": 320
+        },
+        {
+          "path": "noncanonical-startup-monitor-android-foreground-full-controlled.log",
+          "sha256": "12bf577733b99b72d44c8a97e6c5d7a988ac7ccd7278baef0408d59949b0f340",
+          "size_bytes": 442
+        },
+        {
+          "path": "noncanonical-startup-monitor-android-full-memory.txt",
+          "sha256": "683f1e6498fdc80622fbf1e357a56faa5c4e70121718a52d87b662694307ff44",
+          "size_bytes": 62
+        },
+        {
+          "path": "android-build-and-source-notes.json",
+          "sha256": "3f63fbb47bd42430a58084a770511ed0f9076af5744fe883879820cded4d3924",
+          "size_bytes": 678
+        },
+        {
+          "path": "android-diagnostics-stale-variant.json",
+          "sha256": "729b1e2967d8a5d3aa35336701739ef590c3a009c50a9f78d30f0780e1ea60b7",
+          "size_bytes": 412
+        },
+        {
+          "path": "android-corrected-package-reuse.json",
+          "sha256": "d4231a2b2ce28e04615100025722be53105d41ae4be788d6e230e0f5d1f010a4",
+          "size_bytes": 609
+        },
+        {
+          "path": "android-artifact-collection-note.json",
+          "sha256": "f836d113338f54aeb75f24446339806bcf174e2ae8754c2756b631f5ad44d934",
+          "size_bytes": 819
+        },
+        {
+          "path": "android-correct-diagnostics-build.log",
+          "sha256": "08af0ad660d2dbc19a8e0b4949630b7246113d998416c254c1f929e53654ac63",
+          "size_bytes": 4095
+        },
+        {
+          "path": "android-correct-diagnostics-merge.log",
+          "sha256": "95ed3a70328445447d00d797e7500a35ebb32983237559dc77c6bbf90ac5a9e1",
+          "size_bytes": 2038
+        },
+        {
+          "path": "android-correct-diagnostics-demo-build.log",
+          "sha256": "817c2f585b0af945f4a431a52b22458105d5cd35e439119d7bb96e5e34aeb223",
+          "size_bytes": 5775
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/NON-CANONICAL.json",
+          "sha256": "42e891ce7978161305da249b6879c7b5f078244e2b0ae64435c47aed29b00777",
+          "size_bytes": 208
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-final-zip-diagnostics-phone.log",
+          "sha256": "be6634bcdcba65f41d61cf72ae958744c71a5935b15f387350487a0f16bb3980",
+          "size_bytes": 794
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-final-zip-diagnostics-phone-callbacks.jsonl",
+          "sha256": "93a6785f480cd84bcedb237162209b10489fadae151acebe443b6e9f4e58c92d",
+          "size_bytes": 20518
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-final-zip-diagnostics-customer.log",
+          "sha256": "01fc0d4120c70882d9320dfa7dfe74cb42c4d41e5b6b11d3f350d663ae0daee3",
+          "size_bytes": 795
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-final-zip-diagnostics-customer-callbacks.jsonl",
+          "sha256": "531742e606c95e0828837826007cae8d72442daebed524d0b4a985ecf73d701c",
+          "size_bytes": 27296
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-artifact-identity.json",
+          "sha256": "3f19babc66f8fb6cff803e6a857e1f1f7315c198dc9c4c3563e354fe8043f3c9",
+          "size_bytes": 1199
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-final-zip-static.json",
+          "sha256": "ffa323624389f94663eee3115379fabc3ab284eadbdfc08aabfb114dfb78b8ab",
+          "size_bytes": 285
+        },
+        {
+          "path": "noncanonical-stale-diagnostics/android-qualification-resumed.log",
+          "sha256": "1859fee8acbdc1added88bad76957920624e3a9c578295d990537ca1f6840626",
+          "size_bytes": 301
+        },
+        {
+          "path": "bytecode-boundary/corrected-diagnostics.txt",
+          "sha256": "1f5daa8419c2c98cde039acc4d40a6a7e168963405ff5deb4277ead2817926fc",
+          "size_bytes": 3386
+        },
+        {
+          "path": "bytecode-boundary/dingqiao-asr-diagnostics-v0.3.7.aar.txt",
+          "sha256": "a3f5e98bfd763aef1aa2bcfe6f18d9e2eac0c7e757986b316272f07807049e4e",
+          "size_bytes": 3236
+        },
+        {
+          "path": "baseline-plan.json",
+          "sha256": "176e71b7276321dc0c8f68d5839612c72256aec5a0db4a9e73bfefd4f84623be",
+          "size_bytes": 1291
+        },
+        {
+          "path": "baseline-timestamp-red.xml",
+          "sha256": "3a8c2f56bab65f4f2eaabb262b239efff5b4c9a4c5afd0cd7daf8c3fc03a2ae4",
+          "size_bytes": 4964
+        },
+        {
+          "path": "baseline-timestamp-red.log",
+          "sha256": "26a363d25759fc0fe91c5a93d0b6c53f26aa4ec1985bcefcd4acf6e6ac7509b8",
+          "size_bytes": 3407
+        },
+        {
+          "path": "baseline-timestamp-green.log",
+          "sha256": "6e6b56ffdcaac3069a8eb9f2f9cba094c3ff26207fb4d2bbb2e694d764fee9a3",
+          "size_bytes": 3696
+        },
+        {
+          "path": "baseline-harmony-endpoint-control.json",
+          "sha256": "e17de009266cd3e6ed3dcec1dee0f97625396dad4ccbb50f6fbff901d61e1e88",
+          "size_bytes": 965
+        },
+        {
+          "path": "baseline-ui-red-foreground.log",
+          "sha256": "371fe558e0ae315b4f5910c1669f670f8ff1c3255a7f88775bc4d0a720b8ec96",
+          "size_bytes": 5785
+        },
+        {
+          "path": "baseline-ui-green.log",
+          "sha256": "8c57541d2784b2da0fb539d2c7851d5288b84dc62c427f92a0e1b222f0262b3f",
+          "size_bytes": 1533
+        }
+      ]
+    }
+  ],
+  "device": {
+    "model": "V2505A",
+    "android_version": "16",
+    "alias": "device-c4115a58d502"
+  },
+  "sdk_device_tests": {
+    "qualified_tests": 48,
+    "user_sequence_cycles": 300,
+    "completed_sessions": 600
+  },
+  "complete_zip": {
+    "sha256": "6de32ad281550ceebfa596369a6a476f3495efb947375e8ab4d988f27efa0f94",
+    "size_bytes": 1813852859,
+    "checked_payloads": 128,
+    "independent_source_build": "PASS",
+    "diagnostics_sdk_contract": "PASS",
+    "principal_speaker_anchors": [
+      {
+        "beginTime": 3900,
+        "endTime": 5300,
+        "speakerIndex": 0
+      },
+      {
+        "beginTime": 17900,
+        "endTime": 21500,
+        "speakerIndex": 1
+      },
+      {
+        "beginTime": 27400,
+        "endTime": 29300,
+        "speakerIndex": 2
+      },
+      {
+        "beginTime": 39450,
+        "endTime": 40600,
+        "speakerIndex": 3
+      }
+    ],
+    "release_ui_asr_contract": "PASS",
+    "role_readability_status": "PASS",
+    "paragraphs": 15,
+    "role_parts": 22
+  },
+  "general_diarization_identity_status": "BLOCKED",
+  "limitations": [
+    "Identity model and conservative unknown/overlap policy unchanged; known short-interjection and overlap errors remain.",
+    "Android background and lock screen remain unqualified.",
+    "Long-meeting memory stability INCONCLUSIVE.",
+    "Independent demo default assets directory includes its distributed APK; a license-only asset directory avoids the extra payload.",
+    "Fix is on the delivery branch; canonical mainline follow-up remains open."
+  ]
+}

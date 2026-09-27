@@ -1,0 +1,21 @@
+{
+  "source_commit": "e7cc4008724f01286ff09e40a29cbe1240facbd5",
+  "packages": {
+    "com.amphion.dingqiao.demo": {
+      "sha256": "e1513f612ea24e538399c168782913936bcb823ca643928b1944522d8ca027bf",
+      "size_bytes": 867084868,
+      "installed_matches": true
+    },
+    "com.amphion.dingqiao.demo.test": {
+      "sha256": "433cc265f21940a70512d3f039de07911c48f836cdd28a6d4b93c078ff1e2bc2",
+      "size_bytes": 3539426,
+      "installed_matches": true
+    }
+  },
+  "device": {
+    "ro.product.model": "V2505A",
+    "ro.build.version.release": "16",
+    "ro.build.display.id": "PD2505D_A_16.0.30.8.W10"
+  },
+  "model_manifest_sha256": "3c6b6aac9cd9b49c87a54d7da23235a70cd423bbd9eb9d0d6572f099904eb627"
+}

@@ -1,0 +1,8 @@
+{"ts":1789961108309,"case":"runtime_prepare","phase":"init_start"}
+{"ts":1789961110351,"case":"runtime_prepare","phase":"init_complete"}
+{"ts":1789961110352,"case":"runtime_prepare","phase":"work_path_complete"}
+{"ts":1789961110353,"case":"runtime_prepare","phase":"license_staged"}
+{"ts":1789961110353,"case":"runtime_prepare","phase":"license_invoked"}
+{"ts":1789961110454,"case":"runtime_prepare","phase":"license_complete"}
+{"ts":1789961110454,"case":"runtime_prepare","phase":"prepare_invoked"}
+{"ts":1789961112457,"case":"runtime_prepare","phase":"prepare_complete"}

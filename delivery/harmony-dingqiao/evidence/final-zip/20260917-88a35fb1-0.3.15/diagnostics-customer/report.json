@@ -1,0 +1,208 @@
+{
+  "run_id": "20260917-181008-diarization-windows-de10c9f9",
+  "mode": "diarization-windows",
+  "overall_status": "PASS",
+  "failures": [],
+  "device": "device-9d33cec60055",
+  "build_identity": {
+    "source": "installed_package",
+    "bundle_name": "com.amphion.asr.harmony.demo",
+    "version_name": "0.3.15",
+    "version_code": 315,
+    "fingerprint": "D6CE6F943F7D8AF4C0121C1842BB46F9225F1AF6657D1B088734B0B10A97250D",
+    "compile_sdk_version": "6.1.0.105",
+    "api_target_version": 50000012,
+    "cpu_abi": "arm64-v8a",
+    "debug": true
+  },
+  "configuration": {
+    "cycles": 1,
+    "settle_ms": 0,
+    "pace_ms": 20,
+    "speech_end_ms": 0,
+    "diarization_vad_end_ms": 800,
+    "effective_diarization_vad_end_ms": 800,
+    "asr_qos": "default",
+    "asr_cpu_ids": "none",
+    "asr_num_threads": 4,
+    "asr_allow_spinning": true,
+    "asr_disable_prepack": true,
+    "sample_interval_seconds": 1.0,
+    "post_run_observe_seconds": 5.0,
+    "target_content_check_enabled": true,
+    "speaker_vad_threshold": null,
+    "finish_recovery_entry_ids": []
+  },
+  "inventory": {
+    "valid_wavs": 1,
+    "selected_wavs": 1,
+    "total_valid_duration_seconds": 159.3,
+    "selected_duration_seconds": 159.3,
+    "target_speaker_enrollment_wavs": 1,
+    "sample_rates": {
+      "16000": 1
+    }
+  },
+  "corpus_preconditions": {},
+  "application": {
+    "runId": "20260917-181008-diarization-windows-de10c9f9",
+    "status": "PASS",
+    "mode": "diarization-windows",
+    "requested": "1",
+    "completed": "1",
+    "failed": "0",
+    "emptyFinals": "0",
+    "starts": "1",
+    "partials": "117",
+    "finals": "21",
+    "completes": "1",
+    "errors": "0",
+    "elapsedMs": "165035",
+    "fatal": ""
+  },
+  "empty_finals": {
+    "status": "PASS",
+    "count": 0,
+    "rate": 0.0,
+    "max_rate": 0.05
+  },
+  "native_streams": {
+    "status": "PASS",
+    "observed_cycles": 1,
+    "nonzero_cycles": 0,
+    "max_live_streams": 0
+  },
+  "target_speaker_realtime": {
+    "status": "NOT_APPLICABLE",
+    "reason": "mode disabled",
+    "chunk_count": 0
+  },
+  "target_speaker_content": {
+    "status": "NOT_APPLICABLE",
+    "reason": "accuracy gate disabled or mode is lifecycle-only",
+    "cases": []
+  },
+  "expected_tail": {
+    "status": "NOT_APPLICABLE",
+    "reason": "tail assertion disabled",
+    "cases": []
+  },
+  "speech_end_latency": {
+    "status": "NOT_APPLICABLE"
+  },
+  "memory": {
+    "status": "PASS",
+    "sample_count": 131,
+    "observation_seconds": 170.586,
+    "warmup_samples_excluded": 26,
+    "head_rss_mb": 605.039,
+    "tail_rss_mb": 626.48,
+    "rss_growth_mb": 21.441,
+    "rss_slope_mb_per_minute": -25.46,
+    "rss_third_medians_mb": [
+      606.074,
+      622.785,
+      626.844
+    ],
+    "peak_rss_mb": 673.219,
+    "peak_hwm_mb": 678.902,
+    "head_vm_data_mb": 3184.578,
+    "tail_vm_data_mb": 3232.266,
+    "vm_data_growth_mb": 47.688,
+    "peak_swap_mb": 89.219,
+    "head_threads": 68,
+    "tail_threads": 68,
+    "thread_growth": 0,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  },
+  "cpu": {
+    "status": "MEASURED",
+    "sample_count": 127,
+    "interval_count": 126,
+    "observation_seconds": 166.222,
+    "logical_cpus": 12,
+    "mean_single_core_equivalent_percent": 229.382,
+    "p50_single_core_equivalent_percent": 231.415,
+    "p95_single_core_equivalent_percent": 313.525,
+    "peak_single_core_equivalent_percent": 381.612,
+    "mean_device_capacity_percent": 19.115,
+    "p50_device_capacity_percent": 19.285,
+    "p95_device_capacity_percent": 26.127,
+    "peak_device_capacity_percent": 31.801
+  },
+  "cycles": [
+    {
+      "index": "0",
+      "id": "000000",
+      "status": "PASS",
+      "starts": "1",
+      "partials": "117",
+      "finals": "21",
+      "nonEmptyFinals": "21",
+      "completes": "1",
+      "errors": "0",
+      "finalChars": "305",
+      "speakerScores": "0",
+      "speakerDiarizationUpdates": "10",
+      "speakerDiarizationResults": "2",
+      "speakerWindowsHex": {
+        "redacted": true,
+        "sha256": "7b7042931a4db68409d67879a3520982d252f1d71dba8a553c55aa7bb7a5643f"
+      },
+      "speakerProvisionalIndexes": "0,1,3",
+      "speakerDiarizationSpeakerCount": "4",
+      "speakerDiarizationDegraded": "0",
+      "speakerDiarizationReason": "0",
+      "speakerDiarizationMessageHex": {
+        "redacted": true,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      "speakerDiarizationInferenceMs": "72270",
+      "speakerDiarizationRtf": "0.4536723163841808",
+      "finishToLastMs": "3688",
+      "finishToDiarizationResultMs": "3689",
+      "finishToCompleteMs": "3752",
+      "nonEmptySpeakerScores": "0",
+      "missingSpeakerScores": "21",
+      "firstNonEmptyFinalHasScore": "0",
+      "requestedVadBeginMs": "-1",
+      "confirmationGraceMs": "-1",
+      "requestedMaxAudioDurationMs": "28800000",
+      "effectiveMaxAudioDurationMs": "-1",
+      "voiceprintIdCount": "0",
+      "fedFrames": "7965",
+      "startListeningMs": "-1",
+      "tailSilenceMs": "-1",
+      "speechEndLatencyMs": "-1",
+      "audioFeedStartedAtMs": "-1",
+      "speechEndAtMs": "-1",
+      "lastFinalsBeforeFinish": "0",
+      "speechEndsBeforeFinish": "-1",
+      "finishToFirstNonEmptyResultMs": "-1",
+      "liveStreams": "0",
+      "recoveryStarts": "-1",
+      "recoveryLastFinals": "-1",
+      "recoveryCompletes": "-1",
+      "recoveryErrors": "-1",
+      "recoveryTerminalOrder": "-1",
+      "recoveryUnexpectedCallbacks": "-1",
+      "unexpectedCallbacks": "0",
+      "elapsedMs": "163570",
+      "firstNonEmptyResultMs": "5526",
+      "audioStartToFirstNonEmptyResultMs": "5014",
+      "audioStartToSpeechBeginMs": "1728",
+      "speechBeginToFirstNonEmptyResultMs": "3286",
+      "resultHex": {
+        "redacted": true,
+        "sha256": "ebbe9fa2f49639f0c5da0499a8f37abb92ab93b3460899f32740112914d4f972"
+      },
+      "speakerTurnsHex": {
+        "redacted": true,
+        "sha256": "5b135643ec111cea55e5362eeb21d79d3e85c80c3d57aa64f2cb9ab677b3e01e"
+      },
+      "trace": "diarization-windows-0:start>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:diarization-update>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:diarization-update>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:diarization-update>diarization-windows-0:event-1>diarization-windows-0:diarization-update>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:partial>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:partial>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:diarization-update>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:diarization-update>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:diarization-update>diarization-windows-0:event-1>diarization-windows-0:diarization-update>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:diarization-window-0>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:diarization-update>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:event-1>diarization-windows-0:event-3>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:partial>diarization-windows-0:event-1>diarization-windows-0:partial>diarization-windows-0:partial>diarization-windows-0:event-3>diarization-windows-0:final>diarization-windows-0:partial>diarization-windows-0:diarization-update>diarization-windows-0:final-last>diarization-windows-0:diarization-result>diarization-windows-0:complete",
+      "detail": "diarization-windows-contract"
+    }
+  ]
+}
