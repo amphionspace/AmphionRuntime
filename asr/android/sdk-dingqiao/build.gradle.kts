@@ -8,7 +8,8 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     from("../../../shared/models/asr/dingqiao") {
         include(
             "eres2net.onnx",
-            "community-wespeaker-masked.fp32.onnx",
+            "community-wespeaker-encoder.fp32.onnx",
+            "community-wespeaker-pool.fp32.onnx",
             "community-feature.f32",
             "community-plda.f64",
             "campplus.LICENSE",

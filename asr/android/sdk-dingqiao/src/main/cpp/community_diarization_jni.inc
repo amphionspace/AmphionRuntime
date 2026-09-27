@@ -37,9 +37,9 @@ jfloatArray AndroidArray(JNIEnv* env, const std::vector<float>& values) {
 }
 #define COMMUNITY_JNI(name) Java_com_amphion_dingqiao_diarization_CommunityDiarizationInference_##name
 extern "C" JNIEXPORT jlong JNICALL COMMUNITY_JNI(nativeLoad)(JNIEnv* env, jobject,
-    jstring segmentation, jstring embedding, jstring feature, jstring plda) {
+    jstring segmentation, jstring encoder, jstring pooling, jstring feature, jstring plda) {
   try {
-    auto model = std::make_shared<Model>(AndroidAsset(env, segmentation), AndroidAsset(env, embedding),
+    auto model = std::make_shared<Model>(AndroidAsset(env, segmentation), AndroidAsset(env, encoder), AndroidAsset(env, pooling),
       AndroidAsset(env, feature), AndroidAsset(env, plda));
     std::lock_guard<std::mutex> lock(android_model_mutex);
     const auto handle = android_next_handle++;

@@ -37,7 +37,8 @@ internal object DingqiaoSpeakerModelAssets {
     @Synchronized
     fun ensureCommunityInstalled(context: Context, workPath: File): List<File> = listOf(
         SEGMENTATION_FILENAME to SEGMENTATION_MIN_BYTES,
-        "community-wespeaker-masked.fp32.onnx" to 26_553_489L,
+        "community-wespeaker-encoder.fp32.onnx" to 21_301_300L,
+        "community-wespeaker-pool.fp32.onnx" to 5_264_664L,
         "community-feature.f32" to 83_840L,
         "community-plda.f64" to 398_352L,
     ).map { (name, size) ->
