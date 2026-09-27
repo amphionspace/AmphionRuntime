@@ -237,8 +237,8 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
                 return cache.get(key);
               }});
             }}
-            assert.deepEqual(render(), ['说话人 1（中间结果）', '说话人 2（中间结果）',
-              '不确定（中间结果）']);
+            assert.deepEqual(render(), ['说话人 1（暂定，可修正）', '说话人 2（暂定，可修正）',
+              '说话人分析中（暂定，可修正）']);
             const utterances = page.finalSegments.map((item, index) => ({{
               text: item.text, sourceUtteranceId: item.utteranceId,
               utteranceId: item.utteranceId + '-final', endTime: item.endTime,
@@ -477,7 +477,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertNotIn("return speakerIndex < 0 ? '说话人'", source)
         self.assertIn("return speakerIndex < 0 ? '不确定'", source)
         self.assertIn("if (item.speakerDiarization)", source)
-        self.assertIn("item.speakerAssignmentFinal ? '最终结果' : '中间结果'", source)
+        self.assertIn("item.speakerAssignmentFinal ? '最终结果' : '暂定，可修正'", source)
         self.assertIn("next[i].endTime, true, next[i].speakerAssignmentFinal", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)

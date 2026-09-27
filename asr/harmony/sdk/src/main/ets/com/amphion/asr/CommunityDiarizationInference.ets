@@ -33,9 +33,9 @@ export class CommunityDiarizationInference {
   }
 
   async cluster(segments: Float32Array, embeddings: Float32Array,
-    maxSpeakers: number): Promise<CommunityDiarizationCluster> {
+    maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number): Promise<CommunityDiarizationCluster> {
     if (this.closed || this.handle === undefined) throw new Error('Community model is not loaded');
-    const result = await clusterCommunityDiarization(this.handle, segments, embeddings, maxSpeakers);
+    const result = await clusterCommunityDiarization(this.handle, segments, embeddings, maxSpeakers, windowStartSamples, beginSample);
     return JSON.parse(result) as CommunityDiarizationCluster;
   }
 

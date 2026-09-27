@@ -174,13 +174,13 @@ class Model {
   }
 
   std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
-                      int max_speakers) const {
+                      int max_speakers, const std::vector<double>& starts, double begin_sample) const {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
     int windows = segments.size() / (589 * 3);
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers);
-    auto turns = community::Reconstruct(segments, result.hard, windows, max_speakers);
+    auto turns = community::Reconstruct(segments, result.hard, starts, begin_sample, max_speakers);
     std::ostringstream json;
     json << std::setprecision(17) << "{\"speakerCount\":" << result.centroids.size();
     auto ints = [&](const char* key, const std::vector<int>& values) {
@@ -248,6 +248,8 @@ struct Work {
     resource_manager{nullptr, OH_ResourceManager_ReleaseNativeResourceManager};
   std::array<std::vector<uint8_t>, 4> assets;
   std::vector<float> pcm, segments, embeddings;
+  std::vector<double> window_starts;
+  double begin_sample = 0;
   Window window;
   int max_speakers = 4;
   std::string result, error;
@@ -272,7 +274,7 @@ void Execute(napi_env, void* data) {
       }
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3]);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
-    else task.result = task.model->Cluster(task.segments, task.embeddings, task.max_speakers);
+    else task.result = task.model->Cluster(task.segments, task.embeddings, task.max_speakers, task.window_starts, task.begin_sample);
   } catch (const std::exception& error) { task.error = error.what(); }
 }
 void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {
@@ -316,11 +318,11 @@ void Complete(napi_env env, napi_status status, void* data) {
   napi_delete_async_work(env, task->work);
 }
 napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
-  size_t count = 4;
-  napi_value args[4] = {};
+  size_t count = 6;
+  napi_value args[6] = {};
   napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
   try {
-    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : 4u)) {
+    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? 6u : 4u)) {
       throw std::runtime_error("invalid Community arguments");
     }
     auto task = std::make_unique<Work>();
@@ -350,6 +352,8 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         task->segments = CopyArray<float>(env, args[1], napi_float32_array);
         task->embeddings = CopyArray<float>(env, args[2], napi_float32_array);
         if (napi_get_value_int32(env, args[3], &task->max_speakers) != napi_ok) throw std::runtime_error("invalid speaker cap");
+        task->window_starts = CopyArray<double>(env, args[4], napi_float64_array);
+        if (napi_get_value_double(env, args[5], &task->begin_sample) != napi_ok) throw std::runtime_error("invalid reconstruction boundary");
       }
     }
     napi_value promise, name;
