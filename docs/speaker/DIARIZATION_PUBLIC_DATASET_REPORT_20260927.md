@@ -26,6 +26,23 @@ DER = (miss + false alarm + speaker confusion) / reference speaker time
 
 机器可读结果（不含原始 PCM）见 [`DIARIZATION_PUBLIC_METRICS_711F5AE7.json`](evidence/DIARIZATION_PUBLIC_METRICS_711F5AE7.json)。
 
+## 测试音频与标注归档
+
+原始录音、MOSS 辅助标注和 SDK 诊断日志不进入 Git，也不作为公开下载附件；本轮收集的数据已放入公司私有对象存储，并完成回下载哈希核对。使用 AmphionBucket 的 `ab pull` 和下面的精确对象地址即可取回。
+
+| 内容 | AmphionBucket 对象地址 | 大小 | 回下载 SHA-256 |
+|---|---|---:|---|
+| 123.8 秒四人诊断包（MOSS、SDK 原始结果、聚类窗口） | `cos-amphion-audio-backup:customer-asr-sdk/2026-09-27-mate80-four-speaker-evidence/mate80-four-speaker-evidence-20260927.zip` | 3,391,470 B | `f2ad3ea18876e85aa65b70255fe616d25bde47971a081c38d670fbc247c6c590` |
+| 当日录音与标注汇总（16 条音频、3 条标注音频，共 760.28 秒） | `cos-amphion-audio-backup:customer-asr-sdk/2026-09-27-recordings-annotations/mate80-recordings-annotations-20260927.zip` | 19,301,485 B | `2976fe59ddd49e32d0d98e1df83a7e295584531570b8b225446041537fd11b07` |
+
+归档内的 manifest 还保存每条 WAV 的 SHA-256、采样率、时长、输入来源和标注性质；MOSS 输出明确标记为辅助标注，不能替代人工真值。对象存储桶为私有桶，报告只记录可审计的对象地址和哈希，不生成匿名公开链接。
+
+```bash
+ab pull 'cos-amphion-audio-backup:customer-asr-sdk/2026-09-27-recordings-annotations/mate80-recordings-annotations-20260927.zip' ./mate80-recordings-annotations-20260927.zip
+```
+
+PR 不包含这些 ZIP 或任何原始 PCM；合入内容只包含代码、测试和脱敏报告。这样可以复用同一输入做回放，同时避免把客户录音提交到版本库。
+
 ## 当前版本公开集结果
 
 | 片段 | 参考/输出人数 | 严格 DER | 250 ms collar、去重叠 DER | 单人归属准确率 | 宏平均召回 | 少数说话人召回 | UNKNOWN 时长 |
