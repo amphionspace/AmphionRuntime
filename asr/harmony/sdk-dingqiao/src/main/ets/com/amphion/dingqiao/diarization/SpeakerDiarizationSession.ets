@@ -260,7 +260,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       // Keep independent snapshots without retaining boxed copies of every tensor.
       fields['segmentations'] = window.result.segments.slice();
       fields['embeddings'] = window.result.embeddings.slice();
-      fields['runRanges'] = window.result.runRanges.slice();
+      // Older test doubles and persisted diagnostic fixtures may predate the
+      // per-run evidence fields. Keep their snapshots readable as empty run
+      // evidence while native production windows always provide the arrays.
+      fields['runRanges'] = (window.result.runRanges ?? new Float32Array(0)).slice();
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
