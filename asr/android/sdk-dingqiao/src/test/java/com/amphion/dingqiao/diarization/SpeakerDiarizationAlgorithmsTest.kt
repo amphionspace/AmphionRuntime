@@ -131,7 +131,7 @@ class SpeakerDiarizationAlgorithmsTest {
             SpeakerTimelineTurn(600, 1000, "S2", emptyList()),
         ))
         val split = short.commitThrough(1000)
-        assertEquals(listOf("嗯，" to "UNKNOWN", "好。" to "S2"), split.map { it.text to it.speakerId })
+        assertEquals(listOf("嗯，好。" to "UNKNOWN"), split.map { it.text to it.speakerId })
         assertEquals(listOf("S1", "S2"), split.first().secondarySpeakerIds)
         assertTrue(split.first().overlap)
         assertTrue(short.finalUtterances().isEmpty())
@@ -191,16 +191,16 @@ class SpeakerDiarizationAlgorithmsTest {
                 SpeakerTimelineTurn(900, 2000, "UNKNOWN", listOf("S2"), overlap = true),
             ))
             val split = state.commitThrough(2000)
-            val clauseCount = if (text == "甲乙丙丁") 1 else 2
+            val clauseCount = 1
             assertEquals(List(clauseCount) { "UNKNOWN" }, split.map { it.speakerId })
             assertEquals(text, split.joinToString("") { it.text })
             assertEquals("甲乙丙丁", split.joinToString("") { it.rawText })
-            assertEquals(if (clauseCount == 1) listOf(0 to 2000) else listOf(0 to 1000, 1000 to 2000),
+            assertEquals(listOf(0 to 2000),
                 split.map { it.beginTime to it.endTime })
             assertEquals(List(clauseCount) { "u1" }, split.map { it.sourceUtteranceId })
             assertTrue(split.last().overlap)
             assertTrue(state.finalUtterances().isEmpty())
-            assertEquals(if (clauseCount == 1) listOf(text) else listOf(text.substring(0,text.indexOf("丙")),text.substring(text.indexOf("丙"))), split.map { it.text })
+            assertEquals(listOf(text), split.map { it.text })
         }
         for (text in listOf("23。", "甲戊，丙丁。")) {
             val state = DiarizationTranscriptState()

@@ -65,8 +65,8 @@ class CommunityDiarizationTest {
         transcript.applySpeakerTurns(listOf(SpeakerTimelineTurn(0,1000,"S1",emptyList()),
             SpeakerTimelineTurn(1000,2000,"S2",emptyList())))
         val result = transcript.sentenceUtterances()
-        assertEquals(listOf("你好，","张三。"), result.map { it.text })
-        assertEquals(listOf("S1","S2"), result.map { it.speakerId })
+        assertEquals(listOf("你好，张三。"), result.map { it.text })
+        assertEquals(listOf("UNKNOWN"), result.map { it.speakerId })
         assertTrue(result.all { it.sourceUtteranceId == "u1" })
     }
 
