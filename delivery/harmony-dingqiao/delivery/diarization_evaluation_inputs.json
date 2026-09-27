@@ -1,0 +1,370 @@
+{
+  "schemaVersion": 1,
+  "scope": "six fixed public diagnostic clips, four real anchors, full 16 recordings, AMI 600s; not official full corpora",
+  "cases": [
+    {
+      "id": "aishell4-2",
+      "tier": "public",
+      "dataset": "AISHELL-4",
+      "audio": "benchmark/aishell4-current/S_R003S01C01_540-720_ch0.wav",
+      "referenceRttm": "benchmark/aishell4-current/S_R003S01C01.rttm",
+      "sourceOffsetSeconds": 540,
+      "referenceOffsetSeconds": 540,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "4dd123d601b2e7f97eaafdd823074208f0e8b71006f40c76d0e7ff0c550a8083"
+    },
+    {
+      "id": "aishell4-3",
+      "tier": "public",
+      "dataset": "AISHELL-4",
+      "audio": "benchmark/aishell4-current/M_R003S02C01_360-540_ch0.wav",
+      "referenceRttm": "benchmark/aishell4-current/M_R003S02C01.rttm",
+      "sourceOffsetSeconds": 360,
+      "referenceOffsetSeconds": 360,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "89e8fa17087c50546afb9db74f1e1e5e585536ff52a1316bf23dcf9faf54b2fd"
+    },
+    {
+      "id": "aishell4-4",
+      "tier": "public",
+      "dataset": "AISHELL-4",
+      "audio": "benchmark/aishell4-current/L_R003S01C02_690-870_ch0.wav",
+      "referenceRttm": "benchmark/aishell4-current/L_R003S01C02.rttm",
+      "sourceOffsetSeconds": 690,
+      "referenceOffsetSeconds": 690,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2"
+    },
+    {
+      "id": "alimeeting2",
+      "tier": "public",
+      "dataset": "AliMeeting Test far",
+      "audio": "benchmark/alimeeting-test/selected-clips/R8009_M8021_180-360_ch0.wav",
+      "referenceRttm": "benchmark/alimeeting-test/selected-clips/R8009_M8021_180-360.rttm",
+      "sourceOffsetSeconds": 180,
+      "referenceOffsetSeconds": 0,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "f151495a0bc1aa1ca3250609c720863a0f461c1159cd94459b80dc709ca326b3"
+    },
+    {
+      "id": "alimeeting3",
+      "tier": "public",
+      "dataset": "AliMeeting Test far",
+      "audio": "benchmark/alimeeting-test/selected-clips/R8008_M8014_180-360_ch0.wav",
+      "referenceRttm": "benchmark/alimeeting-test/selected-clips/R8008_M8014_180-360.rttm",
+      "sourceOffsetSeconds": 180,
+      "referenceOffsetSeconds": 0,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "205acfbc7b7cb0b1c2d22a2330526d6dc035da65ee38d13bf0a9d282723e5b8f"
+    },
+    {
+      "id": "alimeeting4",
+      "tier": "public",
+      "dataset": "AliMeeting Test far",
+      "audio": "benchmark/alimeeting-test/selected-clips/R8002_M8002_180-360_ch0.wav",
+      "referenceRttm": "benchmark/alimeeting-test/selected-clips/R8002_M8002_180-360.rttm",
+      "sourceOffsetSeconds": 180,
+      "referenceOffsetSeconds": 0,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "channelOperation": "select channel, not downmix",
+        "resampling": "not applied to already 16 kHz audio",
+        "silence": "retained; fixed slice"
+      },
+      "annotationStatus": "official reference RTTM",
+      "expectedInputSha256": "68d1d01be9bb6696df98d7d772cbf887c0b92e87ed8c90b660e28d6a37109407"
+    },
+    {
+      "id": "recording-0b31db1204ab",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/0b31db1204ab.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "MOSS auxiliary annotation; not full human ground truth",
+      "expectedInputSha256": "0b31db1204abd6687c66dfea5e86ed2f2848e54bb67993f8930f81ec0957dc2b",
+      "archiveMember": "audio/0b31db1204ab.wav"
+    },
+    {
+      "id": "recording-0c35e741ffc8",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/0c35e741ffc8.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "0c35e741ffc8a86d3761d9f226d1680ec68f764b1a5e73026503d2cb6059c2b2",
+      "archiveMember": "audio/0c35e741ffc8.wav"
+    },
+    {
+      "id": "recording-1f4ae144974c",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/1f4ae144974c.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "1f4ae144974ce172b9fc1b2615df903ace43f19810079ea607f8e4099e4cbd29",
+      "archiveMember": "audio/1f4ae144974c.wav"
+    },
+    {
+      "id": "recording-7157d3a4ce8c",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/7157d3a4ce8c.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "7157d3a4ce8cd310a4e4d26923aaca51042f8a6edbd9ab485fce9308ce272122",
+      "archiveMember": "audio/7157d3a4ce8c.wav"
+    },
+    {
+      "id": "recording-783b2ef4a0a0",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/783b2ef4a0a0.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "783b2ef4a0a0c2413bdf7551dbdf59538a0ecd174fa81e4e320924fa058ae8ee",
+      "archiveMember": "audio/783b2ef4a0a0.wav"
+    },
+    {
+      "id": "recording-84d944682ae6",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/84d944682ae6.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "84d944682ae600eac9e2e604aa959e60b456f3e800f75a39540ae978c3149424",
+      "archiveMember": "audio/84d944682ae6.wav"
+    },
+    {
+      "id": "recording-86533351795e",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/86533351795e.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "86533351795ec14449233180ebe766910598b492019f249465430fcc517ad37b",
+      "archiveMember": "audio/86533351795e.wav"
+    },
+    {
+      "id": "recording-c1372e06c372",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/c1372e06c372.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "c1372e06c3728fb3dd8f72a18a500a1222fcda420748957d8fd9cb714342115d",
+      "archiveMember": "audio/c1372e06c372.wav"
+    },
+    {
+      "id": "four-speaker-124s",
+      "tier": "anchor",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/c38162217440.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "MOSS auxiliary annotation; not full human ground truth",
+      "expectedInputSha256": "c381622174402fd0f7a6d61466e8b736c9ba09419d482e22a4b5d182cb7eb178",
+      "archiveMember": "audio/c38162217440.wav"
+    },
+    {
+      "id": "recording-c8d7c5779f2e",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/c8d7c5779f2e.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "c8d7c5779f2eba776055d53a4b4ec90d97bbbb63540388996df98bbc199997ca",
+      "archiveMember": "audio/c8d7c5779f2e.wav"
+    },
+    {
+      "id": "recording-e15312cbeb5f",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/e15312cbeb5f.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "e15312cbeb5fb5dd1e89a4ac2c4dd0b05a7a6e3cce1d2c653f46ca6e89d58741",
+      "archiveMember": "audio/e15312cbeb5f.wav"
+    },
+    {
+      "id": "recording-e4a45cdf2e0f",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/e4a45cdf2e0f.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "e4a45cdf2e0f550c1277f3e757ec4788e52bd91715502fb93d19be129b2cc443",
+      "archiveMember": "audio/e4a45cdf2e0f.wav"
+    },
+    {
+      "id": "recording-e8e25dfe12eb",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/e8e25dfe12eb.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "e8e25dfe12ebbe06ef550f6fde8acb8532f1d5c5fc132896df9ecc25ecfa6ef1",
+      "archiveMember": "audio/e8e25dfe12eb.wav"
+    },
+    {
+      "id": "four-speaker-short",
+      "tier": "anchor",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/f13ad95b225a.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "MOSS auxiliary annotation; not full human ground truth",
+      "expectedInputSha256": "f13ad95b225a88c64161ff9a01770d07718f547c97445b7b6bb61ae146f739e7",
+      "archiveMember": "audio/f13ad95b225a.wav"
+    },
+    {
+      "id": "single-speaker-unknown",
+      "tier": "anchor",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/f3dd598f8fff.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "f3dd598f8fffd76b8877f59809432d98b5d2ab72c5c22badadb26e9923ad186a",
+      "archiveMember": "audio/f3dd598f8fff.wav"
+    },
+    {
+      "id": "recording-f638f181bf10",
+      "tier": "recordings",
+      "audio": "diagnostics/e2e-delivery-20260927/recordings/audio/f638f181bf10.wav",
+      "normalization": {
+        "sampleRateHz": 16000,
+        "sourceChannelIndex": 0,
+        "resampling": "none",
+        "silence": "unaltered SDK recording"
+      },
+      "annotationStatus": "not annotated",
+      "expectedInputSha256": "f638f181bf1054d40eed0185c15c53bbb056cee38f76747bba8390f555ab9843",
+      "archiveMember": "audio/f638f181bf10.wav"
+    },
+    {
+      "id": "customer-main-four",
+      "tier": "anchor",
+      "audio": "diagnostics/e2e-delivery-20260927/customer-meeting.wav",
+      "normalization": {
+        "resampling": "none",
+        "silence": "unaltered original"
+      },
+      "annotationStatus": "partial user adjudication; MOSS auxiliary; background may be UNKNOWN",
+      "expectedInputSha256": "3c263893ebed15454918ee670840f0ba47c218d5e08a4f5f5ffe6e4399ce681b",
+      "adjudicationSource": "delivery/harmony-dingqiao/docs/CUSTOMER_MEETING_MOSS_AUDIT_20260917.md"
+    },
+    {
+      "id": "ami-600s",
+      "tier": "long",
+      "audio": "diagnostics/single-speaker-unknown-20260927/cadence-comparison/input/TS3003c-330-930.wav",
+      "referenceRttm": "diagnostics/single-speaker-unknown-20260927/cadence-comparison/reference.rttm",
+      "sourceOffsetSeconds": 330,
+      "referenceOffsetSeconds": 0,
+      "normalization": {
+        "sampleRateHz": 16000,
+        "resampling": "existing canonical 16 kHz slice; no further normalization",
+        "silence": "retained"
+      },
+      "annotationStatus": "official RTTM clipped reference"
+    }
+  ],
+  "archives": [
+    {
+      "uri": "cos-amphion-audio-backup:customer-asr-sdk/2026-09-27-recordings-annotations/mate80-recordings-annotations-20260927.zip",
+      "sha256": "2976fe59ddd49e32d0d98e1df83a7e295584531570b8b225446041537fd11b07"
+    }
+  ]
+}
