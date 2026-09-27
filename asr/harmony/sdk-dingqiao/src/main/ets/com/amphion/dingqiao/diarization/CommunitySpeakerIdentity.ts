@@ -22,29 +22,6 @@ export class CommunitySpeakerIdentity {
     return copy;
   }
 
-  /** Keep one actual enrollment window per published identity across pruning. */
-  anchorWindowIds(): string[] {
-    const anchors: string[] = new Array<string>(this.nextId).fill('');
-    const weights: number[] = new Array<number>(this.nextId).fill(-1);
-    this.committedIds.forEach((id: number, key: string): void => {
-      const weight = this.committedActivity.get(key) ?? 0;
-      if (weight > weights[id]) {
-        weights[id] = weight;
-        anchors[id] = key.substring(0, key.lastIndexOf(':'));
-      }
-    });
-    return anchors.filter(id => id.length > 0);
-  }
-
-  retainWindows(windowIds: string[]): void {
-    const retained = new Set<string>(windowIds);
-    this.committedIds.forEach((_id: number, key: string): void => {
-      if (retained.has(key.substring(0, key.lastIndexOf(':')))) return;
-      this.committedIds.delete(key);
-      this.committedActivity.delete(key);
-    });
-  }
-
   assign(windowIds: string[], hard: number[], clusterCount: number, activity: number[],
     publishedActivity: number[] = activity, visibleClusters?: boolean[]): CommunityIdentityAssignment {
     const before = this.nextId;

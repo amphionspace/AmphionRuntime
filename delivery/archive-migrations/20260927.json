@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-27",
+  "canonical_ledger_commit": "1d815dfbb5f9f341c59caf1a9385046507a4e06f",
+  "authorization": "Archive published deliveries and remove local verified copies; delete historical delivery packages with unclear publication identity.",
+  "published_archive_index": "delivery/published-artifact-archives.json",
+  "archived_packages_removed_locally": [
+    {
+      "artifact": "amphion-harmony-asr-sdk-v0.2.9-20260730.zip",
+      "size_bytes": 263812380
+    },
+    {
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.3-20260730.zip",
+      "size_bytes": 262217041
+    }
+  ],
+  "unverified_zip_copies_removed": [
+    {
+      "location": "workspace/AmphionRuntime-pr218-acceptance/.cache/pr218-calibration/int8-mixed/sdk-preview.zip",
+      "sha256": "d5c0b54fac60fae85c5eea39ceac14ad190d795f576587568322e86badf74c80",
+      "size_bytes": 333235144,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-pr218-acceptance/.cache/pr218-official-int8/sdk-preview.zip",
+      "sha256": "b5712c455e1ddc66aefdd2650b0effc3a93cfaa7c6cfe7a5bc55c103b503ec9d",
+      "size_bytes": 325962247,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/delivery/harmony-dingqiao/build/diagnostics-sdk-0.3.17-b7247124/Amphion-ASR-Diagnostics-SDK.zip",
+      "sha256": "7bb688ac4f69d913a39380636f3d225bcb43033c7f8c2d0d64f706d946013e3a",
+      "size_bytes": 645127186,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/delivery/harmony-dingqiao/build/diagnostics-sdk-0.3.17-f5113ebc/Amphion-ASR-Diagnostics-SDK.zip",
+      "sha256": "61586f9079b33702163a7b92aec2c59de249ec694474a7ad3775f826a8669d5b",
+      "size_bytes": 645127186,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/delivery/harmony-dingqiao/build/diagnostics-sdk-0.3.17-b7247124-nova14pro/Amphion-ASR-Diagnostics-SDK.zip",
+      "sha256": "2009bc5266422bcd4114666eb3542b076713d717b29475f8a8d70601e1e8d01e",
+      "size_bytes": 645127327,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/amphion-harmony-asr-sdk-v0.3.17-20260924.zip",
+      "sha256": "02e21777c07204c10d67ab5000cd30945482634c9c816aad0448bce80f5bff24",
+      "size_bytes": 325953945,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/staged-android-0.3.8-b7247124/amphion-dingqiao-asr-sdk-v0.3.8-20260924.zip",
+      "sha256": "3d7c013ccfab8190ad9b16d15e27aa3fc1a3143e86d422a5baae978ee35d8847",
+      "size_bytes": 325000795,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/staged-android-0.3.8-f5113ebc/amphion-dingqiao-asr-sdk-v0.3.8-20260924.zip",
+      "sha256": "2a565acf2416532ebf661a5a328cdff0f2b82b10dd3c5860f90fcc9e5abd3e2b",
+      "size_bytes": 325000762,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/harmony-nova14pro-gate/complete-sdk-0.3.17-b7247124/Amphion-Harmony-ASR-Complete-0.3.17.zip",
+      "sha256": "2b54cc642465627ff5d1cd7977d912c283ef9d9a7c49daa0fe43dad372ec83e3",
+      "size_bytes": 1617396040,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/harmony-nova14pro-gate/final-zip-acceptance/Amphion-Harmony-ASR-Complete-0.3.17/diagnostics-sdk/Amphion-ASR-Diagnostics-SDK.zip",
+      "sha256": "2009bc5266422bcd4114666eb3542b076713d717b29475f8a8d70601e1e8d01e",
+      "size_bytes": 645127327,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "workspace/AmphionRuntime-asr-delivery-20260924/build/harmony-nova14pro-gate/final-zip-acceptance/Amphion-Harmony-ASR-Complete-0.3.17/release-sdk/amphion-harmony-asr-sdk-v0.3.17-20260924.zip",
+      "sha256": "02e21777c07204c10d67ab5000cd30945482634c9c816aad0448bce80f5bff24",
+      "size_bytes": 325953945,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    },
+    {
+      "location": "delivery/lits-tts-android-sdk-v0.1.0-20260617.zip",
+      "sha256": "098c781e2d3d14b6c2eaf8477cc9167e54e3d9d0f32e5079e5801f51bd826521",
+      "size_bytes": 408131944,
+      "reason": "No matching canonical published artifact identity; removed at user request."
+    }
+  ],
+  "standalone_aar_files_removed": [
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-diagnostics-v0.3.5.aar",
+      "sha256": "8909d0f2e941cf92058dfab67b0f0513579b91abf691c3b09139344f3ab3eb5f",
+      "size_bytes": 299300026,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-diagnostics-v0.3.6.aar",
+      "sha256": "e549f9fa73cb62ecc4bbf5b23be10e1750d1c25b747b3e4be9818e48ae6234ac",
+      "size_bytes": 299309216,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-diagnostics-v0.3.7.aar",
+      "sha256": "d042fe69b81673b2c96e09ff3b5be3a1101f6aa796180303d5aff551de9a33ad",
+      "size_bytes": 299309271,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-diagnostics-v0.3.8.aar",
+      "sha256": "fc6084942804703b6d3c9e22da3c9c8276dd1e959c75f17c3569abe0b8e699a2",
+      "size_bytes": 325131441,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.2.9.aar",
+      "sha256": "8415e9ab53c570a57fc4b17883094144f74e18f6c19d27f0a2946fe891dfd335",
+      "size_bytes": 262243367,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.3.5-diagnostics.aar",
+      "sha256": "ca211c79ef5e91658535900e17e7e436d80047f23c75dd6e4cb234e5e7b884b6",
+      "size_bytes": 299289904,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.3.5.aar",
+      "sha256": "9507f0a298d7d16530972d47f1579ee1fa89754f2f65ce44e722f080025a5a53",
+      "size_bytes": 299213957,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.3.6.aar",
+      "sha256": "ccf3310015f3802b103feec0824bd725249d971cff67f1a036553652fdcbad6c",
+      "size_bytes": 299223115,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.3.7.aar",
+      "sha256": "f01e4346af1b451cdc7bbfa792b6a166ecb8242e916b94064cb63a60684cd059",
+      "size_bytes": 299223178,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    },
+    {
+      "location": "workspace/AmphionRuntime/asr/android/build/dingqiao-delivery/dingqiao-asr-v0.3.8.aar",
+      "sha256": "65482522810ddef09e68204351b2bfde195ffa284c7f6ff44d79ee8467c97db1",
+      "size_bytes": 325045205,
+      "reason": "Standalone historical SDK AAR in delivery build output; no published standalone artifact record."
+    }
+  ],
+  "verified_extracted_and_checksum_files_removed": 225,
+  "modified_extraction_members_preserved": [
+    "workspace/AmphionRuntime-asr-delivery-20260924/build/harmony-nova14pro-gate/final-zip-acceptance/Amphion-Harmony-ASR-Complete-0.3.17/demo-source/build-profile.json5"
+  ],
+  "removed_allocated_bytes_unverified": 12421771264,
+  "notes": [
+    "Standalone AAR files were generated delivery outputs, not tracked source files.",
+    "Extraction cleanup removed only byte-identical ZIP members; modified and extra files were preserved.",
+    "Source worktrees, independent diagnostics, raw audio and release evidence were not removed.",
+    "Allocated sizes can count shared APFS blocks and do not measure actual free-space gain.",
+    "The initial roundtrip rejected macOS /tmp as a symlink; verified downloads used the documented delivery-staging path instead."
+  ]
+}
