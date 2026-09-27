@@ -36,7 +36,7 @@ ERes2Net 查询向量并反射访问旧 `committedRegistry`、旧的 RMS 准入�
 
 ## 验证
 
-代码已移植，**真机验收失败，不能合入或作为可用能力交付**。运行代码冻结提交为 `62002e9a`，
+早期整段真机验收失败，**不能作为可用能力交付**；它不等于移植实现不一致。该轮运行代码冻结提交为 `62002e9a`，
 基于 `1d815dfb` 加上 `42911432` 的 cherry-pick `94401c6d`。
 证据位于本机 `~/.cache/amphion-runtime/diagnostics/android-community-parity-20260927/`。
 原始音频与声学张量只留在私有本机目录，不提交仓库。
@@ -94,5 +94,75 @@ APK 哈希与设备 fingerprint 见 `sdk-600s-owned-input/manifest.json`。
 - 因上述阻断，不继续扩大音频矩阵或生成正式交付包。首次测试目录归属 shell 导致启动失败，
   保存在 `sdk-600s/`；应用创建目录后才运行有效测试，未为此修改 SDK 权限逻辑。
 
-后续跟踪：保持用户指定的 Harmony 方案，当前分支作为移植候选保留；增量身份聚类和设备积压
-分别建立根因差分后再修复。没有通过增加固定人数、覆盖整句身份、吞 UNKNOWN 或放宽断言来结案。
+后续范围以用户最新要求为准：保持指定 Harmony 方案，验证实现一致性，不针对低性能手机优化。
+共享身份精度问题另行跟踪，设备吞吐不作为本次移植一致性的通过条件。没有增加固定人数、
+覆盖整句身份、吞 UNKNOWN 或放宽精度断言。
+
+
+## 同数据白盒对齐结论（最新）
+
+本轮交付目标为实现对齐，不承诺 TECNO KI8 实时吞吐或完整会议精度通过。
+基线仍为 `42911432`；没有混入后续 Harmony `8733a2ba` 的候选身份修复。
+诊断与测试载体提交为 `ced69863`、`30835340`，最终补齐 Android 收尾等待 15 秒，
+与该 Harmony 基线一致；推理看门狗仍为 10 秒。该常量修改不改变下列模型/聚类快照，
+但快照也不能证明最终二进制的完整收尾验收通过。
+
+### 数据与可比条件
+
+使用 Harmony 同一 AMI TS3003c 文件：原录音偏移 330 秒、长度 600 秒、16 kHz PCM16，
+SHA-256 `2a2c3e05049ff410f06aaa0f15844857d7771255cbb78ac03f36bc57ba37516d`。
+设备文件哈希一致。long 模式、20 ms 实时喂入、vadEnd=800 ms、maxSpeakers=4，
+maxAudioDuration=8 小时、警务增强开启，并以前台 Activity 保持屏幕唤醒。
+这修正了早期 Android 载体与 Harmony 的配置差异；数据不是客户原始会议。
+
+私有证据根目录为 `~/.cache/amphion-runtime/diagnostics/android-community-whitebox-20260927/`。
+模型张量来自 Harmony `cadence-comparison/events-120.ndjson` 的真实采集；
+429 会话逻辑则由本分支生产代码回放这些输入。必须区分设备采集与主机回放，
+不能把后者写成新一轮 Harmony 429 真机长跑。
+
+### 一致性证据
+
+- Android 真机采集的连续 170 个窗口，起点 0..338 秒、覆盖至 348 秒，与 Harmony 同位置
+  张量比较：segmentation 完全一致；embedding 最大绝对差 2.384185791015625e-6，
+  finite mask 全部一致。见 `ts3003c-window-parity.json`。
+- 直接将 Harmony 429 首次异常提交的 62 个窗口张量交给 Android JNI：speakerCount 与
+  全部 hard labels 完全一致。`capturedHarmonyCommitClusteringMatchesAndroid` 真机通过，
+  见 `native-snapshot.log`、`native-snapshot-result.json`。
+- 五次真实 Harmony 429 提交的窗口 ID、hard labels、活动区间与冻结身份作为精简测试 fixture，
+  Android 身份映射及 registry 前后计数全部一致。fixture 不含原音、文本或 embedding。
+- TS3003c Android 已采集三个提交：角色簇数量依次 2、1、1，冻结身份映射依次
+  `[0,1]`、`[0]`、`[0]`。首段 ASR endpoint 与 Harmony 回放相差 80 ms，不能声称整个 ASR
+  输出逐字逐时间戳相同；后两段结束位置均为 210780 / 323180 ms。
+
+- 三次 Android 实际提交按各自 window IDs 取 Harmony 张量重新计算，全部 hard labels
+  完全相等。第二次提交保留 63 个窗口得到 1 簇；唯一改为完整历史即得到 3 簇。
+  见 `ts3003c-commit-parity.json`，这将共同问题定位到历史证据裁剪，而非 JNI 或展示编号。
+- 最终 15 秒收尾配置下，Community、停止回退及窗口定稿相关 Debug/Release 单测通过，
+  见 `final-parity-tests.log`；不因此宣称弱设备完整收尾通过。
+
+### 鸿蒙是否有同样的问题
+
+有。Harmony 429 的真实长会话快照也出现保留历史锚点后多个角色收缩成单簇，
+并非仅 Android 慢设备超时造成。上游 `anchor-retention-state-fork.json` 用同一异常点证明：
+保留 63 个窗口为 1 簇，完整 279 个历史窗口为 3 簇。最早偏离在裁剪后的聚类证据，
+不是显示层编号；后续身份映射无法恢复已经丢失的簇。
+
+同一 TS3003c 600 秒输入在 Harmony 429 生产状态机主机回放也得到 3 个最终身份，
+DER=25.5448%，一位标注人物召回为 0；这只是辅助精度定位，不是新的设备正式验收。
+后续 Harmony 候选修复仍有 cadence 相关精度失败，不能把它当作已解决方案直接移植。
+这纠正了“旧 #221 数据通过，所以当前 Harmony 没有该问题”的推断。
+
+### 停止条件与剩余范围
+
+按用户“手机性能差，确保实现一致即可”的指示，主动停止这轮长跑；保留了完整已落盘
+白盒张量、三次提交、回调、内存和线程现场。`runner.json` 标记 `USER_SCOPE_STOPPED`。
+Instrumentation 的 `Process crashed` 来自主动作出的 force-stop，不是观测到的 SDK 自发崩溃。
+因此本轮 600 秒公共 API 完整结束验收为未完成，不能记 PASS，也不继续为积压重复长跑。
+
+ASR 原生依赖保留平台现有构建：Android ORT 1.24.3，Harmony ORT 1.16.3 带平台调度补丁。
+角色分离共用算法与模型已对照，不能据此声称两端全部运行时和调度实现相同。
+未采用试验性的 Android ASR idle-spin 配置，不重建或调优底层 ASR 线程池；该准备工作
+不属于本次 canonical 产物。设备速度差异不作根因结论。
+
+功能对齐与产品精度分别报告：本次局部对齐证据通过；共享身份误认仍是正式能力交付阻断项。
+未生成正式交付包，未推送或合入 PR。

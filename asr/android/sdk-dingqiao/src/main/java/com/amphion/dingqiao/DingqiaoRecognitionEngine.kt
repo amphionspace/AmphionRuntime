@@ -1113,7 +1113,7 @@ internal class DingqiaoRecognitionEngine(
             }
         private const val STOP_FALLBACK_DELAY_MS = 1_500L
         private const val SHUTDOWN_DRAIN_TIMEOUT_SECONDS = 60L
-        private const val SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS = 10_000L
+        private const val SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS = 15_000L
 
         fun create(
             appContext: Context,
