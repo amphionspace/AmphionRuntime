@@ -1,0 +1,557 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-27",
+  "scope": "Six fixed 180-second public clips; not a whole-corpus benchmark",
+  "commit": "711f5ae7b96d45dbe1590878b6d41532c43c135f",
+  "device": "Huawei Mate80 / 7GK0226326015655",
+  "hap": {
+    "bundle": "com.amphion.asr.harmony.demo",
+    "versionName": "0.3.17",
+    "versionCode": 317,
+    "fingerprint": "D6CE6F943F7D8AF4C0121C1842BB46F9225F1AF6657D1B088734B0B10A97250D",
+    "cpuAbi": "arm64-v8a",
+    "compileSdkVersion": "6.1.0.105"
+  },
+  "condition": {
+    "sampleRateHz": 16000,
+    "channel": "ch0 mono WAV",
+    "paceMs": 20,
+    "cycles": 1,
+    "maxSpeakers": 4,
+    "oracleSpeakerCount": false,
+    "collarSeconds": 0.0,
+    "overlapIncluded": true,
+    "frameMs": 10
+  },
+  "metrics": {
+    "weightedStrictDer": 0.2940783172807604,
+    "weightedReferenceSpeakerSeconds": 1106.78,
+    "weightedErrorSeconds": 325.48,
+    "meanClassicDer250msNoOverlap": 0.09979616666666667,
+    "meanSingleSpeakerAttributionAccuracy": 0.8629576666666666,
+    "meanMacroSpeakerRecall": 0.6260085,
+    "meanMinoritySpeakerRecall": 0.40913333333333335,
+    "sumUnknownTurnSeconds": 142.44,
+    "exactSpeakerCountClips": "4/6"
+  },
+  "results": {
+    "aishell4-2": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 2,
+      "systemSpeakerCount": 2,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "005-M",
+        "1": "001-M"
+      },
+      "der": 0.101115,
+      "missedSpeechSeconds": 13.62,
+      "falseAlarmSeconds": 2.69,
+      "speakerConfusionSeconds": 1.29,
+      "referenceSpeakerSeconds": 174.06,
+      "classicDer250msNoOverlap": 0.03145,
+      "singleSpeakerAttributionAccuracy": 0.933825,
+      "macroSpeakerRecall": 0.905643,
+      "minoritySpeakerRecall": 0.847099,
+      "perSpeakerRecall": {
+        "001-M": 0.964186,
+        "005-M": 0.847099
+      },
+      "referenceOverlapSeconds": 3.01,
+      "detectedOverlapSeconds": 2.97,
+      "overlapDetectionRecall": 0.262458,
+      "overlapDetectionPrecision": 0.265993,
+      "secondaryEvidenceSeconds": 0.61,
+      "secondaryEvidenceRecall": 0.003322,
+      "identifiedSecondarySeconds": 0.47,
+      "identifiedSecondaryRecall": 0.003322,
+      "unknownTurnSeconds": 5.47,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "001-M": {
+            "1": 82.77,
+            "missing": 0.46,
+            "unknown": 1.12
+          },
+          "005-M": {
+            "0": 59.82,
+            "missing": 1.62,
+            "unknown": 1.36,
+            "1": 0.07
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 123.955,
+            "atSeconds": 125.525
+          }
+        ]
+      },
+      "reportSha256": "f5fd4538bd323737a49fa7dae3b23ba72fd3b76fb9b476b903b8d4223d4ed704",
+      "referenceRttmSha256": "1fe23bd4aef6575bfe61f0bc4875bc54fb39044ec013c6383546217ccf3e56e5",
+      "referenceOffsetSeconds": 540,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "4dd123d601b2e7f97eaafdd823074208f0e8b71006f40c76d0e7ff0c550a8083",
+      "inputFile": "S_R003S01C01_540-720_ch0.wav",
+      "referenceFile": "S_R003S01C01.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 2
+    },
+    "aishell4-3": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 3,
+      "systemSpeakerCount": 2,
+      "speakerCountError": -1,
+      "speakerMapping": {
+        "0": "006-F",
+        "1": "001-M"
+      },
+      "der": 0.180847,
+      "missedSpeechSeconds": 30.91,
+      "falseAlarmSeconds": 1.73,
+      "speakerConfusionSeconds": 0.88,
+      "referenceSpeakerSeconds": 185.35,
+      "classicDer250msNoOverlap": 0.026711,
+      "singleSpeakerAttributionAccuracy": 0.95428,
+      "macroSpeakerRecall": 0.56531,
+      "minoritySpeakerRecall": 0.0,
+      "perSpeakerRecall": {
+        "001-M": 0.771337,
+        "005-F": 0.0,
+        "006-F": 0.924593
+      },
+      "referenceOverlapSeconds": 15.14,
+      "detectedOverlapSeconds": 7.65,
+      "overlapDetectionRecall": 0.479524,
+      "overlapDetectionPrecision": 0.94902,
+      "secondaryEvidenceSeconds": 1.05,
+      "secondaryEvidenceRecall": 0.069353,
+      "identifiedSecondarySeconds": 0.31,
+      "identifiedSecondaryRecall": 0.020476,
+      "unknownTurnSeconds": 12.42,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "001-M": {
+            "1": 20.14,
+            "unknown": 0.15,
+            "missing": 0.15
+          },
+          "005-F": {
+            "unknown": 1.1
+          },
+          "006-F": {
+            "0": 117.23,
+            "missing": 1.49,
+            "unknown": 0.5,
+            "1": 0.38
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "006-F"
+        ],
+        "sameSpeakerIdSwitchCount": 1,
+        "switches": [
+          {
+            "referenceSpeaker": "006-F",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 144.985,
+            "atSeconds": 168.015
+          }
+        ]
+      },
+      "reportSha256": "000cdfaa5f8f1ecc1504d721cbac647fb507c10181390f6cb3dd5ed737d2c358",
+      "referenceRttmSha256": "ce8fc5537380706bfa734f351161e0cd2f72f377c192e6bed09e607064daa547",
+      "referenceOffsetSeconds": 360,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "89e8fa17087c50546afb9db74f1e1e5e585536ff52a1316bf23dcf9faf54b2fd",
+      "inputFile": "M_R003S02C01_360-540_ch0.wav",
+      "referenceFile": "M_R003S02C01.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 3
+    },
+    "aishell4-4": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 2,
+      "speakerCountError": -2,
+      "speakerMapping": {
+        "0": "005-M",
+        "1": "004-M"
+      },
+      "der": 0.427774,
+      "missedSpeechSeconds": 61.59,
+      "falseAlarmSeconds": 1.27,
+      "speakerConfusionSeconds": 16.83,
+      "referenceSpeakerSeconds": 186.29,
+      "classicDer250msNoOverlap": 0.253615,
+      "singleSpeakerAttributionAccuracy": 0.715025,
+      "macroSpeakerRecall": 0.299913,
+      "minoritySpeakerRecall": 0.0,
+      "perSpeakerRecall": {
+        "002-F": 0.0,
+        "003-F": 0.0,
+        "004-M": 0.421465,
+        "005-M": 0.778187
+      },
+      "referenceOverlapSeconds": 20.03,
+      "detectedOverlapSeconds": 20.75,
+      "overlapDetectionRecall": 0.645532,
+      "overlapDetectionPrecision": 0.623133,
+      "secondaryEvidenceSeconds": 4.45,
+      "secondaryEvidenceRecall": 0.045432,
+      "identifiedSecondarySeconds": 0.84,
+      "identifiedSecondaryRecall": 0.008487,
+      "unknownTurnSeconds": 29.85,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 1.87,
+            "0": 5.14
+          },
+          "003-F": {
+            "0": 8.85
+          },
+          "004-M": {
+            "1": 10.48,
+            "missing": 0.05,
+            "0": 1.55,
+            "unknown": 4.46
+          },
+          "005-M": {
+            "0": 83.49,
+            "missing": 6.58,
+            "unknown": 3.39
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "004-M"
+        ],
+        "sameSpeakerIdSwitchCount": 2,
+        "switches": [
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 146.345,
+            "atSeconds": 155.405
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 156.945,
+            "atSeconds": 156.955
+          }
+        ]
+      },
+      "reportSha256": "adf61f862a5ab74201f83cf1cca2a1864f46cc788a1d762539fd8bd937472b3a",
+      "referenceRttmSha256": "9dfd301c5b96f60813aaddec2549edc007851699917d9326e4db7e13c6b05ed9",
+      "referenceOffsetSeconds": 690,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "inputFile": "L_R003S01C02_690-870_ch0.wav",
+      "referenceFile": "L_R003S01C02.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 4
+    },
+    "alimeeting2": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 2,
+      "systemSpeakerCount": 2,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "N_SPK8027",
+        "1": "N_SPK8028"
+      },
+      "der": 0.345048,
+      "missedSpeechSeconds": 48.75,
+      "falseAlarmSeconds": 4.52,
+      "speakerConfusionSeconds": 0.24,
+      "referenceSpeakerSeconds": 155.08,
+      "classicDer250msNoOverlap": 0.13094,
+      "singleSpeakerAttributionAccuracy": 0.799263,
+      "macroSpeakerRecall": 0.660855,
+      "minoritySpeakerRecall": 0.601055,
+      "perSpeakerRecall": {
+        "N_SPK8027": 0.601055,
+        "N_SPK8028": 0.720654
+      },
+      "referenceOverlapSeconds": 12.43,
+      "detectedOverlapSeconds": 10.01,
+      "overlapDetectionRecall": 0.703942,
+      "overlapDetectionPrecision": 0.874126,
+      "secondaryEvidenceSeconds": 0.92,
+      "secondaryEvidenceRecall": 0.054706,
+      "identifiedSecondarySeconds": 0.31,
+      "identifiedSecondaryRecall": 0.015286,
+      "unknownTurnSeconds": 33.93,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "N_SPK8027": {
+            "0": 21.39,
+            "unknown": 2.9
+          },
+          "N_SPK8028": {
+            "missing": 0.53,
+            "unknown": 8.14,
+            "1": 60.9
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [],
+        "sameSpeakerIdSwitchCount": 0,
+        "switches": []
+      },
+      "reportSha256": "5cc2b443107188b51818e668b5d9923dec69384341ac2a751f34d76c8de8dc33",
+      "referenceRttmSha256": "aca971902f0945fcb8730f56243fedf2feb11ad294bc572686a839a874e79dae",
+      "referenceOffsetSeconds": 0,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "f151495a0bc1aa1ca3250609c720863a0f461c1159cd94459b80dc709ca326b3",
+      "inputFile": "R8009_M8021_180-360_ch0.wav",
+      "referenceFile": "R8009_M8021_180-360.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 2
+    },
+    "alimeeting3": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 3,
+      "systemSpeakerCount": 3,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "N_SPK8053",
+        "1": "N_SPK8051",
+        "2": "N_SPK8052"
+      },
+      "der": 0.215962,
+      "missedSpeechSeconds": 31.45,
+      "falseAlarmSeconds": 5.66,
+      "speakerConfusionSeconds": 2.18,
+      "referenceSpeakerSeconds": 181.93,
+      "classicDer250msNoOverlap": 0.055044,
+      "singleSpeakerAttributionAccuracy": 0.929913,
+      "macroSpeakerRecall": 0.833412,
+      "minoritySpeakerRecall": 0.766175,
+      "perSpeakerRecall": {
+        "N_SPK8051": 0.766175,
+        "N_SPK8052": 0.899062,
+        "N_SPK8053": 0.835
+      },
+      "referenceOverlapSeconds": 16.72,
+      "detectedOverlapSeconds": 8.65,
+      "overlapDetectionRecall": 0.428828,
+      "overlapDetectionPrecision": 0.828902,
+      "secondaryEvidenceSeconds": 2.17,
+      "secondaryEvidenceRecall": 0.104665,
+      "identifiedSecondarySeconds": 0.69,
+      "identifiedSecondaryRecall": 0.038876,
+      "unknownTurnSeconds": 13.06,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "N_SPK8051": {
+            "unknown": 1.02,
+            "0": 0.91,
+            "1": 49.13,
+            "2": 0.42,
+            "missing": 0.23
+          },
+          "N_SPK8052": {
+            "2": 18.14
+          },
+          "N_SPK8053": {
+            "0": 54.41,
+            "unknown": 1.67,
+            "missing": 1.06
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "N_SPK8051"
+        ],
+        "sameSpeakerIdSwitchCount": 5,
+        "switches": [
+          {
+            "referenceSpeaker": "N_SPK8051",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 6.245,
+            "atSeconds": 11.445
+          },
+          {
+            "referenceSpeaker": "N_SPK8051",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 49.895,
+            "atSeconds": 77.025
+          },
+          {
+            "referenceSpeaker": "N_SPK8051",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 77.435,
+            "atSeconds": 77.445
+          },
+          {
+            "referenceSpeaker": "N_SPK8051",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 145.825,
+            "atSeconds": 167.095
+          },
+          {
+            "referenceSpeaker": "N_SPK8051",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 167.785,
+            "atSeconds": 167.795
+          }
+        ]
+      },
+      "reportSha256": "f0ebaea12153f47f8b33067a6bc1f861f293d7fd26fe115cc70bd1d8e1e30bfa",
+      "referenceRttmSha256": "3b5ee97c4b9d870f162579724f9628ce29380b2ef8850be1534d0c40e03df3b7",
+      "referenceOffsetSeconds": 0,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "205acfbc7b7cb0b1c2d22a2330526d6dc035da65ee38d13bf0a9d282723e5b8f",
+      "inputFile": "R8008_M8014_180-360_ch0.wav",
+      "referenceFile": "R8008_M8014_180-360.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 3
+    },
+    "alimeeting4": {
+      "durationSeconds": 180.0,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 4,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "N_SPK8006",
+        "1": "N_SPK8005",
+        "2": "N_SPK8008",
+        "3": "N_SPK8007"
+      },
+      "der": 0.454635,
+      "missedSpeechSeconds": 97.25,
+      "falseAlarmSeconds": 0.71,
+      "speakerConfusionSeconds": 3.91,
+      "referenceSpeakerSeconds": 224.07,
+      "classicDer250msNoOverlap": 0.101017,
+      "singleSpeakerAttributionAccuracy": 0.84544,
+      "macroSpeakerRecall": 0.490918,
+      "minoritySpeakerRecall": 0.240471,
+      "perSpeakerRecall": {
+        "N_SPK8005": 0.738586,
+        "N_SPK8006": 0.661712,
+        "N_SPK8007": 0.322902,
+        "N_SPK8008": 0.240471
+      },
+      "referenceOverlapSeconds": 43.09,
+      "detectedOverlapSeconds": 36.23,
+      "overlapDetectionRecall": 0.714551,
+      "overlapDetectionPrecision": 0.849848,
+      "secondaryEvidenceSeconds": 5.28,
+      "secondaryEvidenceRecall": 0.084242,
+      "identifiedSecondarySeconds": 1.85,
+      "identifiedSecondaryRecall": 0.019726,
+      "unknownTurnSeconds": 47.71,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "N_SPK8005": {
+            "1": 40.37,
+            "unknown": 1.36
+          },
+          "N_SPK8006": {
+            "0": 40.22,
+            "unknown": 0.34,
+            "missing": 0.1
+          },
+          "N_SPK8007": {
+            "unknown": 4.2,
+            "1": 0.09,
+            "3": 11.02,
+            "missing": 0.69,
+            "0": 2.34
+          },
+          "N_SPK8008": {
+            "2": 6.55,
+            "unknown": 1.91
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "N_SPK8007"
+        ],
+        "sameSpeakerIdSwitchCount": 4,
+        "switches": [
+          {
+            "referenceSpeaker": "N_SPK8007",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 72.045,
+            "atSeconds": 72.055
+          },
+          {
+            "referenceSpeaker": "N_SPK8007",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 124.645,
+            "atSeconds": 141.265
+          },
+          {
+            "referenceSpeaker": "N_SPK8007",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 143.465,
+            "atSeconds": 144.195
+          },
+          {
+            "referenceSpeaker": "N_SPK8007",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 145.645,
+            "atSeconds": 172.285
+          }
+        ]
+      },
+      "reportSha256": "03d765900f4a4e78c7aa9e5758b3fc6f52c217deffe84e4be93d15cfc898cdc6",
+      "referenceRttmSha256": "01fd6bd2b59480cb5b6da2c658b8289cfcf4eec6d7aec06d6a956aebccfbfb4d",
+      "referenceOffsetSeconds": 0,
+      "sdkOverallStatus": "PASS",
+      "sdkBuildCommit": null,
+      "inputSha256": "68d1d01be9bb6696df98d7d772cbf887c0b92e87ed8c90b660e28d6a37109407",
+      "inputFile": "R8002_M8002_180-360_ch0.wav",
+      "referenceFile": "R8002_M8002_180-360.rttm",
+      "referenceSpeakerCountForEvaluationOnly": 4
+    }
+  },
+  "evaluation": {
+    "script": "delivery/harmony-dingqiao/delivery/evaluate_speaker_diarization_report.py",
+    "mapping": "one-to-one permutation maximizing 10ms frame overlap",
+    "definition": "strict DER = (miss + false alarm + confusion) / reference speaker time; classic metric uses 250ms collar and excludes reference overlap frames",
+    "referenceSource": "local RTTM copies from AISHELL-4 and AliMeeting public corpora; source hashes and offsets are recorded per case"
+  },
+  "artifacts": {
+    "deviceArtifacts": "/tmp/amphion-public-final-711f5ae7/<run-id>/report.json",
+    "portableSummary": "docs/speaker/evidence/DIARIZATION_PUBLIC_METRICS_711F5AE7.json"
+  }
+}
