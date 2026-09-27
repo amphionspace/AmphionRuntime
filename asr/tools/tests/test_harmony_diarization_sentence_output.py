@@ -376,9 +376,11 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const label=new Labels();
           const segment=(ids,overlap=false,speakerIndex=-1)=>({speakerIndex,displaySpeakerIndex:speakerIndex,
             speakerAssignmentFinal:true,revision:0,secondarySpeakerIndexes:[],
-            speakerParts:[{speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
+            speakerParts:[{sourceUtteranceId:'u1',speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
           assert.equal(label.segmentSpeakerLabel(segment([0,1])),'句内换人（文字归属不确定）');
           assert.equal(label.segmentSpeakerLabel(segment([0,1],true)),'多人／不确定 · 含重叠发言');
+          const unconfirmed=segment([0,1]);delete unconfirmed.speakerParts[0].overlap;
+          assert.equal(label.segmentSpeakerLabel(unconfirmed),'多人／不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0])),'不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0],true)),'不确定 · 含重叠发言');
           assert.equal(label.segmentSpeakerLabel(segment([],false,0)),'说话人 1');

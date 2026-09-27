@@ -598,7 +598,10 @@ struct Index {
       inferred = inferred || part.speakerInferred;
     }
     let label = this.speakerLabel(segment.displaySpeakerIndex);
-    if (known.size > 1) label = segment.speakerParts.length > 0 && !overlap ?
+    const source = segment.speakerParts[0]?.sourceUtteranceId ?? '';
+    const sequential = source.length > 0 && segment.speakerParts.every(part =>
+      part.sourceUtteranceId === source && part.overlap === false);
+    if (known.size > 1) label = sequential && !overlap ?
       '句内换人（文字归属不确定）' : '多人／不确定';
     else if (unknown || overlap) label = '不确定';
     else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
