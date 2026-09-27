@@ -1,0 +1,875 @@
+{
+  "note": "Raw PCM, transcripts, device identifiers and full logs remain private. These hashes bind the original reports and red/green evidence.",
+  "files": [
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "android-final-build.log",
+      "sha256": "ed81f273ce4874bda41ae306d7425b7b91082352ff2eca38e2710b0d313f3310",
+      "sizeBytes": 10871
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "android-installed-identity.json",
+      "sha256": "dc55ecc26a6c606d6f684dc77a21ab20bab2ac5871058aac5bb1d35371458a5b",
+      "sizeBytes": 669
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "android-ui-logcat.txt",
+      "sha256": "d762d12075d2d74999b86811cfac5b2ffe988f5be51a3791d9444d6f04f1bd76",
+      "sizeBytes": 104719
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "ci-runtime-head.json",
+      "sha256": "db7cf256b445a70a3543cbb179f8b8e7ab0fd8334d7eac749a1e70d759e76e6e",
+      "sizeBytes": 1671
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/hilog.txt",
+      "sha256": "af9ce56ab66f99c958f8fc650b29e4ce55c99934e8af209a5e554c5596abba69",
+      "sizeBytes": 579125
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/memory.csv",
+      "sha256": "362dd79f6df2210adc18212b71251a06db4601d3e7455848ef827eedc290827f",
+      "sizeBytes": 469
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/payload/manifest.txt",
+      "sha256": "a64c5af00656c36b8f7ed8a15fb397293fbce82de5c62147b2980af56fad752f",
+      "sizeBytes": 285
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/report.json",
+      "sha256": "1906f5ef17e646138faba2dc8b710ab8c8dcb4cc00057a27b0db4fdce346bc6f",
+      "sizeBytes": 11451
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170610-burst-5ac31458/result.txt",
+      "sha256": "51a245188f5a866830e99d7097b010d933b54fbc01145cdb17384307a61ed8d0",
+      "sizeBytes": 4415
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/hilog.txt",
+      "sha256": "c2a5288e0b7637ca40e4120e3c619360e12b82c682945a488d51c6653010467a",
+      "sizeBytes": 739246
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/memory.csv",
+      "sha256": "8123cdffd970a3b4fd657a5ae1b63a346f5f2cf6fd2950014c8f2c8858d9d31d",
+      "sizeBytes": 2984
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/payload/manifest.txt",
+      "sha256": "71e5f7efa94a4e3e61da3093e0f91bc3111f3a797b3face64e9eeceee7d04cd9",
+      "sizeBytes": 285
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/report.json",
+      "sha256": "085a749bb5b807636d013791e7fbf4e6f0115e5858c050ac4ed8087e00c3928f",
+      "sizeBytes": 31900
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170620-paced-631d1bba/result.txt",
+      "sha256": "661b396f70559fa84512f74b8bfac4dc003ad72f56d4a7465dc0387f99e4b8f5",
+      "sizeBytes": 18040
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/hilog.txt",
+      "sha256": "b61096158741300745b6aebb8c235c3d7b2cec505fcf38bdf0b409b35c5c0338",
+      "sizeBytes": 466512
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/memory.csv",
+      "sha256": "ec84532b465ebc22d4133f3370a830063ed3f22b8d3d36259d3b64ef406ee406",
+      "sizeBytes": 292
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/payload/manifest.txt",
+      "sha256": "d354318431d7b6d5974557cd2b3d4b22bb42abb49ff557027698d922f2aef0d6",
+      "sizeBytes": 297
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/report.json",
+      "sha256": "e5b46e8a44a49087a5619417a3308e20243fbb432fab7fb0f5753d6f8846fe16",
+      "sizeBytes": 9295
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170725-vad-begin-a13863b1/result.txt",
+      "sha256": "6992656fad91fb4e8f8f4069f2dc43d0152700fd0c79eae444b1815b2417124f",
+      "sizeBytes": 2988
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/hilog.txt",
+      "sha256": "957b236dca7d1e2073458eb6b92ff0f90dc05093450b2c754290269a0db045a1",
+      "sizeBytes": 436541
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/memory.csv",
+      "sha256": "34eec0aaf2af84f912054a0b188c8e4e73224d0dda5e98b9fdeb48b74e11392e",
+      "sizeBytes": 285
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/payload/manifest.txt",
+      "sha256": "56dea4916a7de5fb6832c9d7a83c7a25cf3368829caa205671e110f176450b62",
+      "sizeBytes": 321
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/report.json",
+      "sha256": "d18cc424f7a1d0e5f69e7eb95937aed6803a52682c86b28f3c5ddf1e116029a9",
+      "sizeBytes": 9270
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170731-vad-begin-silence-339f747f/result.txt",
+      "sha256": "35a88c32fa6d76ad3048cc5cc0578e9c1811e39517784aa9f1a95edc1255bf40",
+      "sizeBytes": 2947
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/hilog.txt",
+      "sha256": "033dcd35ef80dbb1ccc807b13df759539f354ec45c654f5b7a6f780300f437df",
+      "sizeBytes": 710652
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/inventory.json",
+      "sha256": "32678ddbf16dfde69514653a1375864e1829da23a38754ee244839f56e322039",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/memory.csv",
+      "sha256": "77060fbc6e9387ae957dd82f7c8e68619a52514334aeb892c2d84a21dd41b815",
+      "sizeBytes": 765
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/payload/corpus.json",
+      "sha256": "6ab3ecc4cb348369c87ed336432c8e467e87d33a9ff8583bdf3f408425a350b9",
+      "sizeBytes": 1131
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/payload/manifest.txt",
+      "sha256": "91ac1405d937862de586678f9242ddb9903b14d440936beef1f07d97d477a827",
+      "sizeBytes": 300
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/report.json",
+      "sha256": "f419370c8fc2235ff1582f7aa67772c6371482f831761b616e94b12175ddbc74",
+      "sizeBytes": 20388
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170737-voiceprint-d2502c22/result.txt",
+      "sha256": "ed4bb44aba463cde22fe29dcfa082aae57af73a707075b73580f5f00574dd950",
+      "sizeBytes": 10529
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/hilog.txt",
+      "sha256": "75ddb08c9ad05d2e371fbbfec2898644cfe22d67ddee8169f452bdf8cd63f71f",
+      "sizeBytes": 751096
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/inventory.json",
+      "sha256": "1f54ce4abb5e4f125c0c44f38cce2ded889d0e93b801b4fa201054dfca48d4ad",
+      "sizeBytes": 202
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/memory.csv",
+      "sha256": "e7dfcd933f131e835ecc337acb84771e561309743cc686fd2b12d86c4000ebc0",
+      "sizeBytes": 3960
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/payload/corpus.json",
+      "sha256": "fd4582a0c74d3cd6fe1caf3518d09f5677287849319866f0bdcb62757262bd35",
+      "sizeBytes": 723
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/payload/manifest.txt",
+      "sha256": "251aa7f4a444b1d203d929208d084efcf653aa103c0ae9b2c0c36fed72c3a814",
+      "sizeBytes": 218
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/report.json",
+      "sha256": "a650323b6de3e41cb06d1b528ffaacfaff355547febd38cf8288335f8d792126",
+      "sizeBytes": 25817
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170753-voiceprint-fallback-c9d73981/result.txt",
+      "sha256": "493234d24940173c1cab839aee6a182ea67b8bca069636ce48fe63b75b866439",
+      "sizeBytes": 14749
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/hilog.txt",
+      "sha256": "9925072959b89adaecb191e06173864e3e893042f66cabb726d2dc024fc24043",
+      "sizeBytes": 674663
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/inventory.json",
+      "sha256": "35a10a5b66a5e03cf6215006c47638cb120c0a4af5c5cce98ccc7d5633d205f6",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/memory.csv",
+      "sha256": "6560d87025337ebef8120738771a53ea2daacb19035b0434d9a0cf84e19189ff",
+      "sizeBytes": 765
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/payload/corpus.json",
+      "sha256": "2ee51c9ab3b029c11bca18f0fffc249fda638106397b3b2d3d0ea020eb5312eb",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/payload/manifest.txt",
+      "sha256": "a4c0e1895892f1543c521adaab77f8a1c2d23edb813aaa86a6c11520191172a3",
+      "sizeBytes": 330
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/report.json",
+      "sha256": "c820d2ebe5dd5efcebcd3071094321b13d67e25a76a3faeb4c348d89894cc8b7",
+      "sizeBytes": 14564
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170921-voiceprint-vad-begin-c8508cdd/result.txt",
+      "sha256": "1c9a39528ce0ffcd92488b1b8c25a1b31a93243f42e72ae592c620745362d7da",
+      "sizeBytes": 6088
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/hilog.txt",
+      "sha256": "c7d3bd3a57280aa7b1c28d80c4316ad1c6f6b4476b29c919fa2eab50eada08b4",
+      "sizeBytes": 541647
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/inventory.json",
+      "sha256": "82759feb3c7c2950d60390c4534f601dab9c312555d986362928f475f0736d3f",
+      "sizeBytes": 209
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/memory.csv",
+      "sha256": "2c12385f14fc828e430dee05a426324af7c44bc614d8088de0cc3d6e1a4b453f",
+      "sizeBytes": 464
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/payload/corpus.json",
+      "sha256": "cd8bb61f66fcf55ef0e6d5a5177e37c3e7849a3398db4d546e5498c5f070313d",
+      "sizeBytes": 380
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/payload/manifest.txt",
+      "sha256": "550e6523f604a33edbbfdf063c9ded79c47de7b51e558c54cb659bf4f70525e6",
+      "sizeBytes": 115
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/report.json",
+      "sha256": "dc029e148b6e9f52dd7bbd630a875270109698d0955d59a12c0f55e0241f78e4",
+      "sizeBytes": 9393
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170937-voiceprint-vad-begin-idle-c1f9d99f/result.txt",
+      "sha256": "c4681d844a7f9bba69442c2d3e5ebdddeb7171623f0087da262fbed8d1574a48",
+      "sizeBytes": 3022
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/hilog.txt",
+      "sha256": "a91755a639947461879b34243398fb6c8907147cc10e47711affbe68f8185cc0",
+      "sizeBytes": 386686
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/memory.csv",
+      "sha256": "05722fb273600fb1491fc9aef067059e0611e5ca4e81add2ebc4d459b83110c9",
+      "sizeBytes": 232
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/payload/manifest.txt",
+      "sha256": "e1e4bb1a646b4e10e91277ad7056acc02b3b721f7001d6fa9df2dec9f369a565",
+      "sizeBytes": 288
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/report.json",
+      "sha256": "03616be34b646c521230e5ac49e9c1e06257153c80acfe31e4109f1aa26203f8",
+      "sizeBytes": 9031
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170947-cancel-b60936fa/result.txt",
+      "sha256": "aaaf480b62457be49b6fde2a51604014201b0a2ce0465bd8219e1ab72e9dfe21",
+      "sizeBytes": 2738
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/hilog.txt",
+      "sha256": "82d08d3c51a3b16578d086fb14630204e782c7771799630a158ac32168c992a8",
+      "sizeBytes": 394602
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/memory.csv",
+      "sha256": "96076e941cfa691ebcd77d9d723e94a8284646ba255febac8cb481fd85021748",
+      "sizeBytes": 232
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/payload/manifest.txt",
+      "sha256": "bd0e69d4a8d9994226936bc8bb13925c2f6a7fe468f88b38b57570883a859c2c",
+      "sizeBytes": 303
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/report.json",
+      "sha256": "4a71cdd966120f91985166f7c1ab4feed60618e6915a8cffd59834c0a7a01db8",
+      "sizeBytes": 9063
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170951-cancel-full-45453aea/result.txt",
+      "sha256": "56a3b03df5fcaa277e5a157724dce1c502e65c3390dcb33012addc5eb094e8a1",
+      "sizeBytes": 2759
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/hilog.txt",
+      "sha256": "d705bbfcd0aace9b6ad0763624415fbc922257d30d2fde580f8c03d7f6593fdf",
+      "sizeBytes": 686484
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/memory.csv",
+      "sha256": "be1f028bd87d316e7bf52d6ff010cfcb665699b0bf7907789b84674787a9f29a",
+      "sizeBytes": 695
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/payload/manifest.txt",
+      "sha256": "a74de4868c09d930a1ebbe3bef1f9a8cf9bed4e61e22d8e85a52ef74a1c97393",
+      "sizeBytes": 306
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/report.json",
+      "sha256": "18c450e982d10630b83041e7658ca1508b876e23c2b7ae23c635687d52096e91",
+      "sizeBytes": 9475
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-170955-max-duration-4e443f01/result.txt",
+      "sha256": "1adbaf9b1003e521ba0adfa08627ff8671e7925f67367e5f5ca4faf264ac7e16",
+      "sizeBytes": 3124
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/hilog.txt",
+      "sha256": "5038c3607a221c6b3f63226c23b88f45cfcfeb1d3a1b95415efad63f67208f68",
+      "sizeBytes": 433604
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/memory.csv",
+      "sha256": "dcf853488d57c0ab1a39cf9ba29dbbb13eebc653e64f81481d18e42a37f0e831",
+      "sizeBytes": 289
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/payload/manifest.txt",
+      "sha256": "79c9ca85a2762a8fb949c17a063b502efe31078090d99550e9aedefbe6c278eb",
+      "sizeBytes": 282
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/report.json",
+      "sha256": "27d6b0dfe44286186d1fcc4ea03664d07b5168a9cf454009dc5e68fac7b6ffda",
+      "sizeBytes": 9594
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171010-edge-a04e952e/result.txt",
+      "sha256": "27f953b04f2ffad676b55b617c578fc7e280d7fea457c47069c613fd23bd9bc8",
+      "sizeBytes": 3296
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/hilog.txt",
+      "sha256": "8a185b98cb64ccdaaadf56b82e6eab1666541f5346bc03bd0837ddd273643e2d",
+      "sizeBytes": 473191
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/memory.csv",
+      "sha256": "c8c1189acef27d1c2133abbaa9cba546a34e344f910f309f5a3b6236f2110454",
+      "sizeBytes": 345
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/payload/manifest.txt",
+      "sha256": "5658373f8065acc9f30425971dfb739c3749c499a9ad4f139319edda4109d9e0",
+      "sizeBytes": 297
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/report.json",
+      "sha256": "2e9fd84ca2aabb26ed2cce9eb89ae17ac6287851f39d82550ff0230a074fd14d",
+      "sizeBytes": 9315
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171015-reentrant-0bef7911/result.txt",
+      "sha256": "bde069332b3e4d38704806f87fb12e9ff7871e625d0094020d005aa677236e7f",
+      "sizeBytes": 3007
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/hilog.txt",
+      "sha256": "8227fa61794c6b8c2f07ad608ceb3d295ce724b3fb52fb7eb559c208539278b7",
+      "sizeBytes": 393909
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/memory.csv",
+      "sha256": "9289dd4f3c7d5b1506f28f5e4d8e06df1fccfd379451cf58587570f956cb9795",
+      "sizeBytes": 232
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/payload/manifest.txt",
+      "sha256": "7ffc8cdf881d878246c6cdc7863a9d8b49b2b494cb05b3b87f6e5707776551d6",
+      "sizeBytes": 306
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/report.json",
+      "sha256": "a6fadfb64b4ccfd6d7546b9a74672cb7244c16bfaf76e034c460d21f27f8d758",
+      "sizeBytes": 9074
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171022-start-cancel-c841e07d/result.txt",
+      "sha256": "4b6ac4480f4211756539b656ce67a14822c02f82352ea78660af3c562de20e8a",
+      "sizeBytes": 2768
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/hilog.txt",
+      "sha256": "8c66e57bf3221de1bd1f8eac2f34b1f014275f9eca6f16fc4583e44455fe5bb0",
+      "sizeBytes": 479740
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/inventory.json",
+      "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/memory.csv",
+      "sha256": "644acc766ae02df2583678303c3c6ac90b3fd47f93f53464a3999dc9c2561520",
+      "sizeBytes": 348
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/payload/corpus.json",
+      "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+      "sizeBytes": 1129
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/payload/manifest.txt",
+      "sha256": "6d666f6c55e3e52327824e98464fe9ccfa27b59617609389576bd57f84e0ca23",
+      "sizeBytes": 303
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/report.json",
+      "sha256": "558982c07f9394fd107eddfc267eae22797ce03d412fbfab47468d6fbe83c0d4",
+      "sizeBytes": 13899
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171027-start-write-6732725c/result.txt",
+      "sha256": "4baf387076c3dd12908b2015e124ed7dde91d5c63ef5018a5a98154e581686f0",
+      "sizeBytes": 5855
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/hilog.txt",
+      "sha256": "cc2c4d98d729b0cf8e5aad8acef8e3fbce51ee1a3d13a5d0e1cbb00af708c3c5",
+      "sizeBytes": 613117
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/inventory.json",
+      "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/memory.csv",
+      "sha256": "4e30902de5f3f94cbcdded419383f967219e461877c2ba1c10c0372314dd81f5",
+      "sizeBytes": 519
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/payload/corpus.json",
+      "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+      "sizeBytes": 1129
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/payload/manifest.txt",
+      "sha256": "8e34ca70c5beafb1636367c614ea8db0f7c3afbf272636ab5a56ff3e036e7181",
+      "sizeBytes": 324
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/report.json",
+      "sha256": "057b57a772cd3b412e782d384712146eb6ce6b125ba8ca1e27600ad9dbde5b3d",
+      "sizeBytes": 13962
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171034-start-write-reload-aa73bf5d/result.txt",
+      "sha256": "8839a5b523720590d47a3ea0a494fd87d80049468549de3f59aa1251fae3dc73",
+      "sizeBytes": 5869
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/hilog.txt",
+      "sha256": "23cc0ac9abffa7c1c3994206fb69bfcbb6033766b003004ba22c444d464291aa",
+      "sizeBytes": 568348
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/memory.csv",
+      "sha256": "6247ddd64cb7594a28907d19bd59684ee39a0e8c78866e15c2ba41db5daa8c99",
+      "sizeBytes": 463
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/payload/manifest.txt",
+      "sha256": "00c63467f53ff11c3d6055bd355c8c2e309cae2a36a5b212f732e903e2334821",
+      "sizeBytes": 309
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/report.json",
+      "sha256": "59d2eb18b58f89f1b2d1b2e7e8ce08e3c1b2fbff45f5d8b875141a850b2851bb",
+      "sizeBytes": 12463
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171045-user-sequence-6e8f0d92/result.txt",
+      "sha256": "5df394dbc66201069de81595658b6c3d8fd561b40ccc6e28f02d7b6e1e6029ba",
+      "sizeBytes": 5412
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/hilog.txt",
+      "sha256": "93a29188cd45c3d165c1ffea037a8334dbc23fcfc8b01d91f6d9e4ead057411d",
+      "sizeBytes": 695324
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/inventory.json",
+      "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+      "sizeBytes": 210
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/memory.csv",
+      "sha256": "58d9b50e89906b644e4c2084550da844dd7aefba9b56cd84f31db2b5d8390003",
+      "sizeBytes": 875
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/payload/corpus.json",
+      "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+      "sizeBytes": 1133
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/payload/manifest.txt",
+      "sha256": "50abee2f38c571d57761bdd259d4f5e3f87e771e81851e337755665474dd07b1",
+      "sizeBytes": 306
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/report.json",
+      "sha256": "b4cafd4ce9c1ff2467b156d1e4d39f819294b6563f09c7120c08ff7132633deb",
+      "sizeBytes": 10460
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "final-usb/20260916-171055-numeric-edge-dae95a45/result.txt",
+      "sha256": "63a92f5334dc33eb402e0f3142908d11087a0d6c066355c0d95e27a7c537ed11",
+      "sizeBytes": 3615
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "harmony-build-identity.json",
+      "sha256": "cbacbeb241907b4fa74762842db39233ef98285243704b8ece85af839715902b",
+      "sizeBytes": 2351
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "pr-review-final.json",
+      "sha256": "06d39947e20fd1b4665138291c57cd13a814f74c23654858ccd56c22e5d37507",
+      "sizeBytes": 461
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "source-freeze.json",
+      "sha256": "695dae27a80bafb1a8faff3acc2da943f145766bd7d6bd54f857e09902d28ed7",
+      "sizeBytes": 3030
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "ui-green.log",
+      "sha256": "50d76fd7a038b0dcb6ddd5030b7bdde82e16e30ffed37b33c45905a0c46d28a3",
+      "sizeBytes": 4875
+    },
+    {
+      "directory": "android-parity-merge-20260916-epkru88l",
+      "artifact": "ui-red.log",
+      "sha256": "2f06860ffdbc3f50a8e96a4339c3bb9d820cf3721288e881988f0b779bd07c96",
+      "sizeBytes": 4832
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "accepted-source-freeze.json",
+      "sha256": "f4564ca61fb9a070faebf0f4d6e976c848d14049fb6951e4093d791a5bf75987",
+      "sizeBytes": 2633
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "android-800-fix-comparison.json",
+      "sha256": "ede08464e1dbe4270367906405392b4fba3c963839b698962c554707202bbc26",
+      "sizeBytes": 152
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "assessment.json",
+      "sha256": "bfc0fd89dc14adf25e87198d0c5195afa1a3f89f434d30ad7348075fe4f0f53c",
+      "sizeBytes": 101921
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "completion.json",
+      "sha256": "8a60c062be7742e0de6ba42f14049638766f2eafd051272ca6de9c0abe01f03b",
+      "sizeBytes": 1056
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "harmony-build-identity.json",
+      "sha256": "a82cc58f8ddfed9d28316998c40a6990161c991e27150e3a66943675f5f2d8a1",
+      "sizeBytes": 2351
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "input.json",
+      "sha256": "3d292b42422d31263c227af7f16e31acd3977a515074201885914c26eb5d64a7",
+      "sizeBytes": 420
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "installed-android-final-sha256.json",
+      "sha256": "1cc62c09cb6c34e268006e9fcf2af78fc1393c4164697878629b0b4d7584ac79",
+      "sizeBytes": 205
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "runtime-content-verification.json",
+      "sha256": "9de7d0f749c1937e95711e093a35d0a0bcd80a40e3ff16558cdd73fdad628c7f",
+      "sizeBytes": 779
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "tail-fallback-red.xml",
+      "sha256": "e2e8ef76734758354f2ee82b2072090908f7f0ae207ffbfa131e3255bccb8a1b",
+      "sizeBytes": 5281
+    },
+    {
+      "directory": "android-demo-vadend-20260916-r78tplev",
+      "artifact": "unit-summary.json",
+      "sha256": "417e44ed4fdf186bfc681cf95a8409ac60ec5910ad99479f0e8f34039bd78cfb",
+      "sizeBytes": 574
+    }
+  ]
+}

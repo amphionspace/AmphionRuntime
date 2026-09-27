@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+"""Reproduce the historical, rejected local Police 1.4.0 INT8 candidate.
+
+Use the pinned Harmony ORT environment (requirements-harmony-ort.txt).
+For current builds use the upstream INT8 package in demo-model/README.md.
+This diagnostic recipe preserves old evidence and is not a delivery input.
+"""
+import argparse
+import hashlib
+import json
+import shutil
+import tempfile
+from pathlib import Path
+
+SOURCE_SHA256 = "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932"
+ENCODER_SHA256 = "91ebc1f9042811ab8a90362a2e118adee2208b3d13a6a52d1d13d4b03689994c"
+PER_CHANNEL_WEIGHTS = Path(__file__).with_name("police_1_4_int8_per_channel_weights.json")
+MODEL_ROOT = Path(__file__).resolve().parent / "demo-model"
+MODEL_PREFIX = "amphion-zh-en-police-179m-1.4.0-chunk32-lc256-transducer-"
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--source-dir", type=Path, default=MODEL_ROOT / (MODEL_PREFIX + "fp32"))
+    parser.add_argument("--output-dir", type=Path, default=MODEL_ROOT / (MODEL_PREFIX + "encoder-int8"))
+    args = parser.parse_args()
+    source = args.source_dir / "encoder.onnx"
+    if hashlib.sha256(source.read_bytes()).hexdigest() != SOURCE_SHA256:
+        raise SystemExit("Police 1.4.0 FP32 encoder SHA-256 mismatch")
+
+    import numpy
+    import onnx
+    import onnxruntime
+    from onnxruntime.quantization import QuantType, quantize_dynamic
+
+    versions = {"onnxruntime": onnxruntime.__version__, "onnx": onnx.__version__, "numpy": numpy.__version__}
+    if versions != {"onnxruntime": "1.16.3", "onnx": "1.15.0", "numpy": "1.26.4"}:
+        raise SystemExit(f"Use requirements-harmony-ort.txt; found {versions}")
+    args.output_dir.mkdir(parents=True, exist_ok=False)
+    encoder = args.output_dir / "encoder.int8.onnx"
+    quantize_dynamic(
+        str(source), str(encoder), op_types_to_quantize=["MatMul"],
+        weight_type=QuantType.QInt8, per_channel=False, reduce_range=False,
+        extra_options={"MatMulConstBOnly": True},
+    )
+    # Keep every quantized weight INT8. Spend the compressed-size budget on
+    # per-channel scales for weights with the largest reconstruction-error benefit.
+    selection = json.loads(PER_CHANNEL_WEIGHTS.read_text())
+    if selection["source_encoder_sha256"] != SOURCE_SHA256:
+        raise SystemExit("Per-channel selection belongs to a different source encoder")
+    selected = {
+        weight + suffix
+        for weight in selection["per_channel_weights"]
+        for suffix in ("_quantized", "_scale", "_zero_point")
+    }
+    with tempfile.TemporaryDirectory(prefix="police-int8-") as temp:
+        per_channel = Path(temp) / "encoder.onnx"
+        quantize_dynamic(
+            str(source), str(per_channel), op_types_to_quantize=["MatMul"],
+            weight_type=QuantType.QInt8, per_channel=True, reduce_range=False,
+            extra_options={"MatMulConstBOnly": True},
+        )
+        model = onnx.load(encoder)
+        channel_model = onnx.load(per_channel)
+        if ([n.SerializeToString() for n in model.graph.node] !=
+                [n.SerializeToString() for n in channel_model.graph.node]):
+            raise SystemExit("Quantization graphs differ; cannot replace scale/weight tensors")
+        replacements = {x.name: x for x in channel_model.graph.initializer}
+        found = set()
+        for tensor in model.graph.initializer:
+            if tensor.name in selected:
+                tensor.CopyFrom(replacements[tensor.name])
+                found.add(tensor.name)
+        if found != selected:
+            raise SystemExit("Selected per-channel tensors are missing")
+        onnx.checker.check_model(model)
+        onnx.save(model, encoder)
+    if hashlib.sha256(encoder.read_bytes()).hexdigest() != ENCODER_SHA256:
+        raise SystemExit("Derived encoder SHA-256 mismatch; do not package this output")
+    for name in ("decoder.onnx", "joiner.onnx", "tokens.txt", "bbpe.vocab"):
+        shutil.copyfile(args.source_dir / name, args.output_dir / name)
+    (args.output_dir / "quantization.json").write_text(json.dumps({
+        "source_encoder_sha256": SOURCE_SHA256,
+        "encoder_sha256": ENCODER_SHA256,
+        "versions": versions,
+        "weight_type": "QInt8", "op_types": ["MatMul"],
+        "per_channel": False, "reduce_range": False, "MatMulConstBOnly": True,
+        "per_channel_weights": selection["per_channel_weights"],
+        "decoder": "unchanged FP32", "joiner": "unchanged FP32",
+    }, indent=2) + "\n")
+    print(f"[OK] reproducible encoder-only INT8 model: {args.output_dir}")
+
+
+if __name__ == "__main__":
+    main()

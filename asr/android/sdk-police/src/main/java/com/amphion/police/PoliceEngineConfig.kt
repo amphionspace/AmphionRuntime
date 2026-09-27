@@ -15,12 +15,8 @@ import com.amphion.police.terms.PoliceTermsHotwords
  */
 object PoliceEngineConfig {
 
-    /**
-     * 热词加权分（全场景热词共用）。中档 3.0：真机 A/B 实测，相对满分 5.0，辽宁车牌
-     * 整体准确率 90.0%→96.7%，且「辽F/辽G/辽P 被误偏成辽B」从 3/84 降到 0/84，河北无回归。
-     * 5.0 会过度偏置权威字母（SDK 文档亦警告 3.0~5.0 "过大会误伤无关音节"）。
-     */
-    const val HOTWORDS_SCORE_DEFAULT = 3.0f
+    /** Police 1.4.0 的候选校准权重，避免短热词过度覆盖原始声学结果。 */
+    const val HOTWORDS_SCORE_DEFAULT = 1.0f
 
     /**
      * 占位热词：池 armed 但无有效词时使用，保证 recognizer 池维度一致。

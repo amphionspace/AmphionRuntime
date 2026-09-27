@@ -56,6 +56,7 @@ FINISH_MODES = {
 }
 TARGET_SPEAKER_MODES = {
     "speaker-vad-turn",
+    "speech-end-latency",
     "target-speaker-enhancement",
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
@@ -126,6 +127,7 @@ def parse_args() -> argparse.Namespace:
             "speaker-vad-onstart",
             "cold-start-pcm-gap",
             "speaker-vad-turn",
+            "speech-end-latency",
             "target-speaker-enhancement",
             "target-speaker-enhancement-onstart",
             "target-speaker-enhancement-cancel",
@@ -155,6 +157,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--enable-diarization", action="store_true",
+                        help="Enable offline diarization through public StartParams in lifecycle modes.")
+    parser.add_argument("--diarization-vad-end-ms", type=int, choices=[400, 600, 800],
+                        help="Meeting-only pause experiment; SDK clamps 400 to 500ms. Omitted keeps the Demo default.")
+    parser.add_argument("--speech-end-ms", type=int, default=0,
+                        help="Native VAD speech-end sample time for speech-end-latency fixture (ms).")
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
@@ -200,6 +208,10 @@ def parse_args() -> argparse.Namespace:
         except ValueError:
             parser.error("--asr-cpu-ids requires unique integer IDs in [0, 127]")
         args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
+    if args.diarization_vad_end_ms is not None and args.mode not in {"customer-meeting-minutes", "diarization-windows"}:
+        parser.error("--diarization-vad-end-ms requires a meeting diarization mode")
+    if args.mode == "speech-end-latency" and (args.speech_end_ms <= 0 or args.pace_ms != 20):
+        parser.error("speech-end-latency requires --speech-end-ms and --pace-ms 20")
     if args.cycles <= 0:
         parser.error("--cycles must be positive")
     if args.files < 0:
@@ -258,6 +270,42 @@ def sha256_file(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def speech_end_latency_verdict(log_path: Path, cycles: list[dict[str, str]],
+                               speech_end_ms: int) -> dict[str, object]:
+    endpoints = [dict(re.findall(r"(\w+)=([^\s]+)", line))
+                 for line in log_path.read_text(errors="replace").splitlines()
+                 if "kind=ENDPOINT " in line and "source=vad-active " in line]
+    if len(endpoints) != len(cycles) or not cycles:
+        return {"status": "FAIL", "reason": "missing or duplicate acoustic endpoint metrics", "cases": []}
+    cases = []
+    for cycle, endpoint in zip(cycles, endpoints):
+        try:
+            classified = int(endpoint["vadSamples"])
+            speech_end = int(endpoint["speechEndSample"])
+            decode_start = int(endpoint["lastDecodeStartedAtMs"])
+            decode_end = int(endpoint["lastDecodeFinishedAtMs"])
+            feed_start = int(cycle["audioFeedStartedAtMs"])
+            event_at = int(cycle["speechEndAtMs"])
+        except (KeyError, ValueError):
+            return {"status": "FAIL", "reason": "missing endpoint timing evidence", "cases": cases}
+        tail_ms = (classified - speech_end) / 16
+        # Every public frame contains 320 samples and is submitted at an absolute 20ms cadence.
+        ready_at = feed_start + (math.ceil(classified / 320) - 1) * 20
+        decode_overlap = decode_start <= ready_at < decode_end <= event_at
+        unblock_at = decode_end if decode_overlap else ready_at
+        dispatch_ms = event_at - unblock_at
+        passed = (feed_start > 0 and speech_end == speech_end_ms * 16 and
+                  1600 <= tail_ms < 1632 and 0 <= dispatch_ms <= 32)
+        cases.append({"index": cycle.get("index"), "status": "PASS" if passed else "FAIL",
+                      "native_tail_ms": tail_ms,
+                      "wall_latency_ms": event_at - feed_start - speech_end_ms,
+                      "overlapping_decode_wait_ms": max(0, unblock_at - ready_at),
+                      "dispatch_after_ready_ms": dispatch_ms})
+    return {"status": "PASS" if all(case["status"] == "PASS" for case in cases) else "FAIL",
+            "criteria": "native tail [1600,1632)ms; dispatch within 32ms after deadline frame or overlapping ASR decode; no speaker refinement allowance",
+            "cases": cases}
 
 
 def verified_build_identity() -> dict[str, object]:
@@ -351,8 +399,9 @@ class Hdc:
 
 
 def locate_hdc() -> Path:
-    deveco = Path(os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents"))
-    hdc = deveco / "sdk" / "default" / "openharmony" / "toolchains" / "hdc"
+    clt = Path(os.environ.get("DEVECO_CLI_CLT_PATH", Path.home() / ".local/share/harmony/command-line-tools"))
+    sdk = Path(os.environ.get("DEVECO_SDK_HOME", clt / "sdk"))
+    hdc = Path(os.environ.get("HDC", sdk / "default/openharmony/toolchains/hdc"))
     if not hdc.is_file():
         raise StressFailure(f"missing HDC: {hdc}")
     return hdc
@@ -881,6 +930,68 @@ def terminal_callback_order_ok(trace: str) -> bool:
     return True
 
 
+def diarization_lifecycle_verdict(cycles: list[dict[str, str]]) -> dict[str, object]:
+    """Audit real role callbacks per session, including Runtime recovery."""
+    failures: list[str] = []
+    completed_sessions = 0
+    for cycle in cycles:
+        sessions: dict[str, list[str]] = {}
+        for field in ("trace", "recoveryTrace"):
+            for item in cycle.get(field, "").split(">"):
+                session, separator, event = item.partition(":")
+                if separator:
+                    sessions.setdefault(session, []).append(event)
+        for session, events in sessions.items():
+            context = f"cycle {cycle.get('index')} session {session}"
+            if "complete" in events:
+                completed_sessions += 1
+                if any(events.count(event) != 1 for event in
+                       ("final-last", "diarization-result", "complete")):
+                    failures.append(f"{context}: missing or repeated terminal callbacks")
+                    continue
+                last, role, complete = (events.index(event) for event in
+                                       ("final-last", "diarization-result", "complete"))
+                if not last < role < complete:
+                    failures.append(f"{context}: terminal callback order")
+                if any(event == "diarization-update" or event.startswith("diarization-window-")
+                       for event in events[last + 1:]):
+                    failures.append(f"{context}: speaker update after last")
+                if any(event.startswith("diarization-") for event in events[complete + 1:]):
+                    failures.append(f"{context}: speaker callback after complete")
+            elif "diarization-result" in events:
+                failures.append(f"{context}: role final without normal completion")
+        encoded = cycle.get("speakerWindowsHex", "")
+        if encoded:
+            try:
+                windows = json.loads(bytes.fromhex(encoded).decode("utf-16-be"))
+                if any(window.get("degraded") for window in windows):
+                    failures.append(f"cycle {cycle.get('index')}: degraded speaker result")
+            except (ValueError, UnicodeError, TypeError):
+                failures.append(f"cycle {cycle.get('index')}: invalid speaker result evidence")
+    return {"status": "FAIL" if failures else "PASS",
+            "completed_sessions": completed_sessions, "failures": failures}
+
+
+def customer_stop_latency_verdict(mode: str, cycles: list[dict[str, str]]) -> dict[str, object]:
+    """Measure the customer's stop window from finish(), including both tails."""
+    if mode not in ("diarization-windows", "customer-meeting-minutes"):
+        return {"status": "NOT_APPLICABLE"}
+    failed_cycles: list[str] = []
+    timings: list[int] = []
+    for index, cycle in enumerate(cycles):
+        try:
+            elapsed = int(cycle["finishToCompleteMs"])
+        except (KeyError, TypeError, ValueError):
+            elapsed = -1
+        if elapsed < 0 or elapsed > 15000:
+            failed_cycles.append(str(cycle.get("index", index)))
+        if elapsed >= 0:
+            timings.append(elapsed)
+    return {"status": "FAIL" if failed_cycles or not cycles else "PASS",
+            "limit_ms": 15000, "max_ms": max(timings, default=None),
+            "failed_cycles": failed_cycles}
+
+
 def target_speaker_realtime_verdict(hilog_path: Path, required: bool) -> dict[str, object]:
     pattern = re.compile(
         r"TARGET_SPEAKER_ENHANCEMENT\|processingMs=(\d+)\|queued=(\d+)\|maxQueued=(\d+)"
@@ -1114,6 +1225,9 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
+        "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
+        "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1226,6 +1340,21 @@ def run_stress(args: argparse.Namespace) -> Path:
 
     overall = "PASS"
     failures: list[str] = []
+    diarization_lifecycle = diarization_lifecycle_verdict(cycle_results) if args.enable_diarization else {
+        "status": "NOT_APPLICABLE"}
+    if diarization_lifecycle["status"] == "FAIL":
+        overall = "FAIL"
+        failures.append("offline diarization lifecycle callbacks failed")
+    customer_stop_latency = customer_stop_latency_verdict(args.mode, cycle_results)
+    if customer_stop_latency["status"] == "FAIL":
+        overall = "FAIL"
+        failures.append("customer stop-to-complete exceeded 15000 ms or was not measured")
+    speech_end_latency = speech_end_latency_verdict(
+        artifact_dir / "hilog.txt", cycle_results, args.speech_end_ms
+    ) if args.mode == "speech-end-latency" else {"status": "NOT_APPLICABLE"}
+    if speech_end_latency["status"] == "FAIL":
+        overall = "FAIL"
+        failures.append("speech-end sample deadline or dispatch latency failed")
     if app_summary.get("status") != "PASS":
         overall = "FAIL"
         failures.append("SDK contract checks failed")
@@ -1278,6 +1407,11 @@ def run_stress(args: argparse.Namespace) -> Path:
             "cycles": args.cycles,
             "settle_ms": args.settle_ms,
             "pace_ms": args.pace_ms,
+            "speech_end_ms": args.speech_end_ms,
+            "diarization_vad_end_ms": args.diarization_vad_end_ms,
+            "enable_diarization": args.enable_diarization,
+            "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
+                                               if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
@@ -1304,9 +1438,12 @@ def run_stress(args: argparse.Namespace) -> Path:
             "nonzero_cycles": nonzero_live_stream_cycles,
             "max_live_streams": max(live_stream_counts, default=0),
         },
+        "diarization_lifecycle": diarization_lifecycle,
+        "customer_stop_latency": customer_stop_latency,
         "target_speaker_realtime": target_speaker_realtime,
         "target_speaker_content": target_speaker_content,
         "expected_tail": expected_tail,
+        "speech_end_latency": speech_end_latency,
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,

@@ -63,8 +63,9 @@ def verify_fixture(path: Path) -> list[dict[str, object]]:
 
 
 def locate_hdc() -> Path:
-    root = Path(os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents"))
-    path = root / "sdk" / "default" / "openharmony" / "toolchains" / "hdc"
+    clt = Path(os.environ.get("DEVECO_CLI_CLT_PATH", Path.home() / ".local/share/harmony/command-line-tools"))
+    sdk = Path(os.environ.get("DEVECO_SDK_HOME", clt / "sdk"))
+    path = Path(os.environ.get("HDC", sdk / "default/openharmony/toolchains/hdc"))
     if not path.is_file():
         raise EvalFailure(f"HDC not found: {path}")
     return path

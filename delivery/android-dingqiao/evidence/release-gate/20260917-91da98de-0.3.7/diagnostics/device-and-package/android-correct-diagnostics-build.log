@@ -1,0 +1,70 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :sdk-dingqiao:preBuild UP-TO-DATE
+> Task :sdk-dingqiao:preDiagnosticsBuild UP-TO-DATE
+> Task :sdk-police:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-police:preBuild UP-TO-DATE
+> Task :sdk:preBuild UP-TO-DATE
+> Task :sdk-police:preDebugBuild UP-TO-DATE
+> Task :sdk:preDebugBuild UP-TO-DATE
+> Task :sdk-police:generateDebugResValues UP-TO-DATE
+> Task :sdk:generateDebugBuildConfig UP-TO-DATE
+> Task :sdk:generateDebugResValues UP-TO-DATE
+> Task :sdk-police:generateDebugResources UP-TO-DATE
+> Task :sdk:generateDebugResources UP-TO-DATE
+> Task :sdk:packageDebugResources UP-TO-DATE
+> Task :sdk-police:packageDebugResources UP-TO-DATE
+> Task :sdk-police:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:parseDebugLocalResources UP-TO-DATE
+> Task :sdk:generateDebugRFile UP-TO-DATE
+> Task :sdk-police:generateDebugRFile UP-TO-DATE
+> Task :sdk-police:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugKotlin UP-TO-DATE
+> Task :sdk:javaPreCompileDebug UP-TO-DATE
+> Task :sdk:compileDebugJavaWithJavac UP-TO-DATE
+> Task :sdk:bundleLibCompileToJarDebug UP-TO-DATE
+> Task :sdk-police:compileDebugKotlin UP-TO-DATE
+> Task :sdk-police:compileDebugJavaWithJavac NO-SOURCE
+> Task :sdk-police:bundleLibCompileToJarDebug UP-TO-DATE
+
+> Task :sdk-dingqiao:configureCMakeDebug[arm64-v8a]
+[CXX5304] This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+[CXX5304] This version only understands SDK XML versions up to 3 but an SDK XML file of version 4 was encountered. This can happen if you use versions of Android Studio and the command-line tools that were released at different times.
+
+> Task :sdk-dingqiao:buildCMakeDebug[arm64-v8a]
+> Task :sdk-dingqiao:mergeDiagnosticsJniLibFolders UP-TO-DATE
+> Task :sdk-dingqiao:mergeDiagnosticsNativeLibs UP-TO-DATE
+> Task :sdk-dingqiao:stripDiagnosticsDebugSymbols UP-TO-DATE
+> Task :sdk-dingqiao:copyDiagnosticsJniLibsProjectAndLocalJars UP-TO-DATE
+> Task :sdk-dingqiao:generateDiagnosticsResValues UP-TO-DATE
+> Task :sdk-dingqiao:extractDeepLinksForAarDiagnostics UP-TO-DATE
+> Task :sdk-dingqiao:checkKotlinGradlePluginConfigurationErrors
+> Task :sdk-dingqiao:generateDiagnosticsBuildConfig UP-TO-DATE
+> Task :sdk-dingqiao:generateDiagnosticsResources UP-TO-DATE
+> Task :sdk-dingqiao:packageDiagnosticsResources UP-TO-DATE
+> Task :sdk-dingqiao:parseDiagnosticsLocalResources UP-TO-DATE
+> Task :sdk-dingqiao:generateDiagnosticsRFile UP-TO-DATE
+> Task :sdk-dingqiao:javaPreCompileDiagnostics UP-TO-DATE
+> Task :sdk-dingqiao:mergeDiagnosticsShaders UP-TO-DATE
+> Task :sdk-dingqiao:compileDiagnosticsShaders NO-SOURCE
+> Task :sdk-dingqiao:syncSharedDingqiaoModels UP-TO-DATE
+> Task :sdk-dingqiao:generateDiagnosticsAssets UP-TO-DATE
+> Task :sdk-dingqiao:packageDiagnosticsAssets UP-TO-DATE
+> Task :sdk-dingqiao:prepareDiagnosticsArtProfile UP-TO-DATE
+> Task :sdk-dingqiao:prepareLintJarForPublish UP-TO-DATE
+> Task :sdk-dingqiao:processDiagnosticsManifest UP-TO-DATE
+> Task :sdk-dingqiao:writeDiagnosticsAarMetadata UP-TO-DATE
+> Task :sdk-dingqiao:compileDiagnosticsKotlin
+> Task :sdk-dingqiao:extractDiagnosticsAnnotations
+> Task :sdk-dingqiao:compileDiagnosticsJavaWithJavac UP-TO-DATE
+> Task :sdk-dingqiao:mergeDiagnosticsGeneratedProguardFiles UP-TO-DATE
+> Task :sdk-dingqiao:mergeDiagnosticsConsumerProguardFiles UP-TO-DATE
+> Task :sdk-dingqiao:processDiagnosticsJavaRes UP-TO-DATE
+> Task :sdk-dingqiao:mergeDiagnosticsJavaResource UP-TO-DATE
+> Task :sdk-dingqiao:syncDiagnosticsLibJars
+> Task :sdk-dingqiao:bundleDiagnosticsAar
+> Task :sdk-dingqiao:assembleDiagnostics
+
+BUILD SUCCESSFUL in 7s
+51 actionable tasks: 9 executed, 42 up-to-date

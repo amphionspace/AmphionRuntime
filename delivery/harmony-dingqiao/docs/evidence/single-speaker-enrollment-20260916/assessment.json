@@ -1,0 +1,681 @@
+{
+  "schemaVersion": 1,
+  "runtimeCommit": "95b8f14c5cb01a22a21ddb17b0d703434ca709d2",
+  "hapSha256": "6426919144e11c685156da762e00211afe6aee40332b0967889aaa523ae4131d",
+  "baselineRuntimeCommit": "9ced6004d1d553638b9e6bf97e5bbd18cd251acb",
+  "baselineHapSha256": "19e8e323f8895c46dc90acbe0eef443b594b565d0ac9ee121b3a149c626eb534",
+  "deliveryStatus": "NOT_ACCEPTED: burst contract/resource failures remain open",
+  "newRecordingDurationSeconds": 69.56,
+  "newRecordingSha256": "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+  "groundTruth": "User confirmed one person, no time-aligned speech annotation",
+  "stateTests": {
+    "harmony": 41,
+    "android": 106
+  },
+  "fixedAcousticStateComparison": {
+    "commit": "95b8f14c",
+    "basis": "fixed acoustic windows replayed through production session body; device checks separate",
+    "cases": [
+      {
+        "meeting": "S_R003S01C01",
+        "durationSeconds": 180,
+        "inputSpeakerCount": 2,
+        "baseline": {
+          "online": {
+            "classicDer250msNoOverlap": 0.1133,
+            "speakerConfusionSeconds": 16.37,
+            "unknownTurnSeconds": 1.47,
+            "referenceSpeakerCount": 2,
+            "systemSpeakerCount": 2,
+            "switchesDiagnosticOnly": 13,
+            "namedIds": [
+              0,
+              1
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.037902,
+            "speakerConfusionSeconds": 4.13,
+            "unknownTurnSeconds": 1.47,
+            "referenceSpeakerCount": 2,
+            "systemSpeakerCount": 2,
+            "switchesDiagnosticOnly": 8,
+            "namedIds": [
+              0,
+              1
+            ]
+          }
+        },
+        "actual": {
+          "online": {
+            "classicDer250msNoOverlap": 0.117172,
+            "speakerConfusionSeconds": 15.94,
+            "unknownTurnSeconds": 2.47,
+            "referenceSpeakerCount": 2,
+            "systemSpeakerCount": 2,
+            "switchesDiagnosticOnly": 9,
+            "namedIds": [
+              0,
+              1
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.037902,
+            "speakerConfusionSeconds": 4.13,
+            "unknownTurnSeconds": 1.47,
+            "referenceSpeakerCount": 2,
+            "systemSpeakerCount": 2,
+            "switchesDiagnosticOnly": 8,
+            "namedIds": [
+              0,
+              1
+            ]
+          }
+        }
+      },
+      {
+        "meeting": "M_R003S02C01",
+        "durationSeconds": 180,
+        "inputSpeakerCount": 3,
+        "baseline": {
+          "online": {
+            "classicDer250msNoOverlap": 0.108261,
+            "speakerConfusionSeconds": 5.05,
+            "unknownTurnSeconds": 27.96,
+            "referenceSpeakerCount": 3,
+            "systemSpeakerCount": 3,
+            "switchesDiagnosticOnly": 2,
+            "namedIds": [
+              0,
+              1,
+              3
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.022177,
+            "speakerConfusionSeconds": 0.9,
+            "unknownTurnSeconds": 4.98,
+            "referenceSpeakerCount": 3,
+            "systemSpeakerCount": 3,
+            "switchesDiagnosticOnly": 1,
+            "namedIds": [
+              0,
+              1,
+              3
+            ]
+          }
+        },
+        "actual": {
+          "online": {
+            "classicDer250msNoOverlap": 0.108261,
+            "speakerConfusionSeconds": 5.05,
+            "unknownTurnSeconds": 24.45,
+            "referenceSpeakerCount": 3,
+            "systemSpeakerCount": 4,
+            "switchesDiagnosticOnly": 2,
+            "namedIds": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.022177,
+            "speakerConfusionSeconds": 0.9,
+            "unknownTurnSeconds": 4.98,
+            "referenceSpeakerCount": 3,
+            "systemSpeakerCount": 3,
+            "switchesDiagnosticOnly": 1,
+            "namedIds": [
+              0,
+              1,
+              2
+            ]
+          }
+        }
+      },
+      {
+        "meeting": "L_R003S01C02",
+        "durationSeconds": 180,
+        "inputSpeakerCount": 4,
+        "baseline": {
+          "online": {
+            "classicDer250msNoOverlap": 0.910138,
+            "speakerConfusionSeconds": 13.67,
+            "unknownTurnSeconds": 129.98,
+            "referenceSpeakerCount": 4,
+            "systemSpeakerCount": 4,
+            "switchesDiagnosticOnly": 4,
+            "namedIds": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.468378,
+            "speakerConfusionSeconds": 19.23,
+            "unknownTurnSeconds": 60.41,
+            "referenceSpeakerCount": 4,
+            "systemSpeakerCount": 4,
+            "switchesDiagnosticOnly": 1,
+            "namedIds": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        },
+        "actual": {
+          "online": {
+            "classicDer250msNoOverlap": 0.877801,
+            "speakerConfusionSeconds": 11.76,
+            "unknownTurnSeconds": 127.27,
+            "referenceSpeakerCount": 4,
+            "systemSpeakerCount": 4,
+            "switchesDiagnosticOnly": 2,
+            "namedIds": [
+              0,
+              1,
+              2,
+              3
+            ]
+          },
+          "final": {
+            "classicDer250msNoOverlap": 0.468378,
+            "speakerConfusionSeconds": 19.23,
+            "unknownTurnSeconds": 60.41,
+            "referenceSpeakerCount": 4,
+            "systemSpeakerCount": 4,
+            "switchesDiagnosticOnly": 1,
+            "namedIds": [
+              0,
+              1,
+              2,
+              3
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "deviceCases": {
+    "candidateBurst": [
+      {
+        "name": "new-single",
+        "inputSha256": "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+        "durationSeconds": 69.56,
+        "checks": {
+          "startsOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noErrors": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "oneKnownPersonOnly": true
+        },
+        "status": "PASS",
+        "rawStatus": "PASS",
+        "namedIds": [
+          0
+        ],
+        "unknownSeconds": 1.432,
+        "unknownTextChars": 14,
+        "textChars": 146,
+        "provisionalIds": "0,1",
+        "finishToCompleteMs": "25942"
+      },
+      {
+        "name": "phone-single-speaker",
+        "inputSha256": "d3c1a2c50c3f7d269a3743aae8f2031a5a98da801c73bcf4434efbc8da7dd3f2",
+        "durationSeconds": 47.26,
+        "checks": {
+          "startsOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noErrors": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "oneKnownPersonOnly": true,
+          "oldSingleStillNoUnknown": true
+        },
+        "status": "PASS",
+        "rawStatus": "PASS",
+        "namedIds": [
+          0
+        ],
+        "unknownSeconds": 0,
+        "unknownTextChars": 0,
+        "textChars": 92,
+        "provisionalIds": "0",
+        "finishToCompleteMs": "19581"
+      },
+      {
+        "name": "L_R003S01C02",
+        "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+        "durationSeconds": 180,
+        "checks": {
+          "startsOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": false,
+          "noErrors": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": false,
+          "notDegraded": false,
+          "fullTerminalCoverage": false,
+          "displayTextConserved": false
+        },
+        "status": "FAIL",
+        "rawStatus": "FAIL",
+        "namedIds": [],
+        "unknownSeconds": 0,
+        "unknownTextChars": 0,
+        "textChars": 0,
+        "provisionalIds": "0,1",
+        "finishToCompleteMs": "-1",
+        "accuracyStatus": "INCONCLUSIVE: incomplete diarization, not a usable accuracy result"
+      }
+    ],
+    "candidatePaced": [
+      {
+        "name": "new-single",
+        "inputSha256": "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+        "durationSeconds": 69.56,
+        "checks": {
+          "startsOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noErrors": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "oneKnownPersonOnly": true
+        },
+        "status": "PASS",
+        "rawStatus": "PASS",
+        "namedIds": [
+          0
+        ],
+        "unknownSeconds": 1.432,
+        "unknownTextChars": 14,
+        "textChars": 146,
+        "provisionalIds": "0,1",
+        "finishToCompleteMs": "1165"
+      },
+      {
+        "name": "L_R003S01C02",
+        "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+        "durationSeconds": 180,
+        "checks": {
+          "startsOnce": true,
+          "noLastBeforeFinish": true,
+          "uniqueLastThenComplete": true,
+          "noErrors": true,
+          "noUnexpectedCallbacks": true,
+          "noNativeStreams": true,
+          "notDegraded": true,
+          "fullTerminalCoverage": true,
+          "displayTextConserved": true,
+          "noAccuracyRegression": true
+        },
+        "status": "PASS",
+        "rawStatus": "PASS",
+        "namedIds": [
+          0,
+          1,
+          2,
+          3
+        ],
+        "unknownSeconds": 60.409000000000006,
+        "unknownTextChars": 217,
+        "textChars": 483,
+        "provisionalIds": "0,1,3",
+        "finishToCompleteMs": "3851",
+        "accuracy": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        }
+      }
+    ]
+  },
+  "runs": {
+    "candidateBurst": {
+      "reportSha256": "68ca1a182c144f17c593f41fa3d6001921346a2fbb64a420073e8dd4f6e787ec",
+      "overallStatus": "FAIL",
+      "failures": [
+        "SDK contract checks failed",
+        "RSS/thread growth exceeded threshold",
+        "native stream ownership check failed",
+        "expected ASR tail assertion failed"
+      ],
+      "configuration": {
+        "cycles": 3,
+        "settle_ms": 0,
+        "pace_ms": 0,
+        "speech_end_ms": 0,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 5.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 67,
+        "observation_seconds": 85.718,
+        "warmup_samples_excluded": 13,
+        "head_rss_mb": 678.918,
+        "tail_rss_mb": 747.609,
+        "rss_growth_mb": 68.691,
+        "rss_slope_mb_per_minute": -45.208,
+        "rss_third_medians_mb": [
+          672.906,
+          655.834,
+          747.873
+        ],
+        "peak_rss_mb": 783.164,
+        "peak_hwm_mb": 783.164,
+        "head_vm_data_mb": 1560.223,
+        "tail_vm_data_mb": 1698.91,
+        "vm_data_growth_mb": 138.688,
+        "peak_swap_mb": 0.066,
+        "head_threads": 68,
+        "tail_threads": 66,
+        "thread_growth": -2,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "cycles": [
+        {
+          "id": "000000",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "25942"
+        },
+        {
+          "id": "000001",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "19581"
+        },
+        {
+          "id": "000002",
+          "status": "FAIL",
+          "detail": "live-streams-2",
+          "lastBeforeFinish": "0",
+          "completeCount": "0",
+          "liveStreams": "2",
+          "finishToCompleteMs": "-1"
+        }
+      ]
+    },
+    "baselineBurst": {
+      "reportSha256": "61f9ec551fe2f7aebf3b331be2297792a736934b7a136b1dbb783cbf960f38d7",
+      "overallStatus": "FAIL",
+      "failures": [
+        "SDK contract checks failed",
+        "native stream ownership check failed",
+        "expected ASR tail assertion failed"
+      ],
+      "configuration": {
+        "cycles": 3,
+        "settle_ms": 0,
+        "pace_ms": 0,
+        "speech_end_ms": 0,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 5.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 67,
+        "observation_seconds": 85.718,
+        "warmup_samples_excluded": 13,
+        "head_rss_mb": 680.02,
+        "tail_rss_mb": 740.27,
+        "rss_growth_mb": 60.25,
+        "rss_slope_mb_per_minute": -31.053,
+        "rss_third_medians_mb": [
+          672.379,
+          672.912,
+          750.893
+        ],
+        "peak_rss_mb": 792.957,
+        "peak_hwm_mb": 792.957,
+        "head_vm_data_mb": 1546.254,
+        "tail_vm_data_mb": 1680.41,
+        "vm_data_growth_mb": 134.156,
+        "peak_swap_mb": 0.074,
+        "head_threads": 68,
+        "tail_threads": 66,
+        "thread_growth": -2,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "cycles": [
+        {
+          "id": "000000",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "25974"
+        },
+        {
+          "id": "000001",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "19117"
+        },
+        {
+          "id": "000002",
+          "status": "FAIL",
+          "detail": "live-streams-2",
+          "lastBeforeFinish": "0",
+          "completeCount": "0",
+          "liveStreams": "2",
+          "finishToCompleteMs": "-1"
+        }
+      ]
+    },
+    "candidatePaced": {
+      "reportSha256": "553bc8fd7c617e746fd07b3b6dea0006d09287650d55a703d6f70cbb3dda68ed",
+      "overallStatus": "FAIL",
+      "failures": [
+        "expected ASR tail assertion failed"
+      ],
+      "configuration": {
+        "cycles": 2,
+        "settle_ms": 0,
+        "pace_ms": 20,
+        "speech_end_ms": 0,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 5.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 199,
+        "observation_seconds": 261.992,
+        "warmup_samples_excluded": 39,
+        "head_rss_mb": 662.846,
+        "tail_rss_mb": 706.031,
+        "rss_growth_mb": 43.186,
+        "rss_slope_mb_per_minute": -1.516,
+        "rss_third_medians_mb": [
+          679.152,
+          706.492,
+          713.434
+        ],
+        "peak_rss_mb": 750.684,
+        "peak_hwm_mb": 750.684,
+        "head_vm_data_mb": 1550.629,
+        "tail_vm_data_mb": 1609.848,
+        "vm_data_growth_mb": 59.219,
+        "peak_swap_mb": 0.074,
+        "head_threads": 68.0,
+        "tail_threads": 68.0,
+        "thread_growth": 0.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "cycles": [
+        {
+          "id": "000000",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "1165"
+        },
+        {
+          "id": "000001",
+          "status": "PASS",
+          "detail": "customer-meeting-minutes-contract",
+          "lastBeforeFinish": "0",
+          "completeCount": "1",
+          "liveStreams": "0",
+          "finishToCompleteMs": "3851"
+        }
+      ]
+    }
+  },
+  "risks": [
+    "Genuine additional speaker with insufficient speech can remain UNKNOWN",
+    "2-person reference clip has about one extra second of provisional UNKNOWN",
+    "Transient additional identities remain possible",
+    "4-person accuracy problem predates this change and remains OPEN",
+    "Burst finish failure reproduced on both binaries; causal release/queue diagnosis still OPEN",
+    "Burst RSS difference is inconclusive; candidate crossed the unchanged threshold"
+  ],
+  "pacedTailReassessment": {
+    "originalReportSha256": "553bc8fd7c617e746fd07b3b6dea0006d09287650d55a703d6f70cbb3dda68ed",
+    "reason": "Original three-file manifest included old singleton omitted from the two-file paced run; both observed files already individually passed. Re-evaluate original immutable output with exact two-file input set.",
+    "verdict": {
+      "status": "PASS",
+      "manifest_sha256": "11c73daaffa63710609b945c2c6bd9f80a565c8cbaaeb2a7493a1f7790829b01",
+      "expected_sha256": [
+        "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+        "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2"
+      ],
+      "observed_sha256": [
+        "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+        "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2"
+      ],
+      "cases": [
+        {
+          "source_sha256": "850d99944eaf90105136204854dd6076e0fdaa82d1c72578d2fc2c3ac2a49bb3",
+          "status": "PASS",
+          "required_suffix_sha256": "5026e197696478c1aca4cfecb379e21950797f932239eb872625e1a2755c93af",
+          "normalized_result_length": 124,
+          "decode_error": ""
+        },
+        {
+          "source_sha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+          "status": "PASS",
+          "required_suffix_sha256": "bc62d1b6b936c78dbbd0bbe5572e32d03c66b98b4e4ce961b44249c344f570ad",
+          "normalized_result_length": 419,
+          "decode_error": ""
+        }
+      ]
+    }
+  },
+  "phoneState": [
+    {
+      "text": "SourceType=mic · 模式=长语音 · vadEnd=800ms · max=2h",
+      "type": "Text",
+      "bounds": "[60,698][1024,737]",
+      "checked": "false",
+      "enabled": "true"
+    },
+    {
+      "text": "",
+      "type": "Toggle",
+      "bounds": "[910,901][1018,961]",
+      "checked": "false",
+      "enabled": "false"
+    },
+    {
+      "text": "",
+      "type": "Toggle",
+      "bounds": "[910,1029][1018,1089]",
+      "checked": "false",
+      "enabled": "false"
+    },
+    {
+      "text": "",
+      "type": "Toggle",
+      "bounds": "[910,1160][1018,1220]",
+      "checked": "true",
+      "enabled": "true"
+    },
+    {
+      "text": "",
+      "type": "Toggle",
+      "bounds": "[910,1291][1018,1351]",
+      "checked": "false",
+      "enabled": "true"
+    },
+    {
+      "text": "开始识别",
+      "type": "Button",
+      "bounds": "[60,2013][1024,2157]",
+      "checked": "false",
+      "enabled": "true"
+    }
+  ],
+  "coverage": [
+    "new full singleton and four-person clip on current HAP at real-time feed",
+    "old singleton on current HAP at burst feed",
+    "two/three/four-person fixed acoustic windows through production state machine",
+    "same three-file burst sequence on baseline HAP"
+  ],
+  "notCovered": [
+    "broad new corpus population",
+    "long meeting resources",
+    "release lifecycle matrix",
+    "Android real device"
+  ]
+}

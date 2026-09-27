@@ -27,16 +27,21 @@ CUSTOMER_DOCS="$AR_ROOT/docs/customer"
 BUILD_DATE="$(date +%Y%m%d)"
 SDK_ONLY=false
 PREVIEW=false
+STAGE_RELEASE=""
 VERSION_ARG=""
 
 usage() {
   cat <<'EOF'
-Usage: pack_dingqiao_customer_delivery.sh [--sdk-only] [--preview] [VERSION]
+Usage: pack_dingqiao_customer_delivery.sh [--sdk-only] [--preview | --stage-release DIR] [VERSION]
 
 Options:
   --sdk-only  Package only the zh-en fat AAR and public customer documents.
   --preview   Mark every artifact layer PREVIEW / NON-CANONICAL. Required until
               the exact version and source commit exist in the release ledger.
+  --stage-release DIR
+              Build a new release into an empty private qualification directory.
+              This is NOT authorization to deliver: qualify the final ZIP and
+              record/verify its evidence before moving it out of staging.
   -h, --help  Show this help.
 EOF
 }
@@ -45,6 +50,9 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --sdk-only) SDK_ONLY=true; shift ;;
     --preview) PREVIEW=true; shift ;;
+    --stage-release)
+      [[ $# -ge 2 && -n "$2" && "$2" != -* ]] || { usage >&2; exit 2; }
+      STAGE_RELEASE="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -54,6 +62,12 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+if [[ -n "$STAGE_RELEASE" ]]; then
+  [[ "$PREVIEW" == false && "$STAGE_RELEASE" == /* && ! -e "$STAGE_RELEASE" ]] || {
+    echo "[ERROR] --stage-release requires a new absolute directory and cannot use --preview" >&2
+    exit 2
+  }
+fi
 
 dingqiao_load_git_provenance "$REPO_ROOT"
 VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "$VERSION_ARG")"
@@ -70,9 +84,23 @@ else
     echo "[ERROR] formal delivery requires a clean worktree; dirty builds must use --preview." >&2
     exit 1
   fi
-  python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
-    --repo "$REPO_ROOT" verify-package --require-recorded \
-    --platform android --version "$VERSION" --source-commit "$GIT_COMMIT_FULL"
+  if [[ -n "$STAGE_RELEASE" ]]; then
+    python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+      --repo "$REPO_ROOT" verify-package \
+      --platform android --version "$VERSION" --source-commit "$GIT_COMMIT_FULL"
+    mkdir -p "$STAGE_RELEASE"
+    cat > "$STAGE_RELEASE/NOT-ACCEPTED.txt" <<EOF
+待验收，禁止分发。包内 FORMAL 表示目标发布渠道，不表示已通过验收。
+version=$VERSION
+source_commit=$GIT_COMMIT_FULL
+必须对最终 ZIP 执行真机/源码验收，再用 record-evidence 登记并 verify-evidence。
+验收报告必须绑定最终 ZIP 的 SHA-256；不得从预览包去除标记后分发。
+EOF
+  else
+    python3 "$REPO_ROOT/tools/delivery/asr_release_tracker.py" \
+      --repo "$REPO_ROOT" verify-package --require-recorded \
+      --platform android --version "$VERSION" --source-commit "$GIT_COMMIT_FULL"
+  fi
   DELIVERY_STATUS="FORMAL"
   DINGQIAO_DELIVERY_STATUS_CODE="formal"
   NAME_SUFFIX=""
@@ -87,6 +115,10 @@ else
   PKG_NAME="amphion-dingqiao-v${VERSION}-customer${NAME_SUFFIX}"
   OUT_ROOT="$DQ_ROOT/delivery/$PKG_NAME"
   ZIP_PATH="$DQ_ROOT/delivery/${PKG_NAME}-${BUILD_DATE}.zip"
+fi
+if [[ -n "$STAGE_RELEASE" ]]; then
+  OUT_ROOT="$STAGE_RELEASE/$PKG_NAME"
+  ZIP_PATH="$STAGE_RELEASE/$(basename "$ZIP_PATH")"
 fi
 FAT_AAR_NAME="dingqiao-asr-v${VERSION}.aar"
 AAR_NAME="dingqiao-asr-v${VERSION}${NAME_SUFFIX}.aar"
@@ -322,4 +354,7 @@ fi
 
 echo "[OK] tree: $OUT_ROOT"
 echo "[OK] zip:  $ZIP_PATH"
+if [[ -n "$STAGE_RELEASE" ]]; then
+  echo "[PENDING] Qualification candidate only; final ZIP acceptance and release ledger evidence are required."
+fi
 du -sh "$OUT_ROOT" "$ZIP_PATH"

@@ -1,0 +1,33 @@
+{
+  "previous_source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "previous_versions": {
+    "android": "0.3.7",
+    "harmony": "0.3.16"
+  },
+  "current_versions": {
+    "android": "0.3.8",
+    "harmony": "0.3.17"
+  },
+  "pull_requests": [
+    {
+      "number": 213,
+      "scope": "Previous delivery metadata/evidence; no newly claimed runtime feature."
+    },
+    {
+      "number": 214,
+      "scope": "Customer speaker identity improvements and full-sentence diarization contract; remaining identity errors retained."
+    }
+  ],
+  "delivery_branch_changes": "Versions, release dates, package model completeness, migration docs, display test expectations; no further algorithm experiments.",
+  "commits": [
+    "5f622c6d390e2088570c5f9bbdc212f2f702f3a4 test(asr): align package fixture release date",
+    "747a449918860e7169509e03aa6234c77a421baf chore(asr): finalize release date and capability notes",
+    "2328a19daf53b8639754b0905a888c124bb5bf92 test(asr): align Android role display expectations",
+    "2d7ec15222a6f4170eaf5717c97650fad3703a24 chore(asr): prepare Android 0.3.8 and Harmony 0.3.17 delivery",
+    "57437cec8b2d2ffd76cba53bac99a71235d754ae fix(asr): improve meeting speaker identity and sentence labels",
+    "858e70244dd592d7a973aec7b0c10adbf0689eb0 Merge pull request #213 from amphionspace/chore/asr-delivery-20260917",
+    "c5eae8e769ac5984aabd0a50cee666c80230810f test(asr): align release identity and redact customer report",
+    "955457d8d7cad50d5075a50b36723d42022965e0 chore(asr): archive aligned Android and Harmony release evidence"
+  ]
+}

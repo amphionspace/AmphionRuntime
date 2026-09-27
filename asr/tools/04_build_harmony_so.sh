@@ -19,12 +19,13 @@ if [[ ! -f "$SHERPA_ROOT/CMakeLists.txt" ]]; then
   exit 1
 fi
 
+source "$SCRIPT_DIR/harmony_env.sh"
+
 _resolve_ohos_native() {
   local d
   for d in \
     "${OHOS_SDK_NATIVE_DIR:-}" \
     "${DEVECO_SDK_HOME:-}/default/openharmony/native" \
-    "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native" \
     "$HOME/Library/Huawei/Sdk/default/openharmony/native" \
     "$HOME/Library/OpenHarmony/Sdk/default/openharmony/native" \
     ; do
@@ -57,6 +58,9 @@ export BUILD_SHARED_LIBS=ON
 )
 
 OUT_DIR="$SHERPA_ROOT/build-ohos-arm64-v8a/install/lib"
+# Keep the public spinning switch and arithmetic partitioning unchanged, but
+# bound unproductive worker polling during long simultaneous ASR/diarization.
+python3 "$SCRIPT_DIR/build_harmony_onnxruntime.py" --output "$OUT_DIR/libonnxruntime.so"
 ls -lh "$OUT_DIR/libsherpa-onnx-c-api.so" "$OUT_DIR/libonnxruntime.so"
 python3 "$SCRIPT_DIR/verify_harmony_sherpa_symbols.py" \
   --library "$OUT_DIR/libsherpa-onnx-c-api.so" \

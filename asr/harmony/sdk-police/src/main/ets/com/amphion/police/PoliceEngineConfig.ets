@@ -3,7 +3,7 @@ import { AsrConfig } from 'amphion_asr';
 import { PoliceAssets } from './PoliceAssets';
 
 export class PoliceEngineConfig {
-  static readonly HOTWORDS_SCORE_DEFAULT: number = 3.0;
+  static readonly HOTWORDS_SCORE_DEFAULT: number = 1.0;
   static readonly HOTWORD_POOL_PLACEHOLDER: string = '__placeholder__';
   static readonly NUM_THREADS: number = 4;
 

@@ -7,6 +7,7 @@ import {
   CreateEngineCallback,
   CreateEngineParams,
   DingqiaoEventCode,
+  DiarizedUtterance,
   LicenseActivationCallback,
   LicenseActivationResult,
   SpeakerDiarizationUpdate,
@@ -63,6 +64,9 @@ class FinalSegment {
   endTime: number = 0;
   speakerDiarization: boolean = false;
   speakerAssignmentFinal: boolean = false;
+  secondarySpeakerIndexes: number[] = [];
+  speakerParts: DiarizedUtterance[] = [];
+  showSpeakerParts: boolean = false;
 
   constructor(text: string, score?: number, utteranceId?: string, speakerIndex: number = -1,
     endTime: number = 0, speakerDiarization: boolean = false, speakerAssignmentFinal: boolean = false) {
@@ -108,6 +112,7 @@ struct Index {
   @State stoppingListening: boolean = false;
   @State caseNote: string = '';
   @State caseInfo: string = '';
+  @State fileInput: boolean = false;
 
   private engine?: SpeechRecognitionEngine;
   private recorder?: AudioRecorder;
@@ -149,12 +154,14 @@ struct Index {
   private capturedSpeakerVad: boolean = false;
   private capturedSpeakerDiarization: boolean = false;
   private lastDiarizationWindowIndex: number = -1;
+  private diarizationDegraded: boolean = false;
   private capturedPoliceEnhancement: boolean = true;
   private capturedCustomerScenario: CustomerScenarioName = 'ptt';
   private capturedAudioSource: DemoAudioSource = 'mic';
 
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
+    this.fileInput = AppStorage.get<boolean>('demoFileInput') ?? false;
     this.policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(
       getContext(this) as common.UIAbilityContext);
     this.initWithPermission();
@@ -190,7 +197,7 @@ struct Index {
   }
 
   private async initWithPermission(): Promise<void> {
-    const granted = await this.requestMicPermission();
+    const granted = this.fileInput || await this.requestMicPermission();
     if (!granted) {
       this.loading = false;
       this.status = '没有录音权限，无法识别';
@@ -376,7 +383,7 @@ struct Index {
     const ctx = getContext(this) as common.UIAbilityContext;
     this.stoppingListening = true;
     try {
-      await BackgroundRecordingTask.start(ctx);
+      if (!this.fileInput) await BackgroundRecordingTask.start(ctx);
     } catch (e) {
       this.status = `无法启动后台录音任务：${e}`;
       this.stoppingListening = false;
@@ -399,6 +406,7 @@ struct Index {
       this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
     this.lastDiarizationWindowIndex = -1;
+    this.diarizationDegraded = false;
     this.capturedPoliceEnhancement = this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
@@ -413,7 +421,7 @@ struct Index {
     this.modelReady = (this.engine !== undefined);
     // ① 立即开麦(与模型冷加载并行);模型没好时,麦克风帧先进 pre-roll 缓存不丢。
     this.startCapture();
-    this.logStartTiming('mic_start_issued(已发起开麦)');
+    this.logStartTiming(this.fileInput ? 'file_input_selected' : 'mic_start_issued(已发起开麦)');
     if (this.engine !== undefined) {
       // 模型已在内存:直接建会话喂 live(无缓存)。
       this.startSessionAndFlush();
@@ -422,8 +430,9 @@ struct Index {
       this.startPending = true;
       this.coldStartGeneration = this.coldStartPttGate.begin();
       this.loading = true;
-      this.loadingHint = '模型加载中（语音已在缓存,加载完立即识别）…';
-      this.status = '录音中 · 模型加载中（语音已缓存,加载完立即识别）…';
+      this.loadingHint = this.fileInput ? '模型加载中，完成后读取测试音频…' :
+        '模型加载中（语音已在缓存,加载完立即识别）…';
+      this.status = this.fileInput ? this.loadingHint : '录音中 · 模型加载中（语音已缓存,加载完立即识别）…';
       SpeechRecognizeSdk.createEngineAsync(
         this.buildCreateEngineParams(this.capturedHotwords),
         new DemoCreateEngineCallback(this, this.coldStartGeneration));
@@ -447,6 +456,30 @@ struct Index {
       this.finishColdStartSession();
     } else {
       this.status = '识别中…（再次点击结束）';
+      if (this.fileInput) this.feedDemoFile(this.sessionId);
+    }
+  }
+
+  // 仅显式通过 demoFileInput 启动时使用：固定 44 字节 WAV 头、16 kHz 单声道 PCM16。
+  // 与麦克风共用 writeAudio、finish 和全部页面回调；不使用只比较文字的 debug replay 分支。
+  private async feedDemoFile(sid: string): Promise<void> {
+    try {
+      const pcm = WavIo.readPcmBytes(`${this.workPath}/demo-test-input.wav`);
+      if (pcm.byteLength === 0 || pcm.byteLength % SDK_FRAME_BYTES !== 0) {
+        throw new Error(`测试音频为空或不是完整的 20ms PCM 帧：${pcm.byteLength}B`);
+      }
+      for (let offset = 0; offset < pcm.byteLength; offset += SDK_FRAME_BYTES) {
+        if (!this.active || !this.listening || this.stoppingListening || this.sessionId !== sid) return;
+        this.feedFrameLive(pcm.slice(offset, offset + SDK_FRAME_BYTES));
+        await new Promise<void>((resolve: () => void): void => {
+          setTimeout((): void => resolve(), FRAME_AUDIO_MS);
+        });
+      }
+      if (this.active && this.listening && !this.stoppingListening && this.sessionId === sid) {
+        await this.stopListening();
+      }
+    } catch (e) {
+      if (this.sessionId === sid) this.handleStopFailure(sid, e);
     }
   }
 
@@ -541,7 +574,34 @@ struct Index {
   }
 
   private speakerLabel(speakerIndex: number): string {
-    return speakerIndex < 0 ? '未能区分说话人' : `说话人 ${speakerIndex + 1}`;
+    return speakerIndex < 0 ? '不确定' : `说话人 ${speakerIndex + 1}`;
+  }
+
+  private segmentSpeakerLabel(segment: FinalSegment): string {
+    if (!segment.speakerAssignmentFinal && segment.speakerIndex < 0 &&
+      segment.revision === 0 && segment.secondarySpeakerIndexes.length === 0) return '说话人分析中';
+    const known = new Set<number>();
+    if (segment.speakerIndex >= 0) known.add(segment.speakerIndex);
+    for (const id of segment.secondarySpeakerIndexes) if (id >= 0) known.add(id);
+    let unknown = segment.speakerIndex < 0 || segment.secondarySpeakerIndexes.includes(-1);
+    let overlap = segment.secondarySpeakerIndexes.length > 0;
+    let inferred = false;
+    for (const part of segment.speakerParts) {
+      if (part.speakerIndex >= 0) known.add(part.speakerIndex);
+      else unknown = true;
+      for (const id of part.secondarySpeakerIndexes) {
+        if (id >= 0) known.add(id);
+      }
+      overlap = overlap || part.overlap;
+      inferred = inferred || part.speakerInferred;
+    }
+    let label = this.speakerLabel(segment.displaySpeakerIndex);
+    if (known.size > 1) label = '多人／不确定';
+    else if (unknown || overlap) label = '不确定';
+    else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
+    if (inferred) label += ' · 含推断补全';
+    if (overlap) label += ' · 含重叠发言';
+    return label;
   }
 
   private refreshSpeakerDisplayIndexes(segments: FinalSegment[]): void {
@@ -708,6 +768,9 @@ struct Index {
     meta['sampleFormat'] = 's16le';
     meta['audioSource'] = this.audioSourceName(this.capturedAudioSource);
     meta['customerScenario'] = this.capturedCustomerScenario;
+    meta['speakerDiarization'] = this.capturedSpeakerDiarization;
+    meta['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
+      this.capturedSpeakerDiarization).extraParams['vadEnd'];
     meta['softwareGainDb'] = 0;
     meta['frameBytes'] = SDK_FRAME_BYTES;
     meta['frameCount'] = this.sdkCaptureFrames.length;
@@ -769,7 +832,9 @@ struct Index {
     metadata['frameCount'] = this.sdkCaptureFrames.length;
     metadata['durationMs'] = Math.round(this.sdkCaptureFrames.length * FRAME_AUDIO_MS);
     metadata['enablePartialResult'] = profile.enablePartialResult;
-    metadata['vadEnd'] = profile.vadEnd;
+    metadata['speakerDiarization'] = this.capturedSpeakerDiarization;
+    metadata['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
+      this.capturedSpeakerDiarization).extraParams['vadEnd'];
     metadata['maxAudioDuration'] = profile.maxAudioDuration;
     if (profile.vadBegin !== undefined) metadata['vadBegin'] = profile.vadBegin;
     metadata['voiceprintVerify'] = this.capturedVoiceprintVerify;
@@ -947,6 +1012,7 @@ struct Index {
   }
 
   private startCapture(): void {
+    if (this.fileInput) return;
     if (this.recorder !== undefined) return;
     const writer = new PcmFrameWriter((frame: ArrayBuffer): void => this.writeFrameToCurrentSession(frame));
     this.frameWriter = writer;
@@ -1048,7 +1114,7 @@ struct Index {
         '纪要已生成 · 模型已卸载' : (this.captureReady ?
           'SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载' :
           '模型已卸载 · 运行时常驻 · 点击开始识别按需加载');
-      this.releaseModel(next);
+      this.releaseModel(this.completedDiarizationStatus(next));
     }
   }
 
@@ -1062,6 +1128,7 @@ struct Index {
         next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
         next[i].endTime, true, next[i].speakerAssignmentFinal);
       replacement.revision = update.revision;
+      replacement.secondarySpeakerIndexes = update.secondarySpeakerIndexes?.slice() ?? [];
       next[i] = replacement;
       this.refreshSpeakerDisplayIndexes(next);
       this.finalSegments = next;
@@ -1073,14 +1140,17 @@ struct Index {
     if (sessionId === this.replaySessionId) return;
     if (result.windowIndex <= this.lastDiarizationWindowIndex) return;
     this.lastDiarizationWindowIndex = result.windowIndex;
+    this.diarizationDegraded = this.diarizationDegraded || result.degraded;
     const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
     const next = this.finalSegments.filter(item =>
       item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
-    for (let i = 0; i < result.utterances.length; i++) {
-      const utterance = result.utterances[i];
-      next.push(new FinalSegment(
-        utterance.text, undefined, utterance.utteranceId, utterance.speakerIndex,
-        utterance.endTime, true, true));
+    for (const utterance of result.utterances) {
+      // The SDK publishes readable units. One source endpoint can contain
+      // multiple complete sentences with different confirmed speakers.
+      const paragraph = new FinalSegment(utterance.text, undefined, utterance.utteranceId,
+        utterance.speakerIndex, utterance.endTime, true, true);
+      paragraph.speakerParts.push(utterance);
+      next.push(paragraph);
     }
     next.sort((left: FinalSegment, right: FinalSegment): number => left.endTime - right.endTime);
     this.refreshSpeakerDisplayIndexes(next);
@@ -1088,7 +1158,11 @@ struct Index {
     if (!result.isSessionFinal) return;
     this.loading = false;
     const completed = this.capturedCustomerScenario === 'meeting-minutes' ? '纪要已生成' : '角色分离已完成';
-    this.status = result.degraded ? `${completed} · 角色分离已降级` : completed;
+    this.status = this.completedDiarizationStatus(completed);
+  }
+
+  private completedDiarizationStatus(statusText: string): string {
+    return this.diarizationDegraded ? `${statusText} · 角色分离已降级` : statusText;
   }
 
   private async finishAutoEndedCapture(): Promise<void> {
@@ -1104,7 +1178,7 @@ struct Index {
       this.writeSdkCaptureMetadataBestEffort();
     } finally {
       this.stoppingListening = false;
-      this.releaseModel('SDK 已按 VAD/最长时长自动结束 · 模型已卸载');
+      this.releaseModel(this.completedDiarizationStatus('SDK 已按 VAD/最长时长自动结束 · 模型已卸载'));
     }
   }
 
@@ -1184,6 +1258,7 @@ struct Index {
       result.speakerIndex,
       result.endTime ?? 0,
       this.capturedSpeakerDiarization));
+    next[next.length - 1].secondarySpeakerIndexes = result.secondarySpeakerIndexes?.slice() ?? [];
     this.refreshSpeakerDisplayIndexes(next);
     this.finalSegments = next;
   }
@@ -1311,9 +1386,10 @@ struct Index {
           })
         }
         .width('100%')
-        Text(`SourceType=${this.audioSource} · ` +
+        Text(`${this.fileInput ? '文件输入测试' : 'SourceType=' + this.audioSource} · ` +
           `模式=${customerScenarioProfile(this.customerScenario).recognizerMode === 'long' ? '长语音' : '短语音'} · ` +
-          `vadEnd=${customerScenarioProfile(this.customerScenario).vadEnd}ms · ` +
+          `vadEnd=${customerProfileStartParams('preview', this.customerScenario,
+            this.speakerDiarizationDesired).extraParams['vadEnd']}ms · ` +
           `max=${this.formatMaxAudioDuration(customerScenarioProfile(this.customerScenario).maxAudioDuration)}`)
           .fontSize(11)
           .fontColor(Color.Gray)
@@ -1324,7 +1400,7 @@ struct Index {
               .layoutWeight(1)
               .height(32)
               .fontSize(10)
-              .enabled(!this.listening && !this.replaying && !this.loading &&
+              .enabled(!this.fileInput && !this.listening && !this.replaying && !this.loading &&
                 !customerScenarioProfile(this.customerScenario).lockAudioSource)
               .backgroundColor(this.audioSource === source ? '#16803A' : '#D8DEE9')
               .onClick((): void => this.selectAudioSource(source))
@@ -1401,7 +1477,7 @@ struct Index {
         .width('100%')
       }
 
-      Text('中间结果').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
+      Text('转写中间结果').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
       Text(this.partialText.length > 0 ? this.partialText : '等待语音输入…')
         .width('100%')
         .height(56)
@@ -1410,7 +1486,11 @@ struct Index {
         .borderRadius(8)
         .padding(12)
 
-      Text('最终结果').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
+      Text('转写结果').fontSize(14).fontWeight(FontWeight.Medium).width('100%')
+      if (this.speakerDiarizationDesired) {
+        Text('角色中间结果可能调整；标为最终结果后不再变化。')
+          .fontSize(12).fontColor(Color.Gray).width('100%')
+      }
       Column({ space: 6 }) {
         if (this.finalSegments.length === 0) {
           Text('识别结果将累积显示在这里。')
@@ -1418,9 +1498,10 @@ struct Index {
         }
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
-            if (item.speakerDiarization && (item.speakerIndex >= 0 || item.speakerAssignmentFinal)) {
-              Span(`${this.speakerLabel(item.displaySpeakerIndex)} `)
-                .fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
+            if (item.speakerDiarization) {
+              Span(`${this.segmentSpeakerLabel(item)}（${item.speakerAssignmentFinal ? '最终结果' : '暂定，可修正'}） `)
+                .fontColor(item.speakerAssignmentFinal ? BRAND_ACCENT : Color.Gray)
+                .fontWeight(FontWeight.Bold)
             }
             if (item.score !== undefined) {
               Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
@@ -1429,7 +1510,28 @@ struct Index {
           }
           .width('100%')
           .fontSize(16)
-        }, (item: FinalSegment, index: number) => `${index}-${item.text}`)
+          if (item.speakerParts.length > 1 || item.speakerParts.some(part =>
+            part.overlap || part.speakerInferred || part.secondarySpeakerIndexes.length > 0)) {
+            Button(item.showSpeakerParts ? '收起角色详情' : '查看角色详情')
+              .fontSize(12)
+              .onClick(() => {
+                item.showSpeakerParts = !item.showSpeakerParts;
+                this.finalSegments = this.finalSegments.slice();
+              })
+            if (item.showSpeakerParts) {
+              ForEach(item.speakerParts, (part: DiarizedUtterance) => {
+                Text(`${(part.beginTime / 1000).toFixed(2)}–${(part.endTime / 1000).toFixed(2)} 秒 · ` +
+                  `${this.speakerLabel(part.speakerIndex)}` +
+                  `${part.speakerInferred ? ' · 含推断补全' : ''}` +
+                  `${part.overlap ? ' · 含重叠发言' : ''}` +
+                  `${part.secondarySpeakerIndexes.length > 0 ? ' · 句内角色证据：' +
+                    part.secondarySpeakerIndexes.map((id: number): string => this.speakerLabel(id)).join('、') : ''}` +
+                  `\n${part.text}`)
+                  .fontSize(12).fontColor(Color.Gray).width('100%')
+              }, (part: DiarizedUtterance) => part.utteranceId)
+            }
+          }
+        }, (item: FinalSegment, index: number) => `${index}-${JSON.stringify(item)}`)
       }
       .width('100%')
       .backgroundColor('#f5f5f5')

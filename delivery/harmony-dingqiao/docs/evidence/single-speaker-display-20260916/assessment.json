@@ -1,0 +1,77 @@
+{
+  "originalSession": {
+    "startedAt": "2026-09-16T09:58:35+08:00",
+    "audioSeconds": 47.26,
+    "pcmWavSha256": "d3c1a2c50c3f7d269a3743aae8f2031a5a98da801c73bcf4434efbc8da7dd3f2",
+    "singleSpeakerConfirmedByUser": true,
+    "truncated": false,
+    "captureOverflow": 0,
+    "uiNamedSpeakerIndexes": [
+      0,
+      1
+    ]
+  },
+  "sdkBeforeFix": {
+    "builtCommit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+    "report": "usb-before/20260916-100805-diarization-windows-faca2cfa/report.json",
+    "reportSha256": "b570d506d4fdd2f22127341aeb4a8efbbd03d92f81b4e0aa1cfd31ce560ee850",
+    "reportOverall": "FAIL",
+    "inappScenario": "ptt",
+    "replayScenario": "diarization-windows",
+    "parametersIdentical": false,
+    "finalUtteranceCount": 8,
+    "finalSpeakerIndexes": [
+      0
+    ],
+    "turnCount": 15,
+    "hostDeviceAcousticIntervalsEqual": true,
+    "finalSpeakerCount": 1,
+    "degraded": false,
+    "start": 1,
+    "lastBeforeFinish": 0,
+    "last": 1,
+    "completeAfterLast": 1,
+    "error": 0,
+    "nativeStreams": 0,
+    "rawFailureReason": "short input does not cover required 120-second intermediate window; raw report retained"
+  },
+  "fix": {
+    "commit": "81b10178",
+    "scope": "Demo row identity only; SDK and inference unchanged",
+    "regressionBefore": "data [0,0,-1] but cached visible labels [1,2,hidden]",
+    "regressionAfter": "visible labels [1,1,UNKNOWN]; late updates frozen; true second speaker retained",
+    "focusedTests": 11,
+    "multiSpeakerAlgorithmAcceptance": "FAIL, unchanged; see COS_OBS_MEETING_ACCEPTANCE_20260915.md"
+  },
+  "deviceUiAfterFix": "Install/startup PASS; role-update behavior covered by production-handler regression, not a second native microphone recording.",
+  "buildAfterFix": {
+    "commit": "81b10178398c94c7a95aaef192eb39c981b04655",
+    "sourceFingerprint": "d62c2a29606d7ca104c3f79e3c63fe1a90acfb28bf14b0e087aab1e963526b0d",
+    "hapSha256": "f2cce9d6e8a3435a6876420c16e789885b3aa32358c8542dd88f50784c069413",
+    "zhEnOnly": true,
+    "buildMode": "diagnostics",
+    "buildInstallStartup": "PASS",
+    "sdkSourceChanged": false
+  },
+  "provisionalRoleFollowup": {
+    "status": "OPEN; separate from stale final display",
+    "firstWindowEndSeconds": 10,
+    "sameUserTwoLocalChannels": true,
+    "scoresToExistingS1": [
+      0.766936,
+      0.990053
+    ],
+    "threshold": 0.72,
+    "observedAssignments": [
+      "S2",
+      "S1"
+    ],
+    "mechanism": "Mutual top-1 admits only the closer observation to S1 and enrolls S2 for the other; terminal clustering merges to one. No SDK change in this commit."
+  },
+  "phoneReadySettings": {
+    "voiceprint": false,
+    "speakerVad": false,
+    "speakerDiarization": true,
+    "policeEnhancement": false
+  }
+}

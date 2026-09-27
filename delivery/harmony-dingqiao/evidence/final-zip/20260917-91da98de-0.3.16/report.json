@@ -1,0 +1,145 @@
+{
+  "schema_version": 1,
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "asr_contract_status": "PASS",
+  "complete_zip": {
+    "sha256": "fb50fba7dbd46d4122359cab5206b64725f7b43f7e02f880bffd725709f6ff55",
+    "size_bytes": 1488414282,
+    "entries": 78
+  },
+  "source_public_har_matches_zip": true,
+  "source_build_status": "PASS",
+  "source_signed_hap_sha256": "9172843a6c35424fe6ff73464f7e335cdabca6701585aa11ef6b1db801d472d1",
+  "diagnostics_original_audio_sessions": 2,
+  "source_original_audio_sessions": 1,
+  "offline_observation": "Wi-Fi inactive and no default network during final original-audio run. No INTERNET permission; no full runtime socket trace.",
+  "user_visible_experience": "Original utterances, speaker turns and final windows unchanged from the scoped baseline. Known identity errors remain.",
+  "general_diarization_identity_status": "BLOCKED",
+  "limitations": [
+    "Source carrier liveStreams=0 is a placeholder, not release resource measurement.",
+    "Short memory observations are INCONCLUSIVE for long-meeting stability.",
+    "Generic short-interjection/overlap identity accuracy remains blocked."
+  ],
+  "files": [
+    {
+      "path": "diagnostics-phone/memory.csv",
+      "sha256": "309a5fd76848bf4e4741582d8bc29db3ba976f146e34f723e46fa65292e241e7",
+      "size_bytes": 4787
+    },
+    {
+      "path": "diagnostics-phone/result.txt",
+      "sha256": "8fbca443908e9ada9340cbf68649dded117ec4e31e148d10485b0656538bf009",
+      "size_bytes": 34118
+    },
+    {
+      "path": "diagnostics-phone/report.json",
+      "sha256": "d201e6af9f32b2c2c964c6ff4d6cc35b0978283b16b2c6916700b5954d2d5c7c",
+      "size_bytes": 12048
+    },
+    {
+      "path": "diagnostics-phone/inventory.json",
+      "sha256": "3fbdda04828a84a7bc49ad6534d6fb57203313f23b89737d4cf928e0712b46fc",
+      "size_bytes": 202
+    },
+    {
+      "path": "diagnostics-phone/hilog.txt",
+      "sha256": "85c60d3273c46f9efc0f25d67a3997119b485688310bfde3bf3a61e466d3c683",
+      "size_bytes": 19373
+    },
+    {
+      "path": "diagnostics-phone/payload/corpus.json",
+      "sha256": "88a544633414b533115ac23307f4f5bc2d8f2f2007fb89880e5dc55bf3656e9f",
+      "size_bytes": 358
+    },
+    {
+      "path": "diagnostics-phone/payload/manifest.txt",
+      "sha256": "093d717dfc0969ffd8350b1b6ea4eee5139dc800e1f9c165116323b34c20a75a",
+      "size_bytes": 114
+    },
+    {
+      "path": "diagnostics-phone/public-window-digests.json",
+      "sha256": "1e7b20d066281677e30a4aaca645124b74a75b0db194243ed3b88db33a3a2b77",
+      "size_bytes": 248
+    },
+    {
+      "path": "diagnostics-customer/memory.csv",
+      "sha256": "034dd264bb88322db921e8d678ca5d89623f43a41c0c1a8a57be7ecfa25aa98d",
+      "size_bytes": 8302
+    },
+    {
+      "path": "diagnostics-customer/result.txt",
+      "sha256": "b402e0e89528e387dfe751f1dcf589f36866585b13107e79994a084eb6d4dd01",
+      "size_bytes": 52264
+    },
+    {
+      "path": "diagnostics-customer/report.json",
+      "sha256": "5775e82a514e8f28cef05ad3508453f758c70af6401946afe06d61f03f64502d",
+      "size_bytes": 12427
+    },
+    {
+      "path": "diagnostics-customer/inventory.json",
+      "sha256": "f2134d9fc4ad90026ae9fc26c7d607ff385b29933aa973e568719f50f0c6bfe4",
+      "size_bytes": 202
+    },
+    {
+      "path": "diagnostics-customer/hilog.txt",
+      "sha256": "1d56d9e7c9800432dc6df3c66ebe64c3a40e55503c43e18e8dcf1a31d0127f45",
+      "size_bytes": 35926
+    },
+    {
+      "path": "diagnostics-customer/payload/corpus.json",
+      "sha256": "dc82dfef29467340f961572affbac2356c5c90f879e56538118aee9a8516d642",
+      "size_bytes": 363
+    },
+    {
+      "path": "diagnostics-customer/payload/manifest.txt",
+      "sha256": "0e1c85758d11bd19282159cb71571bf89d05ee2f9b0bfab81a915488f0dd7dbf",
+      "size_bytes": 109
+    },
+    {
+      "path": "diagnostics-customer/public-window-digests.json",
+      "sha256": "c857643a47f77056823c21b951de5f6d62b5bdee57e89a58be54387e398dd4e5",
+      "size_bytes": 495
+    },
+    {
+      "path": "release-source-customer/memory.csv",
+      "sha256": "fe943c60112e78cd42c9fbb48b9a04fed2b8559d72eba16acb9854c9813a0428",
+      "size_bytes": 8231
+    },
+    {
+      "path": "release-source-customer/result.txt",
+      "sha256": "2bf94d70e647a45953be95d55647eaa68cd5b430440277ed984b2607d59ed9ef",
+      "size_bytes": 52264
+    },
+    {
+      "path": "release-source-customer/report.json",
+      "sha256": "c4b450fee21b42b97f79038db4f5882bcd63eca2ff067d82a298944364f92faf",
+      "size_bytes": 12423
+    },
+    {
+      "path": "release-source-customer/inventory.json",
+      "sha256": "f2134d9fc4ad90026ae9fc26c7d607ff385b29933aa973e568719f50f0c6bfe4",
+      "size_bytes": 202
+    },
+    {
+      "path": "release-source-customer/hilog.txt",
+      "sha256": "9c2adce68e6544d354d4c1419d54ab8bb79c72bf1434c8d7d459d1af7697e7b9",
+      "size_bytes": 35923
+    },
+    {
+      "path": "release-source-customer/payload/corpus.json",
+      "sha256": "dc82dfef29467340f961572affbac2356c5c90f879e56538118aee9a8516d642",
+      "size_bytes": 363
+    },
+    {
+      "path": "release-source-customer/payload/manifest.txt",
+      "sha256": "6cfbe977ba8bc69dd2ffff6a4ede1505c749fd7e0dc012c9ade5748660671ee8",
+      "size_bytes": 109
+    },
+    {
+      "path": "release-source-customer/public-window-digests.json",
+      "sha256": "c857643a47f77056823c21b951de5f6d62b5bdee57e89a58be54387e398dd4e5",
+      "size_bytes": 495
+    }
+  ]
+}

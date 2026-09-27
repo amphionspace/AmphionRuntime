@@ -1,0 +1,70 @@
+--------- beginning of main
+09-21 11:24:09.769 15884 15904 I TestRunner: run started: 14 tests
+09-21 11:24:09.771 15884 15904 I TestRunner: started: v01_register_fromSample_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:11.889 15884 15905 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2026 postProcessorMs=370 assetInstallMs=0
+09-21 11:24:12.937 15884 15904 I TestRunner: finished: v01_register_fromSample_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:13.440 15884 15904 I TestRunner: started: v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:13.456 15884 15904 I TestRunner: finished: v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:13.458 15884 15904 I TestRunner: started: v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:13.460 15884 15904 I TestRunner: finished: v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:13.462 15884 15904 I TestRunner: started: v04_verification_similarityReturned(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:16.591 15884 16003 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=540 decodeOpportunities=1 decodeDurationMs=282 elapsedMs=284 singleDecode=true fallback=false
+09-21 11:24:17.163 15884 16005 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=2820 decodeDurationMs=1577 postProcessMs=86 firstPartialLatencyMs=356 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=2142 rtf=0.559 nativeRssMb=531 nativeRssMbDelta=0 pcmBytesAccepted=90240 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=397 nativeRssMbAtReady=340
+09-21 11:24:17.194 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=90240 avgRtf=0.559 p95Rtf=0.559 peakNativeRssMb=531 nativeRssMb=530
+09-21 11:24:17.502 15884 15904 I TestRunner: finished: v04_verification_similarityReturned(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:18.110 15884 15904 I TestRunner: started: v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:22.390 15884 16030 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=740 decodeOpportunities=2 decodeDurationMs=584 elapsedMs=587 singleDecode=false fallback=false
+09-21 11:24:22.919 15884 16032 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=2620 decodeDurationMs=3005 postProcessMs=74 firstPartialLatencyMs=1473 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=3529 rtf=1.147 nativeRssMb=548 nativeRssMbDelta=0 pcmBytesAccepted=83840
+09-21 11:24:23.026 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=1 totalPcmBytes=83840 avgRtf=1.147 p95Rtf=1.147 peakNativeRssMb=549 nativeRssMb=549
+09-21 11:24:23.037 15884 15904 I TestRunner: finished: v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:23.599 15884 15904 I TestRunner: started: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:26.512 15884 16094 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=268 elapsedMs=269 singleDecode=true fallback=false
+09-21 11:24:26.669 15884 16096 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=860 decodeDurationMs=969 postProcessMs=4 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1124 rtf=1.127 nativeRssMb=517 nativeRssMbDelta=0 pcmBytesAccepted=27520 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=462 nativeRssMbAtReady=503
+09-21 11:24:26.674 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=27520 avgRtf=1.127 p95Rtf=1.127 peakNativeRssMb=517 nativeRssMb=517
+09-21 11:24:27.706 15884 16097 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=283 elapsedMs=284 singleDecode=true fallback=false
+09-21 11:24:27.870 15884 16099 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=860 decodeDurationMs=1016 postProcessMs=5 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1177 rtf=1.181 nativeRssMb=521 nativeRssMbDelta=0 pcmBytesAccepted=27520
+09-21 11:24:27.910 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=1 totalPcmBytes=27520 avgRtf=1.181 p95Rtf=1.181 peakNativeRssMb=521 nativeRssMb=519
+09-21 11:24:27.921 15884 15904 I TestRunner: finished: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:28.481 15884 15904 I TestRunner: started: v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:31.685 15884 16148 I AmphionMetrics: kind=SPEAKER_VAD sessionId=3 speaker_vad state=target_confirmed score=0.670 threshold=0.35 inferMs=263.3 rtf=0.176 confirmed=true below=0
+09-21 11:24:31.986 15884 16148 I AmphionMetrics: kind=SPEAKER_VAD sessionId=3 speaker_vad state=target_active score=0.695 threshold=0.35 inferMs=271.8 rtf=0.181 confirmed=true below=0
+09-21 11:24:32.565 15884 16148 I AmphionMetrics: kind=SPEAKER_VAD sessionId=3 speaker_vad state=target_active score=0.748 threshold=0.35 inferMs=266.1 rtf=0.177 confirmed=true below=0
+09-21 11:24:33.425 15884 16148 I AmphionMetrics: kind=FINAL_TAIL sessionId=3 scope=speaker-terminal paddingMs=1080 decodeOpportunities=2 decodeDurationMs=541 elapsedMs=544 singleDecode=false fallback=false
+09-21 11:24:33.930 15884 16150 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=2920 decodeDurationMs=3438 postProcessMs=46 firstPartialLatencyMs=1431 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=3938 rtf=1.177 nativeRssMb=538 nativeRssMbDelta=0 pcmBytesAccepted=93440
+09-21 11:24:33.979 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=3 totalUtterances=1 totalPcmBytes=93440 avgRtf=1.177 p95Rtf=1.177 peakNativeRssMb=538 nativeRssMb=536
+09-21 11:24:33.986 15884 15904 I TestRunner: finished: v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:34.495 15884 15904 I TestRunner: started: v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:36.742 15884 16178 I AmphionMetrics: kind=FINAL_TAIL sessionId=4 scope=session paddingMs=400 decodeOpportunities=1 decodeDurationMs=298 elapsedMs=299 singleDecode=true fallback=false
+09-21 11:24:36.745 15884 16180 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=1 utteranceDurationMs=2700 decodeDurationMs=772 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=773 rtf=0.286 nativeRssMb=537 nativeRssMbDelta=0 pcmBytesAccepted=86400
+09-21 11:24:36.749 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=4 totalUtterances=1 totalPcmBytes=86400 avgRtf=0.286 p95Rtf=0.286 peakNativeRssMb=537 nativeRssMb=536
+09-21 11:24:36.750 15884 15904 I TestRunner: finished: v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:37.204 15884 15904 I TestRunner: started: v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:37.208 15884 15904 I TestRunner: finished: v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:37.210 15884 15904 I TestRunner: started: v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:39.637 15884 16228 I AmphionMetrics: kind=SPEAKER_VAD sessionId=5 speaker_vad state=target_confirmed score=0.587 threshold=0.40 inferMs=265.0 rtf=0.177 confirmed=true below=0
+09-21 11:24:39.912 15884 16228 I AmphionMetrics: kind=SPEAKER_VAD sessionId=5 speaker_vad state=target_active score=0.613 threshold=0.40 inferMs=256.0 rtf=0.171 confirmed=true below=0
+09-21 11:24:40.487 15884 16228 I AmphionMetrics: kind=SPEAKER_VAD sessionId=5 speaker_vad state=target_active score=0.405 threshold=0.40 inferMs=259.4 rtf=0.173 confirmed=true below=0
+09-21 11:24:41.056 15884 16228 I AmphionMetrics: kind=SPEAKER_VAD sessionId=5 speaker_vad state=below score=0.388 threshold=0.40 inferMs=263.3 rtf=0.176 confirmed=true below=1
+09-21 11:24:41.631 15884 16228 I AmphionMetrics: kind=SPEAKER_VAD sessionId=5 speaker_vad state=endpoint score=0.157 threshold=0.40 inferMs=262.6 rtf=0.175 confirmed=true below=2
+09-21 11:24:42.546 15884 16230 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=1 utteranceDurationMs=4880 decodeDurationMs=2897 postProcessMs=29 firstPartialLatencyMs=636 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=3810 rtf=0.594 nativeRssMb=556 nativeRssMbDelta=0 pcmBytesAccepted=156160
+09-21 11:24:44.000 15884 16228 I AmphionMetrics: kind=FINAL_TAIL sessionId=5 scope=speaker-terminal paddingMs=1180 decodeOpportunities=2 decodeDurationMs=567 elapsedMs=571 singleDecode=false fallback=false
+09-21 11:24:44.264 15884 16230 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-259 postProcessMs=17 firstPartialLatencyMs=-837 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=556 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-21 11:24:44.291 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=5 totalUtterances=2 totalPcmBytes=156160 avgRtf=0.594 p95Rtf=0.594 peakNativeRssMb=556 nativeRssMb=554
+09-21 11:24:44.600 15884 15904 I TestRunner: finished: v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:45.259 15884 15904 I TestRunner: started: v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:46.802 15884 15904 I TestRunner: finished: v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:46.806 15884 15904 I TestRunner: started: v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:47.328 15884 15904 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=6 totalUtterances=0 totalPcmBytes=16000 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=553 nativeRssMb=553
+09-21 11:24:47.328 15884 15904 I TestRunner: finished: v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:47.330 15884 15904 I TestRunner: started: v09_register_async_offCallerThread_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:48.401 15884 15904 I TestRunner: finished: v09_register_async_offCallerThread_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-21 11:24:49.060 15884 15904 I TestRunner: started: pacedPcmReportsWallAndAudioTimeAtFirstNonEmptyPartial(com.amphion.dingqiao.demo.DqFirstPartialLatencyInstrumentedTest)
+09-21 11:24:51.245 15884 15905 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=2170 postProcessorMs=282 assetInstallMs=0
+09-21 11:24:51.346 15884 15904 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-21 11:25:01.420 15884 16351 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=9680 decodeDurationMs=10048 postProcessMs=22 firstPartialLatencyMs=1734 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=10070 rtf=1.038 nativeRssMb=472 nativeRssMbDelta=0 pcmBytesAccepted=309760 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=21 nativeRssMbAtReady=310
+09-21 11:25:03.735 15884 16349 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=1 action=hard-restart reason=native-rule1 evidence=false
+09-21 11:25:04.019 15884 16349 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=600 decodeOpportunities=1 decodeDurationMs=277 elapsedMs=279 singleDecode=true fallback=false
+09-21 11:25:04.022 15884 16351 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=2 utteranceDurationMs=2360 decodeDurationMs=2588 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=584 utteranceE2eLatencyMs=2588 rtf=1.097 nativeRssMb=472 nativeRssMbDelta=0 pcmBytesAccepted=75520
+09-21 11:25:04.025 15884 16006 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=2 totalPcmBytes=385280 avgRtf=1.067 p95Rtf=1.097 peakNativeRssMb=472 nativeRssMb=471
+09-21 11:25:04.028 15884 15904 I TestRunner: finished: pacedPcmReportsWallAndAudioTimeAtFirstNonEmptyPartial(com.amphion.dingqiao.demo.DqFirstPartialLatencyInstrumentedTest)
+09-21 11:25:04.534 15884 15904 I TestRunner: run finished: 14 tests, 0 failed, 0 ignored

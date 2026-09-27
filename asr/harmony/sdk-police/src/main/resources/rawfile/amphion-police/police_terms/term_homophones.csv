@@ -524,3 +524,13 @@ We Space,WeSpace,term
 把我反馈,帮我反馈,term
 处理完了，把我反馈,处理完了，帮我反馈,term
 处理完了把我反馈,处理完了帮我反馈,term
+
+# 20260922 Police 1.4.0 警言警语开发集；不泛化单个同音字。
+访谈背心,防弹背心,police_v140_terms
+事发明理,释法明理,police_v140_terms
+案结室了,案结事了,police_v140_terms
+案结试了,案结事了,police_v140_terms
+设稳线索,涉稳线索,police_v140_terms
+边造警情,编造警情,police_v140_terms
+济南市历下区全城路,济南市历下区泉城路,police_v140_terms
+广州市天河区体育系路,广州市天河区体育西路,police_v140_terms

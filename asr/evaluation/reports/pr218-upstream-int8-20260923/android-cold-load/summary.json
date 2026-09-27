@@ -1,0 +1,18 @@
+{
+  "command": [
+    "<LOCAL_PATH>",
+    "shell",
+    "am",
+    "instrument",
+    "-w",
+    "-r",
+    "-e",
+    "class",
+    "com.amphion.dingqiao.demo.DqRuntimeFastLoadInstrumentedTest",
+    "com.amphion.dingqiao.demo.test/androidx.test.runner.AndroidJUnitRunner"
+  ],
+  "elapsed_seconds": 17.781,
+  "exit_code": 0,
+  "status": "FAIL",
+  "source_commit": "7dd914494b47cef848b012fb45a502532bceb334"
+}

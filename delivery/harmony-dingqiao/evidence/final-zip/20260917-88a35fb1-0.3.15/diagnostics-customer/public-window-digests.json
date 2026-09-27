@@ -1,0 +1,20 @@
+{
+  "public_output_equal_to_frozen_baseline": true,
+  "window_count": 2,
+  "windows": [
+    {
+      "window_index": 0,
+      "begin_ms": 0,
+      "end_ms": 121460,
+      "session_final": false,
+      "sha256": "acfdd3acdb0d921b11167facda19b2d8256479604597b037b77c02383caa67b5"
+    },
+    {
+      "window_index": 1,
+      "begin_ms": 121460,
+      "end_ms": 159300,
+      "session_final": true,
+      "sha256": "b4f06931985b23015e451078e80f56b7286239984f837027bad9670e0834f943"
+    }
+  ]
+}

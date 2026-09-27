@@ -64,6 +64,9 @@ data class SpeakerDiarizationUpdate(
     val confidence: Float = 0f,
 )
 
+/** One intact ASR final, potentially with multiple speakers. When speakerIndex is -1,
+ * secondarySpeakerIndexes lists observed participants, not a confirmed text owner.
+ * Multiple speakers or overlap keep confidence 0; speakerTurns retains acoustic intervals. */
 data class DiarizedUtterance(
     val utteranceId: String = "",
     val rawText: String = "",
@@ -71,10 +74,13 @@ data class DiarizedUtterance(
     val beginTime: Int = 0,
     val endTime: Int = 0,
     val speakerIndex: Int = -1,
+    /** Secondary identities observed within this text span; speakerTurns gives exact intervals. */
     val secondarySpeakerIndexes: List<Int> = emptyList(),
     val confidence: Float = 0f,
     val overlap: Boolean = false,
     val sourceUtteranceId: String = utteranceId,
+    /** Includes bounded UNKNOWN backfill; confidence is 0 and speakerTurns remains unchanged. */
+    val speakerInferred: Boolean = false,
 )
 
 data class SpeakerTurn(

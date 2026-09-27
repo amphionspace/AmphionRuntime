@@ -175,6 +175,7 @@ android.useAndroidX=true
 kotlin.code.style=official
 android.nonTransitiveRClass=true
 dingqiaoSdkAar=libs/${AAR_NAME}
+dingqiaoDemoVersion=${VERSION}
 EOF
 
 cat > "$OUT_ROOT/sample-dingqiao-demo/build.gradle.kts" <<'EOF'
@@ -191,6 +192,8 @@ val localProps = Properties().apply {
 }
 
 val sdkAar = providers.gradleProperty("dingqiaoSdkAar").get()
+val demoVersion = providers.gradleProperty("dingqiaoDemoVersion").get()
+val versionParts = demoVersion.split('.').map(String::toInt)
 val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orElse("demo").get()
 val evalAudioDir = providers.gradleProperty("dingqiaoEvalAudioDir").orNull
 
@@ -202,8 +205,8 @@ android {
         applicationId = "com.amphion.dingqiao.demo"
         minSdk = 24
         targetSdk = 34
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = versionParts[0] * 10000 + versionParts[1] * 100 + versionParts[2]
+        versionName = demoVersion
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += listOf("arm64-v8a") }
     }

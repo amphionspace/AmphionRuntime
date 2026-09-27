@@ -300,6 +300,11 @@ PCM 写入应用沙箱的 10 秒分块临时文件，处理完成且不再被推
 SDK 按 10 秒推理窗口、2.5 秒 hop 串行执行本地 segmentation 和 embedding。
 分人结果以 120 秒为目标窗口，在其后的第一个 ASR endpoint 及所需分人推理完成后校准并发布。
 跨窗长句等待原句结束，不强行分句。120 秒是工程默认值，不是准确率最优或固定延迟保证。
+
+Harmony 录制中约每 10 秒已处理音频通过 `onSpeakerDiarizationUpdate` 更新未定稿句子的临时角色，
+无需等待 120 秒。更新须等待对应推理完成，临时编号允许修正，不代表最终身份，也不提前冻结结果。
+调用方应显示“说话人分析中”或“暂定，可修正”；停止后等待角色末批时显示“正在定稿”。
+最终 `speakerIndex=-1` 仍表示没有足够证据确认角色，不得把所有未知段强行指定为同一人。
 窗口发布后，其中全部身份（包括 `-1`）永久冻结。整场保留匿名编号及代表声纹；结束仅完成尾批，
 不再对历史全文或整场 embedding 重新聚类。
 
@@ -347,7 +352,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `targetSpeakerEnhancementApplied` | `boolean?` | 当前 session 启用目标说话人增强时为 `true`；未启用时省略 |
 | `utteranceId` | `string?` | 开启角色分离时，final utterance 的稳定 ID |
 | `speakerIndex` | `number` | 说话人索引；默认 `-1`，已分配为 `0..3` |
-| `secondarySpeakerIndexes` | `number[]` | 重叠语音的次要说话人索引；默认空数组。检测到次要说话人但证据不足以分配身份时包含 `-1`，不得据此猜测为上一位或最近一位 |
+| `secondarySpeakerIndexes` | `number[]` | 句内观察到的其他角色；多人或不确定句可汇总全部角色，默认空数组，可含 `-1`。非空不等于重叠，不得据此猜测为上一位或最近一位 |
 | `speakerConfidence` | `number` | speaker 归属分数，范围 `[0,1]`，默认 `0`；不是经校准的概率 |
 
 `SpeakerDiarizationUpdate` 字段：
@@ -357,7 +362,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `utteranceId` | `string` | 需更新的 final utterance |
 | `revision` | `number` | 单调递增修订号；调用方忽略重复或更旧修订 |
 | `speakerIndex` | `number` | `-1` 或稳定的 `0..3` |
-| `secondarySpeakerIndexes` | `number[]` | 次要说话人索引 |
+| `secondarySpeakerIndexes` | `number[]` | 句内观察到的角色证据；多人或不确定句可汇总全部角色，非空不等于重叠 |
 | `beginTime` / `endTime` | `number` | session-global 毫秒时间轴 |
 | `confidence` | `number` | 本次归属分数，范围 `[0,1]` |
 
@@ -365,7 +370,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项的 `sourceUtteranceId` 指向原 ASR final，安全拆句时多个片段可共享该 ID；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项完整保留一条原 ASR final，`utteranceId` 与 `sourceUtteranceId` 相同；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
 | `speakerTurns` | `SpeakerTurn[]` | 本窗口 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
 | `windowIndex` | `number` | session 内从 0 开始递增；用于批次去重 |
 | `windowBeginTime` / `windowEndTime` | `number` | 本批音频起止位置，session-global 毫秒 |
@@ -376,6 +381,22 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `degradedMessage` | `string?` | 可选的详细说明；业务分支应使用 `degradedReason` |
 | `inferenceMs` | `number` | 累计分人推理耗时 |
 | `rtf` | `number` | 分人处理实时率 |
+
+句级标注不按 token 角色拆开文本，也不假定一条 ASR final 只有一个人。
+同一句内出现多个已知角色、重叠或未解决的不确定性时，`speakerIndex=-1`、`confidence=0`，
+`secondarySpeakerIndexes` 汇总句内观察到的角色（可含 `-1`），不表示谁拥有整句文字。
+`overlap` 只表示实际观察到重叠，先后换人不会被伪装成重叠。
+精确的角色及重叠起止位置以 `speakerTurns` 为准，不能把汇总字段解释为整段同时发言。
+
+调用方直接展示完整 `text`；多个已知角色显示“多人／不确定”，其余 `-1` 显示“不确定”。
+迁移时停止依赖句内子片段 ID 或按时长多数决定整句身份；原始声学时间线仍可供核查。
+同一原句中最多 2500 ms 的 UNKNOWN 段允许有限邻接补全：首尾只有一个相邻已知角色，或前后角色一致，
+且相关段没有重叠、副角色或相反的时间线证据。补全后同角色文字合并，`speakerInferred=true`、
+`confidence=0`；`speakerTurns` 保留原始 UNKNOWN，不修改已确认的声学角色。全未知、跨角色、
+长未知段及跨原句不补全。调用方应显示“含推断补全”，不能把 0 分替换成相邻段分数。
+`speakerInferred` 是新增字段，默认 `false`；应重新编译调用方，并同时升级展示逻辑以区别补全与直接归属。
+该句级规则同样约束 ASR final 中的临时角色及角色 update；临时结果仍可修正。
+原句可读不代表角色精度通过；`-1`、短插话及重叠信息均不得丢弃。
 
 `SpeakerDiarizationDegradedReason` 包含 `NONE`、`INFERENCE_UNAVAILABLE`、
 `MODEL_UNAVAILABLE`、`INFERENCE_TIMEOUT`、`FINISH_TIMEOUT`、`STORAGE_UNAVAILABLE`
@@ -394,7 +415,14 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 `onResult.isFinal` 只定稿文字，只有窗口结果才定稿身份，整场完成仍以 `onComplete` 为准。
 此处是 Harmony／Android 的新语义，旧调用方必须同步迁移；iOS 本轮未改，不能套用本分窗契约。
 
-分人收尾的等待时限从真实 ASR 尾结果到达后开始计算。`finish()` 会先处理完已接收的音频；
+分人收尾的等待时限为 Harmony **15,000 ms**、Android **10,000 ms**，从 SDK 内部收到真实
+ASR 尾结果时开始计算，不是从调用方执行 `finish()` 或收到公开 `onResult(isLast=true)` 时起算。
+公开 last 会等待分人收尾后，按上述顺序与尾批、complete 一起发出；因此公开 last 与尾批间隔很短，
+并不表示分人等待计时刚刚开始。已经完成的分人结果不会再等待这一时限。
+
+`finish()` 到 `onComplete` 的总耗时还包含已接收音频的 ASR 排空，不能将上述时限理解为整次收尾的
+耗时承诺。调用方应保持“正在处理”状态直到收到 `onComplete`，并保存最终尾批；仅因业务等待界面
+达到 15 秒就丢弃尾批，会错过随后到达的正常或降级结果。`finish()` 会先处理完已接收的音频；
 音频积压不受分人超时截断，也不会用空 last 代替尚未完成的识别结果。分人收尾超时时，
 按相同顺序返回真实 ASR 尾结果及 `degraded=true` 的当前最佳分人结果；`cancel()` 不产生
 last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，

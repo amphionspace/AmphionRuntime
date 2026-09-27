@@ -14,6 +14,7 @@ import com.k2fsa.sherpa.onnx.OnlineStream
 import com.k2fsa.sherpa.onnx.Vad
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.math.ceil
 import kotlin.math.exp
 
 /**
@@ -97,6 +98,8 @@ internal class SessionImpl(
         engineImpl.endpointRules.rule3MinUtteranceLengthSec < 0f
     ) LONG_FORM_STABLE_PREFIX_INTERVAL_SEC * sampleRate else 0L
     private var publicSamplesFed: Long = 0L
+    // Native token times restart with each stream; public results use the session PCM clock.
+    private var streamStartSample: Long = 0L
     private var stablePrefixSamples: Long = 0L
     private var nextStablePrefixCheckSamples: Long = stablePrefixIntervalSamples
 
@@ -169,11 +172,15 @@ internal class SessionImpl(
     @Volatile
     private var vadSpeechActive: Boolean = false
 
-    /** Tail silence advances on Silero's consumed 512-sample windows, not caller frame sizes. */
-    private val trailingSilenceClock = VadTrailingSilenceClock(sampleRate, activeEpSilenceMs)
+    /** speech 段后已累计的尾部静音毫秒数。 */
+    @Volatile
+    private var trailingSilenceMs: Int = 0
+    private var vadEndpointRecheckSample: Long = 0
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
+    private var vadProcessedSamples: Long = 0
+    private var vadLastSpeechEndSample: Long = -1
 
     private val postProcessor: PostProcessor =
         PostProcessor(
@@ -306,13 +313,16 @@ internal class SessionImpl(
                     is NativeResult.Ok -> {
                         val old = stream
                         stream = r.value
+                        streamStartSample = publicSamplesFed
                         currentHotwords = newHotwords
                         lastPartialText = ""
                         NativeGuard.runQuietly("oldStream.release") { old.release() }
                         // 与 hardRestart 同源逻辑：stream 切换后 VAD 状态也要回到初始
                         NativeGuard.runQuietly("vad.reset(updateHotwords)") { vad?.reset() }
+                        vadProcessedSamples = 0
+                        vadLastSpeechEndSample = -1
                         vadSpeechActive = false
-                        trailingSilenceClock.reset()
+                        trailingSilenceMs = 0
                         vadCarry = FloatArray(0)
                         resetSpeakerVadState()
                         speakerPcmBuffers.clearAll()
@@ -402,8 +412,10 @@ internal class SessionImpl(
                 }
                 // VAD 状态与 stream 同步：用户手动 stop 等价于一段语音结束
                 NativeGuard.runQuietly("vad.reset(stop)") { vad?.reset() }
+                vadProcessedSamples = 0
+                vadLastSpeechEndSample = -1
                 vadSpeechActive = false
-                trailingSilenceClock.reset()
+                trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
                 speechBoundarySignals.reset()
                 resetSpeakerVadState()
@@ -619,6 +631,12 @@ internal class SessionImpl(
         while (i + vadWindowSize <= merged.size) {
             val win = merged.copyOfRange(i, i + vadWindowSize)
             NativeGuard.runQuietly("vad.acceptWaveform") { v.acceptWaveform(win) }
+            vadProcessedSamples += vadWindowSize
+            while (!v.empty()) {
+                val segment = v.front()
+                vadLastSpeechEndSample = segment.start.toLong() + segment.samples.size
+                v.pop()
+            }
             if (v.isSpeechDetected()) anySpeech = true else anySilence = true
             i += vadWindowSize
         }
@@ -635,7 +653,8 @@ internal class SessionImpl(
                     postSpeechBeginIfNeeded()
                 }
                 initialSpeechDetected = true
-                trailingSilenceClock.reset()
+                trailingSilenceMs = 0
+                vadEndpointRecheckSample = 0
             }
             !initialSpeechDetected && !initialSilenceTimeoutSent && initialSilenceTimeoutSamples > 0L -> {
                 initialSilenceSamples += i.toLong()
@@ -676,14 +695,38 @@ internal class SessionImpl(
             }
             anySilence && vadSpeechActive -> {
                 // 仅在曾经有 speech 之后才累计静音；进入主动 endpoint 判定。
-                if (trailingSilenceClock.observeSilence(i)) {
-                    Logger.d(
-                        "session $sessionId VAD active endpoint after " +
-                            "${trailingSilenceClock.elapsedMs()}ms silence",
-                    )
-                    vadSpeechActive = false
-                    trailingSilenceClock.reset()
-                    triggerVadActiveEndpoint()
+                // Include carry from earlier submissions in each completed VAD window.
+                // Native segment.end excludes its silence-confirmation window. Include it in vadEnd.
+                trailingSilenceMs = if (vadLastSpeechEndSample >= 0) {
+                    ((vadProcessedSamples - vadLastSpeechEndSample) * 1000L / sampleRate).toInt()
+                } else {
+                    trailingSilenceMs + (i * 1000L / sampleRate).toInt()
+                }
+                if (activeEpSilenceMs > 0 && trailingSilenceMs >= activeEpSilenceMs &&
+                    publicSamplesFed >= vadEndpointRecheckSample
+                ) {
+                    // A VAD silence decision cannot discard real frames still pending in ASR.
+                    // Inspect disposable native state; never publish its padded hypothesis.
+                    val probe = NativeGuard.run("vad.pendingSpeech") {
+                        recognizer.getVadEndpointWaitSeconds(stream, activeEpSilenceMs / 1000f)
+                    }
+                    if (probe is NativeResult.Err) {
+                        postError(probe.error)
+                        return false
+                    }
+                    val waitSeconds = (probe as NativeResult.Ok).value
+                    if (waitSeconds > 0f) {
+                        // Recheck on the PCM clock when the revealed speech can meet vadEnd
+                        // and pending tokens can reach a natural decode. No wall-clock timer.
+                        vadEndpointRecheckSample = publicSamplesFed + ceil(waitSeconds * sampleRate).toLong()
+                    } else {
+                        Logger.d(
+                            "session $sessionId VAD active endpoint after ${trailingSilenceMs}ms silence",
+                        )
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                        triggerVadActiveEndpoint()
+                    }
                 }
             }
         }
@@ -849,7 +892,10 @@ internal class SessionImpl(
             hardRestartStream()
         } else {
             NativeGuard.runQuietly("recognizer.reset") { recognizer.reset(stream) }
+            streamStartSample = publicSamplesFed
             NativeGuard.runQuietly("vad.reset") { vad?.reset() }
+            vadProcessedSamples = 0
+            vadLastSpeechEndSample = -1
             resetSpeakerVadState()
         }
         recognizerResetGeneration.markReset()
@@ -926,11 +972,14 @@ internal class SessionImpl(
             is NativeResult.Ok -> {
                 val old = stream
                 stream = r.value
+                streamStartSample = publicSamplesFed
                 NativeGuard.runQuietly("oldStream.release") { old.release() }
                 // stream 重建意味着上一段已结束；同步 reset VAD 让 onset 重新走
                 NativeGuard.runQuietly("vad.reset(hardRestart)") { vad?.reset() }
+                vadProcessedSamples = 0
+                vadLastSpeechEndSample = -1
                 vadSpeechActive = false
-                trailingSilenceClock.reset()
+                trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
@@ -944,6 +993,7 @@ internal class SessionImpl(
                 NativeGuard.runQuietly("recognizer.reset(hardRestartFallback)") {
                     recognizer.reset(stream)
                 }
+                streamStartSample = publicSamplesFed
                 resetSpeakerVadState()
                 return false
             }
@@ -952,7 +1002,8 @@ internal class SessionImpl(
 
     private fun toAsrResult(r: OnlineRecognizerResult): AsrResult {
         val tokenList = r.tokens.toList()
-        val tsList = r.timestamps.toList()
+        val offsetSeconds = streamStartSample.toFloat() / sampleRate
+        val tsList = r.timestamps.map { it + offsetSeconds }
         val probList = r.ysProbs.toList()
         val confidence = if (probList.isNotEmpty()) {
             val mean = probList.sum() / probList.size
@@ -1102,7 +1153,7 @@ internal class SessionImpl(
                     )
                     if (vadSpeechActive) {
                         vadSpeechActive = false
-                        trailingSilenceClock.reset()
+                        trailingSilenceMs = 0
                     }
                     triggerSpeakerVadEndpoint()
                     return true
@@ -1121,7 +1172,7 @@ internal class SessionImpl(
                         "threshold=${speakerVad.threshold} belowCount=$svBelowCount",
                 )
                 vadSpeechActive = false
-                trailingSilenceClock.reset()
+                trailingSilenceMs = 0
                 triggerSpeakerVadEndpoint()
                 return true
             }
@@ -1247,10 +1298,13 @@ internal class SessionImpl(
 
     private fun resetVadGateState() {
         NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
+        vadProcessedSamples = 0
+        vadLastSpeechEndSample = -1
         vadSpeechActive = false
-        trailingSilenceClock.reset()
+        trailingSilenceMs = 0
         vadCarry = FloatArray(0)
         speechBoundarySignals.reset()
+        vadEndpointRecheckSample = 0
         resetSpeakerVadState()
     }
 

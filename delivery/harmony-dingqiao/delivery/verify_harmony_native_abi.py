@@ -37,10 +37,10 @@ def find_llvm_nm() -> list[str]:
     if configured:
         return [configured]
 
-    deveco_home = Path(
-        os.environ.get("DEVECO_STUDIO_HOME", "/Applications/DevEco-Studio.app/Contents")
-    )
-    bundled = deveco_home / "sdk/default/openharmony/native/llvm/bin/llvm-nm"
+    clt = Path(os.environ.get("DEVECO_CLI_CLT_PATH", Path.home() / ".local/share/harmony/command-line-tools"))
+    sdk = Path(os.environ.get("DEVECO_SDK_HOME", clt / "sdk"))
+    native = Path(os.environ.get("OHOS_SDK_NATIVE_DIR", sdk / "default/openharmony/native"))
+    bundled = native / "llvm/bin/llvm-nm"
     if bundled.is_file():
         return [str(bundled)]
 

@@ -15,10 +15,7 @@ BUNDLE_NAME="com.amphion.asr.harmony.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 ZH_EN_ONLY=false
-DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
-HAP_SIGN_TOOL_JAR="${HAP_SIGN_TOOL_JAR:-$DEVECO_HOME/sdk/default/openharmony/toolchains/lib/hap-sign-tool.jar}"
-JAVA_BIN="${JAVA_HOME:+$JAVA_HOME/bin/java}"
-JAVA_BIN="${JAVA_BIN:-$DEVECO_HOME/jbr/Contents/Home/bin/java}"
+source "$REPO_ROOT/asr/tools/harmony_env.sh"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
 VERIFY_DIR=""
 ZH_EN_ONLY=false
@@ -212,7 +209,8 @@ if [[ -n "$HAP" ]]; then
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libsherpa-onnx-c-api.so" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libonnxruntime.so" \
     "$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a/libamphion_audio_processing.so" \
-    "$ZH_EN_ONLY" <<'PY'
+    "$ZH_EN_ONLY" \
+    "$REPO_ROOT/shared/models/asr/dingqiao/campplus.onnx" <<'PY'
 import json
 import hashlib
 import sys
@@ -232,6 +230,7 @@ local_sherpa = Path(sys.argv[10])
 local_ort = Path(sys.argv[11])
 local_agc = Path(sys.argv[12])
 zh_en_only = sys.argv[13] == "true"
+local_complementary = Path(sys.argv[14])
 required = {
     "libs/arm64-v8a/libamphion_audio_processing.so",
     "libs/arm64-v8a/libamphion_asr.so",
@@ -240,6 +239,7 @@ required = {
     "libs/arm64-v8a/libsherpa_onnx.so",
     "resources/rawfile/amphion-license.lic",
     "resources/rawfile/amphion-dingqiao/eres2net.onnx",
+    "resources/rawfile/amphion-dingqiao/campplus.onnx",
     "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
 }
 with zipfile.ZipFile(hap) as package:
@@ -255,6 +255,8 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP model manifest differs from the verified local manifest")
     if package.read("resources/rawfile/amphion-dingqiao/eres2net.onnx") != local_voiceprint.read_bytes():
         raise SystemExit("[ERROR] HAP voiceprint model differs from the verified SDK asset")
+    if package.read("resources/rawfile/amphion-dingqiao/campplus.onnx") != local_complementary.read_bytes():
+        raise SystemExit("[ERROR] HAP complementary speaker model differs from the verified SDK asset")
     if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
         raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
     if not zh_en_only:

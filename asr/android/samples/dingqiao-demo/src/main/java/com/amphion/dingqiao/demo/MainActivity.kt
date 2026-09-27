@@ -9,6 +9,8 @@ import android.os.Bundle
 import android.os.SystemClock
 import android.text.SpannableStringBuilder
 import android.text.Spanned
+import android.text.method.LinkMovementMethod
+import android.text.style.ClickableSpan
 import android.text.style.ForegroundColorSpan
 import android.text.style.StyleSpan
 import android.util.Log
@@ -29,6 +31,7 @@ import androidx.core.content.ContextCompat
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineCallback
 import com.amphion.dingqiao.CreateEngineParams
+import com.amphion.dingqiao.DiarizedUtterance
 import com.amphion.dingqiao.DingqiaoEventCode
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
@@ -96,6 +99,7 @@ class MainActivity : AppCompatActivity() {
         val confidence: Float,
         val overlap: Boolean,
         val beginTime: Int,
+        val speakerParts: List<DiarizedUtterance> = emptyList(),
     )
     private val finalizedUtteranceIds = mutableSetOf<String>()
     private var lastDiarizationWindowIndex = -1
@@ -189,14 +193,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var demoFileInput = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         bindViews()
+        demoFileInput = intent.getBooleanExtra("demoFileInput", false)
+        if (demoFileInput) {
+            customerScenario = CustomerScenario.MEETING_MINUTES
+            audioSource = DemoAudioSource.MIC
+        }
 
         debugRecordStore = DebugRecordStore(File(DingqiaoApp.workPath(), "debug_records"))
         caseStore = DemoCaseStore(File(getExternalFilesDir(null), "asr-cases"))
-        policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(this)
+        policeEnhancementDesired = !demoFileInput && DemoPrefs.getPoliceEnhancementEnabled(this)
         swPoliceEnhancement.isChecked = policeEnhancementDesired
 
         bindActions()
@@ -204,7 +215,7 @@ class MainActivity : AppCompatActivity() {
         refreshVoiceprintUi()
         updateOperationControls()
 
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+        if (!demoFileInput && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
             != PackageManager.PERMISSION_GRANTED
         ) {
             permLauncher.launch(Manifest.permission.RECORD_AUDIO)
@@ -437,7 +448,7 @@ class MainActivity : AppCompatActivity() {
                                 result.speakerIndex,
                                 result.secondarySpeakerIndexes,
                                 result.speakerConfidence,
-                                result.secondarySpeakerIndexes.isNotEmpty(),
+                                false, // A sentence participant list does not prove simultaneous speech.
                                 meetingBeginTime,
                             )
                             renderMeetingLines()
@@ -466,7 +477,7 @@ class MainActivity : AppCompatActivity() {
                     speakerIndex = update.speakerIndex,
                     secondarySpeakerIndexes = update.secondarySpeakerIndexes,
                     confidence = update.confidence,
-                    overlap = update.secondarySpeakerIndexes.isNotEmpty(),
+                    overlap = false, // Only the finalized acoustic overlap flag establishes overlap.
                 )
                 renderMeetingLines()
             }
@@ -486,16 +497,17 @@ class MainActivity : AppCompatActivity() {
                         if (source !in finalizedUtteranceIds) meetingLines.remove(source)
                         finalizedUtteranceIds += source
                     }
-                    result.utterances.forEach { utterance ->
-                        finalizedUtteranceIds += utterance.utteranceId
-                        meetingLines[utterance.utteranceId] = MeetingLine(
-                            utterance.utteranceId,
-                            utterance.text,
-                            utterance.speakerIndex,
-                            utterance.secondarySpeakerIndexes,
-                            utterance.confidence,
-                            utterance.overlap,
-                            utterance.beginTime,
+                    result.utterances.groupBy { it.sourceUtteranceId }.forEach { (source, parts) ->
+                        finalizedUtteranceIds += parts.map { it.utteranceId }
+                        meetingLines[source] = MeetingLine(
+                            source,
+                            parts.joinToString("") { it.text },
+                            parts.map { it.speakerIndex }.distinct().singleOrNull() ?: -1,
+                            parts.flatMap { it.secondarySpeakerIndexes }.distinct(),
+                            parts.minOf { it.confidence },
+                            parts.any { it.overlap },
+                            parts.first().beginTime,
+                            parts,
                         )
                     }
                     renderMeetingLines()
@@ -583,6 +595,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             setStatus(getString(R.string.status_listening))
             updateOperationControls()
+            if (demoFileInput) feedDemoFile(sid)
         }
     }
 
@@ -693,8 +706,37 @@ class MainActivity : AppCompatActivity() {
         engine?.finish(sid)
     }
 
+    /** The fixed file uses the live recognition callbacks, including role-window updates. */
+    private fun feedDemoFile(sid: String) {
+        worker.execute {
+            val input = runCatching { WavIo.readDemoInput(File(DingqiaoApp.workPath(), "demo-test-input.wav")) }
+            runOnUiThread {
+                if (!active || !listening || sessionId != sid) return@runOnUiThread
+                input.onFailure {
+                    engine?.cancel(sid)
+                    handleError(sid, -1, "文件输入失败：${it.message}")
+                }.onSuccess { pcm ->
+                    var offset = 0
+                    val feed = object : Runnable {
+                        override fun run() {
+                            if (!active || !listening || stoppingListening || sessionId != sid) return
+                            if (offset >= pcm.size) {
+                                stopListening()
+                                return
+                            }
+                            feedFrameLive(sid, pcm.copyOfRange(offset, offset + SDK_FRAME_BYTES))
+                            offset += SDK_FRAME_BYTES
+                            window.decorView.postDelayed(this, 20L)
+                        }
+                    }
+                    feed.run()
+                }
+            }
+        }
+    }
+
     private fun startCapture() {
-        if (recorder != null) return
+        if (demoFileInput || recorder != null) return
         frameWriter = PcmFrameWriter { frame -> writeFrameToCurrentSession(frame) }
         recorder = AudioRecorder(
             gainDb = 0f,
@@ -872,7 +914,7 @@ class MainActivity : AppCompatActivity() {
             .put("sampleRate", SAMPLE_RATE)
             .put("channels", 1)
             .put("sampleFormat", "s16le")
-            .put("audioSource", audioSourceName(capturedAudioSource))
+            .put("audioSource", if (demoFileInput) "FILE" else audioSourceName(capturedAudioSource))
             .put("customerScenario", scenarioName(capturedScenario))
             .put("softwareGainDb", 0)
             .put("frameBytes", SDK_FRAME_BYTES)
@@ -884,7 +926,8 @@ class MainActivity : AppCompatActivity() {
             .put("clipSamples", snapshot.clipSamples)
             .put("clipRate", if (samples > 0) snapshot.clipSamples.toDouble() / samples else 0.0)
             .put("truncated", snapshot.truncated)
-            .put("captureThread", "AudioRecord")
+            .put("captureThread", if (demoFileInput) "FileInput" else "AudioRecord")
+            .put("vadEnd", CustomerScenarioProfiles.forScenario(capturedScenario).vadEndMs)
             .put("capturerOverflowCount", recorderStats.overflowCount)
             .put("captureCallbackCount", recorderStats.callbackCount)
             .put("captureTotalBytes", recorderStats.totalBytes)
@@ -985,7 +1028,7 @@ class MainActivity : AppCompatActivity() {
         val profile = CustomerScenarioProfiles.forScenario(capturedScenario)
         val metadata = JSONObject()
             .put("customerScenario", scenarioName(capturedScenario))
-            .put("audioSource", audioSourceName(capturedAudioSource))
+            .put("audioSource", if (demoFileInput) "FILE" else audioSourceName(capturedAudioSource))
             .put("sampleRate", SAMPLE_RATE)
             .put("channels", 1)
             .put("sampleFormat", "s16le")
@@ -1045,18 +1088,30 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderMeetingLines() {
         finalLines.clear()
-        meetingLines.values.sortedBy { it.beginTime }.forEach { line ->
+        val lines = meetingLines.values.sortedBy { it.beginTime }
+        lines.forEach { line ->
             if (finalLines.isNotEmpty()) finalLines.append('\n')
             val labelStart = finalLines.length
-            val speaker = if (line.speakerIndex >= 0) {
-                getString(R.string.diarization_speaker, line.speakerIndex + 1)
-            } else {
-                getString(R.string.diarization_speaker_unknown)
+            val known = (listOf(line.speakerIndex) + line.secondarySpeakerIndexes +
+                line.speakerParts.map { it.speakerIndex }).filter { it >= 0 }.distinct()
+            val speaker = when {
+                known.size > 1 -> getString(R.string.diarization_multiple_speakers)
+                line.speakerIndex < 0 || line.overlap -> speakerLabel(-1)
+                known.size == 1 -> speakerLabel(known.single())
+                else -> speakerLabel(line.speakerIndex)
             }
             finalLines.append('[').append(speaker)
-            if (line.overlap || line.secondarySpeakerIndexes.isNotEmpty()) {
+            if (known.isNotEmpty() && line.speakerParts.any { it.speakerIndex < 0 }) {
+                finalLines.append(" · ").append(getString(R.string.diarization_partly_unknown))
+            }
+            if (line.speakerParts.any { it.speakerInferred }) {
+                finalLines.append(" · ").append(getString(R.string.diarization_inferred))
+            }
+            if (line.overlap) {
                 finalLines.append(" · ").append(getString(R.string.diarization_overlap))
             }
+            val finalSpeaker = line.utteranceId in finalizedUtteranceIds
+            finalLines.append(getString(if (finalSpeaker) R.string.diarization_final else R.string.diarization_intermediate))
             finalLines.append("] ")
             finalLines.setSpan(
                 ForegroundColorSpan(ContextCompat.getColor(this, R.color.brand_accent)),
@@ -1071,8 +1126,43 @@ class MainActivity : AppCompatActivity() {
                 Spanned.SPAN_EXCLUSIVE_EXCLUSIVE,
             )
             finalLines.append(line.text)
+            if (line.speakerParts.size > 1 || line.speakerParts.any {
+                    it.overlap || it.secondarySpeakerIndexes.isNotEmpty() || it.speakerInferred
+                }) {
+                finalLines.append('\n')
+                val detailsStart = finalLines.length
+                finalLines.append(getString(R.string.diarization_details))
+                finalLines.setSpan(object : ClickableSpan() {
+                    override fun onClick(widget: View) {
+                        showSpeakerParts(line.speakerParts)
+                    }
+                }, detailsStart, finalLines.length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+            }
         }
         tvFinal.text = finalLines
+        tvFinal.movementMethod = LinkMovementMethod.getInstance()
+    }
+
+    private fun speakerLabel(index: Int): String = if (index >= 0) {
+        getString(R.string.diarization_speaker, index + 1)
+    } else getString(R.string.diarization_speaker_unknown)
+
+    private fun showSpeakerParts(parts: List<DiarizedUtterance>) {
+        val details = parts.joinToString("\n\n") { part ->
+            buildString {
+                append(getString(R.string.diarization_part_time, part.beginTime / 1000.0, part.endTime / 1000.0))
+                append(" · ").append(speakerLabel(part.speakerIndex))
+                if (part.speakerInferred) append(" · ").append(getString(R.string.diarization_inferred))
+                if (part.overlap) append(" · ").append(getString(R.string.diarization_overlap))
+                if (part.secondarySpeakerIndexes.isNotEmpty()) {
+                    append(" · ").append(getString(R.string.diarization_secondary_speakers,
+                        part.secondarySpeakerIndexes.joinToString("、") { speakerLabel(it) }))
+                }
+                append('\n').append(part.text)
+            }
+        }
+        AlertDialog.Builder(this).setTitle(R.string.diarization_details)
+            .setMessage(details).setPositiveButton(android.R.string.ok, null).show()
     }
 
     private fun finishActiveDebugRecord(
@@ -1109,7 +1199,9 @@ class MainActivity : AppCompatActivity() {
         val profile = CustomerScenarioProfiles.forScenario(customerScenario)
         scenarioButtons.forEach { (scenario, button) -> tintSelection(button, scenario == customerScenario, false) }
         sourceButtons.forEach { (source, button) -> tintSelection(button, source == audioSource, true) }
-        tvScenarioInfo.text = "SourceType=${audioSourceValue(audioSource)} · vadEnd=${profile.vadEndMs}ms · max=${formatMaxDuration(profile.maxAudioDurationMs)}"
+        val source = if (demoFileInput) "文件输入测试" else "SourceType=${audioSourceValue(audioSource)}"
+        val roleHint = if (customerScenario == CustomerScenario.MEETING_MINUTES) "\n" + getString(R.string.diarization_phase_hint) else ""
+        tvScenarioInfo.text = "$source · vadEnd=${profile.vadEndMs}ms · max=${formatMaxDuration(profile.maxAudioDurationMs)}$roleHint"
     }
 
     private fun tintSelection(button: Button, selected: Boolean, sourceSelection: Boolean) {
@@ -1198,7 +1290,7 @@ class MainActivity : AppCompatActivity() {
         val profile = CustomerScenarioProfiles.forScenario(customerScenario)
         val configLocked = isConfigurationLocked()
         scenarioButtons.values.forEach { it.isEnabled = !configLocked }
-        sourceButtons.values.forEach { it.isEnabled = !configLocked && !profile.lockAudioSource }
+        sourceButtons.values.forEach { it.isEnabled = !configLocked && !profile.lockAudioSource && !demoFileInput }
         val modelReady = VoiceprintModelHelper.isReady(VoiceprintModelHelper.modelFile(DingqiaoApp.workPath()))
         val voiceprintControlsEnabled = VoiceprintUiPolicy.controlsEnabled(
             allowVoiceprint = profile.allowVoiceprint,

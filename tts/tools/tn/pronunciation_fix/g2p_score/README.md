@@ -60,4 +60,4 @@ arguments. `g2p.py`, `frontend.py`, and `en_score.py` read the synchronized mode
 under `tts/tools/trial-export/`; use `$TTS_MODEL_DIR` only when validating another package.
 Rebuild only when the C++ engine
 (tts_normalizer_engine.cpp / zh.cpp) changes — rules_v2 JSON is loaded at runtime.
-Requires the TN submodule checked out (git submodule update --init …).
+TN source and rules are tracked directly in AmphionRuntime; a regular clone includes them.

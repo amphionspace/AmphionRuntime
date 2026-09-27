@@ -1,0 +1,34 @@
+{
+  "original": {
+    "commit": "e65395cfbcf24a699026cc8bffd16c415e19ef09",
+    "productionSourceBody": true,
+    "sourceHashes": {
+      "DiarizationCommitClock.ts": "a13ce90a7dcfa48d0dd6922997f126bd375fc430ed8d2ab1f5b9c6780aab1d01",
+      "DiarizationWindowScheduler.ts": "b3361e8632f2d7b94825cf85a59e1cce26db40c6d27dbaa8f9a68cbe40446c9f",
+      "OnlineSpeakerRegistry.ts": "c3460efcbb23a8659a2d88cd1a9c5d4b2bb981b11d3aa57fc09cdc155ce2ec77",
+      "SpeakerDiarizationConfigPolicy.ts": "bf658b9012fbe803afb39e3e0a87ef93a57fafea48af1d3c78a25eb8e178bf4b",
+      "SpeakerDiarizationFinishBarrier.ts": "f9696b1a1dc26d41c32d9cee645d8165b53f55ea5e7ca8237fd525e058f3bf37",
+      "SpeakerDiarizationGlobalClusterer.ts": "37add169864ed53af5162e95baf6b44a45baca85ae4a90737fbba2265793d45b",
+      "SpeakerDiarizationRuntimeLease.ts": "a9e197d90ed5caec6fa524593ac14def025e1b7e8e5dc95eb9877fe29db20534",
+      "SpeakerDiarizationSpeakerIndex.ts": "815e0b0a83afce8231234792c43be42ab66c45fed570088a965761c8cf9203c7",
+      "SpeakerDiarizationTranscriptState.ts": "717806918379b5ce26b973801a0980cd30530ccac2a6bec5fda33e504487bade",
+      "SpeakerDiarizationSession.ets": "5a6ee98767a9f27f0e6c31f8c911fcd00e345ea65810922af50a9517f52c2598"
+    }
+  },
+  "current": {
+    "commit": "b38ed1202069c1a86a1c4860ba75291902d7de01",
+    "productionSourceBody": true,
+    "sourceHashes": {
+      "DiarizationCommitClock.ts": "a13ce90a7dcfa48d0dd6922997f126bd375fc430ed8d2ab1f5b9c6780aab1d01",
+      "DiarizationWindowScheduler.ts": "b3361e8632f2d7b94825cf85a59e1cce26db40c6d27dbaa8f9a68cbe40446c9f",
+      "OnlineSpeakerRegistry.ts": "2eb9aadd06fd0fca4aec42f3a4d6ecfbfb0731673770377acbc9593f69ba54f1",
+      "SpeakerDiarizationConfigPolicy.ts": "bf658b9012fbe803afb39e3e0a87ef93a57fafea48af1d3c78a25eb8e178bf4b",
+      "SpeakerDiarizationFinishBarrier.ts": "f9696b1a1dc26d41c32d9cee645d8165b53f55ea5e7ca8237fd525e058f3bf37",
+      "SpeakerDiarizationGlobalClusterer.ts": "b6711f78aa6cf851a5b826b43e83491cde0302206c8607305cb8dd72b851a0a3",
+      "SpeakerDiarizationRuntimeLease.ts": "a9e197d90ed5caec6fa524593ac14def025e1b7e8e5dc95eb9877fe29db20534",
+      "SpeakerDiarizationSpeakerIndex.ts": "815e0b0a83afce8231234792c43be42ab66c45fed570088a965761c8cf9203c7",
+      "SpeakerDiarizationTranscriptState.ts": "8fc6fcabab11c0d7418548f33c658b04b841d1eafc9b8eb92245989b9eb152a2",
+      "SpeakerDiarizationSession.ets": "da8fc0f0e72571c2db6ef3396374287d3e0d79efd6e626f2546b81196a59d8c5"
+    }
+  }
+}
