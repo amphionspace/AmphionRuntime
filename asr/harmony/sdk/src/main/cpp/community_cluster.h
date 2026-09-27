@@ -225,7 +225,10 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       const int fullIndex=runWindow[r]*local+runChannel[r];
       Vec full(embeddings.begin()+fullIndex*dim,embeddings.begin()+(fullIndex+1)*dim);
       double norm=0;for(double value:full)norm+=value*value;
-      if(length<.2*frames&&clean[r]&&cleanRunCount[fullIndex]==1&&
+      // Process uses the clean mask only above two clean frames. Otherwise
+      // its full-window vector also pools any overlap on this channel.
+      const bool ownsFullMask=length>2||activity[fullIndex]==length;
+      if(length<.2*frames&&clean[r]&&cleanRunCount[fullIndex]==1&&ownsFullMask&&
          std::all_of(full.begin(),full.end(),[](double x){return std::isfinite(x);})&&norm>1e-12){
         shortCandidate[r]=true;shortCandidateVectors[r]=std::move(full);
       }

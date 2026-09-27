@@ -626,6 +626,66 @@ int main() {
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
 
+    def test_short_enrollment_owns_the_full_embedding_mask(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Process pools the original channel mask when clean coverage is only
+        # one or two frames. A unique clean run does not then own the vector
+        # if this channel also contains overlap. Pure short evidence must
+        # remain eligible; this is not a minimum-duration rule.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+community::Plda Plda() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  return p;
+}
+community::ClusterResult Run(int cleanFrames,bool overlap) {
+  std::vector<float> seg(2*589*3),full(2*3*256),runs(2*256,0.f);
+  std::vector<int32_t> ranges{0,0,0,150,1,0,0,cleanFrames};
+  for(int f=0;f<150;++f)seg[f*3]=1.f;
+  for(int f=0;f<cleanFrames;++f)seg[(589+f)*3]=1.f;
+  if(overlap) {
+    for(int f=cleanFrames;f<cleanFrames+22;++f){
+      seg[(589+f)*3]=1.f;seg[(589+f)*3+1]=1.f;
+    }
+    if(cleanFrames<=2){
+      ranges.insert(ranges.end(),{1,0,cleanFrames,cleanFrames+22});
+      runs.insert(runs.end(),256,NAN);
+    }
+    ranges.insert(ranges.end(),{1,1,cleanFrames,cleanFrames+22});
+    runs.insert(runs.end(),256,NAN);
+  }
+  full[0]=1.f;full[3*256+1]=1.f;runs[0]=1.f;
+  return community::Cluster(seg,full,2,Plda(),4,runs,ranges);
+}
+int main() {
+  for(int n:{1,2}) {
+    auto mixed=Run(n,true);
+    assert(mixed.centroids.size()==1 && "overlap vector must not manufacture a short identity");
+    for(int f=0;f<n;++f)assert(mixed.frame_hard[(589+f)*3]==-2);
+  }
+  for(int n:{1,2,3,80})for(bool overlap:{false,true}) {
+    if(overlap&&n<=2)continue;
+    auto clean=Run(n,overlap);
+    assert(clean.centroids.size()==2 && "owned short speaker evidence must survive");
+    int label=clean.frame_hard[589*3];assert(label>=0&&label!=clean.frame_hard[0]);
+    for(int f=0;f<n;++f)assert(clean.frame_hard[(589+f)*3]==label);
+    if(overlap)for(int f=n;f<n+22;++f)assert(clean.frame_hard[(589+f)*3+1]==-2);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'short-mask.cpp';binary=Path(directory)/'short-mask'
+            source.write_text(program)
+            subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
+            subprocess.run([str(binary)],check=True)
+
     def test_short_admission_does_not_split_long_runs_merged_by_vbx(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
