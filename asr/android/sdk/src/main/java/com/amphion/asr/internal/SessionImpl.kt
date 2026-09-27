@@ -583,6 +583,13 @@ internal class SessionImpl(
             if (!feedChunkAndDecode(raw, processed)) break
             offset += chunkSize
         }
+        val observer = callback as? ProcessedAudioObserver
+        if (observer != null && observer.audioProgressEnabled) {
+            val endSample = publicSamplesFed
+            postProcessor.afterPendingFinals {
+                callbackHandler.post { safeCallback { observer.onAudioProcessed(endSample) } }
+            }
+        }
     }
 
     /** Fixed slices prevent audio after an armed deadline from changing the decision at that deadline. */

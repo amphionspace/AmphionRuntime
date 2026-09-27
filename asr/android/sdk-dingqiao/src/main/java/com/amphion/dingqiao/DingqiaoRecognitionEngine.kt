@@ -184,7 +184,7 @@ internal class DingqiaoRecognitionEngine(
                 speakerModelPath,
                 voiceprintCapabilityProvisioned = voiceprintIds.isNotEmpty(),
             )
-            val s = eng.newSession(createAsrCallback(params.sessionId, epoch), sessionConfig)
+            val s = eng.newSession(createAsrCallback(params.sessionId, epoch, params.speakerDiarization != null), sessionConfig)
             // session 必须在 listening=true 之前对外可见：否则录音线程早到的 writeAudio
             // 会落到 session==null 的空安全调用上被静默丢弃，导致首字丢失。
             session = s
@@ -505,7 +505,16 @@ internal class DingqiaoRecognitionEngine(
         previous?.close()
     }
 
-    private fun createAsrCallback(sessionId: String, epoch: Long): AsrCallback = object : AsrCallback {
+    private fun createAsrCallback(sessionId: String, epoch: Long, trackAudioProgress: Boolean): AsrCallback = object : AsrCallback, com.amphion.asr.internal.ProcessedAudioObserver {
+        override val audioProgressEnabled = trackAudioProgress
+        override fun onAudioProcessed(endSample: Long) {
+            val diarization = synchronized(this@DingqiaoRecognitionEngine) {
+                if (!ownsSessionLocked(epoch, sessionId) || completeSent) return
+                speakerDiarizationSession
+            }
+            diarization?.asrAudioProcessed(endSample)
+        }
+
         override fun onSpeechBegin() {
             synchronized(this@DingqiaoRecognitionEngine) {
                 if (!ownsSessionLocked(epoch, sessionId)) return
@@ -519,7 +528,7 @@ internal class DingqiaoRecognitionEngine(
                 if (!ownsSessionLocked(epoch, sessionId) || finishRequested) return
                 val ownedSession = session ?: return
                 finishRequested = true
-                requestSpeakerDiarizationFinishLocked()
+                requestSpeakerDiarizationFinishLocked(true)
                 ownedSession.stop()
             }
         }
@@ -810,9 +819,9 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun requestSpeakerDiarizationFinishLocked() {
+    private fun requestSpeakerDiarizationFinishLocked(confirmedInitialSilence: Boolean = false) {
         speakerDiarizationFinishBarrier?.begin()
-        speakerDiarizationSession?.finish()
+        speakerDiarizationSession?.finish(confirmedInitialSilence)
     }
 
     private fun dispatchDiarizationWindow(

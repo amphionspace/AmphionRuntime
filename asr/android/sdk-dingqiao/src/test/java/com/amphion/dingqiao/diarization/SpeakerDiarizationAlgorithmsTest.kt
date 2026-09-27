@@ -131,7 +131,7 @@ class SpeakerDiarizationAlgorithmsTest {
             SpeakerTimelineTurn(600, 1000, "S2", emptyList()),
         ))
         val split = short.commitThrough(1000)
-        assertEquals(listOf("嗯，好。" to "UNKNOWN"), split.map { it.text to it.speakerId })
+        assertEquals(listOf("嗯，" to "UNKNOWN", "好。" to "S2"), split.map { it.text to it.speakerId })
         assertEquals(listOf("S1", "S2"), split.first().secondarySpeakerIds)
         assertTrue(split.first().overlap)
         assertTrue(short.finalUtterances().isEmpty())
@@ -191,14 +191,16 @@ class SpeakerDiarizationAlgorithmsTest {
                 SpeakerTimelineTurn(900, 2000, "UNKNOWN", listOf("S2"), overlap = true),
             ))
             val split = state.commitThrough(2000)
-            assertEquals(listOf("UNKNOWN"), split.map { it.speakerId })
+            val clauseCount = if (text == "甲乙丙丁") 1 else 2
+            assertEquals(List(clauseCount) { "UNKNOWN" }, split.map { it.speakerId })
             assertEquals(text, split.joinToString("") { it.text })
             assertEquals("甲乙丙丁", split.joinToString("") { it.rawText })
-            assertEquals(listOf(0 to 2000), split.map { it.beginTime to it.endTime })
-            assertEquals(listOf("u1"), split.map { it.sourceUtteranceId })
+            assertEquals(if (clauseCount == 1) listOf(0 to 2000) else listOf(0 to 1000, 1000 to 2000),
+                split.map { it.beginTime to it.endTime })
+            assertEquals(List(clauseCount) { "u1" }, split.map { it.sourceUtteranceId })
             assertTrue(split.last().overlap)
             assertTrue(state.finalUtterances().isEmpty())
-            assertEquals(listOf(text), split.map { it.text })
+            assertEquals(if (clauseCount == 1) listOf(text) else listOf(text.substring(0,text.indexOf("丙")),text.substring(text.indexOf("丙"))), split.map { it.text })
         }
         for (text in listOf("23。", "甲戊，丙丁。")) {
             val state = DiarizationTranscriptState()
@@ -210,17 +212,19 @@ class SpeakerDiarizationAlgorithmsTest {
 
     @Test
     fun schedulerMatchesHarmonyWindowHopAndFinalFlush() {
-        val scheduler = DiarizationWindowScheduler(16_000)
-        val first = scheduler.acceptSamples(40_000).single()
-        assertEquals(40_000, first.realEndSample)
-        assertEquals(0, first.commitStartSample)
-        assertEquals(16_000, first.stableEndSample)
+        val scheduler = DiarizationWindowScheduler(16_000, hopMs = 2000)
+        assertTrue(scheduler.acceptSamples(40_000).isEmpty())
+        val first = scheduler.acceptSamples(120_000).single()
+        assertEquals(160_000L, first.realEndSample)
+        assertEquals(0L, first.commitStartSample)
+        assertEquals(136_000L, first.stableEndSample)
         assertFalse(first.finalWindow)
-
-        val final = scheduler.finish()
-        assertEquals(40_000, final.realEndSample)
-        assertEquals(16_000, final.commitStartSample)
-        assertEquals(40_000, final.stableEndSample)
+        assertTrue(scheduler.acceptSamples(16_000).isEmpty())
+        val final = requireNotNull(scheduler.finish())
+        assertEquals(176_000L, final.realEndSample)
+        assertEquals(136_000L, final.commitStartSample)
+        assertEquals(176_000L, final.stableEndSample)
+        assertEquals(32_000L, final.startSample)
         assertTrue(final.finalWindow)
     }
 

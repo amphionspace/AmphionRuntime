@@ -85,14 +85,15 @@ internal class DiarizationTranscriptState {
         return updateFor(utterance, assignment.confidence)
     }
 
-    fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>): List<DiarizationTranscriptUpdate> {
-        if (newTurns.isEmpty()) return emptyList()
+    fun applySpeakerTurns(newTurns: List<SpeakerTimelineTurn>, replace: Boolean = false): List<DiarizationTranscriptUpdate> {
+        if (replace) turns.clear()
+        if (newTurns.isEmpty() && !replace) return emptyList()
         turns += newTurns.map { it.copy(
             secondarySpeakerIds = it.secondaryEvidenceSpeakerIds.filter { id -> id != it.speakerId }.distinct(),
             secondaryEvidenceKeys = it.secondaryEvidenceKeys.toList(),
             secondaryEvidenceSpeakerIds = it.secondaryEvidenceSpeakerIds.toList()) }
         return refreshUtterances { utterance ->
-            newTurns.any { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
+            replace || newTurns.any { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
         }
     }
 
@@ -178,38 +179,127 @@ internal class DiarizationTranscriptState {
         }
     }
 
-    fun sentenceUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> {
-        val aligned = finalUtterances(throughTime)
-        return utterances.filter { it.audioEndTime <= throughTime }.map { utterance ->
-            val parts = aligned.filter { it.sourceUtteranceId == utterance.utteranceId }
-            val covered = turns.filter { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
-            val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
-            val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
-            val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
-            val unknown = covered.filter { it.speakerId == "UNKNOWN" }.sortedBy { it.beginTime }
-            var unknownBegin = -1
-            var unknownEnd = -1
-            var bounded = true
-            for (turn in unknown) {
-                val begin = maxOf(utterance.beginTime, turn.beginTime)
-                val end = minOf(utterance.endTime, turn.endTime)
-                if (begin > unknownEnd) unknownBegin = begin
-                unknownEnd = maxOf(unknownEnd, end)
-                if (unknownEnd - unknownBegin > 2_500) bounded = false
-            }
-            val single = known.size == 1 && !overlap && bounded && parts.isNotEmpty() &&
-                parts.all { it.speakerId == known.single() }
-            val inferred = single && (unknown.isNotEmpty() || parts.any { it.speakerInferred })
-            DiarizedTranscriptUtterance(
-                utteranceId = utterance.utteranceId, sourceUtteranceId = utterance.utteranceId,
-                rawText = utterance.rawText, text = utterance.text,
-                beginTime = utterance.beginTime, endTime = utterance.endTime,
-                speakerId = if (single) known.single() else "UNKNOWN",
-                secondarySpeakerIds = if (single) emptyList() else participants.toList(),
-                confidence = if (single && !inferred) parts.minOf { it.confidence } else 0f,
-                overlap = overlap, speakerInferred = inferred,
-            )
+    private data class TranscriptCut(val tokenIndex: Int, val textOffset: Int)
+
+    private fun unambiguousPunctuationCuts(tokens: List<String>, text: String): List<TranscriptCut> {
+        val inserted = " ,.!?，。！？、;；:：\t\r\n"
+        val raw = tokens.joinToString("").codePoints().toArray()
+        val plain = mutableListOf<Int>()
+        val offsets = mutableListOf<Int>()
+        var offset = 0
+        text.codePoints().toArray().forEach { character ->
+            if (character > 65535 || character.toChar() !in inserted) { plain += character; offsets += offset }
+            offset += Character.charCount(character)
         }
+        val fallback = listOf(TranscriptCut(0, 0), TranscriptCut(tokens.size, text.length))
+        val width = plain.size + 1
+        val cells = (raw.size.toLong() + 1) * width
+        if (raw.isEmpty() || plain.isEmpty() || cells > 1_048_576 ||
+            raw.any { it <= 65535 && it.toChar() in inserted }) return fallback
+        val forward = IntArray(cells.toInt())
+        val backward = IntArray(cells.toInt())
+        for (i in 0..raw.size) forward[i * width] = i
+        for (j in 0..plain.size) forward[j] = j
+        for (i in 1..raw.size) for (j in 1..plain.size) forward[i * width + j] = minOf(
+            forward[(i - 1) * width + j] + 1, forward[i * width + j - 1] + 1,
+            forward[(i - 1) * width + j - 1] + if (raw[i - 1] == plain[j - 1]) 0 else 1)
+        for (i in 0..raw.size) backward[i * width + plain.size] = raw.size - i
+        for (j in 0..plain.size) backward[raw.size * width + j] = plain.size - j
+        for (i in raw.lastIndex downTo 0) for (j in plain.lastIndex downTo 0) backward[i * width + j] = minOf(
+            backward[(i + 1) * width + j] + 1, backward[i * width + j + 1] + 1,
+            backward[(i + 1) * width + j + 1] + if (raw[i] == plain[j]) 0 else 1)
+        val cost = forward.last()
+        val owners = IntArray(plain.size) { j ->
+            var owner = -1; var ambiguous = false
+            for (i in 0..raw.size) {
+                val prefix = forward[i * width + j]
+                if (prefix + 1 + backward[i * width + j + 1] == cost) ambiguous = true
+                if (i == raw.size) continue
+                val exact = raw[i] == plain[j]
+                if (prefix + (if (exact) 0 else 1) + backward[(i + 1) * width + j + 1] == cost) {
+                    if (!exact || (owner >= 0 && owner != i)) ambiguous = true
+                    owner = i
+                }
+            }
+            if (ambiguous) -1 else owner
+        }
+        val tokenAt = mutableMapOf<Int, Int>()
+        var characters = 0
+        tokens.forEachIndexed { index, token -> tokenAt[characters] = index; characters += token.codePointCount(0, token.length) }
+        val cuts = mutableListOf(fallback.first())
+        for (j in 1 until plain.size) {
+            val gap = text.substring(offsets[j - 1] + Character.charCount(plain[j - 1]), offsets[j])
+            val tokenIndex = tokenAt[owners[j]]
+            if (gap.any { it in "，。！？；" } && owners[j - 1] >= 0 && owners[j] == owners[j - 1] + 1 &&
+                tokenIndex != null && tokenIndex > 0) cuts += TranscriptCut(tokenIndex, offsets[j])
+        }
+        return cuts + fallback.last()
+    }
+
+    private fun punctuationUnits(utterance: StoredUtterance): List<StoredUtterance> {
+        if (utterance.tokens.isEmpty() || utterance.tokens.size != utterance.tokenTimesMs.size ||
+            utterance.tokens.joinToString("") != utterance.rawText) return listOf(utterance)
+        val boundaries = tokenTextBoundaries(utterance.tokens, utterance.text)
+        val cuts = if (boundaries == null) unambiguousPunctuationCuts(utterance.tokens, utterance.text) else {
+            val values = mutableListOf(TranscriptCut(0, 0))
+            for (index in 1 until utterance.tokens.size) {
+                val text = utterance.text.substring(boundaries[index - 1], boundaries[index]).trimEnd()
+                if (text.lastOrNull()?.let { it in "，。！？；" } == true && boundaries[index] < utterance.text.length)
+                    values += TranscriptCut(index, boundaries[index])
+            }
+            values + TranscriptCut(utterance.tokens.size, utterance.text.length)
+        }
+        if (cuts.size == 2) return listOf(utterance)
+        return cuts.zipWithNext().mapIndexed { index, (cut, next) ->
+            val start = cut.tokenIndex; val end = next.tokenIndex
+            utterance.copy(utteranceId = if (index == 0) utterance.utteranceId else "${utterance.utteranceId}.${index + 1}",
+                text = utterance.text.substring(cut.textOffset, next.textOffset),
+                rawText = utterance.tokens.subList(start, end).joinToString(""),
+                tokens = utterance.tokens.subList(start, end), tokenTimesMs = utterance.tokenTimesMs.subList(start, end),
+                beginTime = if (start == 0) utterance.beginTime else utterance.tokenTimesMs[start],
+                endTime = if (end == utterance.tokens.size) utterance.endTime else utterance.tokenTimesMs[end])
+        }
+    }
+
+    fun sentenceUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> {
+        val result = mutableListOf<DiarizedTranscriptUtterance>()
+        for (original in utterances.filter { it.audioEndTime <= throughTime }) {
+            for (utterance in punctuationUnits(original)) {
+                val boundaries = if (utterance.tokens.isNotEmpty() && utterance.tokens.size == utterance.tokenTimesMs.size)
+                    tokenTextBoundaries(utterance.tokens, utterance.text) else null
+                val parts = if (boundaries == null) listOf(unsplit(utterance)) else splitByTokenSpeaker(utterance, boundaries)
+                val covered = turns.filter { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
+                val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
+                val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
+                val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
+                val unknown = turns.filter { it.speakerId == "UNKNOWN" &&
+                    overlapMs(original.beginTime, original.endTime, it.beginTime, it.endTime) > 0 }.sortedBy { it.beginTime }
+                var unknownBegin = -1; var unknownEnd = -1; var bounded = true
+                for (turn in unknown) {
+                    val begin = maxOf(original.beginTime, turn.beginTime); val end = minOf(original.endTime, turn.endTime)
+                    if (begin > unknownEnd) unknownBegin = begin
+                    unknownEnd = maxOf(unknownEnd, end)
+                    if (unknownEnd - unknownBegin > 2500 &&
+                        overlapMs(utterance.beginTime, utterance.endTime, unknownBegin, unknownEnd) > 0) bounded = false
+                }
+                val single = known.size == 1 && !overlap && bounded && parts.isNotEmpty() && parts.all { it.speakerId == known.single() }
+                val inferred = single && (covered.any { it.speakerId == "UNKNOWN" } || parts.any { it.speakerInferred })
+                val part = DiarizedTranscriptUtterance(utterance.utteranceId, utterance.rawText, utterance.text,
+                    utterance.beginTime, utterance.endTime, if (single) known.single() else "UNKNOWN",
+                    if (single) emptyList() else participants.toList(),
+                    if (single && !inferred) parts.minOf { it.confidence } else 0f, overlap, original.utteranceId, inferred)
+                val previous = result.lastOrNull()
+                if (previous != null && previous.sourceUtteranceId == part.sourceUtteranceId &&
+                    previous.endTime == part.beginTime && previous.speakerId == part.speakerId &&
+                    previous.overlap == part.overlap && previous.secondarySpeakerIds == part.secondarySpeakerIds) {
+                    result[result.lastIndex] = previous.copy(text = previous.text + part.text,
+                        rawText = previous.rawText + part.rawText, endTime = part.endTime,
+                        confidence = minOf(previous.confidence, part.confidence),
+                        speakerInferred = previous.speakerInferred || part.speakerInferred)
+                } else result += part
+            }
+        }
+        return result
     }
 
     fun commitThrough(endTime: Int): List<DiarizedTranscriptUtterance> {
@@ -339,10 +429,14 @@ internal class DiarizationTranscriptState {
         for ((index, token) in tokens.withIndex()) {
             if (token.isEmpty()) return null
             for ((character, value) in token.withIndex()) {
+                val beforeInserted = cursor
                 while (cursor < text.length && text[cursor] != value && text[cursor] in inserted) cursor++
-                if (cursor >= text.length || text[cursor] != value) return null
+                val matches = cursor < text.length && text[cursor] == value
+                val replacedSpace = !matches && value in " \t\r\n" && (cursor == 0 ||
+                    text.substring(beforeInserted, cursor).any { it in ",.!?，。！？、;；:：" })
+                if (!matches && !replacedSpace) return null
                 if (index > 0 && character == 0) boundaries += cursor
-                cursor++
+                if (matches) cursor++
             }
         }
         while (cursor < text.length && text[cursor] in inserted) cursor++

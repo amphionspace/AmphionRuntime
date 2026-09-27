@@ -38,11 +38,11 @@ class DiarizationDemoInstrumentedTest {
                 val view = activity.findViewById<TextView>(R.id.tv_final)
                 listener.onResult("s", SpeechRecognitionResult(isFinal = true, isLast = true,
                     result = "你好", utteranceId = "u", speakerIndex = 3))
-                assertTrue(view.text.toString().contains("说话人 4（中间结果）"))
+                assertTrue(view.text.toString().contains("说话人 4（暂定，可修正）"))
                 listener.onResult("s", SpeechRecognitionResult(isFinal = true, result = "再见",
                     utteranceId = "u2", speakerIndex = 0, beginTime = 2000))
-                assertTrue(view.text.toString().contains("说话人 4（中间结果）] 你好"))
-                assertTrue(view.text.toString().contains("说话人 1（中间结果）] 再见"))
+                assertTrue(view.text.toString().contains("说话人 4（暂定，可修正）] 你好"))
+                assertTrue(view.text.toString().contains("说话人 1（暂定，可修正）] 再见"))
                 listener.onSpeakerDiarizationResult("s", SpeakerDiarizationResult(
                     utterances = listOf(DiarizedUtterance(utteranceId = "u-final", sourceUtteranceId = "u",
                         text = "你好", speakerIndex = -1),
@@ -51,7 +51,7 @@ class DiarizationDemoInstrumentedTest {
                 val frozen = view.text.toString()
                 assertTrue(frozen.contains("说话人 1（最终结果）] 再见"))
                 assertTrue(frozen.contains("不确定（最终结果）"))
-                assertFalse(frozen.contains("中间结果"))
+                assertFalse(frozen.contains("暂定，可修正"))
                 listener.onSpeakerDiarizationUpdate("s", SpeakerDiarizationUpdate(utteranceId = "u-final", speakerIndex = 1))
                 assertEquals(frozen, view.text.toString())
             }
@@ -114,6 +114,9 @@ class DiarizationDemoInstrumentedTest {
         var completes = 0
         var errors = 0
         var windows = 0
+        var updates = 0
+        var degraded = false
+        val frozen = mutableSetOf<String>()
         val finalResults = mutableListOf<SpeechRecognitionResult>()
         val windowTexts = mutableListOf<String>()
         val trace = mutableListOf<String>()
@@ -137,7 +140,21 @@ class DiarizationDemoInstrumentedTest {
                         .put("result", result.result).put("beginTime", result.beginTime).put("endTime", result.endTime)
                         .put("speakerIndex", result.speakerIndex).put("utteranceId", result.utteranceId))
                 }
+                override fun onSpeakerDiarizationUpdate(sessionId: String, update: SpeakerDiarizationUpdate) {
+                    synchronized(trace) {
+                        assertFalse("update changed committed source", update.utteranceId in frozen)
+                        updates++
+                    }
+                    record("update", JSONObject().put("utteranceId", update.utteranceId)
+                        .put("speakerIndex", update.speakerIndex).put("revision", update.revision))
+                }
                 override fun onSpeakerDiarizationResult(sessionId: String, result: SpeakerDiarizationResult) {
+                    synchronized(trace) {
+                        degraded = degraded || result.degraded
+                        result.utterances.map { it.sourceUtteranceId }.distinct().forEach {
+                            assertTrue("source published twice", frozen.add(it))
+                        }
+                    }
                     synchronized(trace) { windows++; windowTexts.add(result.utterances.joinToString("") { it.text }) }
                     val turns = JSONArray()
                     result.speakerTurns.forEach { turns.put(JSONObject().put("beginTime", it.beginTime)
@@ -152,7 +169,9 @@ class DiarizationDemoInstrumentedTest {
                         .put("confidence", it.confidence)) }
                     record("window", JSONObject().put("speakerTurns", turns).put("utterances", utterances)
                         .put("windowIndex", result.windowIndex).put("isSessionFinal", result.isSessionFinal)
-                        .put("degraded", result.degraded).put("inferenceMs", result.inferenceMs))
+                        .put("degraded", result.degraded).put("degradedReason", result.degradedReason.name)
+                        .put("degradedMessage", result.degradedMessage).put("speakerCount", result.speakerCount)
+                        .put("inferenceMs", result.inferenceMs))
                 }
                 override fun onComplete(sessionId: String, eventMessage: String) {
                     synchronized(trace) { completes++ }; record("complete"); done.countDown()
@@ -168,7 +187,7 @@ class DiarizationDemoInstrumentedTest {
                 speakerDiarization = SpeakerDiarizationConfig(maxSpeakers = 4)))
             feedStart = SystemClock.elapsedRealtime()
             for (offset in pcm.indices step 640) {
-                engine.writeAudio(sid, pcm.copyOfRange(offset, offset + 640))
+                engine.writeAudio(sid, pcm.copyOfRange(offset, minOf(pcm.size, offset + 640)))
                 val delay = feedStart + (offset + 640) / 32 - SystemClock.elapsedRealtime()
                 if (delay > 0) Thread.sleep(delay)
             }
@@ -179,6 +198,10 @@ class DiarizationDemoInstrumentedTest {
             synchronized(trace) {
                 assertEquals(0, errors); assertEquals(1, last); assertEquals(1, completes)
                 assertTrue(windows >= 1)
+                if (args.getString("communityParity") == "true") {
+                    assertFalse("Community degraded; inspect $output", degraded)
+                    assertTrue("missing provisional updates", updates > 0)
+                }
                 assertTrue(trace.indexOf("last") < trace.indexOf("complete"))
                 val nonEmpty = finalResults.filter { it.result.isNotEmpty() }
                 assertTrue("token time must not restart at an endpoint", nonEmpty.zipWithNext().all { (a, b) ->
@@ -209,8 +232,8 @@ class DiarizationDemoInstrumentedTest {
                     val button = activity.findViewById<Button>(R.id.btn_talk)
                     if (!clicked && button.isEnabled) { button.performClick(); clicked = true }
                     val text = activity.findViewById<TextView>(R.id.tv_final).text.toString()
-                    intermediate = intermediate || text.contains("（中间结果）")
-                    final = text.contains("（最终结果）") && !text.contains("（中间结果）") &&
+                    intermediate = intermediate || text.contains("（暂定，可修正）")
+                    final = text.contains("（最终结果）") && !text.contains("（暂定，可修正）") &&
                         MainActivity::class.java.getDeclaredField("liveHasCompleted").apply { isAccessible = true }.getBoolean(activity)
                 }
                 Thread.sleep(100)
