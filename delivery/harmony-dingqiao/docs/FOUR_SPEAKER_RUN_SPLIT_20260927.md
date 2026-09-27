@@ -17,6 +17,7 @@ ASR 已产生完整的 u8 文本和 token，声学分割也在同一 native chan
 ## 最小修复
 
 - 保留原有整窗 embedding 兼容字段，同时对每个不相邻的 clean run 单独提取 embedding。
+- overlap 活动作为不可训练 run 记录并保持 UNKNOWN，不能因整窗或混合向量回退成已知身份。
 - 沿用既有 20% 训练资格；短 run 不参与建档并保持 UNKNOWN，不降低阈值、不按句子多数角色覆盖。
 - 聚类只用合格 run 建立身份，再将结果按 run 的 frame 范围回写；未知、overlap、已提交窗口冻结和 generation 归属保持原语义。
 - evidence spool 增加 `run-embeddings.f32`、`run-ranges.f32`，按窗口前缀快照读取，避免迟到结果污染后续窗口。
@@ -42,4 +43,3 @@ ASR 已产生完整的 u8 文本和 token，声学分割也在同一 native chan
 - Harmony HAR 构建通过：`amphion_asr@default`、`amphion_dingqiao@default` debug。
 - 当前 PR #232 的 GitHub CI 在最近提交上通过；本地工作区的衍生 sherpa 目录存在已有修改，官方 `build_install_smoke.sh` 因此拒绝重新制作签名 HAP。本报告引用的是同一设备、同一输入和候选核心代码已完成的长回放证据，不能把它写成“最终源码 HAP 已重新安装”。
 - 因为 87 秒混合边界和此前 19.58 秒短会话身份红灯仍在，PR #232 保持 draft，禁止合入。后续应先在同一在线状态回放中解决混合段身份证据，再补最小真机对照。
-

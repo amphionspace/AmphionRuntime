@@ -183,20 +183,18 @@ class Model {
     const auto* values = embeddings[0].GetTensorData<float>();
     result.embeddings.assign(values, values + 3 * 256);
     // Keep the full-window vectors above for compatibility, and also export
-    // one embedding per disconnected clean run. The clusterer applies its
-    // existing duration eligibility per run; short runs remain unknown.
+    // one embedding per disconnected clean run. Overlap runs are exported as
+    // non-trainable sentinels so they cannot fall back to a mixed identity.
     for (int channel = 0; channel < 3; ++channel) {
       const int base = channel * 589;
       int begin = -1;
+      int kind = -1; // 1 = clean, 0 = overlap/blocked, -1 = inactive.
       for (int frame = 0; frame <= 589; ++frame) {
         const bool active = frame < 589 && masks[base + frame] > 0;
-        if (active && begin < 0) begin = frame;
-        if ((!active || frame == 589) && begin >= 0) {
+        const int next_kind = active ? (clean[base + frame] > 0 ? 1 : 0) : -1;
+        if (next_kind != kind && begin >= 0) {
           const int end = frame;
-          // Keep a zero placeholder for runs below the existing 20% training
-          // eligibility. They remain visible as unknown without spending an
-          // additional embedding inference on a segment that cannot be used.
-          if (end - begin >= .2 * 589) {
+          if (kind == 1 && end - begin >= .2 * 589) {
             std::vector<float> run_masks(3 * 589, 0.f);
             for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
             std::vector<Ort::Value> run_tensors;
@@ -209,6 +207,12 @@ class Model {
             const auto* run_values = run_output[0].GetTensorData<float>();
             result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
                                          run_values + (channel + 1) * 256);
+          } else if (kind == 0) {
+            // A finite zero vector would become eligible for a long overlap
+            // run. NaN is deliberately rejected by the clusterer and keeps
+            // the overlap anonymous without inventing a speaker identity.
+            result.run_embeddings.insert(result.run_embeddings.end(), 256,
+                                         std::numeric_limits<float>::quiet_NaN());
           } else {
             result.run_embeddings.insert(result.run_embeddings.end(), 256, 0.f);
           }
@@ -218,6 +222,8 @@ class Model {
           result.run_ranges.push_back(end);
           begin = -1;
         }
+        if (next_kind >= 0 && begin < 0) begin = frame;
+        kind = next_kind;
       }
     }
     result.embedding_ms = Milliseconds(start);

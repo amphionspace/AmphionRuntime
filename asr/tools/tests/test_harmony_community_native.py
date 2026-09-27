@@ -328,16 +328,19 @@ int main() {
   p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
   p.transform=community::Matrix(128,community::Vec(128));
   for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
-  std::vector<float> segments(589*3),embeddings(768),runs(512);
+  std::vector<float> segments(589*3),embeddings(768),runs(768);
   for(int f=10;f<180;++f)segments[f*3]=1;
   for(int f=300;f<470;++f)segments[f*3]=1;
+  for(int f=100;f<300;++f)segments[f*3+1]=1;
   runs[0]=1.;runs[256+1]=1.;
-  std::vector<int32_t> ranges={0,0,10,180,0,0,300,470};
+  std::fill(runs.begin()+512,runs.end(),std::numeric_limits<float>::quiet_NaN());
+  std::vector<int32_t> ranges={0,0,10,180,0,0,300,470,0,1,100,300};
   auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
   assert(result.trainingRunIndices.size()==2);
   assert(result.frame_hard.size()==589*3);
   assert(result.frame_hard[20*3]>=0 && result.frame_hard[320*3]>=0);
   assert(result.frame_hard[20*3]!=result.frame_hard[320*3]);
+  assert(result.frame_hard[120*3+1]==-2);
 }
 '''
         with tempfile.TemporaryDirectory() as directory:
