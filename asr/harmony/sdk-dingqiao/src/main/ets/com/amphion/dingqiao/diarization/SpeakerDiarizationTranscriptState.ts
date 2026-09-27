@@ -6,6 +6,19 @@ export interface DiarizationTranscriptInput {
   beginTime: number;
   endTime: number;
   audioEndTime?: number;
+  textNormalization?: TranscriptTextNormalization;
+}
+
+interface TranscriptNormalizationSpan {
+  sourceBegin: number;
+  sourceEnd: number;
+  textBegin: number;
+  textEnd: number;
+}
+
+interface TranscriptTextNormalization {
+  text: string;
+  spans: TranscriptNormalizationSpan[];
 }
 
 export interface SpeakerTimelineTurn {
@@ -101,6 +114,11 @@ interface TranscriptCut {
   textOffset: number;
 }
 
+interface TranscriptPresentationAlignment {
+  sourceOffsets: number[];
+  textOffsets: number[];
+}
+
 interface TimedTranscriptTokens {
   tokens: string[];
   times: number[];
@@ -172,6 +190,10 @@ export class SpeakerDiarizationTranscriptState {
       beginTime: input.beginTime,
       endTime: input.endTime,
       audioEndTime: input.audioEndTime,
+      textNormalization: input.textNormalization === undefined ? undefined : {
+        text: input.textNormalization.text,
+        spans: input.textNormalization.spans.map(span => ({ ...span })),
+      },
       revision: 0,
       speakerId: assignment.speakerId,
       secondarySpeakerIds: assignment.secondarySpeakerIds,
@@ -273,16 +295,20 @@ export class SpeakerDiarizationTranscriptState {
   private punctuationUnits(utterance: StoredUtterance): StoredUtterance[] {
     if (utterance.tokens.length === 0 || utterance.tokens.length !== utterance.tokenTimesMs.length ||
       utterance.tokens.join('') !== utterance.rawText) return [utterance];
-    const boundaries = tokenTextBoundaries(utterance.tokens, utterance.text);
+    const alignment = this.presentationAlignment(utterance);
     let cuts: TranscriptCut[];
-    if (boundaries === undefined) {
+    if (alignment === undefined) {
       return [utterance];
     } else {
+      const tokenOffsets = [0];
+      for (const token of utterance.tokens) tokenOffsets.push(tokenOffsets[tokenOffsets.length - 1] + token.length);
       cuts = [{ tokenIndex: 0, textOffset: 0 }];
-      for (let index = 1; index < utterance.tokens.length; index++) {
-        if (/[，。！？；]\s*$/.test(utterance.text.slice(boundaries[index - 1], boundaries[index]))) {
-          if (boundaries[index] < utterance.text.length) {
-            cuts.push({ tokenIndex: index, textOffset: boundaries[index] });
+      for (let index = 1; index < alignment.sourceOffsets.length - 1; index++) {
+        const tokenIndex = tokenOffsets.indexOf(alignment.sourceOffsets[index]);
+        if (tokenIndex <= 0) continue;
+        if (/[，。！？；]\s*$/.test(utterance.text.slice(alignment.textOffsets[index - 1], alignment.textOffsets[index]))) {
+          if (alignment.textOffsets[index] < utterance.text.length) {
+            cuts.push({ tokenIndex, textOffset: alignment.textOffsets[index] });
           }
         }
       }
@@ -301,16 +327,46 @@ export class SpeakerDiarizationTranscriptState {
     });
   }
 
+  private presentationAlignment(utterance: StoredUtterance): TranscriptPresentationAlignment | undefined {
+    if (utterance.tokens.length === 0 || utterance.tokens.length !== utterance.tokenTimesMs.length ||
+      utterance.tokens.join('') !== utterance.rawText) return undefined;
+    const exact = tokenTextBoundaries(utterance.tokens, utterance.text);
+    if (exact !== undefined) {
+      const sourceOffsets = [0];
+      for (const token of utterance.tokens) sourceOffsets.push(sourceOffsets[sourceOffsets.length - 1] + token.length);
+      return { sourceOffsets, textOffsets: exact };
+    }
+    const normalization = utterance.textNormalization;
+    if (normalization === undefined || normalization.spans.length === 0) return undefined;
+    const sourceOffsets = [0];
+    const pieces: string[] = [];
+    let textEnd = 0;
+    for (const span of normalization.spans) {
+      if (![span.sourceBegin, span.sourceEnd, span.textBegin, span.textEnd].every(value => Number.isInteger(value)) ||
+        span.sourceBegin !== sourceOffsets[sourceOffsets.length - 1] || span.textBegin !== textEnd ||
+        span.sourceEnd <= span.sourceBegin || span.sourceEnd > utterance.rawText.length ||
+        span.textEnd <= span.textBegin || span.textEnd > normalization.text.length) return undefined;
+      // Offsets must be complete Unicode boundaries, not the middle of a pair.
+      if ([utterance.rawText.charCodeAt(span.sourceEnd), normalization.text.charCodeAt(span.textEnd)]
+        .some(value => value >= 0xDC00 && value <= 0xDFFF)) return undefined;
+      sourceOffsets.push(span.sourceEnd);
+      pieces.push(normalization.text.slice(span.textBegin, span.textEnd));
+      textEnd = span.textEnd;
+    }
+    if (sourceOffsets[sourceOffsets.length - 1] !== utterance.rawText.length ||
+      textEnd !== normalization.text.length) return undefined;
+    const textOffsets = tokenTextBoundaries(pieces, utterance.text);
+    return textOffsets === undefined ? undefined : { sourceOffsets, textOffsets };
+  }
+
   sentenceUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
     const result: DiarizedTranscriptUtterance[] = [];
     for (const original of this.utterances.filter(utterance => (utterance.audioEndTime ?? utterance.endTime) <= throughTime)) {
       // Associate and infer once within the native utterance. Presentation cuts
       // may select existing assignments, but must never rerun neighbour inference.
-      const boundaries = original.tokens.length > 0 &&
-        original.tokens.length === original.tokenTimesMs.length && original.tokens.join('') === original.rawText ?
-        tokenTextBoundaries(original.tokens, original.text) : undefined;
+      const alignment = this.presentationAlignment(original);
       const source = this.sourceAssignments(original);
-      const aligned = boundaries === undefined ? [this.unsplitUtterance(original)] : source;
+      const aligned = alignment === undefined ? [this.unsplitUtterance(original)] : source;
       let sourceOffset = 0;
       const units = this.punctuationUnits(original).map(utterance => {
         const sourceBegin = sourceOffset;

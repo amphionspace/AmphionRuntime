@@ -584,7 +584,9 @@ struct Index {
     if (segment.speakerIndex >= 0) known.add(segment.speakerIndex);
     for (const id of segment.secondarySpeakerIndexes) if (id >= 0) known.add(id);
     let unknown = segment.speakerIndex < 0 || segment.secondarySpeakerIndexes.includes(-1);
-    let overlap = segment.secondarySpeakerIndexes.length > 0;
+    // Participants in a mixed sentence can speak in sequence. Only the SDK's
+    // explicit acoustic overlap flag establishes simultaneous speech.
+    let overlap = false;
     let inferred = false;
     for (const part of segment.speakerParts) {
       if (part.speakerIndex >= 0) known.add(part.speakerIndex);
@@ -596,7 +598,8 @@ struct Index {
       inferred = inferred || part.speakerInferred;
     }
     let label = this.speakerLabel(segment.displaySpeakerIndex);
-    if (known.size > 1) label = '多人／不确定';
+    if (known.size > 1) label = segment.speakerParts.length > 0 && !overlap ?
+      '句内换人（文字归属不确定）' : '多人／不确定';
     else if (unknown || overlap) label = '不确定';
     else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
     if (inferred) label += ' · 含推断补全';

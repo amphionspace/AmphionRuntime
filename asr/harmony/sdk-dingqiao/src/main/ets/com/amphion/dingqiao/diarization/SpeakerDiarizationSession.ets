@@ -115,6 +115,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.lastAsrEndMs = Math.max(this.lastAsrEndMs, endTime);
     const utteranceId = this.transcript.addUtterance({
       rawText: result.rawText,
+      textNormalization: result.textNormalization,
       text: payload.result,
       tokens: result.tokens,
       tokenTimesMs: timestampMs,
@@ -127,6 +128,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const fields: Record<string, Object> = {};
       fields['utteranceId'] = utteranceId;
       fields['rawText'] = result.rawText ?? '';
+      if (result.textNormalization !== undefined) fields['textNormalization'] = result.textNormalization;
       fields['text'] = payload.result;
       fields['tokens'] = result.tokens.slice();
       fields['tokenTimesMs'] = timestampMs.slice();
@@ -358,12 +360,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
       this.inferenceMs += clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
+      const firstAppearanceTimes: number[] =
+        new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);
       for (const turn of clustered.turns) {
-        if (turn[0] < endTime && turn[1] > beginTime) visibleClusters[turn[2]] = true;
+        if (turn[0] < endTime && turn[1] > beginTime) {
+          visibleClusters[turn[2]] = true;
+          firstAppearanceTimes[turn[2]] = Math.min(firstAppearanceTimes[turn[2]], Math.max(beginTime, turn[0]));
+        }
       }
       const registry = provisional ? this.identities.fork() : this.identities;
       const identity = registry.assign(windowIds, clustered.hard, clustered.speakerCount,
-        activity, publishedActivity, visibleClusters);
+        activity, publishedActivity, visibleClusters, firstAppearanceTimes);
       if (!provisional) this.finalSpeakerCount = identity.after;
       const turns = communityTimeline(clustered.turns, identity.mapping, beginTime, endTime);
       const updates = this.transcript.applySpeakerTurns(turns, true);
@@ -392,6 +399,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['activityVotes'] = identity.votes;
         fields['publishedActivity'] = publishedActivity;
         fields['visibleClusters'] = visibleClusters;
+        fields['firstAppearanceTimes'] = firstAppearanceTimes.map(time => Number.isFinite(time) ? time : -1);
         fields['clusterToFrozenId'] = identity.mapping;
         fields['registryBefore'] = identity.before;
         fields['registryAfter'] = identity.after;

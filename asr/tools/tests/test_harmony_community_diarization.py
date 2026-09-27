@@ -109,6 +109,18 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           }
         """)
 
+    def test_public_speaker_ids_follow_first_acoustic_appearance(self):
+        run_community_session("""
+          const s=session();s.totalSamples=16000*16;
+          for(const start of [0,2,4,6])s.onWindow(window(start));
+          s.client.cluster=async()=>({speakerCount:4,
+            hard:[3,-2,-2,1,-2,-2,2,-2,-2,0,-2,-2],
+            turns:[[6500,7500,0],[4500,5500,2],[500,1500,3],[2500,3500,1]]});
+          const out=await s.commitWindow(16000,Infinity,true,0);
+          assert.deepEqual(out.speakerTurns.map(t=>t.speakerIndex),[0,1,2,3],
+            'public IDs must follow acoustic appearance, not arbitrary native cluster labels');
+        """)
+
     def test_window_identity_uses_stable_keys_and_preview_does_not_enroll(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -123,6 +135,29 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.deepEqual(next.mapping,[1,0,2],'array movement must not change acoustic ownership');
           assert.equal(next.before,2,'temporary labels must not consume frozen identities');
           assert.equal(next.after,3);
+        """)
+
+    def test_appearance_order_does_not_renumber_frozen_or_enroll_preview_ids(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
+          const ids=new CommunitySpeakerIdentity(4);
+          const first=ids.assign(['a','b'],[1,-2,-2,0,-2,-2],2,
+            [100,0,0,100,0,0],undefined,[true,true],[2000,1000]);
+          assert.deepEqual(first.mapping,[1,0]);
+          const snapshot=JSON.stringify(first);
+          const jobs=['b','a','new-c','new-d'];
+          const hard=[0,-2,-2,1,-2,-2,2,-2,-2,3,-2,-2];
+          const activity=[100,0,0,100,0,0,80,0,0,80,0,0];
+          const preview=ids.fork().assign(jobs,hard,4,activity,undefined,
+            [true,true,true,true],[100,200,300,50]);
+          assert.deepEqual(preview.mapping,[1,0,3,2]);
+          const committed=ids.assign(jobs,hard,4,activity,undefined,
+            [true,true,true,true],[100,200,50,300]);
+          assert.equal(committed.before,2,'a preview must not reserve a public identity');
+          assert.deepEqual(committed.mapping,[1,0,2,3],
+            'later evidence cannot renumber an existing owner; new owners follow appearance');
+          assert.equal(JSON.stringify(first),snapshot,'published assignment remains frozen');
         """)
 
     def test_live_preview_arrives_before_finish_and_final_can_revoke_it(self):

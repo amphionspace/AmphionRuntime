@@ -6,6 +6,30 @@ from asr.tools.tests.test_harmony_speaker_diarization_session import ROOT, TIMEL
 
 
 class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
+    def test_itn_source_records_preserve_original_owner_and_inference(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='到了一百二十秒再说你好', text='到了120s，再说你好。';
+          // Native grammar records provide these source ranges. The numeric
+          // rewrite is one indivisible record, never evenly distributed tokens.
+          const normalization={{text:'到了120s再说你好',spans:[
+            [0,1,0,1],[1,2,1,2],[2,7,2,6],[7,8,6,7],[8,9,7,8],
+            [9,10,8,9],[10,11,9,10]].map(([sourceBegin,sourceEnd,textBegin,textEnd])=>
+              ({{sourceBegin,sourceEnd,textBegin,textEnd}}))}};
+          const s=new State();s.addUtterance({{rawText:raw,text,tokens:[...raw],
+            tokenTimesMs:[...raw].map((_,i)=>100*i),beginTime:0,endTime:1100,
+            textNormalization:normalization}});
+          s.applySpeakerTurns([{{beginTime:0,endTime:900,speakerId:'S1',secondarySpeakerIds:[],confidence:.9}}]);
+          const before=s.allTurns(),out=s.sentenceUtterances();
+          assert.equal(out.map(x=>x.text).join(''),text);
+          assert.equal(out.map(x=>x.rawText).join(''),raw);
+          assert.ok(out.every(x=>x.speakerId==='S1'),'exact ITN source records retain the raw-token owner');
+          assert.ok(out.some(x=>x.speakerInferred),'bounded raw tail inference must survive ITN and punctuation');
+          assert.ok(out.filter(x=>x.speakerInferred).every(x=>x.confidence===0));
+          assert.deepEqual(s.allTurns(),before);
+        """)
+
     def test_original_u6_punctuation_cannot_change_bounded_tail_inference(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -28,6 +52,41 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             const frozen=s.commitThrough(20860);s.applySpeakerRemap({{S1:'S2'}});
             assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
           }}
+        """)
+
+    def test_itn_record_cannot_hide_a_short_speaker_change_overlap_or_unknown(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9,...extra}});
+          const sample=(turns,spans=[{{sourceBegin:0,sourceEnd:4,textBegin:0,textEnd:2}}])=>{{
+            const s=new State();s.addUtterance({{rawText:'百分之三',text:'3%。',tokens:[...'百分之三'],
+              tokenTimesMs:[0,100,200,300],beginTime:0,endTime:400,
+              textNormalization:{{text:'3%',spans}}}});s.applySpeakerTurns(turns);return s;
+          }};
+          for(const turns of [
+            [turn(0,200,'S1'),turn(200,400,'S2')],
+            [turn(0,150,'S1'),turn(150,175,'S2'),turn(175,400,'S1')],
+            [turn(0,400,'UNKNOWN')],
+            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['S2']}})],
+            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})]
+          ]){{
+            const s=sample(turns),before=s.allTurns(),out=s.sentenceUtterances();
+            assert.equal(out.length,1);assert.equal(out[0].text,'3%。');
+            assert.equal(out[0].rawText,'百分之三');assert.equal(out[0].speakerId,'UNKNOWN');
+            assert.equal(out[0].confidence,0);assert.deepEqual(s.allTurns(),before);
+            assert.equal(out[0].overlap,turns.some(t=>t.overlap));
+            const frozen=s.commitThrough(400);s.applySpeakerTurns([turn(0,400,'S3')]);
+            assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
+          }}
+          for(const spans of [[],[{{sourceBegin:0,sourceEnd:3,textBegin:0,textEnd:2}}],
+            [{{sourceBegin:0,sourceEnd:4,textBegin:1,textEnd:2}}]])
+            assert.equal(sample([turn(0,400,'S1')],spans).sentenceUtterances()[0].speakerId,'UNKNOWN');
+          const unicode=new State();unicode.addUtterance({{rawText:'𠮷三',text:'𠮷3。',tokens:['𠮷','三'],
+            tokenTimesMs:[0,100],beginTime:0,endTime:200,textNormalization:{{text:'𠮷3',spans:[
+              {{sourceBegin:0,sourceEnd:2,textBegin:0,textEnd:2}},{{sourceBegin:2,sourceEnd:3,textBegin:2,textEnd:3}}]}}}});
+          unicode.applySpeakerTurns([turn(0,200,'S1')]);assert.equal(unicode.sentenceUtterances()[0].speakerId,'S1');
         """)
 
     def test_punctuation_replacing_english_space_preserves_speaker_boundaries(self):
@@ -318,7 +377,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const segment=(ids,overlap=false,speakerIndex=-1)=>({speakerIndex,displaySpeakerIndex:speakerIndex,
             speakerAssignmentFinal:true,revision:0,secondarySpeakerIndexes:[],
             speakerParts:[{speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
-          assert.equal(label.segmentSpeakerLabel(segment([0,1])),'多人／不确定');
+          assert.equal(label.segmentSpeakerLabel(segment([0,1])),'句内换人（文字归属不确定）');
+          assert.equal(label.segmentSpeakerLabel(segment([0,1],true)),'多人／不确定 · 含重叠发言');
           assert.equal(label.segmentSpeakerLabel(segment([0])),'不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0],true)),'不确定 · 含重叠发言');
           assert.equal(label.segmentSpeakerLabel(segment([],false,0)),'说话人 1');
