@@ -4,6 +4,8 @@
 
 ## 代码变化
 
+最新资源诊断见[首窗内存归属与释放对照](DIARIZATION_MEMORY_OWNERSHIP_20260928.md)：主要首窗 RSS 台阶已定位到 encoder，单独释放 arena 后仍触发资源 FAIL。两路11窗声学与公开结果一致；试验及插桩已撤回，运行代码保持 `ad16789a`，不将诊断产物作为新候选版本。
+
 从 `origin/main=f5bd3867e9548f7630c4e436cb308d7cd63c2040` 开始。运行代码提交 `f850a7cc6ca6f64612a9f10bb5b99173fc4e4446` 只补齐诊断快照中的独立 `runEmbeddings`，并测试快照不被后续复用的数组改写。没有调整窗口、hop、timeout、模型、建组规则、UNKNOWN 或生命周期。此前快照只有整窗 embedding 与 run 范围，不能精确重放当前 run 聚类，不能拿整窗向量替代。
 
 新增开发工具分别负责不可覆盖的输入 manifest、配对评分及回退否决、分层真机运行、完整窗口快照重放、外部 RTTM 的 embedding 覆盖审计和 Qwen 音频辅助标注。它们不进入 SDK 推理链路。事件存在只证明该阶段被观测，不能自动将分割、embedding 或最终展示判为 PASS。
