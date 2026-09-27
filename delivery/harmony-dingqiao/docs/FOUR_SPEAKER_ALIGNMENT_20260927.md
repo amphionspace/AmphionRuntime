@@ -92,7 +92,9 @@ finish 989 ms，last/complete 各 1，finish 前 last=0，无 error/timeout、�
 
 真机 SDK 新字段与在线回放一致，旧公共字段逐项完全不变；实际页面保留完整句子，
 但只用颜色及图例，用户仍无法直接看到每段的 ID，因此该版本的最终可读归属验收为 FAIL，
-阻断合入。新增直接角色标签的调用方回归已通过，Mate80 原录音复验待补。
+阻断合入。新增直接标签版本 115e42d5 已在同一 Mate80 通过原录音复验：混合句在文字前直接标出
+说话人 1/2，按明确主角色变化分行；同人直接与推断范围合并为可读文字，同时保留推断提示。
+无需颜色或图例即可读出各段角色，原生文字、声学 turns 和所有公共范围逐项与上一版一致。
 完整词语不拆段，短暂的说话人 4 声学区间仍在原始 turns，不补造缺失 token。
 
 ## 定稿周期
@@ -149,7 +151,7 @@ finish 989 ms，last/complete 各 1，finish 前 last=0，无 error/timeout、�
 `reconstruct-label-permutation.json`、`asr-tail-events.json` 以及 `human-review-*.json`。
 轻声短插话/overlap 的未解决范围由 #222 单独跟踪，不能写成本补丁已修复。
 
-最终验证产物绑定运行代码 `bc78b58d545924e3ff40ed6de4f238a617e6d8b5`；
+SDK 新字段阶段的基线产物绑定 `bc78b58d545924e3ff40ed6de4f238a617e6d8b5`；
 `device-ui-text-spans/` 保存相同 PCM 校验、窗口/队列/内存/回调数据、公共范围及真实页面截图。
 这次只修 Harmony 文字归属及调用方；Android 生命周期没有另外修改，新增公共文字字段
 尚未迁移 Android。这里的 PASS 分别限于 SDK 对齐、编号顺序和对应生命周期，
@@ -166,3 +168,40 @@ bc78b58d 的 24 模式 SDK 生命周期门禁及 finish 兼容门禁已全部通
 结果并补充 14 轮 paced（超过 60 秒），没有放宽资源门禁。颜色版 UI 的体验失败不影响
 这批 SDK 生命周期数据；直接标签版本须另外比较四个 HAR 内容并完成原录音 UI 验收。
 此为 PR 验证 HAP，不是客户交付 ZIP；未更新正式交付发布账本或宣称已交付。
+
+直接标签版本真机数据：48 窗推理均值 576.066 ms / 最大 714.358 ms，
+pending 最大 0、in-flight 最大 1，音频延迟最大 580 ms，
+ASR 未处理音频最大 680 ms、结束为 0；finish 936 ms，
+finish 前 last=0，结束后唯一 last 再唯一 complete。RSS 峰值 675.80 MiB，
+卸载后 303.18 MiB。本次不是长期内存平台期证明。
+`device-ui-explicit-labels/` 保留 UI 截图/布局、公共结果、完整同输入校验和队列/回调/RSS 数据。
+
+展示测试另保护“同样文字在定稿后必须刷新角色、迟到临时结果不得覆盖定稿”。旧测试只
+读取段落标题，未读取新增文字前的标签；已改为从实际页面表达式读取完整可见内容，
+保留原有身份及冻结断言。运行代码没有因该测试适配再次变化。
+
+最终 HAP 的两份 native 封装库由构建重新生成，虽然 SDK 源码不变，不能宣称与旧 HAR
+逐字节一致；因此最终生命周期门禁另绑定 115e42d5 产物。原有白盒、身份及单测结论仍保留，
+不重复精度实验或轻声插话分析。没有模型、阈值、窗口、hop、timeout 或周期调整。
+
+主要修改文件与行为：
+
+- `CommunitySpeakerIdentity.ts`：新身份按首次可发布的声学出场顺序编号。
+- `SpeakerDiarizationTranscriptState.ts`：原始 utterance 证据上的角色归属及精确 ITN 投影，
+  新增句内文字范围，保留 UNKNOWN、overlap、推断和冻结。
+- `DingqiaoModels.ets`、`SpeakerDiarizationSession.ets`：发布 `SpeakerTextSpan`，沿用公共编号。
+- `Runtime.ets`、`Types.ets`、sherpa patch `0030`：保留实际 ITN 路径来源；
+  原有 Normalize 文字不变，VAD 拒绝时清除相应来源字段。
+- 鼎桥 Demo `Index.ets`：明确换人时直接标 ID；同人合并，未知不放大为词语碎片。
+- 句级/调用方/身份/拒绝生命周期测试、原生 ITN 测试、符号检查及接口文档同步更新。
+
+最终门禁：115e42d5 的 24 模式、90 轮真机 SDK 检查全部 PASS，含唯一 last→complete、
+finish 前 last=0、cancel/重入/冷加载同步写入/卸载重载/恢复和 numeric-edge。
+`run_finish_compat_release_gate.py` 的两个模式均 PASS。最长 paced 观测超过 60 秒；
+这不代表长期 RSS 平台期或所有外部故障均已覆盖。Android Debug/Release 379 项通过。
+最终规范证据：`delivery/harmony-dingqiao/build/pr230-115-evidence/report.json`，
+私有根另保留 `pr-gate-evidence-115/`，逐轮结果、内存、hilog、输入映射和失败现场均保留。
+报告 SHA-256：`c886f3dcd571cff10cf9a8ad969d8ffc837d32df01be39459118484e345da73c`。
+
+后续提交只更新展示测试适配和本报告，不改变 HAP/HAR 输入；复用 115e42d5 的最终真机
+证据。当前 PR HEAD 的 CI 和全部 review threads 以 PR 合入记录为准，未完成不得合入。
