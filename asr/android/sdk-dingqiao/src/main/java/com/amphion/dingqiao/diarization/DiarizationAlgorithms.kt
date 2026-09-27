@@ -17,55 +17,50 @@ internal data class DiarizationInferenceWindow(
 internal class DiarizationWindowScheduler(
     sampleRate: Int,
     windowMs: Int = 10_000,
-    hopMs: Int = 2_500,
+    hopMs: Int = 1_000,
     rightContextMs: Int = 1_500,
 ) {
     private val windowSamples = (sampleRate * windowMs / 1_000.0).roundToInt().toLong()
     private val hopSamples = (sampleRate * hopMs / 1_000.0).roundToInt().toLong()
     private val rightContextSamples = (sampleRate * rightContextMs / 1_000.0).roundToInt().toLong()
     private var totalSamples = 0L
-    private var nextWindowEnd = hopSamples
+    private var nextWindowEnd = windowSamples
     private var committedThroughSample = 0L
     private var finished = false
 
-    init {
-        require(sampleRate > 0 && windowMs > 0 && hopMs > 0 && rightContextMs >= 0)
+    init { require(sampleRate > 0 && windowMs > 0 && hopMs > 0 && rightContextMs >= 0) }
+
+    fun acceptSamples(sampleCount: Int, maxWindows: Int = Int.MAX_VALUE): List<DiarizationInferenceWindow> {
+        check(!finished)
+        require(sampleCount >= 0 && maxWindows >= 0)
+        totalSamples += sampleCount
+        return takeAvailable(maxWindows)
     }
 
-    fun acceptSamples(sampleCount: Int): List<DiarizationInferenceWindow> {
-        check(!finished) { "Diarization window scheduler is already finished" }
-        require(sampleCount >= 0)
-        totalSamples += sampleCount
+    fun takeAvailable(maxWindows: Int = Int.MAX_VALUE): List<DiarizationInferenceWindow> {
+        check(!finished)
+        require(maxWindows >= 0)
         val windows = mutableListOf<DiarizationInferenceWindow>()
-        while (totalSamples >= nextWindowEnd) {
+        while (windows.size < maxWindows && totalSamples >= nextWindowEnd) {
             val end = nextWindowEnd
             val stableEnd = max(end - rightContextSamples, 0)
-            windows += DiarizationInferenceWindow(
-                startSample = max(0, end - windowSamples),
-                endSample = end,
-                realEndSample = end,
-                commitStartSample = committedThroughSample,
-                stableEndSample = stableEnd,
-                finalWindow = false,
-            )
+            windows += DiarizationInferenceWindow(max(0, end - windowSamples), end, end,
+                committedThroughSample, stableEnd, false)
             committedThroughSample = stableEnd
             nextWindowEnd += hopSamples
         }
         return windows
     }
 
-    fun finish(): DiarizationInferenceWindow {
-        check(!finished) { "Diarization window scheduler is already finished" }
+    fun hasAvailable(): Boolean = !finished && totalSamples >= nextWindowEnd
+    fun nextWindowStartSample(): Long? = if (finished) null else max(0, nextWindowEnd - windowSamples)
+
+    fun finish(): DiarizationInferenceWindow? {
+        check(!finished && totalSamples < nextWindowEnd)
         finished = true
-        val end = max(totalSamples, windowSamples)
-        return DiarizationInferenceWindow(
-            startSample = max(0, end - windowSamples),
-            endSample = end,
-            realEndSample = totalSamples,
-            commitStartSample = committedThroughSample,
-            stableEndSample = totalSamples,
-            finalWindow = true,
-        )
+        if (totalSamples == 0L || (nextWindowEnd > windowSamples && totalSamples == nextWindowEnd - hopSamples)) return null
+        return DiarizationInferenceWindow(max(0, nextWindowEnd - windowSamples), nextWindowEnd,
+            totalSamples, committedThroughSample, totalSamples, true)
     }
 }
 

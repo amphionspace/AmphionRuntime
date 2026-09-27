@@ -16,7 +16,7 @@ class HarmonyCommunityNativeTest(unittest.TestCase):
             self.skipTest('C++17 compiler unavailable')
         source_text = (CPP / 'community_diarization.cpp').read_text()
         reader = source_text[source_text.index('std::vector<uint8_t> ReadCommunityAsset'):
-                             source_text.index('\nclass Model')]
+                             source_text.index('\n#endif', source_text.index('std::vector<uint8_t> ReadCommunityAsset'))]
         work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
         # Exercise production ownership with a platform resource provider that
         # returns partial reads and errors. No models or customer data needed.
@@ -94,7 +94,7 @@ int main() {
             self.skipTest('C++17 compiler unavailable')
         source_text = (CPP / 'community_diarization.cpp').read_text()
         copy_array = source_text[source_text.index('template <typename T>'):
-                                 source_text.index('\nstruct Window')]
+                                 source_text.index('\n#endif', source_text.index('template <typename T>'))]
         # Compile the real bridge copy function. Only the platform N-API boundary
         # is substituted; both native length conventions must bound the copy.
         program = r'''

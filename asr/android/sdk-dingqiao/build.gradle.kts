@@ -8,7 +8,9 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     from("../../../shared/models/asr/dingqiao") {
         include(
             "eres2net.onnx",
-            "campplus.onnx",
+            "community-wespeaker-masked.fp32.onnx",
+            "community-feature.f32",
+            "community-plda.f64",
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
@@ -93,6 +95,8 @@ dependencies {
     implementation(project(":sdk-police"))
     implementation(libs.androidx.core.ktx)
 
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.runner)
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
 }

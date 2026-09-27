@@ -43,3 +43,6 @@
 -keep class com.amphion.asr.internal.NativeResult$Err { *; }
 -keep class com.amphion.asr.internal.Logger { *; }
 -keep class com.amphion.asr.internal.PcmSubmissionLimiter { *; }
+
+# Exercise the real postprocessing fence in Release unit tests.
+-keep,includedescriptorclasses class com.amphion.asr.internal.PostProcessor { *; }

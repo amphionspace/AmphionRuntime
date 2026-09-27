@@ -1,14 +1,18 @@
 #include "community_cluster.h"
 #include "community_fbank.h"
 #include "onnxruntime_cxx_api.h"
+#ifndef __ANDROID__
 #include <node_api.h>
+#endif
 #include <array>
 #include <chrono>
 #include <cstring>
 #include <iomanip>
 #include <memory>
 #include <limits>
+#ifndef __ANDROID__
 #include <rawfile/raw_file_manager.h>
+#endif
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
@@ -19,6 +23,7 @@ double Milliseconds(Clock::time_point start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
+#ifndef __ANDROID__
 template <typename T>
 std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type expected) {
   napi_typedarray_type type;
@@ -48,11 +53,14 @@ std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type ex
   return result;
 }
 
+#endif
+
 struct Window {
   std::vector<float> segments, embeddings;
   double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
 };
 
+#ifndef __ANDROID__
 std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const char* name) {
   std::unique_ptr<RawFile, decltype(&OH_ResourceManager_CloseRawFile)> file(
     OH_ResourceManager_OpenRawFile(manager, name), OH_ResourceManager_CloseRawFile);
@@ -72,6 +80,8 @@ std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const ch
   }
   return bytes;
 }
+
+#endif
 
 class Model {
  public:
@@ -229,6 +239,7 @@ class Model {
   std::mutex inference_mutex_;
 };
 
+#ifndef __ANDROID__
 // Each session owns its handle. Async calls keep a shared reference after close;
 // the ArkTS client also keeps its Runtime lease until all calls have settled.
 std::mutex model_mutex;
@@ -398,3 +409,8 @@ void RegisterCommunityDiarization(napi_env env, napi_value exports) {
   };
   napi_define_properties(env, exports, sizeof(methods) / sizeof(methods[0]), methods);
 }
+
+#else
+} // namespace
+#include "community_diarization_jni.inc"
+#endif
