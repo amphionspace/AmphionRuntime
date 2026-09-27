@@ -1,15 +1,16 @@
-import { AsrResult, ResultAudioTimeline } from 'amphion_asr';
+import { AsrResult, AsrTextNormalizationSpan, ResultAudioTimeline } from 'amphion_asr';
 import { DiarizationCommitClock } from './DiarizationCommitClock';
 import {
   DiarizedUtterance, SpeakerDiarizationDegradedReason, SpeakerDiarizationResult,
-  SpeakerDiarizationUpdate, SpeakerTurn, SpeechRecognitionResult
+  SpeakerDiarizationUpdate, SpeakerTurn, SpeakerTextSpan, SpeechRecognitionResult
 } from '../DingqiaoModels';
 import { DiarizationLocalWindowResult, SpeakerDiarizationLocalClient,
   SpeakerDiarizationLocalObserver, SpeakerDiarizationLocalClientOptions } from './SpeakerDiarizationLocalClient';
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import { speakerIndexFromInternalId, speakerIndexesFromInternalIds } from './SpeakerDiarizationSpeakerIndex';
 import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
-  DiarizedTranscriptUtterance } from './SpeakerDiarizationTranscriptState';
+  DiarizedTranscriptUtterance, TranscriptTextNormalization,
+  TranscriptNormalizationSpan } from './SpeakerDiarizationTranscriptState';
 import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerIdentity';
 
 const SAMPLE_RATE: number = 16000;
@@ -113,8 +114,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     const endTime = payload.endTime ??
       timestampMs[timestampMs.length - 1] ?? Math.round(this.totalSamples * 1000 / SAMPLE_RATE);
     this.lastAsrEndMs = Math.max(this.lastAsrEndMs, endTime);
+    const normalization: TranscriptTextNormalization | undefined = result.textNormalization === undefined ?
+      undefined : {
+        text: result.textNormalization.text,
+        spans: result.textNormalization.spans.map((span: AsrTextNormalizationSpan): TranscriptNormalizationSpan => ({
+          sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+          textBegin: span.textBegin, textEnd: span.textEnd,
+        })),
+      };
     const utteranceId = this.transcript.addUtterance({
       rawText: result.rawText,
+      textNormalization: normalization,
       text: payload.result,
       tokens: result.tokens,
       tokenTimesMs: timestampMs,
@@ -127,6 +137,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const fields: Record<string, Object> = {};
       fields['utteranceId'] = utteranceId;
       fields['rawText'] = result.rawText ?? '';
+      if (result.textNormalization !== undefined) fields['textNormalization'] = result.textNormalization;
       fields['text'] = payload.result;
       fields['tokens'] = result.tokens.slice();
       fields['tokenTimesMs'] = timestampMs.slice();
@@ -358,12 +369,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
       this.inferenceMs += clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
+      const firstAppearanceTimes: number[] =
+        new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);
       for (const turn of clustered.turns) {
-        if (turn[0] < endTime && turn[1] > beginTime) visibleClusters[turn[2]] = true;
+        if (turn[0] < endTime && turn[1] > beginTime) {
+          visibleClusters[turn[2]] = true;
+          firstAppearanceTimes[turn[2]] = Math.min(firstAppearanceTimes[turn[2]], Math.max(beginTime, turn[0]));
+        }
       }
       const registry = provisional ? this.identities.fork() : this.identities;
       const identity = registry.assign(windowIds, clustered.hard, clustered.speakerCount,
-        activity, publishedActivity, visibleClusters);
+        activity, publishedActivity, visibleClusters, firstAppearanceTimes);
       if (!provisional) this.finalSpeakerCount = identity.after;
       const turns = communityTimeline(clustered.turns, identity.mapping, beginTime, endTime);
       const updates = this.transcript.applySpeakerTurns(turns, true);
@@ -392,6 +408,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['activityVotes'] = identity.votes;
         fields['publishedActivity'] = publishedActivity;
         fields['visibleClusters'] = visibleClusters;
+        fields['firstAppearanceTimes'] = firstAppearanceTimes.map(time => Number.isFinite(time) ? time : -1);
         fields['clusterToFrozenId'] = identity.mapping;
         fields['registryBefore'] = identity.before;
         fields['registryAfter'] = identity.after;
@@ -504,6 +521,19 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     result.confidence = value.confidence ?? 0;
     result.overlap = value.overlap;
     result.speakerInferred = value.speakerInferred ?? false;
+    result.speakerTextSpans = (value.speakerTextSpans ?? []).map(span => {
+      const item = new SpeakerTextSpan();
+      item.sourceBegin = span.sourceBegin;
+      item.sourceEnd = span.sourceEnd;
+      item.textBegin = span.textBegin;
+      item.textEnd = span.textEnd;
+      item.speakerIndex = speakerIndexFromInternalId(span.speakerId, this.maxSpeakers);
+      item.secondarySpeakerIndexes = speakerIndexesFromInternalIds(span.secondarySpeakerIds, this.maxSpeakers, true);
+      item.confidence = span.confidence;
+      item.overlap = span.overlap;
+      item.speakerInferred = span.speakerInferred;
+      return item;
+    });
     return result;
   }
 

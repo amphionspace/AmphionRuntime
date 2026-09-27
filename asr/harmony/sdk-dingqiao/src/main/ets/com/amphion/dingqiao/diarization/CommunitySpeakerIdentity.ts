@@ -23,7 +23,8 @@ export class CommunitySpeakerIdentity {
   }
 
   assign(windowIds: string[], hard: number[], clusterCount: number, activity: number[],
-    publishedActivity: number[] = activity, visibleClusters?: boolean[]): CommunityIdentityAssignment {
+    publishedActivity: number[] = activity, visibleClusters?: boolean[],
+    firstAppearanceTimes?: number[]): CommunityIdentityAssignment {
     const before = this.nextId;
     const votes: number[][] = [];
     for (let cluster = 0; cluster < clusterCount; cluster++) votes.push(new Array<number>(before).fill(0));
@@ -51,7 +52,16 @@ export class CommunitySpeakerIdentity {
       visit(cluster + 1, used, score);
     };
     visit(0, 0, 0);
-    for (let cluster = 0; cluster < clusterCount; cluster++) {
+    const appearanceOrder: number[] = [];
+    for (let cluster = 0; cluster < clusterCount; cluster++) appearanceOrder.push(cluster);
+    if (firstAppearanceTimes !== undefined) {
+      appearanceOrder.sort((left, right) =>
+        (firstAppearanceTimes[left] ?? Number.POSITIVE_INFINITY) -
+        (firstAppearanceTimes[right] ?? Number.POSITIVE_INFINITY) || left - right);
+    }
+    // Only allocate new IDs chronologically. Existing committed identities keep
+    // their IDs even if later evidence changes an earlier acoustic boundary.
+    for (const cluster of appearanceOrder) {
       const hasActivity = (visibleClusters === undefined || visibleClusters[cluster]) &&
         hard.some((label, index) => label === cluster && publishedActivity[index] > 0);
       if (hasActivity && best[cluster] < 0 && this.nextId < this.maxSpeakers) best[cluster] = this.nextId++;
