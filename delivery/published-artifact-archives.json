@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "batch_id": "20260927-published-delivery-migration",
+  "remote_index_uri": "cos-amphion-delivery:amphion-runtime/archive-index/20260927-published-delivery-migration.json",
+  "archives": [
+    {
+      "product": "asr",
+      "platform": "harmony",
+      "version": "0.2.9",
+      "artifact": "amphion-harmony-asr-sdk-v0.2.9-20260730.zip",
+      "source_commit": "eb7ebcf66a0b2062079b3fbd17203d4f3867c03d",
+      "delivered_at": "2026-07-30",
+      "size_bytes": 263812380,
+      "sha256": "69c88816766c887d42c09eaa82e68860206eff66cf6c15e953e9a6f6802730b8",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.2.9/69c88816766c887d42c09eaa82e68860206eff66cf6c15e953e9a6f6802730b8/amphion-harmony-asr-sdk-v0.2.9-20260730.zip",
+      "release_ledger": "delivery/asr-sdk-release-history.json",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-27T03:46:48.502285+00:00",
+        "local_copies_verified": 1
+      }
+    },
+    {
+      "product": "asr",
+      "platform": "android",
+      "version": "0.3.3",
+      "artifact": "amphion-dingqiao-asr-sdk-v0.3.3-20260730.zip",
+      "source_commit": "eb7ebcf66a0b2062079b3fbd17203d4f3867c03d",
+      "delivered_at": "2026-07-30",
+      "size_bytes": 262217041,
+      "sha256": "46d6007c4c9292d51e5c9a4439fa5f89da843c338a95fcc4a4ef56c4b0478243",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/android/0.3.3/46d6007c4c9292d51e5c9a4439fa5f89da843c338a95fcc4a4ef56c4b0478243/amphion-dingqiao-asr-sdk-v0.3.3-20260730.zip",
+      "release_ledger": "delivery/asr-sdk-release-history.json",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-27T03:47:54.329007+00:00",
+        "local_copies_verified": 1
+      }
+    }
+  ]
+}
