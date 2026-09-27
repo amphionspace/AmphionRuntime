@@ -84,7 +84,9 @@ export class SpeakerDiarizationLocalClient {
     options?: SpeakerDiarizationLocalClientOptions) {
     this.observer = observer;
     this.diagnostic = diagnostic;
-    const hopMs = options?.hopMs ?? 2_000;
+    // Keep the evidence density of the locked Community-1 pipeline. Decimating
+    // its windows changes VBx component survival even with identical vectors.
+    const hopMs = options?.hopMs ?? 1_000;
     this.maxPendingJobs = options?.maxPendingJobs ?? 2;
     if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
       throw new Error('maxPendingJobs must be a positive integer');

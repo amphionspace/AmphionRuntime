@@ -52,7 +52,9 @@ internal class SpeakerDiarizationLocalClient(
         CommunityDiarizationInference(DingqiaoSpeakerModelAssets.ensureCommunityInstalled(context, workPath))
     },
 ) {
-    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 2_000)
+    // Match the locked pipeline's evidence density; dropping every other
+    // window changes VBx component survival, not just inference cost.
+    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 1_000)
     private val queue = ArrayDeque<DiarizationLocalJob>()
     private val jobDir = File(File(workPath, "speaker-diarization-jobs"), "job-${System.nanoTime()}")
     private val spool: DiarizationPcmSpool
