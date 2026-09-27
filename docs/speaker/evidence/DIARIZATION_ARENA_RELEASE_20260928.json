@@ -1391,44 +1391,50 @@
   ],
   "sources": [
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/third_party/patches/onnxruntime-amphion/0001-ohos-bounded-worker-spin.patch",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/third_party/patches/onnxruntime-amphion/0001-ohos-bounded-worker-spin.patch",
       "sha256": "46e19ecaf56f9e5b958fe5b1b9a640e9f3503bf6116651bc005da082baa14e18",
       "bytes": 8816
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/asr/tools/build_harmony_onnxruntime.py",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/asr/tools/build_harmony_onnxruntime.py",
       "sha256": "9e498432b62cf0084719e185e32908becd8678628cb75df53af4ff2ff18e1dec",
       "bytes": 6807
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/asr/tools/verify_harmony_ort_completion.py",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/asr/tools/verify_harmony_ort_completion.py",
       "sha256": "b77876ffbd8485b4cddab3bde7607937ccfe453aa1b62fa52619aa230f55d20b",
       "bytes": 2799
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/asr/tools/tests/harmony_onnxruntime/arena_lifetime_test.cc.in",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/asr/tools/tests/harmony_onnxruntime/arena_lifetime_test.cc.in",
       "sha256": "ce132a5a13f6082c3e0c19b6d202f422fec62d44bfa8d3d3cfb4b89b21c954a0",
       "bytes": 3032
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk/src/main/cpp/community_diarization.cpp",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/asr/harmony/sdk/src/main/cpp/community_diarization.cpp",
       "sha256": "c5158dda476757c936df3a3c4463fe50a900d4fa47358618be7c0080dd5f2ce1",
       "bytes": 26961
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk/src/main/cpp/community_cluster.h",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/asr/harmony/sdk/src/main/cpp/community_cluster.h",
       "sha256": "dc5f4a7891c662379acfc53a810715145df543cf6cc554a333ebc20e7e8ae229",
       "bytes": 25732
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/delivery/diarization_evaluation.py",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/delivery/harmony-dingqiao/delivery/diarization_evaluation.py",
       "sha256": "328ec8489963840d8c662d900c415cfc65ea5e5e82aa6edddd17ed014595b5ab",
       "bytes": 25401
     },
     {
-      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py",
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/sources/delivery/harmony-dingqiao/delivery/run_device_stress.py",
       "sha256": "f4a9d9a9bd5eb7121cf6f5d02585663e0b3b742eb4ec288aa2eeeac22e9af666",
       "bytes": 66333
     }
-  ]
+  ],
+  "sourceSnapshotCommit": "f6aef3d4d17887c23b74f2c5436716007928264f",
+  "previousIndex": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/arena-release-20260928/evidence-index.json",
+    "sha256": "739f02760f9f0374334169061417a38f546aaac19089dad6104f2d7d796e6e96",
+    "reason": "Retain v1; v2 relocates identical source bytes into immutable commit snapshots before further code changes."
+  }
 }
