@@ -278,7 +278,9 @@ class Model {
     matrix("scores", result.scores);
     matrix("centroids", result.centroids);
     matrix("posteriors", result.vbx.q);
-    json << ",\"usedKMeans\":" << (result.usedKMeans ? "true" : "false");
+    json << ",\"usedKMeans\":" << (result.usedKMeans ? "true" : "false")
+         << ",\"usedAhcFallback\":" << (result.usedAhcFallback ? "true" : "false")
+         << ",\"shortRunTrainingCount\":" << result.shortRunTrainingCount;
     json << ",\"priors\":[";
     for (size_t i = 0; i < result.vbx.priors.size(); ++i) { if (i) json << ','; json << result.vbx.priors[i]; }
     json << "],\"turns\":[";
