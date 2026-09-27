@@ -125,11 +125,41 @@ class DiarizationDemoInstrumentedTest {
             output.appendText(value.put("kind", kind).put("atMs", SystemClock.elapsedRealtime())
                 .put("feedStartedAtMs", feedStart).put("vadEndMs", vadEnd).toString() + "\n")
         }
+        val diagnosticDirectory = File(app.filesDir, "community-whitebox-${System.currentTimeMillis()}")
+        val diagnosticErrors = mutableListOf<String>()
         val engine = SpeechRecognizeSdk.createEngine(CreateEngineParams())
         val sid = "vad-$vadEnd"
         try {
             engine.setListener(object : RecognitionListener {
-                override fun onStart(sessionId: String, eventMessage: String) { record("start") }
+                override fun onStart(sessionId: String, eventMessage: String) {
+                    if (args.getString("communityTrace") == "true") {
+                        assertTrue(diagnosticDirectory.mkdirs())
+                        val session = engine.javaClass.getDeclaredField("speakerDiarizationSession")
+                            .apply { isAccessible = true }.get(engine)
+                        val sink: (String, Map<String, Any?>) -> Unit = { event, fields ->
+                            try {
+                                val value = JSONObject()
+                                for ((key, item) in fields) {
+                                    if (item is FloatArray) {
+                                        val name = "${fields["jobId"]}-$key.f32"
+                                        val buffer = java.nio.ByteBuffer.allocate(item.size * 4)
+                                            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
+                                        item.forEach { buffer.putFloat(it) }
+                                        File(diagnosticDirectory, name).writeBytes(buffer.array())
+                                        value.put(key, name)
+                                    } else value.put(key, JSONObject.wrap(item))
+                                }
+                                synchronized(diagnosticDirectory) {
+                                    File(diagnosticDirectory, "events.ndjson").appendText(JSONObject()
+                                        .put("event", event).put("atMs", SystemClock.elapsedRealtime())
+                                        .put("fields", value).toString() + "\n")
+                                }
+                            } catch (error: Throwable) { synchronized(diagnosticErrors) { diagnosticErrors += error.toString() } }
+                        }
+                        session.javaClass.getDeclaredField("diagnostic").apply { isAccessible = true }.set(session, sink)
+                    }
+                    record("start")
+                }
                 override fun onEvent(sessionId: String, eventCode: Int, eventMessage: String) {
                     record("event", JSONObject().put("eventCode", eventCode))
                 }
@@ -182,8 +212,8 @@ class DiarizationDemoInstrumentedTest {
             })
             engine.startListening(StartParams(sid, extraParams = mapOf("vadEnd" to requireNotNull(vadEnd),
                 "recognizerMode" to "long", "endpointMaxUtteranceMs" to 60_000,
-                "maxAudioDuration" to 7_200_000, "enablePartialResult" to true,
-                "enablePoliceEnhancement" to false, "enableContinuousRecognition" to false),
+                "maxAudioDuration" to (if (args.getString("harmonyAcceptance") == "true") 28_800_000 else 7_200_000), "enablePartialResult" to true,
+                "enablePoliceEnhancement" to (args.getString("harmonyAcceptance") == "true"), "enableContinuousRecognition" to false),
                 speakerDiarization = SpeakerDiarizationConfig(maxSpeakers = 4)))
             feedStart = SystemClock.elapsedRealtime()
             for (offset in pcm.indices step 640) {
@@ -195,6 +225,7 @@ class DiarizationDemoInstrumentedTest {
             record("finish")
             engine.finish(sid)
             assertTrue("Completion timeout; evidence: $output", done.await(90, TimeUnit.SECONDS))
+            synchronized(diagnosticErrors) { assertTrue("diagnostic capture failed: $diagnosticErrors", diagnosticErrors.isEmpty()) }
             synchronized(trace) {
                 assertEquals(0, errors); assertEquals(1, last); assertEquals(1, completes)
                 assertTrue(windows >= 1)

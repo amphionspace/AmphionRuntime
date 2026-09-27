@@ -46,4 +46,24 @@ class CommunityNativeInstrumentedTest {
             assertEquals(589*3,model.process(FloatArray(160000)).segments.size)
         }
     }
+    @Test fun capturedHarmonyCommitClusteringMatchesAndroid() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val directory = File(context.filesDir, "community-parity")
+        val snapshot = JSONObject(File(directory, "snapshot.json").readText())
+        fun floats(name: String): FloatArray {
+            val buffer = ByteBuffer.wrap(File(directory, name).readBytes()).order(ByteOrder.LITTLE_ENDIAN).asFloatBuffer()
+            return FloatArray(buffer.remaining()).also { buffer.get(it) }
+        }
+        val starts = snapshot.getJSONArray("starts")
+        val expected = snapshot.getJSONArray("hard")
+        CommunityDiarizationInference(DingqiaoSpeakerModelAssets.ensureCommunityInstalled(context, directory)).use { model ->
+            val result = model.cluster(floats("cluster-segments.f32"), floats("cluster-embeddings.f32"), 4,
+                DoubleArray(starts.length()) { starts.getDouble(it) }, snapshot.getDouble("beginSample"))
+            assertEquals(snapshot.getInt("speakerCount"), result.speakerCount)
+            assertArrayEquals(IntArray(expected.length()) { expected.getInt(it) }, result.hard)
+            File(directory, "snapshot-result.json").writeText(JSONObject().put("speakerCount", result.speakerCount)
+                .put("hard", JSONArray(result.hard.toList())).put("turns", JSONArray(result.turns.map { it.toList() })).toString())
+        }
+    }
+
 }

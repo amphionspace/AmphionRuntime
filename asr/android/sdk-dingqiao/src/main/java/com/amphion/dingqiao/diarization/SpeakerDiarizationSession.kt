@@ -40,6 +40,12 @@ internal class SpeakerDiarizationSession(
     private val maxSpeakers: Int,
     private val observer: SpeakerDiarizationSessionObserver,
 ) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
+    // Internal opt-in white-box observer. No capture or allocation in ordinary sessions.
+    @Volatile internal var diagnostic: ((String, Map<String, Any?>) -> Unit)? = null
+    private var diagnosticProcessedMs = 0
+    private fun recordDecision(event: String, fields: Map<String, Any?>) {
+        runCatching { diagnostic?.invoke(event, fields) }
+    }
     private val client = SpeakerDiarizationLocalClient(context, workPath, this)
     private val transcript = DiarizationTranscriptState()
     private val commitClock = DiarizationCommitClock()
@@ -99,6 +105,7 @@ internal class SpeakerDiarizationSession(
         synchronized(this) {
             if (finished || result.isLast) return
             val end = ResultAudioTimeline.endSample(result) ?: return
+            if (diagnostic != null) recordDecision("DIARIZATION_ASR_ENDPOINT", mapOf("audioEndSample" to end))
             commitClock.observeEndpoint((end * 1000 / SAMPLE_RATE).toInt())
             flushReadyWindowsLocked()
         }
@@ -109,6 +116,11 @@ internal class SpeakerDiarizationSession(
         synchronized(this) {
             if (finished) return
             processedThroughMs = maxOf(processedThroughMs, (endSample * 1000 / SAMPLE_RATE).toInt())
+            if (diagnostic != null && processedThroughMs >= diagnosticProcessedMs + 10_000) {
+                diagnosticProcessedMs = processedThroughMs
+                recordDecision("DIARIZATION_ASR_PROCESSED", mapOf("audioEndSample" to endSample,
+                    "appendedEndSample" to totalSamples, "inferenceEndMs" to inferenceEndMs))
+            }
             commitClock.observeProcessedAudio(processedThroughMs)
             flushReadyWindowsLocked()
         }
@@ -118,6 +130,8 @@ internal class SpeakerDiarizationSession(
     override fun finish(confirmedInitialSilence: Boolean) {
         synchronized(this) {
             if (finishRequested || finished) return
+            if (diagnostic != null) recordDecision("DIARIZATION_FINISH", mapOf("audioEndSample" to totalSamples,
+                "processedThroughMs" to processedThroughMs, "inferenceEndMs" to inferenceEndMs))
             finishRequested = true
             this.confirmedInitialSilence = confirmedInitialSilence
             if (confirmedInitialSilence) {
@@ -163,6 +177,12 @@ internal class SpeakerDiarizationSession(
     override fun onWindow(result: DiarizationLocalWindowResult) {
         synchronized(this) {
             if (finished || confirmedInitialSilence) return
+            if (diagnostic != null) recordDecision("DIARIZATION_COMMUNITY_WINDOW", mapOf(
+                "jobId" to result.jobId, "windowStartSample" to result.windowStartSample,
+                "realEndSample" to result.realEndSample, "segmentations" to result.result.segments,
+                "embeddings" to result.result.embeddings, "segmentationMs" to result.result.segmentationMs,
+                "featureMs" to result.result.featureMs, "embeddingMs" to result.result.embeddingMs,
+                "appendedEndSample" to totalSamples, "processedThroughMs" to processedThroughMs))
             windows += result
             inferenceEndMs = (result.realEndSample * 1000 / SAMPLE_RATE).toInt()
             inferenceMs += (result.result.segmentationMs + result.result.featureMs + result.result.embeddingMs).toLong()
@@ -246,6 +266,16 @@ internal class SpeakerDiarizationSession(
                             val registry = if (commit.provisional) identities.fork() else identities
                             val identity = registry.assign(available.map { it.jobId }, clustered.hard,
                                 clustered.speakerCount, publishedActivity, visible)
+                            if (diagnostic != null) recordDecision(
+                                if (commit.provisional) "DIARIZATION_COMMUNITY_PREVIEW" else "DIARIZATION_COMMUNITY_COMMIT",
+                                mapOf("beginTime" to commit.begin, "endTime" to commit.end,
+                                    "evidenceEndTime" to commit.evidenceEnd, "jobIds" to available.map { it.jobId },
+                                    "windowStartSamples" to available.map { it.windowStartSample },
+                                    "hard" to clustered.hard.toList(), "speakerCount" to clustered.speakerCount,
+                                    "publishedActivity" to publishedActivity.toList(), "visibleClusters" to visible.toList(),
+                                    "clusterToFrozenId" to identity.mapping.toList(), "registryBefore" to identity.before,
+                                    "registryAfter" to identity.after, "clusterWallMs" to (System.nanoTime()-started)/1_000_000,
+                                    "turns" to clustered.turns.map { it.toList() }))
                             if (!commit.provisional) finalSpeakerCount = identity.after
                             val turns = communityTimeline(clustered.turns, identity.mapping, commit.begin, commit.end)
                             transcript.applySpeakerTurns(turns, true).forEach { update ->
