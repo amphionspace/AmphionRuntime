@@ -275,8 +275,11 @@ export class SpeakerDiarizationTranscriptState {
     };
   }
 
-  applySpeakerTurns(newTurns: SpeakerTimelineTurn[]): DiarizationTranscriptUpdate[] {
-    if (newTurns.length === 0) return [];
+  applySpeakerTurns(newTurns: SpeakerTimelineTurn[], replace: boolean = false): DiarizationTranscriptUpdate[] {
+    // Community previews are complete snapshots of the uncommitted range.
+    // A correction to silence/UNKNOWN must also remove earlier provisional turns.
+    if (replace) this.turns.splice(0, this.turns.length);
+    if (newTurns.length === 0 && !replace) return [];
     for (let i = 0; i < newTurns.length; i++) {
       const evidenceIds = newTurns[i].secondaryEvidenceSpeakerIds ?? newTurns[i].secondarySpeakerIds;
       this.turns.push({
@@ -295,7 +298,7 @@ export class SpeakerDiarizationTranscriptState {
     const updates: DiarizationTranscriptUpdate[] = [];
     for (let i = 0; i < this.utterances.length; i++) {
       const utterance = this.utterances[i];
-      if (!this.intersectsAny(utterance, newTurns)) continue;
+      if (!replace && !this.intersectsAny(utterance, newTurns)) continue;
       const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
       if (assignment.speakerId === utterance.speakerId &&
         sameStrings(assignment.secondarySpeakerIds, utterance.secondarySpeakerIds)) continue;

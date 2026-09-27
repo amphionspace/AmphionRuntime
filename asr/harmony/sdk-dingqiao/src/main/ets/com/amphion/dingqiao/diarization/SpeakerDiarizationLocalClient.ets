@@ -144,13 +144,13 @@ export class SpeakerDiarizationLocalClient {
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
   async cluster(segments: Float32Array, embeddings: Float32Array,
-    maxSpeakers: number): Promise<CommunityDiarizationCluster> {
+    maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number): Promise<CommunityDiarizationCluster> {
     if (this.closed) throw new Error('speaker diarization client is closed');
     this.pendingClusters += 1;
     try {
       await this.inferenceLoad;
       if (this.closed) throw new Error('speaker diarization client is closed');
-      return await this.inference.cluster(segments, embeddings, maxSpeakers);
+      return await this.inference.cluster(segments, embeddings, maxSpeakers, windowStartSamples, beginSample);
     } finally {
       this.pendingClusters -= 1;
       this.closeWhenQuiescent();

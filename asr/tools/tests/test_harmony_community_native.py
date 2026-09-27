@@ -235,6 +235,51 @@ int main() {
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
+    def test_reconstruction_uses_recorded_starts_after_hop_change_and_pruning(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  std::vector<float> speech(20*589*3);
+  std::vector<int> hard(20*3,-2);
+  std::vector<double> starts;
+  for(int w=0;w<20;++w){
+    starts.push_back(w*32000);hard[w*3]=0;
+    for(int f=0;f<589;++f)speech[(w*589+f)*3]=1;
+  }
+  auto turns=community::Reconstruct(speech,hard,starts,0);
+  assert(turns.size()==1 && turns[0].speaker==0 && turns[0].end>47.8);
+  // A retained enrollment window must not shift a later batch or allocate
+  // a reconstruction timeline for the entire elapsed session.
+  starts={0,16000.*3600,16000.*3604};
+  speech.resize(3*589*3);hard.resize(9);
+  turns=community::Reconstruct(speech,hard,starts,16000.*3600);
+  assert(turns.size()==1 && turns[0].begin>=3600 && turns[0].end>3613.8);
+  starts={16000.*3600,16000.*3604};speech.resize(2*589*3);hard.resize(6);
+  auto pruned=community::Reconstruct(speech,hard,starts,16000.*3600);
+  assert(pruned.size()==turns.size());
+  assert(pruned[0].begin==turns[0].begin && pruned[0].end==turns[0].end);
+  // Missing intermediate jobs are acoustic gaps, never compressed time.
+  starts={0,16000.*20};
+  turns=community::Reconstruct(speech,hard,starts,0);
+  assert(turns.size()==2 && turns[0].end<10.1 && turns[1].begin>19.9);
+  bool rejected=false;
+  try { community::Reconstruct(speech,hard,{0},0); }
+  catch(const std::runtime_error&) { rejected=true; }
+  assert(rejected);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'timeline.cpp'
+            binary = Path(directory) / 'timeline'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
     def test_missing_enrollment_keeps_unknown_speech_and_overlap(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
@@ -252,12 +297,12 @@ int main() {
   assert(unknown.trainingIndices.empty());
   assert(unknown.centroids.empty());
   for(int label:unknown.hard)assert(label<0);
-  auto turns=community::Reconstruct(segments,unknown.hard,1);
+  auto turns=community::Reconstruct(segments,unknown.hard,{0},0);
   assert(turns.size()==2);
   for(const auto& turn:turns)assert(turn.speaker==-1);
   assert(turns[0].begin<turns[1].end && turns[1].begin<turns[0].end);
   auto silence=community::Cluster(std::vector<float>(589*3),unavailable,1,p,4);
-  assert(community::Reconstruct(std::vector<float>(589*3),silence.hard,1).empty());
+  assert(community::Reconstruct(std::vector<float>(589*3),silence.hard,{0},0).empty());
   // A later call with real enrollment evidence still names that voice.
   std::vector<float> speech(589*3),valid(768);
   for(int frame=100;frame<300;++frame)speech[frame*3+2]=1;
@@ -265,12 +310,12 @@ int main() {
   auto known=community::Cluster(speech,valid,1,p,4);
   assert(known.trainingIndices.size()==1 && known.trainingIndices[0]==2);
   assert(known.centroids.size()==1 && known.centroids[0][0]==1);
-  auto named=community::Reconstruct(speech,known.hard,1);
+  auto named=community::Reconstruct(speech,known.hard,{0},0);
   assert(named.size()==1 && named[0].speaker==0);
   // A single enrolled voice must not erase a simultaneous unenrolled voice.
   // The upstream reconstruction pads zero-score tracks to the observed count.
   for(int frame=150;frame<170;++frame)speech[frame*3+1]=1;
-  auto partial=community::Reconstruct(speech,{-2,-2,0},1);
+  auto partial=community::Reconstruct(speech,{-2,-2,0},{0},0);
   assert(partial.size()==2);
   int namedCount=0,unknownCount=0;
   for(const auto& turn:partial) {
@@ -278,14 +323,14 @@ int main() {
     else { ++unknownCount;assert(turn.speaker==-1 && turn.begin>named[0].begin && turn.end<named[0].end); }
   }
   assert(namedCount==1 && unknownCount==1);
-  auto capped=community::Reconstruct(speech,{-2,-2,0},1,1);
+  auto capped=community::Reconstruct(speech,{-2,-2,0},{0},0,1);
   assert(capped.size()==1 && capped[0].speaker==0);
   assert(capped[0].begin==named[0].begin && capped[0].end==named[0].end);
-  auto anonymousCapped=community::Reconstruct(segments,unknown.hard,1,1);
+  auto anonymousCapped=community::Reconstruct(segments,unknown.hard,{0},0,1);
   assert(anonymousCapped.size()==1 && anonymousCapped[0].speaker==-1);
   // Two named voices plus a third anonymous one retain all three tracks.
   for(int frame=155;frame<165;++frame)speech[frame*3]=1;
-  auto three=community::Reconstruct(speech,{-2,1,0},1);
+  auto three=community::Reconstruct(speech,{-2,1,0},{0},0);
   assert(three.size()==3);
   std::vector<int> speakers;
   for(const auto& turn:three)speakers.push_back(turn.speaker);
@@ -376,7 +421,7 @@ int main() {
     }
   }
   auto silence=community::Cluster(std::vector<float>(589*3),std::vector<float>(768),1,p,4);
-  assert(community::Reconstruct(std::vector<float>(589*3),silence.hard,1).empty());
+  assert(community::Reconstruct(std::vector<float>(589*3),silence.hard,{0},0).empty());
 }
 '''
         with tempfile.TemporaryDirectory() as directory:

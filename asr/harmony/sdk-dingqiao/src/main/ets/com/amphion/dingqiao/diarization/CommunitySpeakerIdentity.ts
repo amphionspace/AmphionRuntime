@@ -7,22 +7,54 @@ export interface CommunityIdentityAssignment {
 
 /** Preserve published IDs using shared acoustic windows, never reference labels. */
 export class CommunitySpeakerIdentity {
-  private committedIds: number[] = [];
-  private committedActivity: number[] = [];
+  private committedIds: Map<string, number> = new Map<string, number>();
+  private committedActivity: Map<string, number> = new Map<string, number>();
   private nextId: number = 0;
   private readonly maxSpeakers: number;
 
   constructor(maxSpeakers: number) { this.maxSpeakers = maxSpeakers; }
 
-  assign(hard: number[], clusterCount: number, activity: number[],
+  fork(): CommunitySpeakerIdentity {
+    const copy = new CommunitySpeakerIdentity(this.maxSpeakers);
+    copy.committedIds = new Map(this.committedIds);
+    copy.committedActivity = new Map(this.committedActivity);
+    copy.nextId = this.nextId;
+    return copy;
+  }
+
+  /** Keep one actual enrollment window per published identity across pruning. */
+  anchorWindowIds(): string[] {
+    const anchors: string[] = new Array<string>(this.nextId).fill('');
+    const weights: number[] = new Array<number>(this.nextId).fill(-1);
+    this.committedIds.forEach((id: number, key: string): void => {
+      const weight = this.committedActivity.get(key) ?? 0;
+      if (weight > weights[id]) {
+        weights[id] = weight;
+        anchors[id] = key.substring(0, key.lastIndexOf(':'));
+      }
+    });
+    return anchors.filter(id => id.length > 0);
+  }
+
+  retainWindows(windowIds: string[]): void {
+    const retained = new Set<string>(windowIds);
+    this.committedIds.forEach((_id: number, key: string): void => {
+      if (retained.has(key.substring(0, key.lastIndexOf(':')))) return;
+      this.committedIds.delete(key);
+      this.committedActivity.delete(key);
+    });
+  }
+
+  assign(windowIds: string[], hard: number[], clusterCount: number, activity: number[],
     publishedActivity: number[] = activity, visibleClusters?: boolean[]): CommunityIdentityAssignment {
     const before = this.nextId;
     const votes: number[][] = [];
     for (let cluster = 0; cluster < clusterCount; cluster++) votes.push(new Array<number>(before).fill(0));
-    for (let index = 0; index < Math.min(this.committedIds.length, hard.length); index++) {
-      const oldId = this.committedIds[index] ?? -1;
+    const keys = hard.map((_label, index) => `${windowIds[Math.floor(index / 3)]}:${index % 3}`);
+    for (let index = 0; index < hard.length; index++) {
+      const oldId = this.committedIds.get(keys[index]) ?? -1;
       if (oldId >= 0 && hard[index] >= 0) {
-        votes[hard[index]][oldId] += this.committedActivity[index];
+        votes[hard[index]][oldId] += this.committedActivity.get(keys[index]) ?? 0;
       }
     }
     let bestScore = -1;
@@ -51,10 +83,10 @@ export class CommunitySpeakerIdentity {
     // acoustic evidence that established an already published public identity.
     for (let index = 0; index < hard.length; index++) {
       const cluster = hard[index];
-      if ((this.committedIds[index] ?? -1) >= 0 || cluster < 0 || best[cluster] < 0 ||
+      if ((this.committedIds.get(keys[index]) ?? -1) >= 0 || cluster < 0 || best[cluster] < 0 ||
         publishedActivity[index] <= 0 || (visibleClusters !== undefined && !visibleClusters[cluster])) continue;
-      this.committedIds[index] = best[cluster];
-      this.committedActivity[index] = publishedActivity[index];
+      this.committedIds.set(keys[index], best[cluster]);
+      this.committedActivity.set(keys[index], publishedActivity[index]);
     }
     return { mapping: best, votes, before, after: this.nextId };
   }
