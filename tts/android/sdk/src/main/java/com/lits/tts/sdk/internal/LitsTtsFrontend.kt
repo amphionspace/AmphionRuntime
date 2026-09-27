@@ -206,7 +206,8 @@ internal object LitsTtsFrontend {
     private val leadingDotAsciiTokenRegex = Regex("(?<![A-Za-z0-9])\\.(?=[A-Za-z0-9])")
     private val urlSchemeSeparatorRegex = Regex("(?<![A-Za-z0-9])(https?|ftp)://", RegexOption.IGNORE_CASE)
     private val caretPowerTwoRegex = Regex("\\^(?:2|二)")
-    private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+    // A leading colon separates prose from the following word; URL-internal colons remain technical.
+    private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])((?!:)[A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
     private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
     private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
@@ -292,6 +293,9 @@ internal object LitsTtsFrontend {
     private val acronymWordReadings = setOf("SIM", "TIMEOUT", "UNDERSCORE")
     private val technicalEnglishPhoneOverrides = mapOf(
         "AUDIO" to listOf("AO1", "D", "IY0", "OW2"),
+        "CALLBACK" to listOf("K", "AO1", "L", "B", "AE2", "K"),
+        "EMOJI" to listOf("IH0", "M", "OW1", "JH", "IY0"),
+        "REQUESTID" to listOf("R", "IH0", "K", "W", "EH1", "S", "T", "AY1", "D", "IY1"),
         "UNDERSCORE" to listOf("AH2", "N", "D", "ER0", "S", "K", "AO1", "R"),
         "WIFI" to listOf("W", "AY1", "F", "AY1"),
         "WI-FI" to listOf("W", "AY1", "F", "AY1"),
@@ -385,7 +389,7 @@ internal object LitsTtsFrontend {
         val ids = tokenization.tokens.map { token ->
             resources.symbolToId[token] ?: throw unsupported("frontend token is not in zh_en_symbols.json: $token")
         }
-        val tokenIds = ids.map { it.toLong() }.toLongArray()
+        val tokenIds = FrontendTokenIds.withInitialSilence(ids, resources.symbolToId)
         val tokenToIdsMs = elapsedMs(tokenToIdsStartedAt)
         val profile = FrontendEncodeProfile(
             totalMs = elapsedMs(totalStartedAt),
@@ -619,7 +623,7 @@ internal object LitsTtsFrontend {
         wordsPerSegment: Int = 7,
         targetCharsPerSegment: Int = 50,
     ): List<String> {
-        val normalized = text.trim()
+        val normalized = TtsLineBreaks.normalize(text).trim()
         if (normalized.isEmpty()) return emptyList()
         val segmentTarget = targetCharsPerSegment.coerceAtLeast(1)
         val segments = mutableListOf<String>()
@@ -962,7 +966,8 @@ internal object LitsTtsFrontend {
                     val end = scanHanziChunk(normalized, index)
                     val hanziText = normalized.substring(index, end)
                     val pinyin = hanziChunkToPinyin(resources, hanziText)
-                    val sandhi = restoreOverridePinyin(resources, hanziText, applyMandarinToneSandhi(hanziText, pinyin))
+                    val sandhi = restoreOverridePinyin(resources, hanziText,
+                        applyMandarinToneSandhi(resources, hanziText, pinyin, normalized, index))
                     if (traceId > 0L) {
                         logDetail(
                             traceId,
@@ -1373,29 +1378,8 @@ internal object LitsTtsFrontend {
     private fun versionNumberToHanzi(text: String): String =
         text.split('.').joinToString("点", transform = ::digitSequenceToHanzi)
 
-    private fun integerTextToHanzi(text: String): String {
-        val value = text.toIntOrNull() ?: return text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
-        if (value == 0) return "零"
-        if (value < 10) return chineseDigitTextByChar.getValue(value.digitToChar())
-        if (value < 20) {
-            val ones = value % 10
-            return "十" + if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-        }
-        if (value < 100) {
-            val tens = value / 10
-            val ones = value % 10
-            return chineseDigitTextByChar.getValue(tens.digitToChar()) + "十" +
-                if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-        }
-        val hundreds = value / 100
-        val remainder = value % 100
-        return chineseDigitTextByChar.getValue(hundreds.digitToChar()) + "百" +
-            when {
-                remainder == 0 -> ""
-                remainder < 10 -> "零" + chineseDigitTextByChar.getValue(remainder.digitToChar())
-                else -> integerTextToHanzi(remainder.toString())
-            }
-    }
+    private fun integerTextToHanzi(text: String): String =
+        MandarinCardinal.read(text) ?: digitSequenceToHanzi(text)
 
     private fun flushSegment(segments: MutableList<String>, current: StringBuilder) {
         current.trimTrailingSpace()
@@ -1493,12 +1477,14 @@ internal object LitsTtsFrontend {
         .map { it.replace('\u7709', 'v').replace('\u813A', 'v') }
         .filter { pinyinSyllableRegex.matches(it) }
 
-    private fun applyMandarinToneSandhi(text: String, tokens: List<String>): List<String> {
+    private fun applyMandarinToneSandhi(
+        resources: FrontendResources, text: String, tokens: List<String>, context: String, offset: Int,
+    ): List<String> {
         val output = applyThirdToneSandhi(tokens).toMutableList()
         if (text.length != output.size) return output
         if (text.length > 1 && text.all { it in CHINESE_DIGIT_SEQUENCE_CHARS }) return output
         applyBuSandhi(text, output)
-        applyYiSandhi(text, output)
+        applyYiSandhi(resources, text, output, context, offset)
         applyErSandhi(text, output)
         return output
     }
@@ -1542,13 +1528,25 @@ internal object LitsTtsFrontend {
         }
     }
 
-    private fun applyYiSandhi(text: String, tokens: MutableList<String>) {
+    private fun applyYiSandhi(
+        resources: FrontendResources, text: String, tokens: MutableList<String>, context: String, offset: Int,
+    ) {
         if (text.length == 3 && text[1] == '一' && text[0] == text[2]) {
             tokens[1] = changePinyinTone(tokens[1], '5')
             return
         }
         text.forEachIndexed { index, char ->
-            if (char != '一' || index + 1 >= text.length || text.getOrNull(index - 1) == '第') return@forEachIndexed
+            if (char != '一') return@forEachIndexed
+            // TN may preserve spaces around numbers (第 100 轮). Keep the ordinal
+            // context across those token boundaries and across the whole numeral.
+            var beforeNumber = offset + index - 1
+            while (beforeNumber >= 0 && (context[beforeNumber].isWhitespace() ||
+                    context[beforeNumber] in CHINESE_NUMBER_CONTEXT_CHARS)) beforeNumber--
+            if (context.getOrNull(beforeNumber) == '第') {
+                tokens[index] = changePinyinTone(tokens[index], '1')
+                return@forEachIndexed
+            }
+            if (index + 1 >= text.length) return@forEachIndexed
             val current = tokens.getOrNull(index)
             val next = tokens.getOrNull(index + 1)
             if (current == null || next == null || !pinyinSyllableRegex.matches(current) || !pinyinSyllableRegex.matches(next)) {
@@ -1560,8 +1558,17 @@ internal object LitsTtsFrontend {
             // (1+2), or a trailing units digit (八十一号).
             val nx = text[index + 1]
             val prev = text.getOrNull(index - 1)
-            val sandhi = if (next.last() == '4') '2' else '4'
+            // Neutralization (一下/一个) does not erase the following syllable's
+            // citation tone for 一 sandhi.
+            val nextTone = if (next.last() == '5') {
+                lexiconPinyinForWord(resources, nx.toString()).singleOrNull()?.lastOrNull() ?: next.last()
+            } else next.last()
+            val sandhi = if (nextTone == '4') '2' else '4'
             val tone = when {
+                // Only an entire remaining digit run is unambiguous here. A following
+                // noun such as 三文鱼 or 五花肉 must not be treated as a decimal.
+                nx == '点' && index + 2 < text.length &&
+                    text.substring(index + 2).all { it in CHINESE_DIGIT_ONLY_CHARS } -> '1'
                 nx in CHINESE_MULTIPLIER_CHARS -> sandhi              // 一百/一十/一千/一万
                 nx == '月' || nx == '日' || nx == '号' -> '1'          // date label
                 nx in CHINESE_DIGIT_ONLY_CHARS -> '1'                 // digit sequence 一二三
@@ -1949,12 +1956,7 @@ internal object LitsTtsFrontend {
     private fun mergeEnglishLexicon(
         cmudict: Map<String, List<String>>,
         supplement: Map<String, List<String>>,
-    ): Map<String, List<String>> = buildMap(cmudict.size + supplement.size) {
-        putAll(cmudict)
-        supplement.forEach { (word, phones) ->
-            putIfAbsent(word, phones)
-        }
-    }
+    ): Map<String, List<String>> = OverlayLexicon(cmudict, supplement)
 
     private fun loadSupplementLexicon(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> {
         if (!layout.supplementLexicon.isFile) return emptyMap()
@@ -1986,15 +1988,20 @@ internal object LitsTtsFrontend {
         } else {
             loadWordPinyinText(layout)
         }
-        return buildMap {
-            putAll(base)
-            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
-            mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
-        }
+        return OverlayLexicon(loadWordPinyinOverrides(layout), base)
     }
 
     private fun loadWordPinyinOverrides(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
         buildMap {
+            // Context-specific defaults; a model's explicit phrase override wins.
+            // 调到 alone remains ambiguous (e.g. 调到北京 uses diao4).
+            put("音量调到", "yin1 liang4 tiao2 dao4")
+            // Keep defaults within complete technical phrases, not ambiguous
+            // substrings spanning 一串/行号 or 一只/终止鸣叫的蝉.
+            put("串行完成", "chuan4 xing2 wan2 cheng2")
+            put("串行执行", "chuan4 xing2 zhi2 xing2")
+            put("串行处理", "chuan4 xing2 chu2 li3")
+            put("请求只终止", "qing3 qiu2 zhi3 zhong1 zhi3")
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.POLYPHONE_PHRASES)
             mergeWordPinyinText(rootDir = layout.rootDir, relativePath = LitsTtsAssetRegistry.CHINESE_SURNAME_LEXICON)
         }
@@ -2013,14 +2020,7 @@ internal object LitsTtsFrontend {
     }
 
     private fun loadWordPinyinText(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, String> =
-        buildMap {
-            layout.chineseLexicon.forEachLine(Charsets.UTF_8) { line ->
-                val parts = line.trim().split('\t')
-                if (parts.size == 2) {
-                    put(parts[0], parts[1])
-                }
-            }
-        }
+        CompactLexicon.pinyin(layout.chineseLexicon)
 
     private fun loadCmudict(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
         if (layout.cmudictBin.isFile) {
@@ -2034,20 +2034,7 @@ internal object LitsTtsFrontend {
         }
 
     private fun loadCmudictText(layout: LitsTtsAssetInstaller.InstalledLayout): Map<String, List<String>> =
-        buildMap {
-            layout.cmudict.forEachLine(Charsets.UTF_8) { line ->
-                val trimmed = line.trim()
-                if (trimmed.isEmpty()) return@forEachLine
-                val parts = trimmed.split('\t', limit = 2)
-                if (parts.size != 2) return@forEachLine
-                val key = parts[0].substringBefore('(').uppercase()
-                if (containsKey(key)) return@forEachLine
-                val phones = parts[1].trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-                if (phones.isNotEmpty()) {
-                    put(key, phones)
-                }
-            }
-        }
+        CompactLexicon.english(layout.cmudict)
 
     private fun cachedWordPinyinBin(file: File): Map<String, String> =
         wordPinyinBinByPath.getOrPut(file.absolutePath) { loadWordPinyinBin(file) }

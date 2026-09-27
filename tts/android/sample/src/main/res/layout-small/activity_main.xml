@@ -1,0 +1,58 @@
+<?xml version='1.0' encoding='utf-8'?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/brand_cream" android:fitsSystemWindows="true" android:orientation="vertical" android:focusableInTouchMode="true">
+    <androidx.appcompat.widget.Toolbar android:id="@+id/toolbar" android:layout_width="match_parent" android:layout_height="0dp" android:background="@color/brand_cream" android:visibility="gone" />
+    <TextView
+        android:id="@+id/text_memory"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingStart="8dp"
+        android:paddingEnd="8dp"
+        android:text="@string/memory_pending"
+        android:textColor="@color/brand_text_secondary"
+        android:textSize="11sp" />
+    <ScrollView android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:fillViewport="true" android:id="@+id/scroll_content">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/screen_padding">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/sample_title" android:textAppearance="@style/TextAppearance.Lits.BrandTitle" android:textSize="16sp" />
+            <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:lineSpacingExtra="4dp" android:text="@string/sample_subtitle" android:textAppearance="@style/TextAppearance.Lits.Status" android:visibility="gone" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/bg_card" android:orientation="vertical" android:padding="@dimen/card_padding">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_input" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <EditText android:id="@+id/edit_input" android:layout_width="match_parent" android:layout_height="88dp" android:layout_marginTop="6dp" android:backgroundTint="@color/brand_outline" android:gravity="top|start" android:hint="@string/hint_input" android:inputType="textMultiLine" android:minLines="2" android:textAppearance="@style/TextAppearance.Lits.Body" android:textSize="14sp" android:scrollbars="vertical" android:overScrollMode="ifContentScrolls" android:textColorHint="@color/brand_text_muted" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/label_mode" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <RadioGroup android:id="@+id/group_mode" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+                    <RadioButton android:id="@+id/radio_mode_mixed" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/mode_mixed" android:textSize="14sp" android:textColor="@color/brand_text_primary" />
+                    <RadioButton android:id="@+id/radio_mode_en" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/mode_en" android:textSize="14sp" android:textColor="@color/brand_text_primary" />
+                </RadioGroup>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" android:text="@string/mode_desc" android:textColor="@color/brand_text_muted" android:textSize="12sp" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/label_chunk_size" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <EditText android:id="@+id/edit_chunk_size" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:backgroundTint="@color/brand_outline" android:hint="@string/hint_chunk_size" android:inputType="number" android:maxLines="1" android:textAppearance="@style/TextAppearance.Lits.Body" android:minHeight="48dp" android:textColorHint="@color/brand_text_muted" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/label_pcm_queue_capacity" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <EditText android:id="@+id/edit_pcm_queue_capacity" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:backgroundTint="@color/brand_outline" android:hint="@string/hint_pcm_queue_capacity" android:inputType="number" android:maxLines="1" android:text="32" android:textAppearance="@style/TextAppearance.Lits.Body" android:minHeight="48dp" android:textColorHint="@color/brand_text_muted" />
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:text="@string/label_speed" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <EditText android:id="@+id/edit_speed" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:backgroundTint="@color/brand_outline" android:hint="@string/hint_speed" android:inputType="numberDecimal" android:maxLines="1" android:text="1.0" android:textAppearance="@style/TextAppearance.Lits.Body" android:minHeight="48dp" android:textColorHint="@color/brand_text_muted" />
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+                    <Button android:id="@+id/button_play" android:layout_width="0dp" android:layout_height="@dimen/segment_height" android:layout_weight="1" android:text="@string/button_play" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+                    <Button android:id="@+id/button_save" android:layout_width="0dp" android:layout_height="@dimen/segment_height" android:layout_marginStart="6dp" android:layout_weight="1" android:text="@string/button_save" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:orientation="horizontal">
+                    <Button android:id="@+id/button_warmup" android:layout_width="0dp" android:layout_height="@dimen/segment_height" android:layout_weight="1" android:text="@string/button_warmup" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" />
+                </LinearLayout>
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:lineSpacingExtra="3dp" android:text="@string/action_desc" android:textColor="@color/brand_text_muted" android:textSize="12sp" />
+                <ProgressBar android:id="@+id/progress_busy" style="?android:attr/progressBarStyleHorizontal" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:indeterminate="true" android:visibility="gone" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@drawable/bg_card" android:orientation="vertical" android:padding="@dimen/card_padding">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_result" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <TextView android:id="@+id/text_metrics" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@color/brand_surface_alt" android:fontFamily="monospace" android:padding="12dp" android:text="@string/metrics_placeholder" android:textColor="@color/brand_text_secondary" android:textSize="12sp" />
+            </LinearLayout>
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:layout_marginBottom="6dp" android:background="@drawable/bg_card" android:orientation="vertical" android:padding="@dimen/card_padding">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/label_log" android:textAppearance="@style/TextAppearance.Lits.CardLabel" />
+                <TextView android:id="@+id/text_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:background="@color/brand_surface_alt" android:fontFamily="monospace" android:minHeight="80dp" android:padding="12dp" android:text="@string/log_placeholder" android:textColor="@color/brand_text_secondary" android:textIsSelectable="true" android:textSize="12sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </ScrollView>
+    <TextView android:id="@+id/text_status" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="0dp" android:lineSpacingExtra="3dp" android:text="@string/status_ready" android:textAppearance="@style/TextAppearance.Lits.Status" android:textSize="12sp" android:maxLines="2" android:ellipsize="end" android:paddingStart="8dp" android:paddingEnd="8dp" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:padding="4dp" android:background="@color/brand_cream">
+        <Button android:id="@+id/button_synthesize" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:background="@drawable/bg_button_primary" android:stateListAnimator="@null" android:text="@string/compact_button_synthesize" android:textColor="@color/brand_on_accent" android:textStyle="bold" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" android:layout_marginStart="2dp" android:layout_marginEnd="2dp" />
+        <Button android:id="@+id/button_sdk_playback" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="2dp" android:layout_weight="1" android:text="@string/compact_button_sdk_playback" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" android:layout_marginEnd="2dp" />
+        <Button android:id="@+id/button_stop" android:layout_width="0dp" android:layout_height="48dp" android:layout_marginStart="2dp" android:layout_weight="1" android:text="@string/compact_button_stop" android:textSize="13sp" android:minWidth="0dp" android:paddingStart="2dp" android:paddingEnd="2dp" android:layout_marginEnd="2dp" />
+    </LinearLayout>
+</LinearLayout>

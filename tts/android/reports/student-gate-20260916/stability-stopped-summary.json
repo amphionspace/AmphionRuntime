@@ -1,0 +1,11 @@
+{
+  "runId": "student-stability-1789424250056",
+  "status": "STOPPED_BY_USER",
+  "plannedCases": 1000,
+  "recordedCases": 208,
+  "pass": 208,
+  "fail": 0,
+  "completedFull1000": false,
+  "note": "User requested stopping the run. Test host was force-stopped; in-flight scenario and final cleanup were not assessed. This is partial evidence, not a full stability pass.",
+  "build": "terminal-state repair, before ordinal-context fix"
+}

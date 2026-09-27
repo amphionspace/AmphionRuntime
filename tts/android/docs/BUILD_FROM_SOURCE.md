@@ -6,7 +6,7 @@
 tts/android/sdk/build/outputs/aar/sdk-release.aar
 ```
 
-当前 Android AAR 只包含 SDK 代码、`liblits_tn.so`、ONNX Runtime JNI 库和播放实现；ONNX 模型、前端资源和 TN 可执行文件会被整理到 `external-resources/`，不再打进 AAR。
+当前 Android AAR 包含 SDK 代码、`liblits_tn.so`、ONNX Runtime JNI 库、播放实现，以及模型和前端资源。Gradle 从模型目录生成 `build/generated/tts-assets/` 后打入 AAR，APK 自动继承资源；不需要单独 TN 可执行文件。
 
 ## 1. 获取源码
 
@@ -89,12 +89,12 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 OBS 模型包已经包含校验过的前端 `.bin`。Gradle 会以只读方式同步这些资源，并把运行时需要的外部资源整理到：
 
 ```text
-tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
+tts/android/build/generated/tts-assets/lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 该目录可随时由 `tts/tools/trial-export/...` 重建，已被 Git 忽略，不应作为源资产编辑或提交。
 
-宿主集成时需要把这个 `external-resources/tts/...` 目录复制到 SDK 工作目录，使运行时能看到 `<workPath>/tts/...`。Android 当前使用 AAR 内的 native TN/JNI，外部资源目录不需要携带 `tn-bin/arm64-v8a/zh_tts` 或 `tn-bin/arm64-v8a/en_tts`。
+宿主集成时无需手动复制资源，SDK 首次创建引擎时自动解包到 `<workPath>/tts/...`。Android 当前使用 AAR 内的 native TN/JNI，外部资源目录不需要携带 `tn-bin/arm64-v8a/zh_tts` 或 `tn-bin/arm64-v8a/en_tts`。
 
 ## 4. 构建 Android ICU 和 native TN
 
@@ -135,13 +135,13 @@ ANDROID_SDK_ROOT=/path/to/android-sdk \
 
 ```bash
 ls -lh sdk/build/outputs/aar/sdk-release.aar
-find external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 -maxdepth 3 -type f
+find build/generated/tts-assets/lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0 -maxdepth 3 -type f
 ```
 
 ## 6. 期望产物
 
 - AAR：`tts/android/sdk/build/outputs/aar/sdk-release.aar`
-- 外部资源：`tts/android/external-resources/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/`
+- AAR 内置资源的构建暂存目录：`tts/android/build/generated/tts-assets/lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/`
 
 AAR 应包含：
 
@@ -161,5 +161,5 @@ AAR 不应包含：
 - TN 源码目录为空：确认已检出包含 TN 源码迁入的版本；该目录由本仓库直接跟踪。
 - 找不到 Android SDK：设置 `ANDROID_HOME` / `ANDROID_SDK_ROOT`，或写 `tts/android/local.properties`。
 - 找不到 ICU 头文件或静态库：先运行 `tts/tools/tn/build_dingqiao_android_native.sh`，或确认 `tts/training/dingqiao_lits/build/android-icu/` 已存在。
-- 运行时报缺少外部资源：把 `tts/android/external-resources/tts/...` 复制到宿主 SDK 工作目录下的 `tts/...`。
+- 运行时报缺少资源：检查 AAR/APK 中 `assets/lits-models/tts/` 是否完整，确认模型构建目录及 manifest。已有外置模型仍优先使用。
 - 不要提交 `external-resources/`、`build/`、签名文件、license 包或本地 `local.properties`。

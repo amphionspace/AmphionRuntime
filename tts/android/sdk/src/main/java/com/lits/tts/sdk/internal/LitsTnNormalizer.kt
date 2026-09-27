@@ -83,7 +83,7 @@ internal object LitsTnNormalizer {
         fun normalize(text: String, language: String, languageContext: String): String {
             val totalStartedAt = System.nanoTime()
             val cleanStartedAt = System.nanoTime()
-            val cleaned = Normalizer.normalize(expandSuperscriptUnits(text), Normalizer.Form.NFKC)
+            val cleaned = Normalizer.normalize(expandSuperscriptUnits(TtsLineBreaks.normalize(text)), Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()
@@ -159,8 +159,9 @@ internal object LitsTnNormalizer {
             val segmentStartedAt = System.nanoTime()
             // Match the Python one-shot TN path: choose one locale for the
             // complete utterance, then send the complete utterance through TN.
-            // For zh-en, Chinese script selects zh_tts; otherwise en_tts.
-            val tnLang = if (isEnglishContext || input.none(::isHanziForTn)) "en" else "zh"
+            // Mixed mode uses Chinese for Hanzi and numeric-only utterances;
+            // explicit English and ASCII words retain the English route.
+            val tnLang = TnLanguageSelector.select(input, isEnglishContext)
             val segments = listOf(input to tnLang)
             val segmentMs = elapsedMs(segmentStartedAt)
             val joinStartedAt = System.nanoTime()
@@ -210,8 +211,10 @@ internal object LitsTnNormalizer {
 
         private fun expandTime(text: String): String =
             timeColonRegex.replace(text) { m ->
+                val minutes = m.groupValues[2]
                 val sb = StringBuilder(integerTextToHanzi(m.groupValues[1])).append("点")
-                    .append(integerTextToHanzi(m.groupValues[2])).append("分")
+                if (minutes.startsWith('0') && minutes != "00") sb.append("零")
+                sb.append(integerTextToHanzi(minutes)).append("分")
                 if (m.groupValues[3].isNotEmpty()) sb.append(integerTextToHanzi(m.groupValues[3])).append("秒")
                 sb.toString()
             }
@@ -223,13 +226,14 @@ internal object LitsTnNormalizer {
         }
 
         private fun prepareInputForTn(text: String): String {
-            var output = LitsTtsFrontend.normalizeNegativeTemperatures(text)
+            var output = LitsTtsFrontend.normalizeNegativeTemperatures(protectMainlandNumbers(text))
             output = expandEra(output)
             output = expandTime(output)
             output = expandDates(output)
             output = dateHaoToRiRegex.replace(output) { it.groupValues[1] + "日" }
             output = hanziClockMinuteLeadingZeroRegex.replace(output) { match ->
-                "${match.groupValues[1]}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
+                val hour = match.groupValues[1].let { if (it.all(Char::isDigit)) integerTextToHanzi(it) else it }
+                "${hour}点零${chineseDigitTextByChar.getValue(match.groupValues[2].single())}分"
             }
             output = frontendRules.apply("pre_tn", output)
             output = protectSemanticNumericReadings(output)
@@ -286,7 +290,9 @@ internal object LitsTnNormalizer {
                     normalizeTechnicalAsciiTokenForTn(token)
                 }
             }
-            return output
+            // Native Chinese unit rules contain a suffix rule for "cm ". Keep
+            // the PCM codec abbreviation separate so audio.pcm is not p厘米.
+            return pcmAbbreviationRegex.replace(output, " P C M ")
         }
 
         private fun normalizeTechnicalAsciiTokenForTn(token: String): String {
@@ -332,6 +338,21 @@ internal object LitsTnNormalizer {
             return output.toString().replace(Regex("\\s+"), " ")
         }
 
+        // Require a Chinese field label: long integers alone are ambiguous (money, IDs, etc.).
+        // Run before date/cardinal TN; otherwise the original digit sequence is lost.
+        private fun protectMainlandNumbers(text: String): String {
+            var output = mainlandMobileRegex.replace(text) { match ->
+                val number = match.groupValues[2].filter { it in '0'..'9' }
+                match.groupValues[1] + digitSequenceToHanzi(number).replace('一', '幺')
+            }
+            output = mainlandIdentityRegex.replace(output) { match ->
+                val number = match.groupValues[2]
+                match.groupValues[1] + digitSequenceToHanzi(number.filter { it in '0'..'9' }) +
+                    if (number.endsWith("x", ignoreCase = true)) " X" else ""
+            }
+            return output
+        }
+
         private fun protectSemanticNumericReadings(text: String): String {
             var output = percentNumberRegex.replace(text) { match ->
                 "百分之${numberTextToHanzi(match.groupValues[1])}"
@@ -362,8 +383,11 @@ internal object LitsTnNormalizer {
             output = idTailRegex.replace(output) { match ->
                 match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + match.groupValues[3] + ","
             }
-            output = pathSlashNumberRegex.replace(output) { match ->
-                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2]) + ","
+            // Keep paths intact for protectTechnicalAsciiReadings, which expands
+            // both digits and separators together. Converting /18/ here splits
+            // that protected token and lets native TN turn a remaining / into 或.
+            output = buildIdentifierRegex.replace(output) { match ->
+                match.groupValues[1] + digitSequenceToHanzi(match.groupValues[2])
             }
             output = kmPerHourRegex.replace(output) { match ->
                 numberTextToHanzi(match.groupValues[1]) + "千米每小时"
@@ -453,63 +477,10 @@ internal object LitsTnNormalizer {
             return integer + "点" + parts[1].map { chineseDigitTextByChar.getValue(it) }.joinToString("")
         }
 
-        // Big-number cardinal: standard 万/亿 segmentation with correct 零 handling.
-        private fun bigCardinalToHanzi(text: String): String? {
-            val v = text.toLongOrNull() ?: return null
-            if (v == 0L) return "零"
-            val big = listOf("", "万", "亿", "万亿", "亿亿")
-            val segs = mutableListOf<Int>(); var x = v
-            while (x > 0) { segs.add((x % 10000).toInt()); x /= 10000 }
-            if (segs.size > big.size) return null
-            val sb = StringBuilder()
-            for (i in segs.indices.reversed()) {
-                val seg = segs[i]
-                if (seg == 0) continue
-                if (sb.isNotEmpty() && seg < 1000) sb.append("零")
-                sb.append(fourDigitCardinal(seg)).append(big[i])
-            }
-            return sb.toString()
-        }
+        private fun bigCardinalToHanzi(text: String): String? = MandarinCardinal.read(text)
 
-        private fun fourDigitCardinal(n: Int): String {
-            val sb = StringBuilder(); var zero = false; var started = false
-            val units = listOf("", "十", "百", "千")
-            for (pos in 3 downTo 0) {
-                var div = 1; repeat(pos) { div *= 10 }
-                val d = (n / div) % 10
-                if (d == 0) { if (started) zero = true } else {
-                    if (zero) { sb.append("零"); zero = false }
-                    if (pos == 1 && d == 1 && !started) sb.append("十")  // 10-19 read 十X not 一十X
-                    else sb.append(chineseDigitTextByChar.getValue(d.digitToChar())).append(units[pos])
-                    started = true
-                }
-            }
-            return sb.toString()
-        }
-
-        private fun integerTextToHanzi(text: String): String {
-            val value = text.toIntOrNull() ?: return digitSequenceToHanzi(text)
-            if (value == 0) return "零"
-            if (value < 10) return chineseDigitTextByChar.getValue(value.digitToChar())
-            if (value < 20) {
-                val ones = value % 10
-                return "十" + if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-            }
-            if (value < 100) {
-                val tens = value / 10
-                val ones = value % 10
-                return chineseDigitTextByChar.getValue(tens.digitToChar()) + "十" +
-                    if (ones == 0) "" else chineseDigitTextByChar.getValue(ones.digitToChar())
-            }
-            val hundreds = value / 100
-            val remainder = value % 100
-            return chineseDigitTextByChar.getValue(hundreds.digitToChar()) + "百" +
-                when {
-                    remainder == 0 -> ""
-                    remainder < 10 -> "零" + chineseDigitTextByChar.getValue(remainder.digitToChar())
-                    else -> integerTextToHanzi(remainder.toString())
-                }
-        }
+        private fun integerTextToHanzi(text: String): String =
+            bigCardinalToHanzi(text) ?: digitSequenceToHanzi(text)
 
         private fun digitSequenceToHanzi(text: String): String =
             text.map { chineseDigitTextByChar.getValue(it) }.joinToString("")
@@ -653,7 +624,7 @@ internal object LitsTnNormalizer {
         companion object {
             private const val PLATE_PROVINCES = "京津沪渝冀豫云辽黑湘皖鲁新苏浙赣鄂桂甘晋蒙陕吉闽贵粤青藏川宁琼"
             private val PERCENTILE_CODE = Regex("P\\d{1,3}")
-            private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+)点0([1-9])分")
+            private val hanziClockMinuteLeadingZeroRegex = Regex("([零一二三四五六七八九十两]+|\\d{1,2})\\s*点\\s*0([1-9])\\s*分")
             private val percentNumberRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?[%％]")
             private val percentNumberTextRegex = Regex("(\\d+(?:\\.\\d+)?)\\s?百分号")
             private val clockColonMinuteLeadingZeroRegex = Regex("(?<!\\d)(\\d{1,2}):0([0-9])(?!\\d)")
@@ -666,17 +637,31 @@ internal object LitsTnNormalizer {
             private val yearBeforeNianTwoRegex = Regex("(?<!\\d)(0\\d)年")  // 05年->零五年 (leading-zero only)
             // leading minus before a number / percent -> 负 (not a range like 1-2)
             private val negBeforeNumberRegex = Regex("(?<![0-9A-Za-z\\u4e00-\\u9fff])[-\\u2212](?=\\d|百分之)")
+            // Boundaries reject longer codes, decimal amounts and partial grouped numbers.
+            private const val numberFieldEnd = "(?![A-Za-z0-9]|[ .-][0-9])(?=$|[\\s,，。;；!?！？、)])"
+            private val mainlandMobileRegex = Regex(
+                "((?:手机号码?|联系电话|电话号码?|电话)\\s*(?:为|是)?\\s*[:：]?\\s*)" +
+                    "(1[3-9][0-9]{9}|1[3-9][0-9] [0-9]{4} [0-9]{4}|1[3-9][0-9]-[0-9]{4}-[0-9]{4})" + numberFieldEnd,
+            )
+            private val mainlandIdentityRegex = Regex(
+                "((?:身份证(?:号码?|件号码?)?)\\s*(?:为|是)?\\s*[:：]?\\s*)" +
+                    "([0-9]{17}[0-9Xx]|[0-9]{6} [0-9]{8} [0-9]{3}[0-9Xx]|" +
+                    "[0-9]{6}-[0-9]{8}-[0-9]{3}[0-9Xx]|[0-9]{15})" + numberFieldEnd,
+            )
             // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail)
             private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])(\\d{7,15})(?![0-9])")
             private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
-            private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])([A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+            // A leading colon separates prose from the following word; URL-internal colons remain technical.
+            private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])((?!:)[A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
+            private val pcmAbbreviationRegex = Regex("(?<![A-Za-z])pcm(?![A-Za-z])", RegexOption.IGNORE_CASE)
             private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
             private val chemicalFormulaRegex = Regex("\\b(H|CO)(\\d+)(O?)\\b")
             private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
             private val stockCodeRegex = Regex("(股票\\s*(?:代码\\s*)?)(\\d{6})(?!\\d)")
             private val plateCodeRegex = Regex("((?:车牌号?|号牌)\\s*[\\u4e00-\\u9fff]?\\s*[A-Za-z])(\\d{3,6})(?!\\d)")
             private val idTailRegex = Regex("((?:身份证尾号|尾号)\\s*)(\\d+)([A-Za-z])(?![A-Za-z0-9])")
-            private val pathSlashNumberRegex = Regex("(/)(\\d+)(?=/)")
+            // Bare "build 12" may be an English verb, not a build identifier.
+            private val buildIdentifierRegex = Regex("(?<![A-Za-z0-9])(版本\\s*[^\\s,，。;；!?！？]+\\s*(?:与|和)\\s+build\\s+)(\\d+)(?![A-Za-z0-9]|\\.\\d)", RegexOption.IGNORE_CASE)
             private val kmPerHourRegex = Regex("(\\d+)\\s*km/h", RegexOption.IGNORE_CASE)
             private val dateYmdSepRegex =
                 Regex("(?<![0-9A-Za-z])(\\d{4})[-/.·](\\d{1,2})[-/.·](\\d{1,2})(?![0-9])")
@@ -700,7 +685,7 @@ internal object LitsTnNormalizer {
             private val coordinateRegex = Regex("(?<![A-Za-z])([NE])\\s*(\\d+(?:\\.\\d+)?)", RegexOption.IGNORE_CASE)
             private val vinCodeRegex = Regex("((?:车架号\\s*)?(?:VIN\\s+))([A-HJ-NPR-Z0-9]{8,17})(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
             private val productCodeRegex = Regex("(?<![A-Za-z0-9])(vocos|Office)(\\d+)(k?)(?![A-Za-z0-9])", RegexOption.IGNORE_CASE)
-            private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
+            private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN|(?:订单\\s*)?ID(?:\\s*(?:是|为))?)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
             private val englishAtNumberFifteenRegex = Regex("\\b(at\\s+)(\\d{2})(\\s+fifteen\\b)", RegexOption.IGNORE_CASE)
             private val englishLeadingZeroNumberRegex = Regex("\\b0\\d+\\b")
             private val englishVerificationCodeTailRegex = Regex(

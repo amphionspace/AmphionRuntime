@@ -27,10 +27,10 @@ tts/android/testdata/dingqiao_batch_cases/
 tts/android/aarHost/build/generated/androidTestAssets/
 ```
 
-发音正确性样例同步到了：
+原始 Round15 发音样例由 Gradle 同步到：
 
 ```text
-tts/android/sdk/src/androidTest/assets/
+tts/android/sdk/build/generated/androidTestAssets/
 ```
 
 ## 2. 批测代码
@@ -137,6 +137,10 @@ adb shell run-as com.lits.tts.aarhost cat 'files/aar-frontend-<timestamp>.json'
 ## 4. 运行稳定性批测
 
 `AarStability1000DeviceTest` 和 `AarRtfAuditDeviceTest` 已统一接入正常授权与外置资源初始化。先完成上一节的宿主安装、资源和 license 部署；必须显式传入 `workPath` 与 `licensePath`。两个入口均不创建或清空资源目录，旧参数 `preserveWorkPath` 不再参与控制，传入与否都保留调用方资源。未授权或缺少参数会在执行批测前失败，不通过开发态放行。
+
+如果产品通过 `TtsDeviceIdProvider` 提供设备 SN，批测也必须使用同一设备标识。向 `AarStability1000DeviceTest` / `AarRtfAuditDeviceTest` 传入可选参数 `-e deviceIdPath <宿主可读的 SN 文本文件>`；未传入时继续使用 SDK 默认设备标识来源。此参数不绕过签名、设备绑定或授权状态检查，不要将授权文件、SN 或私钥提交到仓库。
+
+`TtsEngineeringBatchTest` 同样要求显式 `workPath`、`licensePath`，支持上述 `deviceIdPath`；资源需部署到 SDK instrumentation 包可读的位置。该入口不会再使用隐式 cache 目录，也不会修改旧用例的参数或预期。
 
 `workPath` 必须是已存在且可读的目录，`licensePath` 必须是已存在且可读的文件；这些检查和 UTF-8 授权文件读取均在启动测试页面之前完成。目录内部的模型清单仍由 SDK 校验，不在批测入口重复实现模型校验。
 
@@ -288,3 +292,40 @@ python3 tts/tools/android/generate_edge_text_200_cases.py
 - `tts/android/build/reports/`、设备拉回结果、APK/AAR、`external-resources/` 都属于本地输出，不应提交。
 - 1000 条完整批测耗时较长，建议先用 `caseLimit=1` 确认设备、模型和 license 链路正常，再按风险扩展。
 - 内存类样例的 native heap delta 是即时采样指标，失败时需要结合复跑、GC/settling 和系统日志判断，不应单独作为泄漏结论。
+
+
+## 9. 当前学生模型验收
+
+旧语料及旧预期保留用于兼容性审计；不要把旧版本的通过记录当成当前学生模型的门禁。
+
+### 工程批测学生配置
+
+向 `com.lits.tts.sdk.internal.TtsEngineeringBatchTest` 传入 `-e modelProfile intmeanflow-student`，并提供前述 `workPath`、`licensePath`、可选 `deviceIdPath`。该配置对原有 17 个小于 40 帧的成功用例分别执行：
+
+1. 原始非法参数应返回 `RUNTIME_EXCEPTION`。
+2. 相同文本及其余参数使用合法的 40 帧配置，应正常合成。
+
+因此本配置共 252 条；默认 `legacy` 仍运行原始 235 条，未知配置直接拒绝。这里改变的是显式版本化的测试输入及对应契约，SDK 不会偷偷把调用方的非法块大小改成合法值。
+
+### Release AAR 学生模型长稳
+
+新入口 `com.lits.tts.aarhost.AarStudentStabilityDeviceTest` 使用 `student-public-api-v1` 配置，默认执行 1000 个场景，每类 100 个：中文、英文、中英混合、长文本、排队、回调内抢占、停止活动与排队请求后恢复、回调内 shutdown 后重建恢复、内部播放、非法参数后恢复。
+
+各场景实际执行对应调用序列，逐 requestId 检查 PCM 格式/块序号、终止回调唯一性、停止后无完成回调、排队顺序及恢复能力。覆盖均匀块大小 40/50/64/75/100/150/200、PCM 队列容量 1/32、语速 0.8/1/1.2、音量 0.5/1。一个场景可能发起多个请求；报告同时记录场景数与请求数，不把错误拒绝计作成功合成。
+
+先用 `-e caseLimit 30` 检查所有场景及三种非法输入，再去掉此参数运行完整测试：
+
+```bash
+adb shell am instrument -w -r \
+  -e class com.lits.tts.aarhost.AarStudentStabilityDeviceTest \
+  -e workPath /data/user/0/com.lits.tts.aarhost/files/tts-contract \
+  -e licensePath /data/user/0/com.lits.tts.aarhost/files/tts.lic \
+  -e deviceIdPath /data/user/0/com.lits.tts.aarhost/files/device-sn.txt \
+  com.lits.tts.aarhost.test/androidx.test.runner.AndroidJUnitRunner
+```
+
+结果使用独立的 `student-stability-<timestamp>` 目录，包含逐场景结果、最终逐请求回调、每秒 RSS/native heap/Java heap/线程/FD 采样和汇总。遇到首个失败停止并保留现场；只有 `completedFull1000=true` 才算本配置完整跑完。它不冒充旧 1000 条语料已通过，也不覆盖系统故障注入、听感或 pitch 精度。
+
+### 发音对照
+
+`PronunciationRound15FrontendDeviceTest` 可传入 `-e inputAsset pronunciation-golden-round3-results-with-pinyin-fixed-round15-reviewed-merged.jsonl` 使用仓库现有的 675 条人工复核标注。报告保留原始预期、实际 TN 文本和 tokens；仅当两个拼音别名映射到完全相同的模型 token（含声调）时统一比较，不忽略声调或任意插删词。原始语料与复核语料均不因此改写，仍需执行独立结果门禁。

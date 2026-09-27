@@ -69,7 +69,7 @@ internal class LitsTtsOrtRuntime(
 
     init {
         val sessionLoadStartedAt = System.nanoTime()
-        val loadDecoderCacheSessions = EXPLICIT_DECODER_CACHE_ENABLED
+        val loadDecoderCacheSessions = EXPLICIT_DECODER_CACHE_ENABLED || IntMeanFlowStreamingContract.requiresCache(layout.manifest)
         val sessionSpecs = listOf(
             SessionSpec("acoustic", layout.acousticModel?.absolutePath),
             SessionSpec("vocoder", layout.vocoderModel.absolutePath),
@@ -78,7 +78,7 @@ internal class LitsTtsOrtRuntime(
             SessionSpec("final", layout.streamDecoderFinalModel?.absolutePath),
             SessionSpec("condChunk", layout.streamConditionChunkModel?.absolutePath),
             SessionSpec("condFinal", layout.streamConditionFinalModel?.absolutePath),
-            SessionSpec("step", layout.streamDecoderStepModel?.absolutePath),
+            SessionSpec("step", layout.streamDecoderStepModel?.absolutePath.takeUnless { IntMeanFlowStreamingContract.requiresCache(layout.manifest) }),
             SessionSpec("stepCacheInit", layout.streamDecoderCacheInitModel?.absolutePath.takeIf { loadDecoderCacheSessions }),
             SessionSpec("stepCache", layout.streamDecoderCacheStepModel?.absolutePath.takeIf { loadDecoderCacheSessions }),
         )
@@ -221,6 +221,12 @@ internal class LitsTtsOrtRuntime(
         isCancelled: () -> Boolean = { false },
         onChunk: (FloatArray) -> Unit,
     ): StreamingRuntimeMetrics {
+        val trainedCache = IntMeanFlowStreamingContract.requiresCache(manifest)
+        if (trainedCache) {
+            IntMeanFlowStreamingContract.validate(manifest, chunkSizeOverride, flowStepOverride,
+                previousChunkContextFramesOverride, firstChunkSizeOverride, secondChunkSizeOverride,
+                steadyChunkSizeOverride, chunkGrowthFactorOverride, maxChunkSizeOverride)
+        }
         val hiddenSession = hiddenEncoderSession ?: error("hidden encoder session is unavailable")
         val externalLoop = manifest.streamDecoderExternalLoop
         val chunkSession = if (externalLoop) null else streamDecoderChunkSession ?: error("stream decoder chunk session is unavailable")
@@ -236,7 +242,7 @@ internal class LitsTtsOrtRuntime(
             null
         }
         val stepSession = if (externalLoop) {
-            streamDecoderStepSession ?: error("stream decoder step session is unavailable")
+            streamDecoderStepSession ?: streamDecoderCacheInitSession?.takeIf { trainedCache } ?: error("stream decoder step session is unavailable")
         } else {
             null
         }
@@ -252,16 +258,15 @@ internal class LitsTtsOrtRuntime(
         }
         val melLength = hidden.melLength
         val chunkSize = chunkSizeOverride?.takeIf { it > 0 } ?: manifest.streamingChunkSize
-        // Keep the explicit decoder-step state cache opt-in. With the default false,
-        // every chunk uses the ordinary decoder step model without encoder/decoder
-        // state tensors carried between chunks.
+        // Legacy cache experiments remain opt-in. KV-distilled students require
+        // their per-step state regardless of the legacy runtime option.
         val decoderCacheInfo = manifest.streamDecoderCacheInfo
-        val useDecoderCache = EXPLICIT_DECODER_CACHE_ENABLED && externalLoop &&
-            LitsTtsRuntimeOptions.decoderCacheEnabled &&
+        val useDecoderCache = (trainedCache || (EXPLICIT_DECODER_CACHE_ENABLED && LitsTtsRuntimeOptions.decoderCacheEnabled)) && externalLoop &&
             decoderCacheInfo != null &&
-            decoderCacheInfo.requiresFixedChunkSize == chunkSize &&
+            (trainedCache || decoderCacheInfo.requiresFixedChunkSize == chunkSize) &&
             streamDecoderCacheInitSession != null &&
             streamDecoderCacheStepSession != null
+        check(!trainedCache || useDecoderCache) { "Required IntMeanFlow decoder cache sessions are unavailable" }
         val firstChunkSize = if (useDecoderCache) {
             chunkSize
         } else {
@@ -307,10 +312,10 @@ internal class LitsTtsOrtRuntime(
             melLength = melLength,
             firstChunkSize = firstChunkSize,
             chunkSize = chunkSize,
-            secondChunkSize = secondChunkSize,
-            steadyChunkSize = steadyChunkSize,
-            chunkGrowthFactor = chunkGrowthFactor,
-            maxChunkSize = maxChunkSize,
+            secondChunkSize = secondChunkSize.takeUnless { trainedCache },
+            steadyChunkSize = steadyChunkSize.takeUnless { trainedCache },
+            chunkGrowthFactor = chunkGrowthFactor.takeUnless { trainedCache },
+            maxChunkSize = maxChunkSize.takeUnless { trainedCache },
         )
         var melCache: FloatArray? = null
         var waveformCache: FloatArray? = null
@@ -331,7 +336,7 @@ internal class LitsTtsOrtRuntime(
             val startIdx = chunkSlice.startIdx
             val currentChunkSize = chunkSlice.chunkSize
             val finalize = index == chunkSlices.lastIndex
-            val previousContextFrames = previousChunkContextFramesOverride
+            val previousContextFrames = if (trainedCache) 0 else previousChunkContextFramesOverride
                 ?.takeIf { it >= 0 }
                 ?.coerceAtMost(chunkSlice.previousChunkSize)
                 ?: min(decoderLeftContextFrames, chunkSlice.previousChunkSize)
@@ -474,7 +479,9 @@ internal class LitsTtsOrtRuntime(
             maxChunkSize = maxChunkSize,
             melCacheLen = melCacheLen,
             flowStep = flowStep,
-            finalDecoderMode = if (externalLoop) {
+            finalDecoderMode = if (trainedCache) {
+                "intmeanflow_absolute_kv"
+            } else if (externalLoop) {
                 if (manifest.streamFinalZeroPadWithChunkCondition) "external_loop_zero_final" else "external_loop"
             } else {
                 "final_session_preloaded"
@@ -585,6 +592,10 @@ internal class LitsTtsOrtRuntime(
                 setInterOpNumThreads(1)
                 setExecutionMode(OrtSession.SessionOptions.ExecutionMode.SEQUENTIAL)
                 setOptimizationLevel(optimizationLevel)
+                // Streaming shapes vary by sentence and tail chunk. Keeping a
+                // separate high-water arena for every graph retains large buffers.
+                setCPUArenaAllocator(false)
+                setMemoryPatternOptimization(false)
             }
         }
 
@@ -755,7 +766,9 @@ internal class LitsTtsOrtRuntime(
         val file = java.io.File(modelPath)
         Log.i(ORT_LOG_TAG, "createSession start label=$label path=$modelPath bytes=${file.length()} exists=${file.isFile}")
         return try {
-            val session = environment.createSession(modelPath, createSessionOptions(intraOpThreads = intraOpThreads))
+            val session = createSessionOptions(intraOpThreads = intraOpThreads).use { options ->
+                environment.createSession(modelPath, options)
+            }
             ProfiledSession(label = label, session = session, elapsedMs = elapsedMs(startedAt)).also {
                 Log.i(ORT_LOG_TAG, "createSession complete label=$label elapsedMs=${it.elapsedMs}")
             }

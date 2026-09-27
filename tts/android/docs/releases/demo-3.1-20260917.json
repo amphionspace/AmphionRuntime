@@ -1,0 +1,80 @@
+{
+  "date": "2026-09-17",
+  "version": "3.1",
+  "archive": "lits-dingqiao-tts-android-demo-vocos24k-3.1.zip",
+  "package_name": "com.lits.tts.demo31",
+  "app_label": "Lits TTS Demo 3.1",
+  "variant": "debug",
+  "sample_source_commit": "944744381fd04b05e0a93fbcc7b322b460cee26c",
+  "sample_main_source_changes": false,
+  "customer_license_files_included": false,
+  "model": "IMF 170000",
+  "default_text": "All application IDs use the philosophy preset for mixed Chinese/English; English preset unchanged.",
+  "size_bytes": 448453327,
+  "archive_sha256": "fd9c9dfe577f919866c73a229d6f980055fa78854c4de73aa05884a06b5e6a77",
+  "apk_sha256": "4b48d849adc3177c7a8ae5fca85d2821d7f96da00d1d55ad777836116e7916b4",
+  "aar_sha256": "112e0b8d43b929ee1179f366bd36e10225907539c4119de3f4b8f6ce5a351fc8",
+  "sdk_source_base_commit": "3e4e72237b6d7a4e94364d74f295df59faf76bcb",
+  "sdk_source_note": "Same locally built embedded Release AAR as SDK package.",
+  "resource_delivery": "Embedded in AAR and merged into APK; no external-resources directory",
+  "verification": {
+    "standalone_build": "PASS",
+    "ui_playback_chunk100": "PASS; default remains 50",
+    "default_text": "PASS",
+    "both_screen_layouts": "PASS",
+    "page_recreation": "PASS after waking screen; initial screen-off blocked ActivityScenario",
+    "aar_apk_assets_match": "PASS",
+    "archive_crc_and_hashes": "PASS",
+    "evidence_directory": "outputs/tts31-embedded-validation-20260917"
+  },
+  "superseded_deliveries": [
+    {
+      "date": "2026-09-17",
+      "version": "3.1",
+      "archive": "lits-dingqiao-tts-android-demo-vocos24k-3.1.zip",
+      "size_bytes": 249596413,
+      "archive_sha256": "058845c97b535979af1dcfcd741b129fe6a29b55750187c97770b0046d4d4a37",
+      "apk_sha256": "6f1b88d24b1e708c9b2bad7469622dd6696d193a63589bbe3ea6d04989f2ae3a",
+      "aar_sha256": "68c3d19146d8dd55c15018677f51916f85bb004d58cc89233775b37d301aac8d",
+      "package_name": "com.lits.tts.demo31",
+      "app_label": "Lits TTS Demo 3.1",
+      "variant": "debug",
+      "sample_source_commit": "944744381fd04b05e0a93fbcc7b322b460cee26c",
+      "sample_main_source_changes": false,
+      "standalone_build_changes": [
+        "app module depends on local Release AAR",
+        "applicationId/label/versionName",
+        "arm64 ABI",
+        "standalone settings and root Gradle config"
+      ],
+      "customer_license_files_included": false,
+      "model": "IMF 170000",
+      "source_fingerprint": "efe374e7584b2c0b052e368e88b2df523717d351860804bc6ccdb7af05549e4d",
+      "verification": {
+        "standalone_build": "PASS",
+        "default_text_ui_regression": "FAIL on old APK, PASS on updated APK",
+        "instrumentation_tests": 1,
+        "device_log_sha256": "32aa9aff81804927eaccc6064331ce13f03e5def6158d2bc3a54cb41eb806942",
+        "archive_crc_and_hashes": "PASS",
+        "unchanged_areas": "Previous layout/recreation/playback evidence retained in superseded_deliveries; not rerun for preset-only change."
+      },
+      "superseded_deliveries": [
+        {
+          "archive_sha256": "2e69a20c0403cb90536b691a920d93532263d3c8329762103fded6af259fa4f4",
+          "apk_sha256": "0548b4d1f3e8d8e8342a9088418b46bfc3dc06afaff4b18a77201274a8823b9c",
+          "sample_source_commit": "4266d3be299f24ba99d3aabba7a6b612b478ed55",
+          "verification": {
+            "standalone_build": "PASS",
+            "both_screen_layouts": "PASS",
+            "recreation_retains_synthesis": "PASS",
+            "ui_sdk_playback": "PASS",
+            "instrumentation_tests": 3,
+            "device_log_sha256": "79de9bf6385de16bb325fcae33d28922677c7f57c08e1b63308d8fac9ddff2bb",
+            "archive_crc_and_hashes": "PASS"
+          }
+        }
+      ],
+      "default_text": "All application IDs use the philosophy preset for mixed Chinese/English; English preset unchanged."
+    }
+  ]
+}

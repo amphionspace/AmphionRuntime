@@ -3,6 +3,7 @@ package com.lits.tts.aarhost
 import android.content.Intent
 import androidx.test.platform.app.InstrumentationRegistry
 import com.lits.tts.sdk.TextToSpeechSdk
+import com.lits.tts.sdk.TtsDeviceIdProvider
 import com.lits.tts.sdk.TtsLicenseOptions
 import com.lits.tts.sdk.TtsLicenseStatus
 import java.io.File
@@ -38,6 +39,9 @@ class AarLicensedExternalResourcesRule : TestRule {
             try {
                 TextToSpeechSdk.init(context, TtsLicenseOptions(
                     license = licenseText, licenseAssetName = null,
+                    deviceIdProvider = arguments.getString("deviceIdPath")?.let { path ->
+                        TtsDeviceIdProvider { File(path).readText().trim() }
+                    },
                 ))
                 val state = TextToSpeechSdk.licenseStatus().state
                 assertEquals("Batch gate requires a licensed Release AAR", TtsLicenseStatus.State.LICENSED, state)
