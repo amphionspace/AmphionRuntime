@@ -244,7 +244,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
         run_node('class Labels {\n' + methods + '}\n' + """
           import assert from 'node:assert/strict';
           const label=new Labels();
-          const segment=(ids,overlap=false,speakerIndex=-1)=>({displaySpeakerIndex:speakerIndex,
+          const segment=(ids,overlap=false,speakerIndex=-1)=>({speakerIndex,displaySpeakerIndex:speakerIndex,
+            speakerAssignmentFinal:true,revision:0,secondarySpeakerIndexes:[],
             speakerParts:[{speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
           assert.equal(label.segmentSpeakerLabel(segment([0,1])),'多人／不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0])),'不确定');
