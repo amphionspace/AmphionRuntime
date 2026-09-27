@@ -65,6 +65,8 @@ export const closeTargetSpeakerEnhancer: (handle: TargetSpeakerEnhancerHandle) =
 export interface CommunityDiarizationWindow {
   segments: Float32Array;
   embeddings: Float32Array;
+  runEmbeddings: Float32Array;
+  runRanges: Float32Array;
   segmentationMs: number;
   featureMs: number;
   embeddingMs: number;
@@ -74,6 +76,6 @@ export function loadCommunityDiarization(segmentation: Uint8Array, embedding: Ui
 export function loadCommunityDiarizationResources(resourceManager: Object): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function clusterCommunityDiarization(handle: number, segments: Float32Array,
-  embeddings: Float32Array, maxSpeakers: number, windowStartSamples: Float64Array,
-  beginSample: number): Promise<string>;
+  embeddings: Float32Array, runEmbeddings: Float32Array, runRanges: Float32Array,
+  maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number): Promise<string>;
 export function closeCommunityDiarization(handle: number): void;

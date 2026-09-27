@@ -260,6 +260,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       // Keep independent snapshots without retaining boxed copies of every tensor.
       fields['segmentations'] = window.result.segments.slice();
       fields['embeddings'] = window.result.embeddings.slice();
+      fields['runRanges'] = window.result.runRanges.slice();
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
@@ -363,7 +364,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const starts = new Float64Array(available.map(window => window.windowStartSample));
       const startedMs = Date.now();
       const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
-        starts, beginTime * SAMPLE_RATE / 1000);
+        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges);
       const clusterElapsedMs = Date.now() - startedMs;
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
@@ -399,6 +400,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['ahc'] = clustered.ahc;
         fields['priors'] = clustered.priors;
         fields['hard'] = clustered.hard;
+        fields['frameHard'] = clustered.frameHard;
+        fields['trainingRunIndices'] = clustered.trainingRunIndices;
         fields['model'] = 'Community-1 masked WeSpeaker / PLDA / VBx';
         fields['similarityOffset'] = 1;
         fields['embeddingToClusterScores'] = clustered.scores;

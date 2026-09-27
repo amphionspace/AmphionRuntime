@@ -280,6 +280,74 @@ int main() {
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
+    def test_frame_reconstruction_keeps_disconnected_runs_separate(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  std::vector<float> segments(589*3);
+  for(int f=20;f<180;++f)segments[f*3]=1;
+  for(int f=300;f<460;++f)segments[f*3]=1;
+  std::vector<int> hard={0,-2,-2};
+  std::vector<int> frame(589*3,-2);
+  for(int f=20;f<180;++f)frame[f*3]=0;
+  for(int f=300;f<460;++f)frame[f*3]=1;
+  auto turns=community::Reconstruct(segments,hard,{0},0,4,frame);
+  assert(turns.size()==2);
+  assert(turns[0].speaker==0 && turns[1].speaker==1);
+  assert(turns[0].end<turns[1].begin);
+  // Unknown frames remain anonymous even when the old per-channel label is
+  // known; a short or ambiguous run must not inherit the mixed vector.
+  frame.assign(589*3,-2);
+  auto unknown=community::Reconstruct(segments,hard,{0},0,4,frame);
+  assert(unknown.size()==2);
+  assert(unknown[0].speaker==-1 && unknown[1].speaker==-1);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'frame-runs.cpp'
+            binary = Path(directory) / 'frame-runs'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_run_embeddings_split_a_channel_before_clustering(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  std::vector<float> segments(589*3),embeddings(768),runs(512);
+  for(int f=10;f<180;++f)segments[f*3]=1;
+  for(int f=300;f<470;++f)segments[f*3]=1;
+  runs[0]=1.;runs[256+1]=1.;
+  std::vector<int32_t> ranges={0,0,10,180,0,0,300,470};
+  auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
+  assert(result.trainingRunIndices.size()==2);
+  assert(result.frame_hard.size()==589*3);
+  assert(result.frame_hard[20*3]>=0 && result.frame_hard[320*3]>=0);
+  assert(result.frame_hard[20*3]!=result.frame_hard[320*3]);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'cluster-runs.cpp'
+            binary = Path(directory) / 'cluster-runs'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
     def test_missing_enrollment_keeps_unknown_speech_and_overlap(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:

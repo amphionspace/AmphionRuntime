@@ -106,6 +106,7 @@ inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& init
 }
 struct ClusterResult {
   std::vector<int> trainingIndices,ahc,hard;
+  std::vector<int> trainingRunIndices,frame_hard;
   Matrix features,centroids,scores;
   bool usedKMeans = false;
   VbxResult vbx;
@@ -114,12 +115,14 @@ struct Turn { double begin,end; int speaker; };
 inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
                                     const std::vector<int>& hard,
                                     const std::vector<double>& windowStartSamples,
-                                    double beginSample,int maxSpeakers=4) {
+                                    double beginSample,int maxSpeakers=4,
+                                    const std::vector<int>& frameHard={}) {
   constexpr int local=3,frames=589;
   constexpr double step=270./16000.,halfFrame=991./32000.;
   const int windows=windowStartSamples.size();
   if(windows==0 || segments.size()!=static_cast<size_t>(windows*frames*local) ||
       hard.size()!=static_cast<size_t>(windows*local) ||
+      (!frameHard.empty() && frameHard.size()!=static_cast<size_t>(windows*frames*local)) ||
       !std::isfinite(beginSample) || beginSample<0) throw std::runtime_error("invalid reconstruction input");
   double endSample=beginSample;
   for(double sample:windowStartSamples){
@@ -131,14 +134,15 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   // participate in clustering, but do not allocate or repaint past audio.
   const int64_t firstFrame=static_cast<int64_t>(std::floor(beginSample/270.));
   const int total=static_cast<int>(std::nearbyint(endSample/270.)-firstFrame)+1;
-  const int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
+  int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
+  if(!frameHard.empty())knownClusters=std::max(knownClusters,*std::max_element(frameHard.begin(),frameHard.end())+1);
   Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
     const int64_t start=static_cast<int64_t>(std::nearbyint(windowStartSamples[w]/270.))-firstFrame;
     for(int f=0;f<frames;++f){
       const int64_t t=start+f;if(t<0 || t>=total)continue;
       Vec active(knownClusters);int n=0;
-      for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=hard[w*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
+      for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=frameHard.empty()?hard[w*local+k]:frameHard[(w*frames+f)*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
       counts[t]+=n;weights[t]+=1;
       for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
     }
@@ -171,12 +175,25 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   for(int k=0;k<clusters;++k)if(start[k]>=0)turns.push_back({(firstFrame+start[k])*step+halfFrame,(firstFrame+total-1)*step+halfFrame,k<knownClusters?k:-1});
   return turns;
 }
-inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4) {
+inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4,
+                            const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={}) {
   constexpr int frames=589,local=3,dim=256;
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
   ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
-  for(int w=0;w<windows;++w){int clean[local]={};for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;if(count==1)clean[k]+=on;}}
-    for(int k=0;k<local;++k){int i=w*local+k;Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}}
+  for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
+  }
+  const bool runMode=!runRanges.empty()&&runRanges.size()%4==0&&runEmbeddings.size()==(runRanges.size()/4)*dim;
+  std::vector<int> runWindow,runChannel,runBegin,runEnd;
+  if(runMode){
+    for(size_t i=0;i<runRanges.size();i+=4){int w=runRanges[i],k=runRanges[i+1],b=runRanges[i+2],e=runRanges[i+3];
+      if(w<0||w>=windows||k<0||k>=local||b<0||e<=b||e>frames)throw std::runtime_error("invalid Community run range");
+      runWindow.push_back(w);runChannel.push_back(k);runBegin.push_back(b);runEnd.push_back(e);
+    }
+    for(size_t r=0;r<runWindow.size();++r){Vec emb(runEmbeddings.begin()+r*dim,runEmbeddings.begin()+(r+1)*dim);if(runEnd[r]-runBegin[r]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingRunIndices.push_back(r);train.push_back(std::move(emb));}}
+  } else {
+    for(int w=0;w<windows;++w){int clean[local]={};for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k)if(count==1&&segments[(w*frames+f)*local+k])clean[k]++;}
+      for(int k=0;k<local;++k){int i=w*local+k;Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}}
+    }
   }
   if(train.empty()){result.hard=std::vector<int>(windows*local,-2);return result;}
   // A single enrollment still goes through the same constrained assignment.
@@ -201,6 +218,41 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   Matrix scores(windows*local,Vec(k));double minimum=std::numeric_limits<double>::infinity();
   for(int i=0;i<windows*local;++i)for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=embeddings[i*dim+j],u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double score=1+dot/std::sqrt(a*b);scores[i][c]=score;if(std::isfinite(score))minimum=std::min(minimum,score);}
   result.scores=scores;
+  if(runMode) {
+    const int runCount=static_cast<int>(runWindow.size());
+    std::vector<bool> eligible(runCount,false);
+    std::vector<int> runFor(windows*frames*local,-1);
+    std::vector<bool> hasRun(windows*local,false);
+    Matrix runScores(runCount,Vec(k,-std::numeric_limits<double>::infinity()));
+    for(int r=0;r<runCount;++r){
+      eligible[r]=runEnd[r]-runBegin[r]>=.2*frames&&std::all_of(runEmbeddings.begin()+r*dim,runEmbeddings.begin()+(r+1)*dim,[](float x){return std::isfinite(x);});
+      hasRun[runWindow[r]*local+runChannel[r]]=true;
+      for(int f=runBegin[r];f<runEnd[r];++f)runFor[(runWindow[r]*frames+f)*local+runChannel[r]]=r;
+      if(!eligible[r])continue;
+      for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=runEmbeddings[r*dim+j],u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double value=1+dot/std::sqrt(a*b);if(std::isfinite(value))runScores[r][c]=value;}
+    }
+    result.frame_hard.assign(windows*frames*local,-2);
+    for(int w=0;w<windows;++w)for(int f=0;f<frames;++f){
+      std::vector<std::vector<double>> options(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
+      std::vector<bool> candidate(local,false);
+      for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]){
+        const int run=runFor[(w*frames+f)*local+ch];
+        if(run>=0){if(eligible[run]){options[ch]=runScores[run];candidate[ch]=std::any_of(options[ch].begin(),options[ch].end(),[](double v){return std::isfinite(v);});}}
+        else if(!hasRun[w*local+ch]){options[ch]=scores[w*local+ch];candidate[ch]=std::any_of(options[ch].begin(),options[ch].end(),[](double v){return std::isfinite(v);});}
+      }
+      std::vector<int> current(local,-2),best(local,-2);double bestScore=-std::numeric_limits<double>::infinity();
+      std::function<void(int,int,double)> visit=[&](int row,int used,double score){
+        if(row==local){if(score>bestScore){bestScore=score;best=current;}return;}
+        if(!candidate[row]){current[row]=-2;visit(row+1,used,score);return;}
+        bool assigned=false;for(int c=0;c<k;++c)if(!(used&(1<<c))&&std::isfinite(options[row][c])){assigned=true;current[row]=c;visit(row+1,used|(1<<c),score+options[row][c]);}
+        current[row]=-2;if(!assigned)visit(row+1,used,score);
+      };visit(0,0,0.);
+      for(int ch=0;ch<local;++ch)if(candidate[ch])result.frame_hard[(w*frames+f)*local+ch]=best[ch];
+    }
+    result.hard.assign(windows*local,-2);
+    for(int w=0;w<windows;++w)for(int ch=0;ch<local;++ch){std::vector<int> votes(k);for(int f=0;f<frames;++f){int label=result.frame_hard[(w*frames+f)*local+ch];if(label>=0)votes[label]++;}int best=0;for(int c=1;c<k;++c)if(votes[c]>votes[best])best=c;if(votes[best]>0)result.hard[w*local+ch]=best;}
+    return result;
+  }
   if(result.usedKMeans) {
     // The upstream cap branch explicitly disables constrained assignment.
     result.hard=std::vector<int>(windows*local,-2);
