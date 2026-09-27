@@ -37,6 +37,7 @@ export class DiagnosticEventJournal {
         this.length += bytes.byteLength;
         if (event.event === 'DIARIZATION_COMMUNITY_WINDOW' ||
           event.event === 'DIARIZATION_COMMUNITY_SAMPLES' ||
+          event.event === 'DIARIZATION_COMMUNITY_PREVIEW' ||
           event.event === 'DIARIZATION_COMMUNITY_COMMIT') {
           // The full decision remains in the journal; summaries need only scalars.
           // Do not retain every historical posterior matrix on the ArkTS heap.

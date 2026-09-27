@@ -112,18 +112,34 @@ struct ClusterResult {
 };
 struct Turn { double begin,end; int speaker; };
 inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
-                                    const std::vector<int>& hard,int windows,int maxSpeakers=4) {
+                                    const std::vector<int>& hard,
+                                    const std::vector<double>& windowStartSamples,
+                                    double beginSample,int maxSpeakers=4) {
   constexpr int local=3,frames=589;
   constexpr double step=270./16000.,halfFrame=991./32000.;
+  const int windows=windowStartSamples.size();
+  if(windows==0 || segments.size()!=static_cast<size_t>(windows*frames*local) ||
+      hard.size()!=static_cast<size_t>(windows*local) ||
+      !std::isfinite(beginSample) || beginSample<0) throw std::runtime_error("invalid reconstruction input");
+  double endSample=beginSample;
+  for(double sample:windowStartSamples){
+    if(!std::isfinite(sample) || sample<0 || sample!=std::floor(sample))
+      throw std::runtime_error("invalid window start sample");
+    endSample=std::max(endSample,sample+160000);
+  }
+  // Keep the session frame grid after pruning. Historical identity anchors
+  // participate in clustering, but do not allocate or repaint past audio.
+  const int64_t firstFrame=static_cast<int64_t>(std::floor(beginSample/270.));
+  const int total=static_cast<int>(std::nearbyint(endSample/270.)-firstFrame)+1;
   const int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
-  const int total=static_cast<int>(std::nearbyint((10.+windows-1)/step))+1;
   Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
-    int start=std::nearbyint(w/step);
+    const int64_t start=static_cast<int64_t>(std::nearbyint(windowStartSamples[w]/270.))-firstFrame;
     for(int f=0;f<frames;++f){
+      const int64_t t=start+f;if(t<0 || t>=total)continue;
       Vec active(knownClusters);int n=0;
       for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=hard[w*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
-      int t=start+f;counts[t]+=n;weights[t]+=1;
+      counts[t]+=n;weights[t]+=1;
       for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
     }
   }
@@ -143,10 +159,10 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
     std::vector<bool> on(clusters,false);for(int j=0;j<count;++j)on[order[j]]=true;
     for(int k=0;k<clusters;++k){
       if(on[k]&&start[k]<0)start[k]=t;
-      if(!on[k]&&start[k]>=0){turns.push_back({start[k]*step+halfFrame,t*step+halfFrame,k<knownClusters?k:-1});start[k]=-1;}
+      if(!on[k]&&start[k]>=0){turns.push_back({(firstFrame+start[k])*step+halfFrame,(firstFrame+t)*step+halfFrame,k<knownClusters?k:-1});start[k]=-1;}
     }
   }
-  for(int k=0;k<clusters;++k)if(start[k]>=0)turns.push_back({start[k]*step+halfFrame,(total-1)*step+halfFrame,k<knownClusters?k:-1});
+  for(int k=0;k<clusters;++k)if(start[k]>=0)turns.push_back({(firstFrame+start[k])*step+halfFrame,(firstFrame+total-1)*step+halfFrame,k<knownClusters?k:-1});
   return turns;
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4) {

@@ -64,6 +64,7 @@ class FinalSegment {
   endTime: number = 0;
   speakerDiarization: boolean = false;
   speakerAssignmentFinal: boolean = false;
+  secondarySpeakerIndexes: number[] = [];
   speakerParts: DiarizedUtterance[] = [];
   showSpeakerParts: boolean = false;
 
@@ -577,9 +578,13 @@ struct Index {
   }
 
   private segmentSpeakerLabel(segment: FinalSegment): string {
+    if (!segment.speakerAssignmentFinal && segment.speakerIndex < 0 &&
+      segment.revision === 0 && segment.secondarySpeakerIndexes.length === 0) return '说话人分析中';
     const known = new Set<number>();
-    let unknown = false;
-    let overlap = false;
+    if (segment.speakerIndex >= 0) known.add(segment.speakerIndex);
+    for (const id of segment.secondarySpeakerIndexes) if (id >= 0) known.add(id);
+    let unknown = segment.speakerIndex < 0 || segment.secondarySpeakerIndexes.includes(-1);
+    let overlap = segment.secondarySpeakerIndexes.length > 0;
     let inferred = false;
     for (const part of segment.speakerParts) {
       if (part.speakerIndex >= 0) known.add(part.speakerIndex);
@@ -1123,6 +1128,7 @@ struct Index {
         next[i].text, next[i].score, next[i].utteranceId, update.speakerIndex,
         next[i].endTime, true, next[i].speakerAssignmentFinal);
       replacement.revision = update.revision;
+      replacement.secondarySpeakerIndexes = update.secondarySpeakerIndexes?.slice() ?? [];
       next[i] = replacement;
       this.refreshSpeakerDisplayIndexes(next);
       this.finalSegments = next;
@@ -1252,6 +1258,7 @@ struct Index {
       result.speakerIndex,
       result.endTime ?? 0,
       this.capturedSpeakerDiarization));
+    next[next.length - 1].secondarySpeakerIndexes = result.secondarySpeakerIndexes?.slice() ?? [];
     this.refreshSpeakerDisplayIndexes(next);
     this.finalSegments = next;
   }
@@ -1492,7 +1499,7 @@ struct Index {
         ForEach(this.finalSegments, (item: FinalSegment, index: number) => {
           Text() {
             if (item.speakerDiarization) {
-              Span(`${this.segmentSpeakerLabel(item)}（${item.speakerAssignmentFinal ? '最终结果' : '中间结果'}） `)
+              Span(`${this.segmentSpeakerLabel(item)}（${item.speakerAssignmentFinal ? '最终结果' : '暂定，可修正'}） `)
                 .fontColor(item.speakerAssignmentFinal ? BRAND_ACCENT : Color.Gray)
                 .fontWeight(FontWeight.Bold)
             }

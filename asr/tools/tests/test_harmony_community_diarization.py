@@ -23,7 +23,14 @@ def run_community_session(body):
       const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
       class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
-      class SpeakerDiarizationLocalClient {cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}}
+      class SpeakerDiarizationLocalClient {
+        evidence=[];
+        retainEvidence(w){this.evidence.push({segments:w.segments.slice(),embeddings:w.embeddings.slice()});}
+        readEvidence(n){const segments=new Float32Array(n*589*3),embeddings=new Float32Array(n*3*256);
+          for(let i=0;i<n;i++){segments.set(this.evidence[i].segments,i*589*3);embeddings.set(this.evidence[i].embeddings,i*3*256);}
+          return {segments,embeddings};}
+        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}
+      }
       function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
       let released=0;
@@ -45,6 +52,160 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    def test_public_commit_keeps_the_original_inputs_needed_by_later_clustering(self):
+        run_community_session("""
+          const s=session();s.totalSamples=14000*16;
+          const submitted=[];
+          s.client.cluster=async(segments,embeddings,cap,starts,begin)=>{
+            submitted.push([...starts]);
+            return {speakerCount:1,hard:Array(starts.length*3).fill(0),
+              turns:[[begin/16,starts.at(-1)/16+10000,0]]};
+          };
+          s.onWindow(window(0));
+          const first=await s.commitWindow(10000,10000,false,0),frozen=JSON.stringify(first);
+          s.onWindow(window(2));await s.commitWindow(12000,12000,false,10000);
+          s.onWindow(window(4));await s.commitWindow(14000,Infinity,true,12000);
+          assert.deepEqual(submitted,[[0],[0,32000],[0,32000,64000]],
+            'publishing text does not make later acoustic evidence dispensable');
+          assert.equal(JSON.stringify(first),frozen);
+        """)
+
+    def test_commit_period_only_changes_freeze_deadline_and_finish_drains_short_tail(self):
+        run_community_session("""
+          for(const period of [30000,60000,120000]) {
+            const published=[],updates=[];
+            const s=new SpeakerDiarizationSession({},'',4,{
+              onSpeakerDiarizationUpdate:u=>updates.push(u),
+              onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)},
+              undefined,undefined,period);
+            s.client.cluster=async(segments,embeddings,cap,starts,begin)=>({
+              speakerCount:1,hard:Array(starts.length*3).fill(0),turns:[[begin/16,period+5000,0]]});
+            s.totalSamples=(period+5000)*16;
+            s.observeAsrFinal({result:'完整原句',beginTime:100,endTime:5000,isLast:false},
+              {rawText:'完整原句',tokens:['完','整','原','句'],timestamps:[.1,1,2,3],audioEndSample:6000*16,isLast:false});
+            s.asrFinalDelivered({audioEndSample:6000*16,isLast:false});
+            s.onWindow(window(0));s.asrAudioProcessed(10000*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(updates.length,1,'preview remains at 10 seconds for every commit period');
+            assert.equal(published.length,0);
+            s.onWindow(window(period/1000-6));
+            s.asrAudioProcessed((period-20)*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,0,'never freeze before the selected deadline');
+            s.asrAudioProcessed(period*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,1);
+            assert.equal(published[0].windowEndTime,6000);
+            const frozen=JSON.stringify(published[0]);
+            s.finish();s.onDrained();
+            s.observeAsrFinal({result:'尾句',beginTime:period,endTime:period+1000,isLast:true},
+              {rawText:'尾句',tokens:['尾','句'],timestamps:[period/1000,period/1000+.5],
+                audioEndSample:(period+5000)*16,isLast:true});
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,2);
+            assert.equal(published[1].isSessionFinal,true);
+            assert.equal(published[1].utterances.map(u=>u.text).join(''),'尾句');
+            assert.equal(JSON.stringify(published[0]),frozen,'finish cannot change an earlier batch');
+          }
+        """)
+
+    def test_window_identity_uses_stable_keys_and_preview_does_not_enroll(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
+          const ids=new CommunitySpeakerIdentity(4);
+          assert.deepEqual(ids.assign(['a','b'],[0,-2,-2,1,-2,-2],2,[200,0,0,100,0,0]).mapping,[0,1]);
+          const preview=ids.fork();
+          assert.equal(preview.assign(['a','b','c'],[0,-2,-2,1,-2,-2,2,-2,-2],3,
+            [200,0,0,100,0,0,80,0,0]).after,3);
+          const next=ids.assign(['b','new','a'],[0,-2,-2,2,-2,-2,1,-2,-2],3,
+            [100,0,0,80,0,0,200,0,0],[0,0,0,80,0,0,0,0,0],[false,false,true]);
+          assert.deepEqual(next.mapping,[1,0,2],'array movement must not change acoustic ownership');
+          assert.equal(next.before,2,'temporary labels must not consume frozen identities');
+          assert.equal(next.after,3);
+        """)
+
+    def test_live_preview_arrives_before_finish_and_final_can_revoke_it(self):
+        run_community_session("""
+          const updates=[],published=[];
+          const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate:u=>updates.push(u),
+            onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)});
+          s.totalSamples=160000;
+          s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
+            {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
+          s.client.cluster=async(segments,embeddings,cap,starts,begin)=>{
+            assert.deepEqual([...starts],[0]);assert.equal(begin,0);return clusterResult(1);};
+          s.onWindow(window(0));s.asrAudioProcessed(160000);
+          await new Promise(r=>setImmediate(r));
+          assert.equal(updates.length,1);assert.equal(updates[0].speakerIndex,0);
+          assert.deepEqual(published,[]);assert.equal(s.finalSpeakerCount,0);
+          s.client.cluster=async()=>({speakerCount:0,hard:[-2,-2,-2],turns:[]});
+          s.finish();s.onDrained();s.observeAsrFinal({result:'',isLast:true},{isLast:true,timestamps:[],tokens:[]});
+          await new Promise(r=>setImmediate(r));
+          assert.equal(published.length,1);assert.equal(published[0].speakerCount,0);
+          assert.deepEqual(published[0].speakerTurns,[],'final silence must erase provisional turns');
+          assert.ok(published[0].utterances.every(u=>u.speakerIndex===-1));
+          assert.deepEqual(updates.map(u=>u.speakerIndex),[0,-1]);
+        """)
+
+    def test_delayed_preview_is_serial_and_cancel_discards_its_result(self):
+        run_community_session("""
+          const updates=[],outputs=[];
+          const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate:u=>updates.push(u),
+            onWindowResult:r=>outputs.push(r),onFinished:r=>outputs.push(r)});
+          s.totalSamples=480000;
+          s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
+            {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
+          let resolve,calls=0;s.client.cluster=()=>{calls++;return new Promise(r=>resolve=r)};
+          s.onWindow(window(0));s.asrAudioProcessed(160000);
+          s.onWindow(window(10));s.asrAudioProcessed(320000);
+          s.onWindow(window(20));s.asrAudioProcessed(480000);
+          assert.equal(calls,1,'pending previews must not create another inference queue');
+          s.cancel();resolve(clusterResult(1));await new Promise(r=>setImmediate(r));
+          assert.deepEqual(updates,[]);assert.deepEqual(outputs,[]);
+          assert.equal(s.finalSpeakerCount,0);assert.equal(calls,1);
+        """)
+
+    def test_failed_finish_does_not_publish_a_provisional_identity_as_final(self):
+        run_community_session("""
+          for(const timeout of [false,true]) {
+            const s=session();s.totalSamples=160000;
+            s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
+              {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
+            s.client.cluster=async()=>clusterResult(1);
+            s.onWindow(window(0));s.asrAudioProcessed(160000);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(s.transcript.currentAssignment('u1').speakerId,'S1');
+            if(!timeout)s.onDegraded(1,'failed final cluster');
+            const out=timeout?s.bestResult(1,'finish timeout'):s.bestResult();
+            assert.ok(out.degraded);assert.equal(out.speakerCount,0);
+            assert.deepEqual(out.speakerTurns,[]);
+            assert.ok(out.utterances.every(u=>u.speakerIndex===-1));
+          }
+        """)
+
+    def test_pruned_batches_keep_absolute_audio_and_returning_speaker(self):
+        run_community_session("""
+          const s=session();s.totalSamples=300000*16;
+          s.client.cluster=async(segments,embeddings,cap,starts,begin)=>{
+            const hard=[],turns=[];
+            for(const start of starts){
+              const label=start===2*16000?1:0;
+              hard.push(label,-2,-2);
+              if(start>=begin)turns.push([start/16,start/16+1000,label]);
+            }
+            return {speakerCount:2,hard,turns};
+          };
+          for(const start of [0,2,4,6,8,10])s.onWindow(window(start));
+          const first=await s.commitWindow(20000,20000,false,0),frozen=JSON.stringify(first);
+          assert.equal(first.speakerCount,2);assert.equal(s.windows.length,6,'retain the original enrollment batch');
+          s.onWindow(window(280));
+          const second=await s.commitWindow(290000,Infinity,true,20000);
+          assert.equal(second.speakerCount,2);
+          assert.deepEqual(second.speakerTurns.map(t=>[t.beginTime,t.endTime,t.speakerIndex]),[[280000,281000,0]]);
+          assert.equal(JSON.stringify(first),frozen);
+        """)
+
     def test_resource_load_completion_keeps_session_ownership_after_close(self):
         inference = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/CommunityDiarizationInference.ets'
         source = inference.read_text().split('export class CommunityDiarizationInference', 1)[1]
@@ -81,8 +242,8 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import assert from 'node:assert/strict';
           import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
           const ids=new CommunitySpeakerIdentity(1);
-          assert.equal(ids.assign([-2,-2,-2],1,[0,0,0]).after,0);
-          const voice=ids.assign([-2,-2,-2,0,-2,-2],1,[0,0,0,200,0,0]);
+          assert.equal(ids.assign(['w0'],[-2,-2,-2],1,[0,0,0]).after,0);
+          const voice=ids.assign(['w0','w1'],[-2,-2,-2,0,-2,-2],1,[0,0,0,200,0,0]);
           assert.deepEqual(voice.mapping,[0]);assert.equal(voice.after,1);
         """)
 
@@ -110,8 +271,8 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import {{ CommunitySpeakerIdentity, communityTimeline }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
           import {{ speakerIndexFromInternalId }} from {(DIARIZATION/'SpeakerDiarizationSpeakerIndex.ts').as_uri()!r};
           const ids=new CommunitySpeakerIdentity(3);
-          assert.deepEqual(ids.assign([0,1,-2,0,1,-2],2,[200,100,0,200,100,0]).mapping,[0,1]);
-          const mapped=ids.assign([1,0,-2,1,0,-2,2,-2,-2],3,[200,100,0,200,100,0,50,0,0]);
+          assert.deepEqual(ids.assign(['w0','w1'],[0,1,-2,0,1,-2],2,[200,100,0,200,100,0]).mapping,[0,1]);
+          const mapped=ids.assign(['w0','w1','w2'],[1,0,-2,1,0,-2,2,-2,-2],3,[200,100,0,200,100,0,50,0,0]);
           assert.deepEqual(mapped.mapping,[1,0,2],'cluster renumbering cannot rename an established voice');
           const turns=communityTimeline([[0,1000,1],[400,450,0],[1000,1100,2]],mapped.mapping,0,1100);
           assert.deepEqual(turns.map(t=>[t.beginTime,t.endTime,t.speakerId,t.secondarySpeakerIds,t.overlap]),[
@@ -124,9 +285,9 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import assert from 'node:assert/strict';
           import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
           const ids=new CommunitySpeakerIdentity(2);
-          assert.deepEqual(ids.assign([0,1],2,[200,100]).mapping,[0,1]);
-          ids.assign([0,0,0],1,[200,100,20]);
-          const restored=ids.assign([0,1,0,1],2,[200,100,20,50]);
+          assert.deepEqual(ids.assign(['w0'],[0,1],2,[200,100]).mapping,[0,1]);
+          ids.assign(['w0'],[0,0,0],1,[200,100,20]);
+          const restored=ids.assign(['w0','w1'],[0,1,0,1],2,[200,100,20,50]);
           assert.deepEqual(restored.mapping,[0,1],
             'a temporary cluster merge cannot erase the already published second identity');
           assert.equal(restored.after,2);
@@ -247,9 +408,10 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         stubs="""
           import assert from 'node:assert/strict';
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
-          let nextDiarizationJobId=1,closeCount=0,resolveCluster;
+          let nextDiarizationJobId=1,closeCount=0,removeCount=0,resolveCluster;
           class DiarizationWindowScheduler {}
           class DiarizationPcmSpool {close(){} remove(){}}
+          class DiarizationEvidenceSpool {close(){} remove(){removeCount++;}}
           class CommunityDiarizationInference {
             async load(){} close(){closeCount++;}
             cluster(){return new Promise(r=>resolveCluster=r);}
@@ -258,14 +420,14 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         """
         body="""
           const c=new SpeakerDiarizationLocalClient({},'',{onDegraded(){},onDrained(){}});
-          const pending=c.cluster(new Float32Array(1),new Float32Array(1),4);
+          const pending=c.cluster(new Float32Array(1),new Float32Array(1),4,new Float64Array([0]),0);
           await new Promise(r=>setImmediate(r));
           function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
       let released=0;c.cancel(()=>released++);
-          assert.equal(closeCount,0);assert.equal(released,0);
+          assert.equal(closeCount,0);assert.equal(released,0);assert.equal(removeCount,0);
           resolveCluster({});await pending;
-          assert.equal(closeCount,1);assert.equal(released,1);
+          assert.equal(closeCount,1);assert.equal(released,1);assert.equal(removeCount,1);
         """
         with tempfile.TemporaryDirectory() as directory:
             harness=Path(directory)/'client.mts'

@@ -13,6 +13,11 @@ import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
 import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerIdentity';
 
 const SAMPLE_RATE: number = 16000;
+interface DiarizationEvidenceWindow {
+  jobId: string;
+  windowStartSample: number;
+  realEndSample: number;
+}
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
   onWindowResult(result: SpeakerDiarizationResult): void;
@@ -34,13 +39,15 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   SpeakerDiarizationSessionController {
   private readonly client: SpeakerDiarizationLocalClient;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
-  private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
+  private readonly commitClock: DiarizationCommitClock;
   private readonly identities: CommunitySpeakerIdentity;
-  private readonly windows: DiarizationLocalWindowResult[] = [];
+  private readonly windows: DiarizationEvidenceWindow[] = [];
   private readonly observer: SpeakerDiarizationSessionObserver;
   private readonly maxSpeakers: number;
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
   private inferenceEndMs: number = 0;
+  private processedThroughMs: number = 0;
+  private previewThroughMs: number = 0;
   private inferenceMs: number = 0;
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
@@ -61,10 +68,11 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void,
-    clientOptions?: SpeakerDiarizationLocalClientOptions) {
+    clientOptions?: SpeakerDiarizationLocalClientOptions, commitPeriodMs: number = 120000) {
     this.observer = observer;
     this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
+    this.commitClock = new DiarizationCommitClock(commitPeriodMs);
     this.identities = new CommunitySpeakerIdentity(maxSpeakers);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
@@ -80,6 +88,11 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   append(audio: ArrayBuffer): void {
     if (this.finishRequested || this.finished) return;
     this.totalSamples += audio.byteLength / 2;
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['audioEndSample'] = this.totalSamples;
+      this.recordDecision('DIARIZATION_AUDIO_APPENDED', fields);
+    }
     try {
       this.client.append(audio);
     } catch (e) {
@@ -151,7 +164,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   asrAudioProcessed(endSample: number): void {
     if (this.finished) return;
-    const queued = this.commitClock.observeProcessedAudio(endSample * 1000 / SAMPLE_RATE);
+    this.processedThroughMs = Math.max(this.processedThroughMs, endSample * 1000 / SAMPLE_RATE);
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['audioEndSample'] = endSample;
+      this.recordDecision('DIARIZATION_ASR_PROCESSED', fields);
+    }
+    const queued = this.commitClock.observeProcessedAudio(this.processedThroughMs);
     if (queued && this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['audioEndSample'] = endSample;
@@ -165,6 +184,11 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finishRequested || this.finished) return;
     this.finishRequested = true;
     this.confirmedInitialSilence = confirmedInitialSilence;
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['confirmedInitialSilence'] = confirmedInitialSilence;
+      this.recordDecision('DIARIZATION_FINISH', fields);
+    }
     if (confirmedInitialSilence) {
       // The recognizer has already closed the initial-silence decision. A padded
       // model tail must not delay that deadline or invent speech after it.
@@ -188,6 +212,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   }
 
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult {
+    if (reason !== undefined && reason !== SpeakerDiarizationDegradedReason.NONE) {
+      // A finish timeout must not promote provisional identities to frozen ones.
+      this.transcript.applySpeakerTurns([], true);
+    }
     return this.buildResult(reason ?? this.degradedReason, message ?? this.degradedMessage);
   }
 
@@ -203,7 +231,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   onWindow(window: DiarizationLocalWindowResult): void {
     if (this.finished || this.confirmedInitialSilence) return;
-    this.windows.push(window);
+    this.client.retainEvidence(window.result);
+    this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
+      realEndSample: window.realEndSample });
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
     this.inferenceMs += window.result.segmentationMs + window.result.featureMs + window.result.embeddingMs;
     if (this.diagnostic !== undefined) {
@@ -230,6 +260,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   onDrained(): void {
     if (!this.finishRequested || this.finished) return;
     this.processDrained = true;
+    this.recordDecision('DIARIZATION_DRAINED', {});
     this.finalizeIfReady();
   }
 
@@ -263,6 +294,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           if (this.finished) break;
           this.finished = true;
           this.observer.onFinished(result);
+          break;
+        }
+        // Preview only completed audio snapshots, at most once per 10 s of
+        // audio. It never advances the public commit clock or enrolls frozen IDs.
+        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / 10000) * 10000;
+        if (!this.finishRequested && this.degradedReason === SpeakerDiarizationDegradedReason.NONE &&
+          this.lastAsrEndMs > this.publishedThrough &&
+          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + 10000) {
+          this.previewThroughMs = previewEnd;
+          await this.updateSpeakers(previewEnd, previewEnd, false, this.publishedThrough, true);
+          continue;
         }
         break;
       }
@@ -270,7 +312,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       if (!this.finished) {
         this.onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
           `Community finalization failed: ${error}`);
-        if (this.finishRequested && this.processDrained && this.asrTailObserved) {
+        if (!this.finished && this.finishRequested && this.processDrained && this.asrTailObserved) {
           const result = this.bestResult();
           result.isSessionFinal = true;
           this.finished = true;
@@ -280,46 +322,54 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     } finally { this.committing = false; }
   }
 
-  private async commitWindow(endTime: number, evidenceEndTime: number,
-    isSessionFinal: boolean, beginTime: number): Promise<SpeakerDiarizationResult> {
+  private async updateSpeakers(endTime: number, evidenceEndTime: number,
+    isSessionFinal: boolean, beginTime: number, provisional: boolean = false): Promise<void> {
     // Snapshot before awaiting native work. Later windows cannot change this commit.
     const available = this.windows.filter(window => isSessionFinal ||
       (window.windowStartSample + 160000) * 1000 / SAMPLE_RATE <= evidenceEndTime);
     if (!this.confirmedInitialSilence && available.length > 0 &&
       this.degradedReason === SpeakerDiarizationDegradedReason.NONE) {
-      const segments = new Float32Array(available.length * 589 * 3);
-      const embeddings = new Float32Array(available.length * 3 * 256);
+      // Completed windows arrive in order; the evidence cutoff selects a prefix.
+      // Read exactly that prefix, including history already frozen for callers.
+      const evidence = this.client.readEvidence(available.length);
+      const segments = evidence.segments;
+      const embeddings = evidence.embeddings;
       const activity: number[] = new Array<number>(available.length * 3).fill(0);
       const publishedActivity: number[] = new Array<number>(available.length * 3).fill(0);
       for (let index = 0; index < available.length; index++) {
-        segments.set(available[index].result.segments, index * 589 * 3);
-        embeddings.set(available[index].result.embeddings, index * 3 * 256);
         for (let frame = 0; frame < 589; frame++) {
           const frameTime = (available[index].windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
           for (let channel = 0; channel < 3; channel++) {
-            activity[index * 3 + channel] += available[index].result.segments[frame * 3 + channel];
+            const value = segments[(index * 589 + frame) * 3 + channel];
+            activity[index * 3 + channel] += value;
             if (frameTime >= beginTime && frameTime < endTime) {
-              publishedActivity[index * 3 + channel] += available[index].result.segments[frame * 3 + channel];
+              publishedActivity[index * 3 + channel] += value;
             }
           }
         }
       }
+      const windowIds = available.map(window => window.jobId);
+      const starts = new Float64Array(available.map(window => window.windowStartSample));
       const startedMs = Date.now();
-      const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers);
-      if (this.finished) return this.bestResult();
-      this.inferenceMs += Date.now() - startedMs;
+      const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
+        starts, beginTime * SAMPLE_RATE / 1000);
+      const clusterElapsedMs = Date.now() - startedMs;
+      if (this.finished || this.confirmedInitialSilence ||
+        this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
+      this.inferenceMs += clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
       for (const turn of clustered.turns) {
         if (turn[0] < endTime && turn[1] > beginTime) visibleClusters[turn[2]] = true;
       }
-      const identity = this.identities.assign(clustered.hard, clustered.speakerCount,
+      const registry = provisional ? this.identities.fork() : this.identities;
+      const identity = registry.assign(windowIds, clustered.hard, clustered.speakerCount,
         activity, publishedActivity, visibleClusters);
-      this.finalSpeakerCount = identity.after;
+      if (!provisional) this.finalSpeakerCount = identity.after;
       const turns = communityTimeline(clustered.turns, identity.mapping, beginTime, endTime);
-      const updates = this.transcript.applySpeakerTurns(turns);
+      const updates = this.transcript.applySpeakerTurns(turns, true);
       for (const update of updates) {
         this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(update));
-        if (this.finished) return this.bestResult();
+        if (this.finished) return;
       }
       if (this.diagnostic !== undefined) {
         const fields: Record<string, Object> = {};
@@ -327,7 +377,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['beginTime'] = beginTime;
         fields['endTime'] = endTime;
         fields['evidenceEndTime'] = Number.isFinite(evidenceEndTime) ? evidenceEndTime : -1;
-        fields['jobIds'] = available.map(window => window.jobId);
+        fields['jobIds'] = windowIds;
+        fields['windowStartSamples'] = available.map(window => window.windowStartSample);
         fields['trainingIndices'] = clustered.trainingIndices;
         fields['ahc'] = clustered.ahc;
         fields['priors'] = clustered.priors;
@@ -344,9 +395,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['clusterToFrozenId'] = identity.mapping;
         fields['registryBefore'] = identity.before;
         fields['registryAfter'] = identity.after;
-        this.recordDecision('DIARIZATION_COMMUNITY_COMMIT', fields);
+        fields['clusterElapsedMs'] = clusterElapsedMs;
+        this.recordDecision(provisional ? 'DIARIZATION_COMMUNITY_PREVIEW' : 'DIARIZATION_COMMUNITY_COMMIT', fields);
       }
     }
+  }
+
+  private async commitWindow(endTime: number, evidenceEndTime: number,
+    isSessionFinal: boolean, beginTime: number): Promise<SpeakerDiarizationResult> {
+    await this.updateSpeakers(endTime, evidenceEndTime, isSessionFinal, beginTime);
+    if (this.finished) return this.bestResult();
     if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
     const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
@@ -366,18 +424,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
     this.transcript.commitThrough(endTime);
     this.publishedThrough = endTime;
-    // A window whose stable owned range is behind the public boundary can no
-    // longer contribute evidence to a later result. Keep crossing lookahead
-    // windows so the next commit retains its acoustic context.
+    // Public commitment freezes display state, not the input distribution of
+    // the unchanged batch clusterer. Evidence stays on disk until client cleanup.
     if (isSessionFinal) {
       this.windows.splice(0, this.windows.length);
-    } else if (Number.isFinite(evidenceEndTime)) {
-      let removable = 0;
-      while (removable < this.windows.length &&
-        this.windows[removable].stableEndSample * 1000 / SAMPLE_RATE <= endTime) {
-        removable += 1;
-      }
-      if (removable > 0) this.windows.splice(0, removable);
     }
     return result;
   }
@@ -387,9 +437,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   }
 
   onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void {
-    if (this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
+    if (this.finished || this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
     this.degradedReason = reason;
     this.degradedMessage = message;
+    this.transcript.applySpeakerTurns([], true);
   }
 
   private buildResult(reason: SpeakerDiarizationDegradedReason,

@@ -159,7 +159,7 @@ class HarmonyCommunityPublicContractTest(unittest.TestCase):
           s.client.cluster=async(segments,embeddings)=>{
             assert.equal(segments[0],1,'diagnostic consumers cannot mutate model input');
             assert.equal(segments[589*3],1,'later windows keep independent PCM ownership');
-            assert.equal(embeddings[0],7);
+            assert.equal(embeddings[0],Math.fround(1/3),'later mutation cannot alter accepted acoustic evidence');
             assert.equal(embeddings[3*256],0);
             return clusterResult(2);
           };

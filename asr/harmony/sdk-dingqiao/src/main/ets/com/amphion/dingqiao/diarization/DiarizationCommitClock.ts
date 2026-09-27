@@ -11,6 +11,14 @@ export class DiarizationCommitClock {
   private processedThrough: number = 0;
   private endpoints: number[] = [];
   private readonly pending: DiarizationCommitBoundary[] = [];
+  private readonly commitPeriodMs: number;
+
+  constructor(commitPeriodMs: number = 120000) {
+    if (!Number.isFinite(commitPeriodMs) || commitPeriodMs <= 0) {
+      throw new Error('commitPeriodMs must be finite and positive');
+    }
+    this.commitPeriodMs = commitPeriodMs;
+  }
 
   observeEndpoint(endTime: number): void {
     if (endTime > this.plannedThrough &&
@@ -21,8 +29,8 @@ export class DiarizationCommitClock {
   observeProcessedAudio(endTime: number): boolean {
     this.processedThrough = Math.max(this.processedThrough, endTime);
     let queued = false;
-    while (this.processedThrough >= this.plannedThrough + 120000) {
-      const deadline = this.plannedThrough + 120000;
+    while (this.processedThrough >= this.plannedThrough + this.commitPeriodMs) {
+      const deadline = this.plannedThrough + this.commitPeriodMs;
       let boundary: number | undefined;
       for (const endpoint of this.endpoints) {
         if (endpoint <= deadline) boundary = endpoint;
