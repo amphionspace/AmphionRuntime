@@ -25,13 +25,13 @@ ASR 已产生完整的 u8 文本和 token，声学分割也在同一 native chan
 
 ## 真机结果
 
-最终候选 HAP 的 Mate80 长录音回放（`device-replay-final-f32/20260927-185850-diarization-windows-49676340`）结果：
+最新 overlap 保护代码构建并安装后的 Mate80 长录音回放（`device-replay-overlap-guard/20260927-192219-diarization-windows-494c8673`）结果：
 
 | 检查 | 结果 |
 |---|---|
 | SDK 生命周期 | PASS；1 start、23 个非空 final、1 last、1 complete、0 error、0 空 final |
-| 处理性能 | diarization inference 64681.74 ms，RTF 0.5225；finish 到角色结果 948 ms |
-| 队列与内存 | pending 0、in-flight 1、音频延迟无增长；RSS 头/尾 606.613/602.062 MiB，峰值 624.156 MiB，线程 72→72 |
+| 处理性能 | diarization inference 65505.91 ms，RTF 0.5291；finish 到角色结果 903 ms |
+| 队列与内存 | pending 0、in-flight 1、音频延迟无增长；RSS 头/尾 602.449/599.496 MiB，峰值 617.164 MiB，线程 71→72 |
 | u8 归属 | 从旧结果 speaker 2 改为 speaker 0，与同一 MOSS S02 的 u6、u11、u21 一致 |
 | 其他主讲人 | S01/S03/S04 的长段编号保持稳定；UNKNOWN 和 overlap 仍被保留 |
 
@@ -41,5 +41,5 @@ ASR 已产生完整的 u8 文本和 token，声学分割也在同一 native chan
 
 - 原生 / spool / 在线角色分离单测 34 项通过。
 - Harmony HAR 构建通过：`amphion_asr@default`、`amphion_dingqiao@default` debug。
-- 当前 PR #232 的 GitHub CI 在最近提交上通过；本地工作区的衍生 sherpa 目录存在已有修改，官方 `build_install_smoke.sh` 因此拒绝重新制作签名 HAP。本报告引用的是同一设备、同一输入和候选核心代码已完成的长回放证据，不能把它写成“最终源码 HAP 已重新安装”。
+- 当前 PR #232 的 GitHub CI 正在最新提交上运行；官方隔离脚本的 HAR 发布步骤仍引用工作区路径，未完成自动安装。本轮改用同一签名配置和当前 HAR 构建并安装 HAP，再完成上述长回放；HAP 安装身份和结果保存在回放目录。
 - 因为 87 秒混合边界和此前 19.58 秒短会话身份红灯仍在，PR #232 保持 draft，禁止合入。后续应先在同一在线状态回放中解决混合段身份证据，再补最小真机对照。
