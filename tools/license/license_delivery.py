@@ -749,7 +749,10 @@ def _build_internal_verification(
         "authorizedHashUniqueCount": device_count,
         "features": claims["features"],
         "permanent": claims["expiresAt"] == "",
-        "packageBinding": claims["applicationBindingMode"],
+        "packageBinding": claims.get(
+            "applicationBindingMode",
+            "record-only" if claims["applicationId"] or claims["bundleName"] else "none",
+        ),
         "certificateBinding": bool(claims["signingCertDigest"]),
         "payloadSha256": _sha256_bytes(payload_bytes),
     }
@@ -1089,6 +1092,16 @@ def _verify_delivery(
         "maintenanceUntil": policy["maintenanceUntil"],
         "sdkMajor": policy["sdkMajor"],
     }
+    package_policy_fields = {"applicationBindingMode", "applicationIds", "bundleNames"}
+    if not package_policy_fields.intersection(claims):
+        # Historical delivery payloads omit all three fields. They cannot prove
+        # either of the newly introduced restrictive policies.
+        if policy["applicationBindingMode"] not in {"none", "record-only"}:
+            raise LicenseDeliveryError(
+                "restricted package policy requires explicit signed claims"
+            )
+        for field in package_policy_fields:
+            del expected_claims[field]
     if set(claims) != set(expected_claims) | {"authorizedDeviceHashes"}:
         raise LicenseDeliveryError("License claims contain unknown or missing fields")
     for field, expected in expected_claims.items():

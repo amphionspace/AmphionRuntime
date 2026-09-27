@@ -13,7 +13,7 @@ import zipfile
 from pathlib import Path
 from typing import Optional
 
-from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import ec
 from openpyxl import Workbook
 
@@ -984,7 +984,26 @@ class LicenseDeliveryCliTest(unittest.TestCase):
     def test_verify_reopens_final_zip_and_writes_external_pass_receipt(self) -> None:
         self.verify_final_zip()
 
-    def verify_final_zip(self, *, trust_set=False, untrusted_verify=False) -> None:
+    def test_verify_accepts_legacy_package_claims(self) -> None:
+        self.verify_final_zip(legacy_claims=True)
+
+    def test_verify_accepts_legacy_package_record(self) -> None:
+        self.verify_final_zip(legacy_claims=True, package_policy={
+            "mode": "record-only", "applicationId": "ai.customer.legacy",
+        })
+
+    def test_verify_requires_signed_claims_for_restricted_package_policy(self) -> None:
+        self.verify_final_zip(legacy_claims=True, package_policy={
+            "mode": "bound", "applicationId": "ai.customer.primary",
+        }, expected_error="restricted package policy requires explicit signed claims")
+
+    def test_verify_rejects_partially_missing_package_claims(self) -> None:
+        self.verify_final_zip(missing_policy_field="bundleNames",
+                              expected_error="unknown or missing fields")
+
+    def verify_final_zip(self, *, trust_set=False, untrusted_verify=False,
+                         legacy_claims=False, package_policy=None,
+                         missing_policy_field=None, expected_error=None) -> None:
         source = self.input_dir / "devices.csv"
         source.write_text(
             "SN\n7GK0226310007121\n62Q0225C06020145\n",
@@ -994,6 +1013,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             source.name,
             hashlib.sha256(source.read_bytes()).hexdigest(),
         )
+        if package_policy is not None:
+            request_payload = json.loads(request.read_text())
+            request_payload["policy"]["applicationRecord"] = package_policy
+            request.write_text(json.dumps(request_payload), encoding="utf-8")
         plan_path = self.root / "plan.json"
         self.assertEqual(
             0,
@@ -1027,6 +1050,44 @@ class LicenseDeliveryCliTest(unittest.TestCase):
         self.assertEqual(0, issue_result.returncode, issue_result.stderr)
         zip_path = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
         prefix = output_dir / "DEL-DQ-COMMERCIAL-20260730-001.zip"
+
+        if legacy_claims or missing_policy_field:
+            # Reproduce the pre-policy signed payload and its exact archive facts
+            # with this fixture's ephemeral key; never rewrite a real delivery.
+            root = "DEL-DQ-COMMERCIAL-20260730-001/"
+            with zipfile.ZipFile(zip_path) as archive:
+                members = {name.removeprefix(root): archive.read(name)
+                           for name in archive.namelist()}
+            envelope = json.loads(members["amphion-license.lic"])
+            claims = json.loads(base64.b64decode(envelope["payload_b64"]))
+            removed = ("applicationBindingMode", "applicationIds", "bundleNames") \
+                if legacy_claims else (missing_policy_field,)
+            for field in removed:
+                del claims[field]
+            payload = json.dumps(claims, sort_keys=True, separators=(",", ":")).encode()
+            key = serialization.load_pem_private_key(
+                (repo / ".secure/amphion-license-private.pem").read_bytes(), password=None)
+            envelope["payload_b64"] = base64.b64encode(payload).decode()
+            envelope["sig_b64"] = base64.b64encode(
+                key.sign(payload, ec.ECDSA(hashes.SHA256()))).decode()
+            old_hash = hashlib.sha256(members["amphion-license.lic"]).hexdigest()
+            members["amphion-license.lic"] = (json.dumps(envelope, indent=2) + "\n").encode()
+            new_hash = hashlib.sha256(members["amphion-license.lic"]).hexdigest()
+            for name in ("LICENSE_MANIFEST.json", "LICENSE_VERIFICATION.md"):
+                members[name] = members[name].replace(old_hash.encode(), new_hash.encode())
+            verification = json.loads(members["LICENSE_VERIFICATION.json"])
+            verification["payloadSha256"] = hashlib.sha256(payload).hexdigest()
+            if legacy_claims:
+                verification["packageBinding"] = "record-only" \
+                    if claims["applicationId"] or claims["bundleName"] else "none"
+            members["LICENSE_VERIFICATION.json"] = json.dumps(verification).encode()
+            members["SHA256SUMS.txt"] = "".join(
+                f"{hashlib.sha256(content).hexdigest()}  {name}\n"
+                for name, content in sorted(members.items()) if name != "SHA256SUMS.txt"
+            ).encode()
+            with zipfile.ZipFile(zip_path, "w") as archive:
+                for name, content in members.items():
+                    archive.writestr(root + name, content)
 
         unrelated_receipt = self.run_cli(
             "verify",
@@ -1108,6 +1169,10 @@ class LicenseDeliveryCliTest(unittest.TestCase):
             str(prefix),
         )
 
+        if expected_error is not None:
+            self.assertNotEqual(0, result.returncode)
+            self.assertIn(expected_error, result.stderr)
+            return
         if untrusted_verify:
             self.assertNotEqual(0, result.returncode)
             self.assertIn("License signature verification failed", result.stderr)
