@@ -6,6 +6,58 @@ from asr.tools.tests.test_harmony_speaker_diarization_session import ROOT, TIMEL
 
 
 class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
+    def test_text_spans_keep_known_words_independent_of_sentence_summary(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='先说这件事我来回答';
+          const turns=[[0,1458,'S1'],[1458,1475,'S4'],[2420,2437,'S4'],[2437,3230,'S2']]
+            .map(([beginTime,endTime,speakerId])=>({{beginTime,endTime,speakerId,
+              secondarySpeakerIds:[],confidence:.8,overlap:false}}));
+          let reference;
+          for(const text of [raw+'。','先说这件事。我来回答。']) {{
+            const s=new State();s.addUtterance({{rawText:raw,text,tokens:[...raw],
+              tokenTimesMs:[100,220,300,500,700,2780,3020,3340,3500],beginTime:100,endTime:3500}});
+            s.applySpeakerTurns(turns);const before=s.allTurns(),out=s.sentenceUtterances();
+            const owners=out.flatMap(u=>(u.speakerTextSpans??[{{sourceBegin:0,sourceEnd:u.rawText.length,
+              speakerId:u.speakerId}}]).flatMap(p=>Array(p.sourceEnd-p.sourceBegin).fill(p.speakerId)));
+            assert.deepEqual(owners,['S1','S1','S1','S1','S1','S2','S2','S2','S2'],
+              'an uncertain sentence summary must not erase its independently aligned text owners');
+            const spans=out.flatMap(u=>u.speakerTextSpans);
+            assert(spans.some(p=>p.speakerInferred));
+            assert(spans.filter(p=>p.speakerInferred).every(p=>p.confidence===0));
+            if(reference)assert.deepEqual(owners,reference);else reference=owners;
+            for(const u of out)assert.equal(u.speakerTextSpans.map(p=>u.text.slice(p.textBegin,p.textEnd)).join(''),u.text);
+            assert.equal(out.map(u=>u.text).join(''),text);assert.deepEqual(s.allTurns(),before);
+            const frozen=s.commitThrough(3500);s.applySpeakerRemap({{S1:'S3',S2:'S3'}});
+            assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
+          }}
+        """)
+
+    def test_itn_source_records_preserve_original_owner_and_inference(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='到了一百二十秒再说你好', text='到了120s，再说你好。';
+          // Native grammar records provide these source ranges. The numeric
+          // rewrite is one indivisible record, never evenly distributed tokens.
+          const normalization={{text:'到了120s再说你好',spans:[
+            [0,1,0,1],[1,2,1,2],[2,7,2,6],[7,8,6,7],[8,9,7,8],
+            [9,10,8,9],[10,11,9,10]].map(([sourceBegin,sourceEnd,textBegin,textEnd])=>
+              ({{sourceBegin,sourceEnd,textBegin,textEnd}}))}};
+          const s=new State();s.addUtterance({{rawText:raw,text,tokens:[...raw],
+            tokenTimesMs:[...raw].map((_,i)=>100*i),beginTime:0,endTime:1100,
+            textNormalization:normalization}});
+          s.applySpeakerTurns([{{beginTime:0,endTime:900,speakerId:'S1',secondarySpeakerIds:[],confidence:.9}}]);
+          const before=s.allTurns(),out=s.sentenceUtterances();
+          assert.equal(out.map(x=>x.text).join(''),text);
+          assert.equal(out.map(x=>x.rawText).join(''),raw);
+          assert.ok(out.every(x=>x.speakerId==='S1'),'exact ITN source records retain the raw-token owner');
+          assert.ok(out.some(x=>x.speakerInferred),'bounded raw tail inference must survive ITN and punctuation');
+          assert.ok(out.filter(x=>x.speakerInferred).every(x=>x.confidence===0));
+          assert.deepEqual(s.allTurns(),before);
+        """)
+
     def test_original_u6_punctuation_cannot_change_bounded_tail_inference(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -28,6 +80,48 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             const frozen=s.commitThrough(20860);s.applySpeakerRemap({{S1:'S2'}});
             assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
           }}
+        """)
+
+    def test_itn_record_cannot_hide_a_short_speaker_change_overlap_or_unknown(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9,...extra}});
+          const sample=(turns,spans=[{{sourceBegin:0,sourceEnd:4,textBegin:0,textEnd:2}}])=>{{
+            const s=new State();s.addUtterance({{rawText:'百分之三',text:'3%。',tokens:[...'百分之三'],
+              tokenTimesMs:[0,100,200,300],beginTime:0,endTime:400,
+              textNormalization:{{text:'3%',spans}}}});s.applySpeakerTurns(turns);return s;
+          }};
+          for(const turns of [
+            [turn(0,200,'S1'),turn(200,400,'S2')],
+            [turn(0,150,'S1'),turn(150,175,'S2'),turn(175,400,'S1')],
+            [turn(0,400,'UNKNOWN')],
+            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['S2']}})],
+            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})]
+          ]){{
+            const s=sample(turns),before=s.allTurns(),out=s.sentenceUtterances();
+            assert.equal(out.length,1);assert.equal(out[0].text,'3%。');
+            assert.equal(out[0].rawText,'百分之三');assert.equal(out[0].speakerId,'UNKNOWN');
+            assert.equal(out[0].confidence,0);assert.deepEqual(s.allTurns(),before);
+            assert.equal(out[0].overlap,turns.some(t=>t.overlap));
+            assert.equal(out[0].speakerTextSpans.length,1);
+            const span=out[0].speakerTextSpans[0];
+            assert.equal(span.overlap,turns.some(t=>t.overlap));
+            if(new Set(turns.map(t=>t.speakerId)).size>1)
+              assert.equal(span.speakerId,'UNKNOWN','a converted record cannot erase a 25 ms contrary turn');
+            const frozen=s.commitThrough(400);s.applySpeakerTurns([turn(0,400,'S3')]);
+            assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
+          }}
+          for(const spans of [[],[{{sourceBegin:0,sourceEnd:3,textBegin:0,textEnd:2}}],
+            [{{sourceBegin:0,sourceEnd:4,textBegin:1,textEnd:2}}]]) {{
+            const out=sample([turn(0,400,'S1')],spans).sentenceUtterances()[0];
+            assert.equal(out.speakerId,'UNKNOWN');assert.deepEqual(out.speakerTextSpans,[]);
+          }}
+          const unicode=new State();unicode.addUtterance({{rawText:'𠮷三',text:'𠮷3。',tokens:['𠮷','三'],
+            tokenTimesMs:[0,100],beginTime:0,endTime:200,textNormalization:{{text:'𠮷3',spans:[
+              {{sourceBegin:0,sourceEnd:2,textBegin:0,textEnd:2}},{{sourceBegin:2,sourceEnd:3,textBegin:2,textEnd:3}}]}}}});
+          unicode.applySpeakerTurns([turn(0,200,'S1')]);assert.equal(unicode.sentenceUtterances()[0].speakerId,'S1');
         """)
 
     def test_punctuation_replacing_english_space_preserves_speaker_boundaries(self):
@@ -66,12 +160,20 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           ];
           for(const turns of cases) {{
             let reference;
+            let publicReference;
             for(const text of ['甲乙丙丁','甲？乙。丙，丁。','甲乙！丙丁。']) {{
               const s=new State();s.addUtterance({{rawText:'甲乙丙丁',text,tokens:[...'甲乙丙丁'],
                 tokenTimesMs:[0,200,400,600],beginTime:0,endTime:800}});s.applySpeakerTurns(turns);
               const source=s.sourceAssignments(s.utterances[0]);
               if(reference)assert.deepEqual(source,reference);else reference=source;
               const before=JSON.stringify(s.allTurns()),out=s.sentenceUtterances();
+              const projected=out.flatMap(u=>u.speakerTextSpans.flatMap(span=>
+                Array.from({{length:span.sourceEnd-span.sourceBegin}},()=>({{speakerId:span.speakerId,
+                  secondarySpeakerIds:span.secondarySpeakerIds,overlap:span.overlap,
+                  speakerInferred:span.speakerInferred,confidence:span.confidence}}))));
+              if(publicReference)assert.deepEqual(projected,publicReference,
+                'public per-source ownership and uncertainty cannot depend on punctuation');
+              else publicReference=projected;
               assert.equal(out.map(x=>x.text).join(''),text);
               assert.equal(out.map(x=>x.rawText).join(''),'甲乙丙丁');
               assert.equal(JSON.stringify(s.allTurns()),before);
@@ -279,6 +381,7 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
 
     def test_public_result_and_real_caller_keep_inferred_flag_and_acoustic_turns(self):
         demo = (ROOT / 'delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/pages/Index.ets').read_text()
+        self.assertIn('this.textRunLabel(run)', demo, 'each visible speaker run needs an explicit SDK ID label')
         segment = demo[demo.index('class FinalSegment {'):demo.index('@Entry')]
         labels = demo[demo.index('  private speakerLabel('):demo.index('  private selectCustomerScenario(')]
         handler = demo[demo.index('  handleSpeakerDiarizationResult('):demo.index('  private async finishAutoEndedCapture(')]
@@ -301,9 +404,45 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const caller=new Caller();caller.handleSpeakerDiarizationResult('s1',out);
           assert.equal(caller.finalSegments.length,1);
           assert.equal(caller.finalSegments[0].speakerParts[0].speakerInferred,true);
+          assert.ok(caller.finalSegments[0].speakerParts[0].speakerTextSpans.some(span=>span.speakerInferred));
+          assert.equal(caller.segmentTextRuns(caller.finalSegments[0]).map(run=>run.text).join(''),text);
           assert.equal(caller.segmentSpeakerLabel(caller.finalSegments[0]),'说话人 1 · 含推断补全');
           const frozen=JSON.stringify(caller.finalSegments);caller.handleSpeakerDiarizationResult('s1',out);
           assert.equal(JSON.stringify(caller.finalSegments),frozen,'committed window delivered once');
+          const mixed=session();mixed.transcript.addUtterance({rawText:'先说这件事我来回答',
+            text:'先说这件事我来回答。',tokens:[...'先说这件事我来回答'],
+            tokenTimesMs:[100,220,300,500,700,2780,3020,3340,3500],beginTime:100,endTime:3500});
+          mixed.transcript.applySpeakerTurns([[0,1458,'S1'],[1458,1475,'S4'],[2420,2437,'S4'],[2437,3230,'S2']]
+            .map(([beginTime,endTime,speakerId])=>({beginTime,endTime,speakerId,secondarySpeakerIds:[],overlap:false})));
+          mixed.totalSamples=4000*16;
+          const full=mixed.buildResult(0,undefined,4000,0);full.windowIndex=0;full.isSessionFinal=true;
+          const other=new Caller();other.handleSpeakerDiarizationResult('s',full);
+          assert.equal(other.finalSegments.length,1,'one original utterance remains one readable paragraph');
+          assert.equal(other.finalSegments[0].text,'先说这件事我来回答。');
+          const runs=other.segmentTextRuns(other.finalSegments[0]);
+          assert.deepEqual(runs.map(({text,speakerIndex})=>({text,speakerIndex})),
+            [{text:'先说这件事',speakerIndex:0},{text:'我来回答。',speakerIndex:1}]);
+          assert.deepEqual(runs.map(run=>other.textRunLabel(run)+':'+run.text),
+            ['说话人 1:先说这件事','说话人 2 · 含推断补全:我来回答。']);
+          assert.equal(runs[1].speakerInferred,true);assert.equal(runs[1].confidence,0);
+          const fixture=(text,rows)=>({speakerParts:[{text,speakerIndex:-1,confidence:0,
+            speakerTextSpans:rows.map(([textBegin,textEnd,speakerIndex,extra={}])=>
+              ({textBegin,textEnd,speakerIndex,confidence:.8,overlap:false,speakerInferred:false,...extra}))}]});
+          const uncertain=fixture('你好张三回答。',[[0,1,2],[1,2,-1],[2,3,2],[3,4,2],
+            [4,5,0],[5,6,0,{overlap:true,secondarySpeakerIndexes:[1]}],
+            [6,7,0,{speakerInferred:true,confidence:0}]]);
+          const before=JSON.stringify(uncertain), grouped=other.segmentTextRuns(uncertain);
+          assert.deepEqual(grouped.map(r=>r.text),['你好张三','回答。'],
+            'UNKNOWN and same-speaker token spans must not split intact words');
+          assert.deepEqual(grouped.map(r=>other.textRunLabel(r)),
+            ['说话人 3 · 部分文字归属不确定','说话人 1 · 含重叠发言 · 含推断补全']);
+          assert.equal(grouped[1].confidence,0);assert.equal(JSON.stringify(uncertain),before);
+          const unknown=other.segmentTextRuns(fixture('你好。',[[0,1,-1],[1,3,-1]]));
+          assert.equal(unknown.length,1);assert.equal(other.textRunLabel(unknown[0]),'不确定');
+          const short=other.segmentTextRuns(fixture('对好的',[[0,1,3],[1,2,0],[2,3,0]]));
+          assert.deepEqual(short.map(r=>[r.speakerIndex,r.text]),[[3,'对'],[0,'好的']],
+            'real one-character reply and public ID order are preserved');
+          assert.equal(other.segmentSpeakerLabel(other.finalSegments[0]),'句内换人 · 含推断补全');
         """)
 
     def test_caller_label_does_not_turn_participants_into_a_sentence_owner(self):
@@ -317,8 +456,11 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const label=new Labels();
           const segment=(ids,overlap=false,speakerIndex=-1)=>({speakerIndex,displaySpeakerIndex:speakerIndex,
             speakerAssignmentFinal:true,revision:0,secondarySpeakerIndexes:[],
-            speakerParts:[{speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
-          assert.equal(label.segmentSpeakerLabel(segment([0,1])),'多人／不确定');
+            speakerParts:[{sourceUtteranceId:'u1',speakerIndex,secondarySpeakerIndexes:ids,overlap,speakerInferred:false}]});
+          assert.equal(label.segmentSpeakerLabel(segment([0,1])),'句内换人（文字归属不确定）');
+          assert.equal(label.segmentSpeakerLabel(segment([0,1],true)),'多人／不确定 · 含重叠发言');
+          const unconfirmed=segment([0,1]);delete unconfirmed.speakerParts[0].overlap;
+          assert.equal(label.segmentSpeakerLabel(unconfirmed),'多人／不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0])),'不确定');
           assert.equal(label.segmentSpeakerLabel(segment([0],true)),'不确定 · 含重叠发言');
           assert.equal(label.segmentSpeakerLabel(segment([],false,0)),'说话人 1');
