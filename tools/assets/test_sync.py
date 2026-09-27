@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,39 @@ SPEC.loader.exec_module(MODULE)
 
 
 class AssetSyncTest(unittest.TestCase):
+    def test_all_selects_current_assets_and_history_remains_addressable(self) -> None:
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        selected = {bundle.name for bundle in MODULE.selected_bundles(bundles, ["all"])}
+        self.assertEqual(
+            {"team-secure-state-v5"},
+            {name for name in selected if name.startswith("team-secure-state-")},
+        )
+        self.assertIn("asr-itn-zh-v2", selected)
+        self.assertNotIn("asr-itn-zh-v1", selected)
+        self.assertEqual(
+            [bundles["team-secure-state-v2"]],
+            MODULE.selected_bundles(bundles, ["team-secure-state-v2"]),
+        )
+
+    def test_corpus_alias_reuses_archive_and_cache_without_duplicate_selection(self) -> None:
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        selected = MODULE.selected_bundles(bundles, ["aishell3-500", "aishell3-hotwords-500"])
+        self.assertEqual(1, len(selected))
+        self.assertEqual("aishell3-500", selected[0].name)
+        self.assertEqual("aishell3_test_hotwords_500", selected[0].destination.name)
+        self.assertEqual(
+            "amphion-runtime/test-data/v1/amphion-test-data-aishell3-hotwords-500-v1.zip",
+            selected[0].object_key,
+        )
+
+    def test_list_exposes_police_catalog_without_selecting_it_for_fetch_all(self) -> None:
+        output = io.StringIO()
+        with mock.patch.object(sys, "argv", [MODULE.__file__, "list"]), mock.patch("sys.stdout", output):
+            self.assertEqual(0, MODULE.main())
+        self.assertIn("police-asr-eval-20260914\tcatalog-only\t", output.getvalue())
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        self.assertNotIn("police-asr-eval-20260914", [b.name for b in MODULE.selected_bundles(bundles, ["all"])])
+
     def bundle(self, root: Path, *, digest: str, size: int) -> MODULE.Bundle:
         definition = {
             "description": "fixture",

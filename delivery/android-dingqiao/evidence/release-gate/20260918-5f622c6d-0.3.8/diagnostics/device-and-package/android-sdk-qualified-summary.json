@@ -1,0 +1,14 @@
+{
+  "overall_status": "PASS",
+  "qualified_tests": 50,
+  "first_run": {
+    "passed": 48,
+    "precondition_failures": 2,
+    "artifact_retained": true
+  },
+  "targeted_rerun_passed": 2,
+  "assertions_changed": false,
+  "user_sequence_cycles": 300,
+  "public_release_aar_from_final_zip": true,
+  "test_fixture_correction": "Supply the existing voiceprint-fallback WAVs through the independent test build external audio input. Release application and AAR unchanged."
+}

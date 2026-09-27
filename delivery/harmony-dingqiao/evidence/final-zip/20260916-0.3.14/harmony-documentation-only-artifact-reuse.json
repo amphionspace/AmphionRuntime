@@ -1,0 +1,99 @@
+{
+  "reason": "CHANGELOG-only commit, compiled input fingerprint, models, native libraries and all HAR/HAP bytes unchanged",
+  "original_identity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "19de20e90c0421616fa4a83f9df212ecbb40a2c857ac903ad0b81522d3b7e1cb",
+        "size_bytes": 219610487
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "52c1bf530356feae4b4a2c15887e163029d872105db8a37609543518e79614f1",
+        "size_bytes": 380806141
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "6446ca1d1415c8324ba52f95db434ce62a4012e027b22432ad82fa3e5f47fe44",
+        "size_bytes": 42352735
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "934dc4a8352eae457a77ac6b39fc9c6917f35f66102beded6a49709e399e6317",
+        "size_bytes": 30201875
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "513df53eb868a4bc7a4e83909af040a2e72f6cf90c7dfd498474e51f4f97e142",
+        "size_bytes": 6950505
+      }
+    },
+    "build_mode": "debug",
+    "model_manifest_sha256": "3d68ca19e5ab97706b6f691df29a4ea6908c1dc49281d67dadae737c39321d90",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    "optional_models": {
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "source_fingerprint_sha256": "f25ac8ceef01cce5f4eecd0fd23e1effb00339374233a087e361ec0c9f95a8e6",
+    "zh_en_only": true
+  },
+  "current_identity": {
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "zh_en_only": true,
+    "build_mode": "debug",
+    "source_fingerprint_sha256": "f25ac8ceef01cce5f4eecd0fd23e1effb00339374233a087e361ec0c9f95a8e6",
+    "model_manifest_sha256": "3d68ca19e5ab97706b6f691df29a4ea6908c1dc49281d67dadae737c39321d90",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "4487228e82316ec54183ee2cdb33cf1c20f030095a3bd9568cd45e856e52164d",
+      "libonnxruntime.so": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+      "libsherpa-onnx-c-api.so": "0764f9dcffb14ef34bdab7261c1f0bc65aebcc45a680b38b225024eaea9c7e4a"
+    },
+    "optional_models": {
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "artifacts": {
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "52c1bf530356feae4b4a2c15887e163029d872105db8a37609543518e79614f1",
+        "size_bytes": 380806141
+      },
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "19de20e90c0421616fa4a83f9df212ecbb40a2c857ac903ad0b81522d3b7e1cb",
+        "size_bytes": 219610487
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "934dc4a8352eae457a77ac6b39fc9c6917f35f66102beded6a49709e399e6317",
+        "size_bytes": 30201875
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "6446ca1d1415c8324ba52f95db434ce62a4012e027b22432ad82fa3e5f47fe44",
+        "size_bytes": 42352735
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "513df53eb868a4bc7a4e83909af040a2e72f6cf90c7dfd498474e51f4f97e142",
+        "size_bytes": 6950505
+      }
+    }
+  },
+  "original_source_commit": "91a0e6603a6809e13bf60577df651a9534b26e73",
+  "current_source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8"
+}

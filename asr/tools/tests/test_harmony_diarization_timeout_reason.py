@@ -12,6 +12,7 @@ class HarmonyDiarizationTimeoutReasonTest(unittest.TestCase):
     def run_executor(self, checks):
         source = CLIENT.read_text()
         method = "private async execute(" + source.split("private async execute(", 1)[1].split("\n  private async settleInference", 1)[0]
+        fail = "private fail(" + source.split("private fail(", 1)[1].split("\n  private maybeNotifyDrained", 1)[0]
         script = f"""
 import assert from 'node:assert/strict';
 const INFERENCE_TIMEOUT_MS = 10000, WINDOW_SAMPLES = 160000;
@@ -27,13 +28,16 @@ class Client {{
   inferenceLoad = Promise.resolve();
   inference = {{ process: () => inferencePromise }};
   closed = false; degraded = false; queue = [];
-  activeJob = {{ jobId: 'w1' }};
-  windows = []; failures = []; quiescent = 0;
-  observer = {{ onWindow: value => this.windows.push(value) }};
+  activeJob = {{ jobId: 'w1', windowStartSample: 16000, realEndSample: 176000 }};
+  activeJobStartedMs = Date.now(); finishing = false;
+  windows = []; failures = []; diagnostics = []; quiescent = 0;
+  observer = {{ onWindow: value => this.windows.push(value),
+    onDegraded: (reason, message) => this.failures.push({{reason, message}}) }};
+  diagnostic = (event, fields) => this.diagnostics.push({{event, fields}});
   spool = {{ endOffset: () => 0, discardBefore() {{}} }};
   readWindow() {{ return new Float32Array(0); }}
   async settleInference(promise) {{ try {{ await promise; }} catch (_) {{}} }}
-  fail(reason, message) {{ this.degraded = true; this.failures.push({{reason, message}}); }}
+  {fail}
   closeWhenQuiescent() {{ this.quiescent++; }}
   pump() {{}}
   maybeNotifyDrained() {{}}
@@ -77,6 +81,39 @@ await task;
 assert.deepEqual(client.windows, []);
 assert.equal(client.activeJob, undefined);
 assert.equal(client.quiescent, 1);
+""")
+
+    def test_failure_records_the_job_and_pending_queue_before_discard(self):
+        self.run_executor("""
+client.queue.push({jobId: 'w2'});
+timers[0]();
+await flush();
+assert.equal(client.diagnostics.length, 1);
+const diagnostic = client.diagnostics[0];
+assert.equal(diagnostic.event, 'DIARIZATION_LOCAL_FAILURE');
+assert.equal(diagnostic.fields.jobId, 'w1');
+assert.deepEqual(diagnostic.fields.realPcmRange, [16000, 176000]);
+assert.equal(diagnostic.fields.pendingJobs, 1);
+assert.equal(diagnostic.fields.reason, SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT);
+assert.ok(diagnostic.fields.elapsedMs >= 0);
+assert.equal(client.queue.length, 0);
+resolveInference({ segments: [], embeddings: [] });
+await task;
+assert.deepEqual(client.windows, []);
+""")
+
+    def test_diagnostic_failure_cannot_change_timeout_or_quiescence(self):
+        self.run_executor("""
+client.diagnostic = () => { throw new Error('diagnostic storage unavailable'); };
+timers[0]();
+await flush();
+assert.equal(client.failures.length, 1);
+assert.equal(client.failures[0].reason, SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT);
+assert.equal(client.activeJob, job);
+resolveInference({ segments: [], embeddings: [] });
+await task;
+assert.equal(client.activeJob, undefined);
+assert.deepEqual(client.windows, []);
 """)
 
 

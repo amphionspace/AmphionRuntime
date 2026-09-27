@@ -1,0 +1,7 @@
+{
+  "observed_failure": "Android visible phone output differs from Harmony text baseline and contains word fragments.",
+  "hypothesis": "Primary speaker/text fragments already occur in Android public SDK diarized utterances, rather than being introduced by Demo rendering.",
+  "single_controlled_replay": "Same original phone PCM, 20 ms pacing, vadEnd=800, maxSpeakers=4 through current final ZIP Android Diagnostics public API; frozen SDK code unchanged.",
+  "falsifier": "If Android public SDK utterances are intact but R8 visible text is fragmented, reject SDK-layer attribution and inspect caller rendering.",
+  "stop_condition": "One public SDK replay, compare original ASR finals, diarized words/turns and retained R8 visible result; document capability blocker, no new release-scope runtime change."
+}

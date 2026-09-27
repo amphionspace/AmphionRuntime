@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 from pathlib import Path
@@ -20,6 +21,31 @@ SPEC.loader.exec_module(MODULE)
 
 
 class TestDataTest(unittest.TestCase):
+    def test_old_and_neutral_corpus_names_select_one_canonical_bundle(self) -> None:
+        manifest = MODULE.load_manifest()
+        self.assertEqual(
+            ["aishell3-500"],
+            MODULE.selected_bundle_names(manifest, ["aishell3-hotwords-500", "aishell3-500"]),
+        )
+        selected = MODULE.selected_bundle_names(manifest, ["all"])
+        self.assertIn("aishell3-500", selected)
+        self.assertNotIn("aishell3-hotwords-500", selected)
+        self.assertNotIn("police-asr-eval-20260914", selected)
+
+    def test_publish_resolves_legacy_name_before_accessing_bundle(self) -> None:
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "publish", "aishell3-hotwords-500", "archive.zip"]), \
+             mock.patch.object(MODULE, "publish_bundle") as publish, \
+             mock.patch("sys.stdout", io.StringIO()):
+            self.assertEqual(0, MODULE.main())
+        self.assertEqual("aishell3-500", publish.call_args.args[1])
+
+    def test_list_exposes_manual_police_corpus_location(self) -> None:
+        output = io.StringIO()
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "list"]), mock.patch("sys.stdout", output):
+            self.assertEqual(0, MODULE.main())
+        self.assertIn("police-asr-eval-20260914\tcatalog-only\t", output.getvalue())
+        self.assertIn("asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst", output.getvalue())
+
     def manifest(self, archive: Path, *, digest: str, size: int) -> dict:
         return {
             "schema_version": 1,

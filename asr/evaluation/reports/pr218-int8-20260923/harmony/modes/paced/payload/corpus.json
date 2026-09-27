@@ -1,0 +1,68 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 1.098685,
+    "id": "000000",
+    "pcm_bytes": 35158,
+    "pcm_sha256": "bfe86da0d7b2be324f060970b6b862c75be8f50abc4b81d72f7a01c84896bffb",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1624/SSB16240202.wav",
+    "source_sha256": "c28316c089dc5c6d6fd4682d7a656c3e866cb7b95190683a43c40e1e425a43ef"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 2.304014,
+    "id": "000001",
+    "pcm_bytes": 73728,
+    "pcm_sha256": "5b8e4e0626a7d116fd0fc0b222f4c2bb7e74b341e8f09f45f074ff0a7fb75c7e",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1650/SSB16500013.wav",
+    "source_sha256": "3b878082bae270230cab70408e1911bde212925a2572d0b546baf4fa11b23d42"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 2.881995,
+    "id": "000002",
+    "pcm_bytes": 92224,
+    "pcm_sha256": "876003d7c1e5d7dd04f062d1563801bcf5ca4d5bd9c98fbfbf68675ca405b5fc",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1176/SSB11760450.wav",
+    "source_sha256": "0a36d21687af57daff08eb581e23658dfc9ded2f9e2371a3ad375cf477b4f9ec"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 3.558957,
+    "id": "000003",
+    "pcm_bytes": 113886,
+    "pcm_sha256": "9ab570f1b87e48a04a3bb1643dd7c1c71775876a87e68aafd64dfea3f93a4fb3",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB0693/SSB06930473.wav",
+    "source_sha256": "b9ffd43465f623280952b2e6838283fb931b99dfe782b15fef13dc8a7acd37da"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 4.536984,
+    "id": "000004",
+    "pcm_bytes": 145184,
+    "pcm_sha256": "31852d9889cc965cff565e2b9c5fa69918c45d85231a286ec2a425963164c734",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1831/SSB18310267.wav",
+    "source_sha256": "94365857a782a50222d773dc24c57ba023f4afa3596a35d40e57cc30e6f9e590"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 9.417007,
+    "id": "000005",
+    "pcm_bytes": 301344,
+    "pcm_sha256": "7eb3f5f5edf9d8fa0a3da9462b5d49a3de5b93f1e42e1b2565823e32f5933161",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1437/SSB14370266.wav",
+    "source_sha256": "2186a974698fd40450d3a43274ba06be6b6a82b49996821c52cc1f1987b9a601"
+  }
+]

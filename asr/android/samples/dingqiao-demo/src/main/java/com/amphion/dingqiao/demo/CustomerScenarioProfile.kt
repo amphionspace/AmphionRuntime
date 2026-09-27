@@ -84,7 +84,7 @@ object CustomerScenarioProfiles {
         CustomerScenario.MEETING_MINUTES to CustomerScenarioProfile(
             scenario = CustomerScenario.MEETING_MINUTES,
             audioSource = DemoAudioSource.MIC,
-            vadEndMs = 1_500,
+            vadEndMs = 800,
             maxAudioDurationMs = 7_200_000,
             recognizerMode = "long",
             endpointMaxUtteranceMs = 60_000,

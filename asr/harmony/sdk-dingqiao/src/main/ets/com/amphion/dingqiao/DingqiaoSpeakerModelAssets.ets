@@ -6,4 +6,8 @@ export class DingqiaoSpeakerModelAssets {
   static bundledPath(): string {
     return SPEAKER_MODEL_RAWFILE;
   }
+
+  static complementaryDiarizationPath(): string {
+    return 'amphion-dingqiao/campplus.onnx';
+  }
 }

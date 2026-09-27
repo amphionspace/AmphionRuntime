@@ -1,0 +1,5 @@
+gradle.projectsEvaluated {
+    def sample = rootProject.project(':samples:dingqiao-demo')
+    sample.dependencies.add('androidTestImplementation', rootProject.project(':sdk'))
+    sample.dependencies.add('androidTestImplementation', rootProject.project(':sdk-police'))
+}

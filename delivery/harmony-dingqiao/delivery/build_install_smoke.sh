@@ -6,13 +6,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PROJECT_ROOT="$REPO_ROOT/delivery/harmony-dingqiao"
-DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
-NODE="$DEVECO_HOME/tools/node/bin/node"
-HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
-OHPM="$DEVECO_HOME/tools/ohpm/bin/ohpm"
-HDC="$DEVECO_HOME/sdk/default/openharmony/toolchains/hdc"
-LLVM_NM="$DEVECO_HOME/sdk/default/openharmony/native/llvm/bin/llvm-nm"
-JAVA_HOME_VALUE="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
+source "$REPO_ROOT/asr/tools/harmony_env.sh"
 HAP="$PROJECT_ROOT/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap"
 BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
@@ -79,7 +73,7 @@ fi
 }
 
 if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]; then
-  TARGETS="$($HDC list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
+  TARGETS="$("$HDC" list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
   TARGET_COUNT="$(printf '%s\n' "$TARGETS" | awk 'NF {count++} END {print count+0}')"
   [[ "$TARGET_COUNT" -eq 1 ]] || {
     echo "[ERROR] expected exactly one HDC target; found $TARGET_COUNT. Pass --device SERIAL." >&2
@@ -436,9 +430,6 @@ if [[ "$SKIP_BUILD" != true ]]; then
   echo "[INFO] building signed Harmony demo HAP in an isolated workspace"
   if ! (
     set -e
-    export PATH="$DEVECO_HOME/tools/node/bin:$PATH"
-    export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
-    export JAVA_HOME="$JAVA_HOME_VALUE"
     cd "$BUILD_PROJECT_ROOT"
     # The isolated workspace intentionally excludes ignored oh_modules. Recreate file dependencies
     # before Hvigor so a clean checkout cannot accidentally rely on packages from a developer tree.

@@ -1,0 +1,2 @@
+000000	/data/storage/el2/base/files/asr-stress/20260918-190913-voiceprint-fallback-f29662eb/audio/000000.pcm
+000001	/data/storage/el2/base/files/asr-stress/20260918-190913-voiceprint-fallback-f29662eb/audio/000001.pcm

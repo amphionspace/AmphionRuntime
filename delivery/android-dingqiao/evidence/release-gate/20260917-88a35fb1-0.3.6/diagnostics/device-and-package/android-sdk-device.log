@@ -1,0 +1,1057 @@
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqSdkCornerCaseTest:
+INSTRUMENTATION_STATUS: test=a01_tailFrame_abruptFinish_keepsTail
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a01_tailFrame_abruptFinish_keepsTail
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=2
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a02_frameSize_nonStandardRejected(DqSdkCornerCaseTest.kt:110)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a02_frameSize_nonStandardRejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a02_frameSize_nonStandardRejected(DqSdkCornerCaseTest.kt:110)
+
+INSTRUMENTATION_STATUS: test=a02_frameSize_nonStandardRejected
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a03_writeBeforeStart_notListening
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=3
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.writeAudio(DingqiaoRecognitionEngine.kt:271)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a03_writeBeforeStart_notListening(DqSdkCornerCaseTest.kt:130)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a03_writeBeforeStart_notListening(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.writeAudio(DingqiaoRecognitionEngine.kt:271)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a03_writeBeforeStart_notListening(DqSdkCornerCaseTest.kt:130)
+
+INSTRUMENTATION_STATUS: test=a03_writeBeforeStart_notListening
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a04_doubleStart_busy
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=4
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a04_doubleStart_busy(DqSdkCornerCaseTest.kt:144)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a04_doubleStart_busy(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a04_doubleStart_busy(DqSdkCornerCaseTest.kt:144)
+
+INSTRUMENTATION_STATUS: test=a04_doubleStart_busy
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a05_finishWhenIdle_finishFailed
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=5
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.finish(DingqiaoRecognitionEngine.kt:327)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a05_finishWhenIdle_finishFailed(DqSdkCornerCaseTest.kt:160)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a05_finishWhenIdle_finishFailed(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.finish(DingqiaoRecognitionEngine.kt:327)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a05_finishWhenIdle_finishFailed(DqSdkCornerCaseTest.kt:160)
+
+INSTRUMENTATION_STATUS: test=a05_finishWhenIdle_finishFailed
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a06_cancel_noFinalNoComplete
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=6
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a06_cancel_noFinalNoComplete(DqSdkCornerCaseTest.kt:173)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a06_cancel_noFinalNoComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a06_cancel_noFinalNoComplete(DqSdkCornerCaseTest.kt:173)
+
+INSTRUMENTATION_STATUS: test=a06_cancel_noFinalNoComplete
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a07_invalidSessionId_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=7
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a07_invalidSessionId_rejected(DqSdkCornerCaseTest.kt:191)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a07_invalidSessionId_rejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a07_invalidSessionId_rejected(DqSdkCornerCaseTest.kt:191)
+
+INSTRUMENTATION_STATUS: test=a07_invalidSessionId_rejected
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a08_writeWrongSessionId_mismatch
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=8
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a08_writeWrongSessionId_mismatch(DqSdkCornerCaseTest.kt:211)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a08_writeWrongSessionId_mismatch(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a08_writeWrongSessionId_mismatch(DqSdkCornerCaseTest.kt:211)
+
+INSTRUMENTATION_STATUS: test=a08_writeWrongSessionId_mismatch
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a09_maxAudioDuration_explicitShortLimitAutoFinishes
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=9
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09_maxAudioDuration_explicitShortLimitAutoFinishes(DqSdkCornerCaseTest.kt:228)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a09_maxAudioDuration_explicitShortLimitAutoFinishes(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09_maxAudioDuration_explicitShortLimitAutoFinishes(DqSdkCornerCaseTest.kt:228)
+
+INSTRUMENTATION_STATUS: test=a09_maxAudioDuration_explicitShortLimitAutoFinishes
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a09b_maxAudioDuration_nonFiniteValuesStayDisabled
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=10
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09b_maxAudioDuration_nonFiniteValuesStayDisabled(DqSdkCornerCaseTest.kt:257)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a09b_maxAudioDuration_nonFiniteValuesStayDisabled(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09b_maxAudioDuration_nonFiniteValuesStayDisabled(DqSdkCornerCaseTest.kt:257)
+
+INSTRUMENTATION_STATUS: test=a09b_maxAudioDuration_nonFiniteValuesStayDisabled
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10_maxAudioDuration_autoFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=11
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10_maxAudioDuration_autoFinish(DqSdkCornerCaseTest.kt:282)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10_maxAudioDuration_autoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10_maxAudioDuration_autoFinish(DqSdkCornerCaseTest.kt:282)
+
+INSTRUMENTATION_STATUS: test=a10_maxAudioDuration_autoFinish
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10b_autoFinishWindow_ignoresLateFrames
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=12
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10b_autoFinishWindow_ignoresLateFrames(DqSdkCornerCaseTest.kt:336)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10b_autoFinishWindow_ignoresLateFrames(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10b_autoFinishWindow_ignoresLateFrames(DqSdkCornerCaseTest.kt:336)
+
+INSTRUMENTATION_STATUS: test=a10b_autoFinishWindow_ignoresLateFrames
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10c_finishIdempotent_singleComplete
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=13
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10c_finishIdempotent_singleComplete(DqSdkCornerCaseTest.kt:378)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10c_finishIdempotent_singleComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10c_finishIdempotent_singleComplete(DqSdkCornerCaseTest.kt:378)
+
+INSTRUMENTATION_STATUS: test=a10c_finishIdempotent_singleComplete
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10d_terminalCallback_reentrantReplacementOwnsCompletion
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=14
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10d_terminalCallback_reentrantReplacementOwnsCompletion(DqSdkCornerCaseTest.kt:464)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10d_terminalCallback_reentrantReplacementOwnsCompletion(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10d_terminalCallback_reentrantReplacementOwnsCompletion(DqSdkCornerCaseTest.kt:464)
+
+INSTRUMENTATION_STATUS: test=a10d_terminalCallback_reentrantReplacementOwnsCompletion
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10e_onStartSynchronousWrite_thenContinue
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=15
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10e_onStartSynchronousWrite_thenContinue(DqSdkCornerCaseTest.kt:503)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10e_onStartSynchronousWrite_thenContinue(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10e_onStartSynchronousWrite_thenContinue(DqSdkCornerCaseTest.kt:503)
+
+INSTRUMENTATION_STATUS: test=a10e_onStartSynchronousWrite_thenContinue
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10f_onStartSynchronousWrite_thenImmediateFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=16
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10f_onStartSynchronousWrite_thenImmediateFinish(DqSdkCornerCaseTest.kt:532)
+
+INSTRUMENTATION_STATUS: stream=
+Error in a10f_onStartSynchronousWrite_thenImmediateFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10f_onStartSynchronousWrite_thenImmediateFinish(DqSdkCornerCaseTest.kt:532)
+
+INSTRUMENTATION_STATUS: test=a10f_onStartSynchronousWrite_thenImmediateFinish
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10g_onStartSynchronousWrite_afterEngineReload
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=17
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10g_onStartSynchronousWrite_afterEngineReload
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10ga_onStartCancel_sameIdReplacementOwnsCallbacks
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=18
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10ga_onStartCancel_sameIdReplacementOwnsCallbacks
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10gb_onStartCanWaitForOtherThreadWriteAudio
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=19
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10gb_onStartCanWaitForOtherThreadWriteAudio
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10h_lateOldWrite_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=20
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10h_lateOldWrite_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10i_lateOldFinish_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=21
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10i_lateOldFinish_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a10j_lateOldCancel_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=22
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a10j_lateOldCancel_doesNotAffectReplacement
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11_unsupportedLanguage_createFails
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=23
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a11_unsupportedLanguage_createFails
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11_vadBegin_initialSilenceAutoFinish
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=24
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a11_vadBegin_initialSilenceAutoFinish
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=25
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=a12_postShutdown_throwsInsteadOfCallback
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqSdkCornerCaseTest
+INSTRUMENTATION_STATUS: current=26
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=a12_postShutdown_throwsInsteadOfCallback
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqVoiceprintTest:
+INSTRUMENTATION_STATUS: test=v01_register_fromSample_ok
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=27
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v01_register_fromSample_ok
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v02_register_tooLong_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=28
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v02_register_tooLong_rejected
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v03_register_missingPath_rejected
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=29
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v03_register_missingPath_rejected
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04_verification_similarityReturned
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=30
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04_verification_similarityReturned
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=31
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=32
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=33
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v04e_voiceprintVadBegin_pureSilenceEndsOnce
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=34
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: voiceprint confirmation window must remain bounded
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04e_voiceprintVadBegin_pureSilenceEndsOnce(DqVoiceprintTest.kt:308)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest):
+java.lang.AssertionError: voiceprint confirmation window must remain bounded
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04e_voiceprintVadBegin_pureSilenceEndsOnce(DqVoiceprintTest.kt:308)
+
+INSTRUMENTATION_STATUS: test=v04e_voiceprintVadBegin_pureSilenceEndsOnce
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v05_speakerVad_requiresVoiceprintIds
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=35
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v05_speakerVad_requiresVoiceprintIds(DqVoiceprintTest.kt:324)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v05_speakerVad_requiresVoiceprintIds(DqVoiceprintTest.kt:324)
+
+INSTRUMENTATION_STATUS: test=v05_speakerVad_requiresVoiceprintIds
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v06_speakerVad_overlapRuns
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=36
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:346)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:346)
+
+INSTRUMENTATION_STATUS: test=v06_speakerVad_overlapRuns
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v07_delete_thenNotFound
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=37
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v07_delete_thenNotFound(DqVoiceprintTest.kt:390)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v07_delete_thenNotFound(DqVoiceprintTest.kt:390)
+
+INSTRUMENTATION_STATUS: test=v07_delete_thenNotFound
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v08_setSpeakerVadEnabled_noVoiceprint_error
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=38
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stack=com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v08_setSpeakerVadEnabled_noVoiceprint_error(DqVoiceprintTest.kt:411)
+
+INSTRUMENTATION_STATUS: stream=
+Error in v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest):
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v08_setSpeakerVadEnabled_noVoiceprint_error(DqVoiceprintTest.kt:411)
+
+INSTRUMENTATION_STATUS: test=v08_setSpeakerVadEnabled_noVoiceprint_error
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=v09_register_async_offCallerThread_ok
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqVoiceprintTest
+INSTRUMENTATION_STATUS: current=39
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=v09_register_async_offCallerThread_ok
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=40
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DqLicenseTest:
+INSTRUMENTATION_STATUS: test=L01_assetLicensed_engineWorks_andInfoReadable
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=40
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L01_assetLicensed_engineWorks_andInfoReadable
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=41
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=L10_setValid_ok
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=41
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L10_setValid_ok
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=42
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=L20_setExpired
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=42
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L20_setExpired
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=43
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=L80_setMalformed
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=43
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L80_setMalformed
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=44
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=L85_setMissingPath
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=44
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L85_setMissingPath
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=45
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=L90_restoreValid
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DqLicenseTest
+INSTRUMENTATION_STATUS: current=45
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=L90_restoreValid
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=46
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest:
+INSTRUMENTATION_STATUS: test=assetLicenseInfoReflectsRuntimeLicense
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=46
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=assetLicenseInfoReflectsRuntimeLicense
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=47
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=fastFeedFinishDoesNotDropQueuedFinals
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=47
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=fastFeedFinishDoesNotDropQueuedFinals
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=48
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=
+INSTRUMENTATION_STATUS: test=generatedSessionTagIsValidForUnicodeAssetName
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest
+INSTRUMENTATION_STATUS: current=48
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=48
+INSTRUMENTATION_STATUS: stream=.
+INSTRUMENTATION_STATUS: test=generatedSessionTagIsValidForUnicodeAssetName
+INSTRUMENTATION_STATUS_CODE: 0
+INSTRUMENTATION_RESULT: stream=
+
+Time: 768.245
+There were 20 failures:
+1) a02_frameSize_nonStandardRejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a02_frameSize_nonStandardRejected(DqSdkCornerCaseTest.kt:110)
+2) a03_writeBeforeStart_notListening(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.writeAudio(DingqiaoRecognitionEngine.kt:271)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a03_writeBeforeStart_notListening(DqSdkCornerCaseTest.kt:130)
+3) a04_doubleStart_busy(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a04_doubleStart_busy(DqSdkCornerCaseTest.kt:144)
+4) a05_finishWhenIdle_finishFailed(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.finish(DingqiaoRecognitionEngine.kt:327)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a05_finishWhenIdle_finishFailed(DqSdkCornerCaseTest.kt:160)
+5) a06_cancel_noFinalNoComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a06_cancel_noFinalNoComplete(DqSdkCornerCaseTest.kt:173)
+6) a07_invalidSessionId_rejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a07_invalidSessionId_rejected(DqSdkCornerCaseTest.kt:191)
+7) a08_writeWrongSessionId_mismatch(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a08_writeWrongSessionId_mismatch(DqSdkCornerCaseTest.kt:211)
+8) a09_maxAudioDuration_explicitShortLimitAutoFinishes(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09_maxAudioDuration_explicitShortLimitAutoFinishes(DqSdkCornerCaseTest.kt:228)
+9) a09b_maxAudioDuration_nonFiniteValuesStayDisabled(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09b_maxAudioDuration_nonFiniteValuesStayDisabled(DqSdkCornerCaseTest.kt:257)
+10) a10_maxAudioDuration_autoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10_maxAudioDuration_autoFinish(DqSdkCornerCaseTest.kt:282)
+11) a10b_autoFinishWindow_ignoresLateFrames(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10b_autoFinishWindow_ignoresLateFrames(DqSdkCornerCaseTest.kt:336)
+12) a10c_finishIdempotent_singleComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10c_finishIdempotent_singleComplete(DqSdkCornerCaseTest.kt:378)
+13) a10d_terminalCallback_reentrantReplacementOwnsCompletion(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10d_terminalCallback_reentrantReplacementOwnsCompletion(DqSdkCornerCaseTest.kt:464)
+14) a10e_onStartSynchronousWrite_thenContinue(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10e_onStartSynchronousWrite_thenContinue(DqSdkCornerCaseTest.kt:503)
+15) a10f_onStartSynchronousWrite_thenImmediateFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10f_onStartSynchronousWrite_thenImmediateFinish(DqSdkCornerCaseTest.kt:532)
+16) v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+java.lang.AssertionError: voiceprint confirmation window must remain bounded
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04e_voiceprintVadBegin_pureSilenceEndsOnce(DqVoiceprintTest.kt:308)
+17) v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v05_speakerVad_requiresVoiceprintIds(DqVoiceprintTest.kt:324)
+18) v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:346)
+19) v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v07_delete_thenNotFound(DqVoiceprintTest.kt:390)
+20) v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+	at com.amphion.dingqiao.demo.DqVoiceprintTest.v08_setSpeakerVadEnabled_noVoiceprint_error(DqVoiceprintTest.kt:411)
+
+FAILURES!!!
+Tests run: 48,  Failures: 20
+
+
+INSTRUMENTATION_CODE: -1

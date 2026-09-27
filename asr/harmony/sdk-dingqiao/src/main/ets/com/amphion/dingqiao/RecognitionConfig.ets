@@ -16,8 +16,6 @@ import {
   StartParams
 } from './DingqiaoModels';
 
-const DEFAULT_HOTWORDS_SCORE: number = 3.0;
-
 export function languageOf(language: string): AsrLanguage {
   const normalized = language.toLowerCase();
   if (normalized === 'zh-cn' || normalized === 'zh-en' || normalized === 'zh_en') {
@@ -125,7 +123,7 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   config.itn = true;
   config.vad = true;
   config.endpoint = true;
-  config.hotwordsScore = DEFAULT_HOTWORDS_SCORE;
+  config.hotwordsScore = PoliceEngineConfig.HOTWORDS_SCORE_DEFAULT;
   config.hotwords = PoliceEngineConfig.effectiveHotwords(
     context, parseLexicon(params.extraParams['sysGeneralLexicon']));
   config.vadConfig.activeEndpointSilenceMs = vadEndMs(startParams);

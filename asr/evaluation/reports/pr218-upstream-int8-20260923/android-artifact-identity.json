@@ -1,0 +1,51 @@
+{
+  "runtime_source_commit": "7dd914494b47cef848b012fb45a502532bceb334",
+  "device": "TECNO KI8 / Android 13",
+  "artifacts": {
+    "app": {
+      "package": "com.amphion.dingqiao.demo",
+      "sha256": "2da75bb229eef5d9a560b837f3d36bb0d2bdcb8a84b571aa1e0e9eacb7a1e98c",
+      "bytes": 867084868,
+      "installed_matches_local": true,
+      "runtime_entries": {
+        "lib/arm64-v8a/libamphion_audio_processing.so": "1fcbfd98c950e9bf6e9538864d1943d91874e0fa80b85c7813f78fe1fc9e0310",
+        "lib/arm64-v8a/libamphion_diarization_jni.so": "8ab21835d2f7c213707dad0bb68340a96949457ba96981eae4e470d7907bbe72",
+        "lib/arm64-v8a/libamphion_police_jni.so": "c709b5414e476938fd265e5d9480b89a53d5c401dd876785432614fb4dcedb58",
+        "lib/arm64-v8a/libonnxruntime.so": "5cc388800bdd737e401f716b5e31f3fafab28bf9d2c2bee3f150ed043c368021",
+        "lib/arm64-v8a/libsherpa-onnx-jni.so": "8a97b03eb1bfb5b26f2c5a7cb31cb98f4d413454d5a3b7936050641a5a3cc6d1",
+        "assets/amphion-models/manifest.json": "0fa8e7b0557374ad8eacb8e2dbb49e1b4de67305844d9504a752450a9ee3f3b6",
+        "assets/amphion-models/zh-en/v1/encoder.int8.ort.mp3": "0a94603862dba0b8f638fa7a35a01470d790724510e96e63366582111f520b9f"
+      }
+    },
+    "test": {
+      "package": "com.amphion.dingqiao.demo.test",
+      "sha256": "f5274cee5db2bd03f42f45a80d800b3ffc3e47ad63080fd638ae416cff54cc9e",
+      "bytes": 3554030,
+      "installed_matches_local": true,
+      "runtime_entries": {}
+    }
+  },
+  "injected_pcm_sha256": {
+    "000_enroll.wav": "406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc",
+    "001_recognize.wav": "3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc",
+    "v6_1_1.wav": "04a632dea17ab3e67acec33b807e4cf073393c4d3779c6b3ab7fc45b28b02bf1",
+    "v6_1_2.wav": "0ab2d4296ff7628ebd87494bd269961e68229b775f00a2de8c6d17acb7cf9acf",
+    "v6_2_1.wav": "07b0394ecfecd03a35bfcead5acb72ebb2315897b6970216d3a3b9559fc957e0",
+    "v6_2_2.wav": "07c465bfd3f80764d9757296f50fc9aac55407a2be0903345e11a23b1e3ac15a",
+    "v6_3_1.wav": "28805ff0342766123f8d90bd35ea087d212e7d4a8bba9049f553909628ffd070",
+    "v6_3_2.wav": "37bac3a59627b3be28a53a10e83264933a0caecc20d15eb358cc8c864de053f2",
+    "v6_4_1.wav": "089f393073d35cc336fc89207a7adfdf3e2c649f0ec8f6a92ba2c3b07b0c1dd9",
+    "v6_4_2.wav": "08ac3fd440ec4b99f985b49da58e67cd7680f98558eb0bd5392ca65089a58437",
+    "v6_5_1.wav": "03f1e777e84ec1b9797050013f688531bbeadc5d0d7603046aafa7d10c23b351",
+    "v6_5_2.wav": "5249d1c1c9fb139fcc16d00dfce54f924ea80fd05eae057d937e7e5603490d26",
+    "v6_6_1.wav": "06610f5f6b6476dd5b4a9345cf90d7c1aeec6c28a769e93530aeea7b61d94b98",
+    "v6_6_2.wav": "19e3933b545bd02331066360a638965fe747282974b79d09e0cc3a87a28ce5e3",
+    "01_target.wav": "4f484c53c1ad4d4bb0d23820c6b024d7871889db7f1c5d5897e21fdbc3d6d261",
+    "02_\u0398\u00e7\u00ec\u03c3\u00c5\u00e1.wav": "eaa24443351c63040d9becb4e2196efb54d0041ab4f99f55636c32c18b3b6318",
+    "gate_single.wav": "4f484c53c1ad4d4bb0d23820c6b024d7871889db7f1c5d5897e21fdbc3d6d261",
+    "01_\u03c3\u00fa\u2591\u03c4\u2551\u2563.wav": "b60a36c44fad95beffa10bf82f92c6909ef21a6bde55ae31c54fe4d2b7955436",
+    "02_\u03c3\u00fa\u2591\u03c4\u2551\u2563.wav": "b60a36c44fad95beffa10bf82f92c6909ef21a6bde55ae31c54fe4d2b7955436",
+    "03_\u03c3\u00fa\u2591\u03c4\u2551\u2563.wav": "05708e5070068a80b2c3524a0218305cc048469becf14b3cf91f5be4ab679ef7",
+    "03_\u03a6\u00bb\u00e5\u03c3\u00ea\u00bd.wav": "235485761e141bfe434ae800e51fc8f1da16faa5a527bddcd4f49a0eed75c9ad"
+  }
+}

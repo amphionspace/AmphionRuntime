@@ -1,0 +1,1283 @@
+09-17 17:56:58.009 15369 15403 I TestRunner: run started: 48 tests
+09-17 17:56:58.011 15369 15403 I TestRunner: started: a01_tailFrame_abruptFinish_keepsTail(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 17:56:58.975 15369 15406 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=942 postProcessorMs=213 assetInstallMs=15
+09-17 17:56:59.731 15369 15406 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=640 postProcessorMs=123 assetInstallMs=0
+09-17 17:56:59.820 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 17:57:00.117 15369 15508 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=3840 decodeDurationMs=291 postProcessMs=4 firstPartialLatencyMs=120 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=295 rtf=0.076 nativeRssMb=482 nativeRssMbDelta=0 pcmBytesAccepted=122880 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=10 nativeRssMbAtReady=295
+09-17 17:57:00.489 15369 15506 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=940 decodeOpportunities=2 decodeDurationMs=136 elapsedMs=138 singleDecode=false fallback=false
+09-17 17:57:00.491 15369 15508 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=481 nativeRssMbDelta=-1 pcmBytesAccepted=0
+09-17 17:57:00.493 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=2 totalPcmBytes=122880 avgRtf=0.076 p95Rtf=0.076 peakNativeRssMb=482 nativeRssMb=480
+09-17 17:57:00.808 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 17:57:01.099 15369 15515 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=880 decodeOpportunities=2 decodeDurationMs=131 elapsedMs=133 singleDecode=false fallback=false
+09-17 17:57:01.104 15369 15518 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=1840 decodeDurationMs=292 postProcessMs=3 firstPartialLatencyMs=78 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=295 rtf=0.159 nativeRssMb=483 nativeRssMbDelta=0 pcmBytesAccepted=58880
+09-17 17:57:01.110 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=1 totalPcmBytes=58880 avgRtf=0.159 p95Rtf=0.159 peakNativeRssMb=483 nativeRssMb=483
+09-17 17:57:01.442 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 17:57:01.867 15369 15522 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=13040 decodeDurationMs=417 postProcessMs=6 firstPartialLatencyMs=161 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=423 rtf=0.032 nativeRssMb=442 nativeRssMbDelta=0 pcmBytesAccepted=417280
+09-17 17:57:02.646 15369 15522 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-5 postProcessMs=5 firstPartialLatencyMs=-631 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=447 nativeRssMbDelta=5 pcmBytesAccepted=0
+09-17 17:57:03.111 15369 15519 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=3 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:00:23.277 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: PRE_ON_CREATE
+09-17 18:00:23.367 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: CREATED
+09-17 18:00:23.368 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: STARTED
+09-17 18:00:23.369 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: RESUMED
+09-17 18:00:23.572 15369 15519 I AmphionMetrics: kind=FINAL_TAIL sessionId=3 scope=session paddingMs=380 decodeOpportunities=1 decodeDurationMs=262 elapsedMs=262 singleDecode=true fallback=false
+09-17 18:00:23.574 15369 15522 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=3 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=200538 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=471 nativeRssMbDelta=24 pcmBytesAccepted=0
+09-17 18:00:23.576 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=3 totalUtterances=3 totalPcmBytes=417280 avgRtf=0.032 p95Rtf=0.032 peakNativeRssMb=471 nativeRssMb=471
+09-17 18:00:23.599 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:23.975 15369 20762 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=1 utteranceDurationMs=11040 decodeDurationMs=366 postProcessMs=8 firstPartialLatencyMs=147 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=374 rtf=0.033 nativeRssMb=492 nativeRssMbDelta=0 pcmBytesAccepted=353280
+09-17 18:00:24.561 15369 20762 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-5 postProcessMs=5 firstPartialLatencyMs=-478 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=505 nativeRssMbDelta=13 pcmBytesAccepted=0
+09-17 18:00:24.815 15369 20760 I AmphionMetrics: kind=FINAL_TAIL sessionId=4 scope=session paddingMs=460 decodeOpportunities=1 decodeDurationMs=68 elapsedMs=68 singleDecode=true fallback=false
+09-17 18:00:24.816 15369 20762 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=3 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=506 nativeRssMbDelta=1 pcmBytesAccepted=0
+09-17 18:00:24.817 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=4 totalUtterances=3 totalPcmBytes=353280 avgRtf=0.033 p95Rtf=0.033 peakNativeRssMb=506 nativeRssMb=506
+09-17 18:00:25.124 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:25.507 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=1 utteranceDurationMs=13340 decodeDurationMs=377 postProcessMs=4 firstPartialLatencyMs=59 endpointToFinalLatencyMs=5 utteranceE2eLatencyMs=382 rtf=0.028 nativeRssMb=492 nativeRssMbDelta=0 pcmBytesAccepted=426880
+09-17 18:00:25.586 15369 20939 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=5 action=hard-restart reason=native-rule2 evidence=true
+09-17 18:00:26.067 15369 20939 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=5 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:00:26.236 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=2 utteranceDurationMs=4960 decodeDurationMs=643 postProcessMs=6 firstPartialLatencyMs=300 endpointToFinalLatencyMs=277 utteranceE2eLatencyMs=649 rtf=0.130 nativeRssMb=495 nativeRssMbDelta=3 pcmBytesAccepted=158720
+09-17 18:00:27.358 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=3 utteranceDurationMs=9520 decodeDurationMs=1041 postProcessMs=13 firstPartialLatencyMs=361 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1054 rtf=0.109 nativeRssMb=510 nativeRssMbDelta=15 pcmBytesAccepted=304640
+09-17 18:00:27.778 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=4 utteranceDurationMs=3280 decodeDurationMs=358 postProcessMs=5 firstPartialLatencyMs=141 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=363 rtf=0.109 nativeRssMb=515 nativeRssMbDelta=5 pcmBytesAccepted=104960
+09-17 18:00:28.222 15369 20939 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=5 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:00:29.088 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=5 utteranceDurationMs=900 decodeDurationMs=1228 postProcessMs=11 firstPartialLatencyMs=602 endpointToFinalLatencyMs=938 utteranceE2eLatencyMs=1239 rtf=1.364 nativeRssMb=500 nativeRssMbDelta=-15 pcmBytesAccepted=28800
+09-17 18:00:29.302 15369 20939 I AmphionMetrics: kind=FINAL_TAIL sessionId=5 scope=session paddingMs=480 decodeOpportunities=1 decodeDurationMs=84 elapsedMs=85 singleDecode=true fallback=false
+09-17 18:00:29.303 15369 20958 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=6 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=501 nativeRssMbDelta=1 pcmBytesAccepted=0
+09-17 18:00:29.305 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=5 totalUtterances=6 totalPcmBytes=1024000 avgRtf=0.348 p95Rtf=1.364 peakNativeRssMb=515 nativeRssMb=501
+09-17 18:00:29.615 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:30.023 15369 21061 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=1 utteranceDurationMs=13340 decodeDurationMs=400 postProcessMs=5 firstPartialLatencyMs=96 endpointToFinalLatencyMs=6 utteranceE2eLatencyMs=405 rtf=0.030 nativeRssMb=506 nativeRssMbDelta=0 pcmBytesAccepted=426880
+09-17 18:00:30.088 15369 21058 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=6 action=hard-restart reason=native-rule2 evidence=true
+09-17 18:00:30.525 15369 21058 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=6 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:00:30.686 15369 21061 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=2 utteranceDurationMs=4960 decodeDurationMs=590 postProcessMs=5 firstPartialLatencyMs=287 endpointToFinalLatencyMs=231 utteranceE2eLatencyMs=596 rtf=0.119 nativeRssMb=505 nativeRssMbDelta=-1 pcmBytesAccepted=158720
+09-17 18:00:31.826 15369 21061 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=3 utteranceDurationMs=9520 decodeDurationMs=1062 postProcessMs=12 firstPartialLatencyMs=360 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1074 rtf=0.112 nativeRssMb=517 nativeRssMbDelta=12 pcmBytesAccepted=304640
+09-17 18:00:32.263 15369 21061 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=4 utteranceDurationMs=2180 decodeDurationMs=372 postProcessMs=5 firstPartialLatencyMs=224 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=378 rtf=0.171 nativeRssMb=522 nativeRssMbDelta=5 pcmBytesAccepted=69760
+09-17 18:00:32.699 15369 21058 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=6 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:00:33.524 15369 21058 I AmphionMetrics: kind=FINAL_TAIL sessionId=6 scope=session paddingMs=720 decodeOpportunities=2 decodeDurationMs=141 elapsedMs=142 singleDecode=false fallback=false
+09-17 18:00:33.534 15369 21061 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=5 utteranceDurationMs=-1 decodeDurationMs=-9 postProcessMs=9 firstPartialLatencyMs=-592 endpointToFinalLatencyMs=903 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=529 nativeRssMbDelta=7 pcmBytesAccepted=0
+09-17 18:00:33.541 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=6 totalUtterances=5 totalPcmBytes=960000 avgRtf=0.108 p95Rtf=0.171 peakNativeRssMb=529 nativeRssMb=529
+09-17 18:00:33.843 15369 15403 I TestRunner: finished: a01_tailFrame_abruptFinish_keepsTail(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:33.848 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:33.848 15369 15369 I MonitoringInstr: Finishing activity: com.amphion.dingqiao.demo.MainActivity@b77992c
+09-17 18:00:33.862 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: PAUSED
+09-17 18:00:33.898 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:33.948 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.000 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.051 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.101 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.151 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.201 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.251 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.301 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.351 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.402 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.452 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:00:34.497 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: STOPPED
+09-17 18:00:34.502 15369 15403 I TestRunner: started: a02_frameSize_nonStandardRejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.503 15369 15403 E TestRunner: failed: a02_frameSize_nonStandardRejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.504 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.504 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a02_frameSize_nonStandardRejected(DqSdkCornerCaseTest.kt:110)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.504 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.504 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.505 15369 15403 I TestRunner: finished: a02_frameSize_nonStandardRejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.505 15369 15403 I TestRunner: started: a03_writeBeforeStart_notListening(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.506 15369 15403 E TestRunner: failed: a03_writeBeforeStart_notListening(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.507 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.507 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.writeAudio(DingqiaoRecognitionEngine.kt:271)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a03_writeBeforeStart_notListening(DqSdkCornerCaseTest.kt:130)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.507 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.507 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.507 15369 15403 I TestRunner: finished: a03_writeBeforeStart_notListening(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.508 15369 15403 I TestRunner: started: a04_doubleStart_busy(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.508 15369 15403 E TestRunner: failed: a04_doubleStart_busy(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.508 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.508 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a04_doubleStart_busy(DqSdkCornerCaseTest.kt:144)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.508 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.508 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.509 15369 15403 I TestRunner: finished: a04_doubleStart_busy(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.509 15369 15403 I TestRunner: started: a05_finishWhenIdle_finishFailed(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.510 15369 15403 E TestRunner: failed: a05_finishWhenIdle_finishFailed(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.510 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.510 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.finish(DingqiaoRecognitionEngine.kt:327)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a05_finishWhenIdle_finishFailed(DqSdkCornerCaseTest.kt:160)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.510 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.510 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.510 15369 15403 I TestRunner: finished: a05_finishWhenIdle_finishFailed(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.510 15369 15403 I TestRunner: started: a06_cancel_noFinalNoComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.511 15369 15403 E TestRunner: failed: a06_cancel_noFinalNoComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.511 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.511 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a06_cancel_noFinalNoComplete(DqSdkCornerCaseTest.kt:173)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.511 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.511 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.511 15369 15403 I TestRunner: finished: a06_cancel_noFinalNoComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.512 15369 15403 I TestRunner: started: a07_invalidSessionId_rejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.512 15369 15403 E TestRunner: failed: a07_invalidSessionId_rejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.512 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.512 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a07_invalidSessionId_rejected(DqSdkCornerCaseTest.kt:191)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.512 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.512 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.512 15369 15403 I TestRunner: finished: a07_invalidSessionId_rejected(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.513 15369 15403 I TestRunner: started: a08_writeWrongSessionId_mismatch(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.513 15369 15403 E TestRunner: failed: a08_writeWrongSessionId_mismatch(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.514 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.514 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a08_writeWrongSessionId_mismatch(DqSdkCornerCaseTest.kt:211)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.514 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.514 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.514 15369 15403 I TestRunner: finished: a08_writeWrongSessionId_mismatch(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.514 15369 15403 I TestRunner: started: a09_maxAudioDuration_explicitShortLimitAutoFinishes(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.515 15369 15403 E TestRunner: failed: a09_maxAudioDuration_explicitShortLimitAutoFinishes(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.515 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.515 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09_maxAudioDuration_explicitShortLimitAutoFinishes(DqSdkCornerCaseTest.kt:228)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.515 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.515 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.515 15369 15403 I TestRunner: finished: a09_maxAudioDuration_explicitShortLimitAutoFinishes(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.515 15369 15403 I TestRunner: started: a09b_maxAudioDuration_nonFiniteValuesStayDisabled(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.517 15369 15403 E TestRunner: failed: a09b_maxAudioDuration_nonFiniteValuesStayDisabled(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.517 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.517 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a09b_maxAudioDuration_nonFiniteValuesStayDisabled(DqSdkCornerCaseTest.kt:257)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.517 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.517 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.517 15369 15403 I TestRunner: finished: a09b_maxAudioDuration_nonFiniteValuesStayDisabled(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.518 15369 15403 I TestRunner: started: a10_maxAudioDuration_autoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.521 15369 15403 E TestRunner: failed: a10_maxAudioDuration_autoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.521 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.521 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10_maxAudioDuration_autoFinish(DqSdkCornerCaseTest.kt:282)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.521 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.521 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.521 15369 15403 I TestRunner: finished: a10_maxAudioDuration_autoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.522 15369 15403 I TestRunner: started: a10b_autoFinishWindow_ignoresLateFrames(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.523 15369 15403 E TestRunner: failed: a10b_autoFinishWindow_ignoresLateFrames(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.523 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.523 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10b_autoFinishWindow_ignoresLateFrames(DqSdkCornerCaseTest.kt:336)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.523 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.523 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.523 15369 15403 I TestRunner: finished: a10b_autoFinishWindow_ignoresLateFrames(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.524 15369 15403 I TestRunner: started: a10c_finishIdempotent_singleComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.524 15369 15403 E TestRunner: failed: a10c_finishIdempotent_singleComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.524 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.524 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10c_finishIdempotent_singleComplete(DqSdkCornerCaseTest.kt:378)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.524 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.524 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.525 15369 15403 I TestRunner: finished: a10c_finishIdempotent_singleComplete(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.525 15369 15403 I TestRunner: started: a10d_terminalCallback_reentrantReplacementOwnsCompletion(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.525 15369 15403 E TestRunner: failed: a10d_terminalCallback_reentrantReplacementOwnsCompletion(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.526 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.526 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10d_terminalCallback_reentrantReplacementOwnsCompletion(DqSdkCornerCaseTest.kt:464)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.526 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.526 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.526 15369 15403 I TestRunner: finished: a10d_terminalCallback_reentrantReplacementOwnsCompletion(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.526 15369 15403 I TestRunner: started: a10e_onStartSynchronousWrite_thenContinue(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.527 15369 15403 E TestRunner: failed: a10e_onStartSynchronousWrite_thenContinue(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.527 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.527 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10e_onStartSynchronousWrite_thenContinue(DqSdkCornerCaseTest.kt:503)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.527 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.527 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.528 15369 15403 I TestRunner: finished: a10e_onStartSynchronousWrite_thenContinue(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.528 15369 15403 I TestRunner: started: a10f_onStartSynchronousWrite_thenImmediateFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.529 15369 15403 E TestRunner: failed: a10f_onStartSynchronousWrite_thenImmediateFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.529 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:00:34.529 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqSdkCornerCaseTest.a10f_onStartSynchronousWrite_thenImmediateFinish(DqSdkCornerCaseTest.kt:532)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:00:34.529 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:00:34.529 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:00:34.530 15369 15403 I TestRunner: finished: a10f_onStartSynchronousWrite_thenImmediateFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.530 15369 15403 I TestRunner: started: a10g_onStartSynchronousWrite_afterEngineReload(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:34.642 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b77992c in: DESTROYED
+09-17 18:00:35.527 15369 21388 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=876 postProcessorMs=154 assetInstallMs=0
+09-17 18:00:35.623 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:35.938 15369 21474 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=74 elapsedMs=74 singleDecode=true fallback=false
+09-17 18:00:35.943 15369 21478 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1500 decodeDurationMs=315 postProcessMs=3 firstPartialLatencyMs=128 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=319 rtf=0.210 nativeRssMb=579 nativeRssMbDelta=0 pcmBytesAccepted=48000 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=16 nativeRssMbAtReady=409
+09-17 18:00:35.945 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=48000 avgRtf=0.210 p95Rtf=0.210 peakNativeRssMb=579 nativeRssMb=578
+09-17 18:00:35.945 15369 15403 I TestRunner: finished: a10g_onStartSynchronousWrite_afterEngineReload(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:35.946 15369 15403 I TestRunner: started: a10ga_onStartCancel_sameIdReplacementOwnsCallbacks(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:35.952 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:35.952 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=0 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=558 nativeRssMb=558
+09-17 18:00:35.958 15369 15509 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.035 15369 21483 I AmphionMetrics: kind=FINAL_TAIL sessionId=3 scope=session paddingMs=800 decodeOpportunities=1 decodeDurationMs=74 elapsedMs=76 singleDecode=true fallback=false
+09-17 18:00:36.036 15369 21485 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=578 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-17 18:00:36.037 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=3 totalUtterances=1 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=578 nativeRssMb=578
+09-17 18:00:36.037 15369 15403 I TestRunner: finished: a10ga_onStartCancel_sameIdReplacementOwnsCallbacks(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.038 15369 15403 I TestRunner: started: a10gb_onStartCanWaitForOtherThreadWriteAudio(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.044 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.119 15369 21486 I AmphionMetrics: kind=FINAL_TAIL sessionId=4 scope=session paddingMs=780 decodeOpportunities=1 decodeDurationMs=73 elapsedMs=74 singleDecode=true fallback=false
+09-17 18:00:36.120 15369 21488 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=1 utteranceDurationMs=20 decodeDurationMs=76 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=76 rtf=3.800 nativeRssMb=578 nativeRssMbDelta=0 pcmBytesAccepted=640
+09-17 18:00:36.121 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=4 totalUtterances=1 totalPcmBytes=640 avgRtf=3.800 p95Rtf=3.800 peakNativeRssMb=578 nativeRssMb=578
+09-17 18:00:36.127 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.203 15369 21490 I AmphionMetrics: kind=FINAL_TAIL sessionId=5 scope=session paddingMs=780 decodeOpportunities=1 decodeDurationMs=75 elapsedMs=76 singleDecode=true fallback=false
+09-17 18:00:36.204 15369 21493 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=1 utteranceDurationMs=20 decodeDurationMs=77 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=77 rtf=3.850 nativeRssMb=578 nativeRssMbDelta=0 pcmBytesAccepted=640
+09-17 18:00:36.205 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=5 totalUtterances=1 totalPcmBytes=640 avgRtf=3.850 p95Rtf=3.850 peakNativeRssMb=578 nativeRssMb=578
+09-17 18:00:36.205 15369 15403 I TestRunner: finished: a10gb_onStartCanWaitForOtherThreadWriteAudio(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.206 15369 15403 I TestRunner: started: a10h_lateOldWrite_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.212 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.212 15369 15403 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=6 totalUtterances=0 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=562 nativeRssMb=562
+09-17 18:00:36.217 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.288 15369 21498 I AmphionMetrics: kind=FINAL_TAIL sessionId=7 scope=session paddingMs=800 decodeOpportunities=1 decodeDurationMs=70 elapsedMs=71 singleDecode=true fallback=false
+09-17 18:00:36.289 15369 21503 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=7 utteranceIndex=1 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=579 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-17 18:00:36.290 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=7 totalUtterances=1 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=579 nativeRssMb=579
+09-17 18:00:36.290 15369 15403 I TestRunner: finished: a10h_lateOldWrite_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.290 15369 15403 I TestRunner: started: a10i_lateOldFinish_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.296 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.297 15369 15403 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=8 totalUtterances=0 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=562 nativeRssMb=562
+09-17 18:00:36.301 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.372 15369 21517 I AmphionMetrics: kind=FINAL_TAIL sessionId=9 scope=session paddingMs=800 decodeOpportunities=1 decodeDurationMs=69 elapsedMs=70 singleDecode=true fallback=false
+09-17 18:00:36.373 15369 21519 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=9 utteranceIndex=1 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=579 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-17 18:00:36.373 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=9 totalUtterances=1 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=579 nativeRssMb=579
+09-17 18:00:36.373 15369 15403 I TestRunner: finished: a10i_lateOldFinish_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.374 15369 15403 I TestRunner: started: a10j_lateOldCancel_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.380 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.380 15369 15403 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=10 totalUtterances=0 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=563 nativeRssMb=563
+09-17 18:00:36.385 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.459 15369 21530 I AmphionMetrics: kind=FINAL_TAIL sessionId=11 scope=session paddingMs=800 decodeOpportunities=1 decodeDurationMs=72 elapsedMs=73 singleDecode=true fallback=false
+09-17 18:00:36.460 15369 21532 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=1 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=579 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-17 18:00:36.461 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=11 totalUtterances=1 totalPcmBytes=0 avgRtf=-1 p95Rtf=-1 peakNativeRssMb=579 nativeRssMb=579
+09-17 18:00:36.461 15369 15403 I TestRunner: finished: a10j_lateOldCancel_doesNotAffectReplacement(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.461 15369 15403 I TestRunner: started: a11_unsupportedLanguage_createFails(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.489 15369 15403 I TestRunner: finished: a11_unsupportedLanguage_createFails(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.490 15369 15403 I TestRunner: started: a11_vadBegin_initialSilenceAutoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.507 15369 21534 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:36.662 15369 21535 I AmphionMetrics: kind=FINAL_TAIL sessionId=12 scope=session paddingMs=920 decodeOpportunities=2 decodeDurationMs=139 elapsedMs=142 singleDecode=false fallback=false
+09-17 18:00:36.663 15369 21537 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=1 utteranceDurationMs=700 decodeDurationMs=155 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=155 rtf=0.221 nativeRssMb=582 nativeRssMbDelta=0 pcmBytesAccepted=22400
+09-17 18:00:36.663 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=12 totalUtterances=1 totalPcmBytes=22400 avgRtf=0.221 p95Rtf=0.221 peakNativeRssMb=582 nativeRssMb=582
+09-17 18:00:36.664 15369 15403 I TestRunner: finished: a11_vadBegin_initialSilenceAutoFinish(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.664 15369 15403 I TestRunner: started: a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:00:36.671 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:00:38.926 15369 21540 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=13 utteranceIndex=1 utteranceDurationMs=2220 decodeDurationMs=2243 postProcessMs=9 firstPartialLatencyMs=881 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=2252 rtf=1.010 nativeRssMb=509 nativeRssMbDelta=0 pcmBytesAccepted=71040
+09-17 18:03:56.659 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: PRE_ON_CREATE
+09-17 18:03:56.686 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: CREATED
+09-17 18:03:56.687 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: STARTED
+09-17 18:03:56.687 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: RESUMED
+09-17 18:03:57.419 15369 21538 I AmphionMetrics: kind=FINAL_TAIL sessionId=13 scope=session paddingMs=940 decodeOpportunities=2 decodeDurationMs=182 elapsedMs=185 singleDecode=false fallback=false
+09-17 18:03:57.420 15369 21540 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=13 utteranceIndex=2 utteranceDurationMs=1620 decodeDurationMs=198485 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=198485 rtf=122.522 nativeRssMb=461 nativeRssMbDelta=-48 pcmBytesAccepted=51840
+09-17 18:03:57.421 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=13 totalUtterances=2 totalPcmBytes=122880 avgRtf=61.766 p95Rtf=122.522 peakNativeRssMb=509 nativeRssMb=461
+09-17 18:03:57.423 15369 15403 I TestRunner: finished: a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:03:57.425 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.425 15369 15369 I MonitoringInstr: Finishing activity: com.amphion.dingqiao.demo.MainActivity@f094063
+09-17 18:03:57.430 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: PAUSED
+09-17 18:03:57.475 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.526 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.576 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.626 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.676 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.726 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.776 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.827 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.877 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.927 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:57.978 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.028 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.078 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.128 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.178 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.229 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.279 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.329 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.379 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.430 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.484 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:03:58.486 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: STOPPED
+09-17 18:03:58.534 15369 15403 I TestRunner: started: a12_postShutdown_throwsInsteadOfCallback(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:03:58.631 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@f094063 in: DESTROYED
+09-17 18:03:59.543 15369 15403 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=868 postProcessorMs=153 assetInstallMs=0
+09-17 18:03:59.856 15369 15403 I TestRunner: finished: a12_postShutdown_throwsInsteadOfCallback(com.amphion.dingqiao.demo.DqSdkCornerCaseTest)
+09-17 18:03:59.929 15369 15403 I TestRunner: started: v01_register_fromSample_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.562 15369 25486 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=624 postProcessorMs=112 assetInstallMs=0
+09-17 18:04:00.919 15369 15403 I TestRunner: finished: v01_register_fromSample_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.920 15369 15403 I TestRunner: started: v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.924 15369 15403 I TestRunner: finished: v02_register_tooLong_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.924 15369 15403 I TestRunner: started: v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.927 15369 15403 I TestRunner: finished: v03_register_missingPath_rejected(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:00.927 15369 15403 I TestRunner: started: v04_verification_similarityReturned(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:01.857 15369 25526 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=2340 decodeDurationMs=292 postProcessMs=5 firstPartialLatencyMs=123 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=420 rtf=0.125 nativeRssMb=719 nativeRssMbDelta=0 pcmBytesAccepted=74880 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=173 nativeRssMbAtReady=463
+09-17 18:04:02.001 15369 25524 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=520 decodeOpportunities=1 decodeDurationMs=74 elapsedMs=74 singleDecode=true fallback=false
+09-17 18:04:02.002 15369 25526 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=680 nativeRssMbDelta=-39 pcmBytesAccepted=0
+09-17 18:04:02.003 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=2 totalPcmBytes=74880 avgRtf=0.125 p95Rtf=0.125 peakNativeRssMb=719 nativeRssMb=680
+09-17 18:04:02.306 15369 15403 I TestRunner: finished: v04_verification_similarityReturned(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:02.307 15369 15403 I TestRunner: started: v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:25.151 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: PRE_ON_CREATE
+09-17 18:04:25.181 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: CREATED
+09-17 18:04:25.182 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: STARTED
+09-17 18:04:25.183 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: RESUMED
+09-17 18:04:25.765 15369 25532 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=64 elapsedMs=64 singleDecode=true fallback=false
+09-17 18:04:25.854 15369 25534 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=2140 decodeDurationMs=23082 postProcessMs=7 firstPartialLatencyMs=1232 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=23169 rtf=10.786 nativeRssMb=740 nativeRssMbDelta=0 pcmBytesAccepted=68480
+09-17 18:04:25.858 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=1 totalPcmBytes=68480 avgRtf=10.786 p95Rtf=10.786 peakNativeRssMb=740 nativeRssMb=740
+09-17 18:04:25.859 15369 15403 I TestRunner: finished: v04b_verificationWithVadBegin_frontSilenceDoesNotEndEarly(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:25.859 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:25.860 15369 15369 I MonitoringInstr: Finishing activity: com.amphion.dingqiao.demo.MainActivity@b4792f5
+09-17 18:04:25.864 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: PAUSED
+09-17 18:04:25.910 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:25.960 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.010 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.060 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.110 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.161 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.211 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.261 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.311 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.362 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.412 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.462 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.512 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.563 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.613 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.663 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.713 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.763 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.814 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.864 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:04:26.913 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: STOPPED
+09-17 18:04:26.914 15369 15403 I TestRunner: started: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:27.031 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@b4792f5 in: DESTROYED
+09-17 18:04:28.147 15369 15403 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=813 postProcessorMs=130 assetInstallMs=0
+09-17 18:04:28.930 15369 25850 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=67 elapsedMs=68 singleDecode=true fallback=false
+09-17 18:04:28.973 15369 25852 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=860 decodeDurationMs=611 postProcessMs=3 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=652 rtf=0.710 nativeRssMb=684 nativeRssMbDelta=0 pcmBytesAccepted=27520 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=979 nativeRssMbAtReady=452
+09-17 18:04:28.974 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=1 totalPcmBytes=27520 avgRtf=0.710 p95Rtf=0.710 peakNativeRssMb=684 nativeRssMb=684
+09-17 18:04:29.559 15369 25860 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=580 decodeOpportunities=1 decodeDurationMs=65 elapsedMs=65 singleDecode=true fallback=false
+09-17 18:04:29.603 15369 25862 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=860 decodeDurationMs=577 postProcessMs=3 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=620 rtf=0.671 nativeRssMb=682 nativeRssMbDelta=0 pcmBytesAccepted=27520
+09-17 18:04:29.606 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=1 totalPcmBytes=27520 avgRtf=0.671 p95Rtf=0.671 peakNativeRssMb=683 nativeRssMb=683
+09-17 18:04:29.606 15369 15403 I TestRunner: finished: v04c_shortEffectiveSpeech_fallsBackToRealUtterancePcm(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:29.607 15369 15403 I TestRunner: started: v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:31.221 15369 25875 I AmphionMetrics: kind=SPEAKER_VAD sessionId=3 speaker_vad state=target_confirmed score=0.619 threshold=0.35 inferMs=84.6 rtf=0.056 confirmed=true below=0
+09-17 18:04:31.717 15369 25875 I AmphionMetrics: kind=SPEAKER_VAD sessionId=3 speaker_vad state=target_active score=0.608 threshold=0.35 inferMs=80.3 rtf=0.054 confirmed=true below=0
+09-17 18:04:31.942 15369 25875 I AmphionMetrics: kind=FINAL_TAIL sessionId=3 scope=speaker-terminal paddingMs=1220 decodeOpportunities=2 decodeDurationMs=143 elapsedMs=145 singleDecode=false fallback=false
+09-17 18:04:32.029 15369 25877 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=2140 decodeDurationMs=2027 postProcessMs=5 firstPartialLatencyMs=1219 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=2112 rtf=0.947 nativeRssMb=695 nativeRssMbDelta=0 pcmBytesAccepted=68480
+09-17 18:04:32.031 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=3 totalUtterances=1 totalPcmBytes=68480 avgRtf=0.947 p95Rtf=0.947 peakNativeRssMb=695 nativeRssMb=695
+09-17 18:04:32.031 15369 15403 I TestRunner: finished: v04d_voiceprintIdsReserveVadBeginGrace_forOnStartSpeakerVad(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:04:32.032 15369 15403 I TestRunner: started: v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:55.315 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: PRE_ON_CREATE
+09-17 18:05:55.334 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: CREATED
+09-17 18:05:55.335 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: STARTED
+09-17 18:05:55.335 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: RESUMED
+09-17 18:05:55.485 15369 25926 I AmphionMetrics: kind=FINAL_TAIL sessionId=4 scope=session paddingMs=400 decodeOpportunities=1 decodeDurationMs=133 elapsedMs=134 singleDecode=true fallback=false
+09-17 18:05:55.487 15369 25928 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=1 utteranceDurationMs=2700 decodeDurationMs=83159 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=83160 rtf=30.800 nativeRssMb=483 nativeRssMbDelta=0 pcmBytesAccepted=86400
+09-17 18:05:55.488 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=4 totalUtterances=1 totalPcmBytes=86400 avgRtf=30.800 p95Rtf=30.800 peakNativeRssMb=483 nativeRssMb=483
+09-17 18:05:55.496 15369 15403 E TestRunner: failed: v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:55.496 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:05:55.496 15369 15403 E TestRunner: java.lang.AssertionError: voiceprint confirmation window must remain bounded
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.Assert.fail(Assert.java:89)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.Assert.assertTrue(Assert.java:42)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqVoiceprintTest.v04e_voiceprintVadBegin_pureSilenceEndsOnce(DqVoiceprintTest.kt:308)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:05:55.496 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:05:55.497 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:05:55.497 15369 15403 I TestRunner: finished: v04e_voiceprintVadBegin_pureSilenceEndsOnce(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:55.498 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.498 15369 15369 I MonitoringInstr: Finishing activity: com.amphion.dingqiao.demo.MainActivity@717e6b8
+09-17 18:05:55.502 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: PAUSED
+09-17 18:05:55.548 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.598 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.648 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.698 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.749 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.799 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.849 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.899 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:55.950 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.000 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.050 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.102 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.152 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.202 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.252 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.302 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.352 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.402 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.453 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.503 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.553 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.603 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.653 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.703 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.753 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.804 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.854 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.904 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.955 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:05:56.967 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: STOPPED
+09-17 18:05:57.005 15369 15403 I TestRunner: started: v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.006 15369 15403 E TestRunner: failed: v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.006 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:05:57.006 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqVoiceprintTest.v05_speakerVad_requiresVoiceprintIds(DqVoiceprintTest.kt:324)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:05:57.006 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:05:57.006 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:05:57.006 15369 15403 I TestRunner: finished: v05_speakerVad_requiresVoiceprintIds(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.007 15369 15403 I TestRunner: started: v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.137 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@717e6b8 in: DESTROYED
+09-17 18:05:57.453 15369 15403 E TestRunner: failed: v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.453 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:05:57.453 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqVoiceprintTest.v06_speakerVad_overlapRuns(DqVoiceprintTest.kt:346)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:05:57.453 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:05:57.453 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:05:57.453 15369 15403 I TestRunner: finished: v06_speakerVad_overlapRuns(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.454 15369 15403 I TestRunner: started: v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.841 15369 15403 E TestRunner: failed: v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.841 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:05:57.841 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqVoiceprintTest.v07_delete_thenNotFound(DqVoiceprintTest.kt:390)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:05:57.841 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:05:57.841 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:05:57.841 15369 15403 I TestRunner: finished: v07_delete_thenNotFound(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.842 15369 15403 I TestRunner: started: v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.843 15369 15403 E TestRunner: failed: v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.843 15369 15403 E TestRunner: ----- begin exception -----
+09-17 18:05:57.843 15369 15403 E TestRunner: com.amphion.dingqiao.DingqiaoEngineException: engine destroyed
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.ensureAlive(DingqiaoRecognitionEngine.kt:1023)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListeningLocked(DingqiaoRecognitionEngine.kt:141)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at com.amphion.dingqiao.DingqiaoRecognitionEngine.startListening(DingqiaoRecognitionEngine.kt:136)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at com.amphion.dingqiao.demo.DqVoiceprintTest.v08_setSpeakerVadEnabled_noVoiceprint_error(DqVoiceprintTest.kt:411)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at java.lang.reflect.Method.invoke(Native Method)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod$1.runReflectiveCall(FrameworkMethod.java:59)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.internal.runners.model.ReflectiveCallable.run(ReflectiveCallable.java:12)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.model.FrameworkMethod.invokeExplosively(FrameworkMethod.java:56)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.InvokeMethod.evaluate(InvokeMethod.java:17)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner$1.evaluate(BlockJUnit4ClassRunner.java:100)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runLeaf(ParentRunner.java:366)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:103)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.BlockJUnit4ClassRunner.runChild(BlockJUnit4ClassRunner.java:63)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.internal.runners.statements.RunAfters.evaluate(RunAfters.java:27)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at androidx.test.ext.junit.runners.AndroidJUnit4.run(AndroidJUnit4.java:162)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:128)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.Suite.runChild(Suite.java:27)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$4.run(ParentRunner.java:331)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$1.schedule(ParentRunner.java:79)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.runChildren(ParentRunner.java:329)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.access$100(ParentRunner.java:66)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$2.evaluate(ParentRunner.java:293)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner$3.evaluate(ParentRunner.java:306)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runners.ParentRunner.run(ParentRunner.java:413)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:137)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at org.junit.runner.JUnitCore.run(JUnitCore.java:115)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:68)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at androidx.test.internal.runner.TestExecutor.execute(TestExecutor.java:59)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at androidx.test.runner.AndroidJUnitRunner.onStart(AndroidJUnitRunner.java:463)
+09-17 18:05:57.843 15369 15403 E TestRunner: 	at android.app.Instrumentation$InstrumentationThread.run(Instrumentation.java:2631)
+09-17 18:05:57.843 15369 15403 E TestRunner: ----- end exception -----
+09-17 18:05:57.843 15369 15403 I TestRunner: finished: v08_setSpeakerVadEnabled_noVoiceprint_error(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:57.844 15369 15403 I TestRunner: started: v09_register_async_offCallerThread_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:58.207 15369 15403 I TestRunner: finished: v09_register_async_offCallerThread_ok(com.amphion.dingqiao.demo.DqVoiceprintTest)
+09-17 18:05:58.208 15369 15403 I TestRunner: started: L01_assetLicensed_engineWorks_andInfoReadable(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:58.909 15369 27112 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=695 postProcessorMs=150 assetInstallMs=0
+09-17 18:05:58.966 15369 15403 I TestRunner: finished: L01_assetLicensed_engineWorks_andInfoReadable(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:58.968 15369 15403 I TestRunner: started: L10_setValid_ok(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.047 15369 15403 I TestRunner: finished: L10_setValid_ok(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.048 15369 15403 I TestRunner: started: L20_setExpired(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.050 15369 15403 I TestRunner: finished: L20_setExpired(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.050 15369 15403 I TestRunner: started: L80_setMalformed(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.051 15369 15403 I TestRunner: finished: L80_setMalformed(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.051 15369 15403 I TestRunner: started: L85_setMissingPath(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.052 15369 15403 I TestRunner: finished: L85_setMissingPath(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.052 15369 15403 I TestRunner: started: L90_restoreValid(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.053 15369 15403 I TestRunner: finished: L90_restoreValid(com.amphion.dingqiao.demo.DqLicenseTest)
+09-17 18:05:59.054 15369 15403 I TestRunner: started: assetLicenseInfoReflectsRuntimeLicense(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:05:59.663 15369 27160 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=605 postProcessorMs=97 assetInstallMs=0
+09-17 18:05:59.707 15369 15403 I TestRunner: finished: assetLicenseInfoReflectsRuntimeLicense(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:05:59.708 15369 15403 I TestRunner: started: fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:06:00.451 15369 27160 I AmphionMetrics: kind=COLD_MODEL_LOAD language=ZH_EN recognizerMs=648 postProcessorMs=109 assetInstallMs=0
+09-17 18:06:00.505 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:06:02.446 15369 27210 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=1 utteranceDurationMs=1900 decodeDurationMs=1926 postProcessMs=13 firstPartialLatencyMs=1535 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1939 rtf=1.014 nativeRssMb=571 nativeRssMbDelta=0 pcmBytesAccepted=60800 assetInstallMs=0 assetTotalBytes=0 engineReadyMs=11 nativeRssMbAtReady=418
+09-17 18:08:27.159 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: PRE_ON_CREATE
+09-17 18:08:27.197 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: CREATED
+09-17 18:08:27.198 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: STARTED
+09-17 18:08:27.198 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: RESUMED
+09-17 18:08:28.970 15369 27208 I AmphionMetrics: kind=FINAL_TAIL sessionId=1 scope=session paddingMs=820 decodeOpportunities=2 decodeDurationMs=134 elapsedMs=135 singleDecode=false fallback=false
+09-17 18:08:28.971 15369 27210 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=1 utteranceIndex=2 utteranceDurationMs=2380 decodeDurationMs=146522 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=146522 rtf=61.564 nativeRssMb=501 nativeRssMbDelta=-70 pcmBytesAccepted=76160
+09-17 18:08:28.972 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=1 totalUtterances=2 totalPcmBytes=136960 avgRtf=31.289 p95Rtf=61.564 peakNativeRssMb=571 nativeRssMb=501
+09-17 18:08:29.294 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:29.459 15369 28083 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=1 utteranceDurationMs=4280 decodeDurationMs=156 postProcessMs=7 firstPartialLatencyMs=152 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=164 rtf=0.036 nativeRssMb=513 nativeRssMbDelta=0 pcmBytesAccepted=136960
+09-17 18:08:30.011 15369 28080 I AmphionMetrics: kind=FINAL_TAIL sessionId=2 scope=session paddingMs=820 decodeOpportunities=2 decodeDurationMs=239 elapsedMs=241 singleDecode=false fallback=false
+09-17 18:08:30.013 15369 28083 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=2 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=515 nativeRssMbDelta=2 pcmBytesAccepted=0
+09-17 18:08:30.014 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=2 totalUtterances=2 totalPcmBytes=136960 avgRtf=0.036 p95Rtf=0.036 peakNativeRssMb=515 nativeRssMb=515
+09-17 18:08:30.341 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:30.509 15369 28100 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=1 utteranceDurationMs=4280 decodeDurationMs=163 postProcessMs=5 firstPartialLatencyMs=159 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=168 rtf=0.038 nativeRssMb=518 nativeRssMbDelta=0 pcmBytesAccepted=136960
+09-17 18:08:33.505 15369 28097 I AmphionMetrics: kind=FINAL_TAIL sessionId=3 scope=session paddingMs=820 decodeOpportunities=2 decodeDurationMs=149 elapsedMs=151 singleDecode=false fallback=false
+09-17 18:08:33.506 15369 28100 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=3 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=517 nativeRssMbDelta=-1 pcmBytesAccepted=0
+09-17 18:08:33.506 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=3 totalUtterances=2 totalPcmBytes=136960 avgRtf=0.038 p95Rtf=0.038 peakNativeRssMb=518 nativeRssMb=517
+09-17 18:08:33.830 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:35.807 15369 28109 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=1 utteranceDurationMs=2840 decodeDurationMs=1968 postProcessMs=8 firstPartialLatencyMs=886 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1976 rtf=0.693 nativeRssMb=520 nativeRssMbDelta=0 pcmBytesAccepted=90880
+09-17 18:08:36.201 15369 28107 I AmphionMetrics: kind=FINAL_TAIL sessionId=4 scope=session paddingMs=660 decodeOpportunities=2 decodeDurationMs=210 elapsedMs=212 singleDecode=false fallback=false
+09-17 18:08:36.203 15369 28109 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=4 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=521 nativeRssMbDelta=1 pcmBytesAccepted=0
+09-17 18:08:36.204 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=4 totalUtterances=2 totalPcmBytes=90880 avgRtf=0.693 p95Rtf=0.693 peakNativeRssMb=521 nativeRssMb=521
+09-17 18:08:36.522 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:36.920 15369 28119 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=1 utteranceDurationMs=2840 decodeDurationMs=390 postProcessMs=7 firstPartialLatencyMs=161 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=397 rtf=0.137 nativeRssMb=526 nativeRssMbDelta=0 pcmBytesAccepted=90880
+09-17 18:08:37.268 15369 28115 I AmphionMetrics: kind=FINAL_TAIL sessionId=5 scope=session paddingMs=660 decodeOpportunities=2 decodeDurationMs=168 elapsedMs=170 singleDecode=false fallback=false
+09-17 18:08:37.269 15369 28119 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=5 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=526 nativeRssMbDelta=0 pcmBytesAccepted=0
+09-17 18:08:37.270 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=5 totalUtterances=2 totalPcmBytes=90880 avgRtf=0.137 p95Rtf=0.137 peakNativeRssMb=526 nativeRssMb=526
+09-17 18:08:37.598 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:37.899 15369 28129 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=1 utteranceDurationMs=2840 decodeDurationMs=292 postProcessMs=7 firstPartialLatencyMs=120 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=301 rtf=0.103 nativeRssMb=529 nativeRssMbDelta=0 pcmBytesAccepted=90880
+09-17 18:08:40.793 15369 28123 I AmphionMetrics: kind=FINAL_TAIL sessionId=6 scope=session paddingMs=660 decodeOpportunities=2 decodeDurationMs=188 elapsedMs=189 singleDecode=false fallback=false
+09-17 18:08:40.796 15369 28129 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=6 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-2 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=527 nativeRssMbDelta=-2 pcmBytesAccepted=0
+09-17 18:08:40.798 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=6 totalUtterances=2 totalPcmBytes=90880 avgRtf=0.103 p95Rtf=0.103 peakNativeRssMb=529 nativeRssMb=527
+09-17 18:08:41.123 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:44.865 15369 28143 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=7 utteranceIndex=1 utteranceDurationMs=3700 decodeDurationMs=3721 postProcessMs=18 firstPartialLatencyMs=1555 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=3740 rtf=1.006 nativeRssMb=533 nativeRssMbDelta=0 pcmBytesAccepted=118400
+09-17 18:08:50.862 15369 28143 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=7 utteranceIndex=2 utteranceDurationMs=5900 decodeDurationMs=5959 postProcessMs=19 firstPartialLatencyMs=711 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=5978 rtf=1.010 nativeRssMb=525 nativeRssMbDelta=-8 pcmBytesAccepted=188800
+09-17 18:08:52.838 15369 28141 I AmphionMetrics: kind=FINAL_TAIL sessionId=7 scope=session paddingMs=740 decodeOpportunities=2 decodeDurationMs=178 elapsedMs=180 singleDecode=false fallback=false
+09-17 18:08:52.840 15369 28143 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=7 utteranceIndex=3 utteranceDurationMs=2440 decodeDurationMs=1959 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=1 utteranceE2eLatencyMs=1959 rtf=0.803 nativeRssMb=523 nativeRssMbDelta=-2 pcmBytesAccepted=78080
+09-17 18:08:52.841 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=7 totalUtterances=3 totalPcmBytes=385280 avgRtf=0.940 p95Rtf=1.010 peakNativeRssMb=533 nativeRssMb=523
+09-17 18:08:53.166 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:53.651 15369 28235 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=8 utteranceIndex=1 utteranceDurationMs=12040 decodeDurationMs=472 postProcessMs=11 firstPartialLatencyMs=202 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=483 rtf=0.039 nativeRssMb=532 nativeRssMbDelta=0 pcmBytesAccepted=385280
+09-17 18:08:54.723 15369 28235 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=8 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-10 postProcessMs=10 firstPartialLatencyMs=-897 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=542 nativeRssMbDelta=10 pcmBytesAccepted=0
+09-17 18:08:55.269 15369 28233 I AmphionMetrics: kind=FINAL_TAIL sessionId=8 scope=session paddingMs=740 decodeOpportunities=2 decodeDurationMs=170 elapsedMs=171 singleDecode=false fallback=false
+09-17 18:08:55.271 15369 28235 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=8 utteranceIndex=3 utteranceDurationMs=-1 decodeDurationMs=0 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=0 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=544 nativeRssMbDelta=2 pcmBytesAccepted=0
+09-17 18:08:55.272 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=8 totalUtterances=3 totalPcmBytes=385280 avgRtf=0.039 p95Rtf=0.039 peakNativeRssMb=544 nativeRssMb=544
+09-17 18:08:55.598 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:08:56.220 15369 28241 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=9 utteranceIndex=1 utteranceDurationMs=12040 decodeDurationMs=610 postProcessMs=10 firstPartialLatencyMs=214 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=620 rtf=0.051 nativeRssMb=543 nativeRssMbDelta=0 pcmBytesAccepted=385280
+09-17 18:08:57.258 15369 28241 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=9 utteranceIndex=2 utteranceDurationMs=-1 decodeDurationMs=-10 postProcessMs=10 firstPartialLatencyMs=-831 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=554 nativeRssMbDelta=11 pcmBytesAccepted=0
+09-17 18:08:59.036 15369 28239 I AmphionMetrics: kind=FINAL_TAIL sessionId=9 scope=session paddingMs=740 decodeOpportunities=2 decodeDurationMs=210 elapsedMs=212 singleDecode=false fallback=false
+09-17 18:08:59.037 15369 28241 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=9 utteranceIndex=3 utteranceDurationMs=-1 decodeDurationMs=-1 postProcessMs=0 firstPartialLatencyMs=-1 endpointToFinalLatencyMs=1 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=547 nativeRssMbDelta=-7 pcmBytesAccepted=0
+09-17 18:08:59.039 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=9 totalUtterances=3 totalPcmBytes=385280 avgRtf=0.051 p95Rtf=0.051 peakNativeRssMb=554 nativeRssMb=547
+09-17 18:08:59.367 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:09:02.889 15369 28252 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=10 utteranceIndex=1 utteranceDurationMs=3480 decodeDurationMs=3515 postProcessMs=6 firstPartialLatencyMs=888 endpointToFinalLatencyMs=6 utteranceE2eLatencyMs=3521 rtf=1.010 nativeRssMb=552 nativeRssMbDelta=0 pcmBytesAccepted=111360
+09-17 18:09:03.001 15369 28250 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=10 action=hard-restart reason=native-rule2 evidence=true
+09-17 18:09:06.245 15369 28250 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=10 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:07.813 15369 28252 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=10 utteranceIndex=2 utteranceDurationMs=4840 decodeDurationMs=4899 postProcessMs=10 firstPartialLatencyMs=2561 endpointToFinalLatencyMs=1689 utteranceE2eLatencyMs=4909 rtf=1.012 nativeRssMb=557 nativeRssMbDelta=5 pcmBytesAccepted=154880
+09-17 18:09:17.492 15369 28252 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=10 utteranceIndex=3 utteranceDurationMs=9520 decodeDurationMs=9656 postProcessMs=15 firstPartialLatencyMs=3325 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=9671 rtf=1.014 nativeRssMb=569 nativeRssMbDelta=12 pcmBytesAccepted=304640
+09-17 18:09:20.844 15369 28252 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=10 utteranceIndex=4 utteranceDurationMs=3320 decodeDurationMs=3344 postProcessMs=6 firstPartialLatencyMs=1393 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=3350 rtf=1.007 nativeRssMb=574 nativeRssMbDelta=5 pcmBytesAccepted=106240
+09-17 18:09:23.589 15369 28250 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=10 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:30.254 15369 28250 I AmphionMetrics: kind=FINAL_TAIL sessionId=10 scope=session paddingMs=360 decodeOpportunities=1 decodeDurationMs=120 elapsedMs=121 singleDecode=true fallback=false
+09-17 18:09:30.268 15369 28252 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=10 utteranceIndex=5 utteranceDurationMs=9840 decodeDurationMs=9396 postProcessMs=12 firstPartialLatencyMs=4596 endpointToFinalLatencyMs=6763 utteranceE2eLatencyMs=9408 rtf=0.955 nativeRssMb=586 nativeRssMbDelta=12 pcmBytesAccepted=314880
+09-17 18:09:30.292 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=10 totalUtterances=5 totalPcmBytes=992000 avgRtf=1.000 p95Rtf=1.014 peakNativeRssMb=586 nativeRssMb=586
+09-17 18:09:30.602 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:09:31.125 15369 28437 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=1 utteranceDurationMs=13340 decodeDurationMs=513 postProcessMs=7 firstPartialLatencyMs=118 endpointToFinalLatencyMs=8 utteranceE2eLatencyMs=521 rtf=0.038 nativeRssMb=592 nativeRssMbDelta=0 pcmBytesAccepted=426880
+09-17 18:09:31.206 15369 28435 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=11 action=hard-restart reason=native-rule2 evidence=true
+09-17 18:09:31.785 15369 28435 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=11 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:31.992 15369 28437 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=2 utteranceDurationMs=4960 decodeDurationMs=777 postProcessMs=8 firstPartialLatencyMs=365 endpointToFinalLatencyMs=295 utteranceE2eLatencyMs=785 rtf=0.157 nativeRssMb=591 nativeRssMbDelta=-1 pcmBytesAccepted=158720
+09-17 18:09:33.796 15369 28437 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=3 utteranceDurationMs=9520 decodeDurationMs=1677 postProcessMs=17 firstPartialLatencyMs=631 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1694 rtf=0.176 nativeRssMb=603 nativeRssMbDelta=12 pcmBytesAccepted=304640
+09-17 18:09:34.576 15369 28437 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=4 utteranceDurationMs=3180 decodeDurationMs=648 postProcessMs=7 firstPartialLatencyMs=180 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=655 rtf=0.204 nativeRssMb=606 nativeRssMbDelta=3 pcmBytesAccepted=101760
+09-17 18:09:35.599 15369 28435 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=11 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:37.423 15369 28435 I AmphionMetrics: kind=FINAL_TAIL sessionId=11 scope=session paddingMs=360 decodeOpportunities=1 decodeDurationMs=108 elapsedMs=109 singleDecode=true fallback=false
+09-17 18:09:37.435 15369 28437 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=11 utteranceIndex=5 utteranceDurationMs=-1 decodeDurationMs=-11 postProcessMs=10 firstPartialLatencyMs=-1424 endpointToFinalLatencyMs=1932 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=616 nativeRssMbDelta=10 pcmBytesAccepted=0
+09-17 18:09:37.451 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=11 totalUtterances=5 totalPcmBytes=992000 avgRtf=0.144 p95Rtf=0.204 peakNativeRssMb=616 nativeRssMb=616
+09-17 18:09:37.777 15369 15403 W AmphionRuntime: setTargetSpeakerEnabled(false) ignored: AsrConfig.targetSpeaker not configured
+09-17 18:09:38.293 15369 28462 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=1 utteranceDurationMs=13340 decodeDurationMs=507 postProcessMs=7 firstPartialLatencyMs=134 endpointToFinalLatencyMs=7 utteranceE2eLatencyMs=514 rtf=0.038 nativeRssMb=527 nativeRssMbDelta=0 pcmBytesAccepted=426880
+09-17 18:09:38.376 15369 28460 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=12 action=hard-restart reason=native-rule2 evidence=true
+09-17 18:09:39.020 15369 28460 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=12 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:39.247 15369 28462 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=2 utteranceDurationMs=4960 decodeDurationMs=864 postProcessMs=7 firstPartialLatencyMs=445 endpointToFinalLatencyMs=323 utteranceE2eLatencyMs=871 rtf=0.174 nativeRssMb=526 nativeRssMbDelta=-1 pcmBytesAccepted=158720
+09-17 18:09:40.853 15369 28462 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=3 utteranceDurationMs=9520 decodeDurationMs=1505 postProcessMs=17 firstPartialLatencyMs=539 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=1522 rtf=0.158 nativeRssMb=538 nativeRssMbDelta=12 pcmBytesAccepted=304640
+09-17 18:09:41.819 15369 28462 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=4 utteranceDurationMs=3180 decodeDurationMs=743 postProcessMs=7 firstPartialLatencyMs=291 endpointToFinalLatencyMs=-1 utteranceE2eLatencyMs=751 rtf=0.234 nativeRssMb=541 nativeRssMbDelta=3 pcmBytesAccepted=101760
+09-17 18:09:42.963 15369 28460 I AmphionMetrics: kind=STREAM_TRANSITION sessionId=12 action=hard-restart reason=native-rule1 evidence=false
+09-17 18:09:44.815 15369 28460 I AmphionMetrics: kind=FINAL_TAIL sessionId=12 scope=session paddingMs=360 decodeOpportunities=1 decodeDurationMs=98 elapsedMs=98 singleDecode=true fallback=false
+09-17 18:09:44.827 15369 28462 I AmphionMetrics: kind=UTTERANCE language=ZH_EN sessionId=12 utteranceIndex=5 utteranceDurationMs=-1 decodeDurationMs=-11 postProcessMs=11 firstPartialLatencyMs=-1504 endpointToFinalLatencyMs=2101 utteranceE2eLatencyMs=-1 rtf=-1 nativeRssMb=527 nativeRssMbDelta=-14 pcmBytesAccepted=0
+09-17 18:09:44.837 15369 15509 I AmphionMetrics: kind=SESSION language=ZH_EN sessionId=12 totalUtterances=5 totalPcmBytes=992000 avgRtf=0.151 p95Rtf=0.234 peakNativeRssMb=541 nativeRssMb=528
+09-17 18:09:45.144 15369 15403 I TestRunner: finished: fastFeedFinishDoesNotDropQueuedFinals(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:09:45.147 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.147 15369 15369 I MonitoringInstr: Finishing activity: com.amphion.dingqiao.demo.MainActivity@e356643
+09-17 18:09:45.157 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: PAUSED
+09-17 18:09:45.198 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.248 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.298 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.349 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.399 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.449 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.499 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.550 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.600 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.650 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.701 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.751 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.801 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.851 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.901 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:45.952 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.002 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.052 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.102 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.152 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.203 15369 15403 I MonitoringInstr: Unstopped activity count: 1
+09-17 18:09:46.210 15369 15369 D LifecycleMonitor: Lifecycle status change: com.amphion.dingqiao.demo.MainActivity@e356643 in: STOPPED
+09-17 18:09:46.253 15369 15403 I TestRunner: started: generatedSessionTagIsValidForUnicodeAssetName(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:09:46.254 15369 15403 I TestRunner: finished: generatedSessionTagIsValidForUnicodeAssetName(com.amphion.dingqiao.demo.DingqiaoFinishFlushRegressionTest)
+09-17 18:09:46.254 15369 15403 I TestRunner: run finished: 48 tests, 20 failed, 0 ignored

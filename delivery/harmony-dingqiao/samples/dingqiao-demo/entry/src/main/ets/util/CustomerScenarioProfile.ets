@@ -113,6 +113,9 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
   const shouldDiarize = speakerDiarizationEnabled ??
     profile.speakerDiarizationMaxSpeakers !== undefined;
   if (shouldDiarize) {
+    // A pause ends the ASR paragraph sooner; continuous/overlapping turns still
+    // rely on the diarization timeline rather than silence detection.
+    params.extraParams['vadEnd'] = 800;
     const diarization = new SpeakerDiarizationConfig();
     diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers ?? 4;
     params.speakerDiarization = diarization;

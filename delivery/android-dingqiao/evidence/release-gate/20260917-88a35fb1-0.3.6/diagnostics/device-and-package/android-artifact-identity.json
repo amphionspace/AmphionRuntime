@@ -1,0 +1,34 @@
+{
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "version": "0.3.6",
+  "artifacts": {
+    "dingqiao-asr-diagnostics-v0.3.6.aar": {
+      "size_bytes": 299309216,
+      "sha256": "e549f9fa73cb62ecc4bbf5b23be10e1750d1c25b747b3e4be9818e48ae6234ac"
+    },
+    "dingqiao-demo-diagnostics.apk": {
+      "size_bytes": 388997678,
+      "sha256": "a0fea27eb1b7b7183c77b614a08f69348122e3b87716d544897792e1955dc642"
+    },
+    "release-sdk-test.apk": {
+      "size_bytes": 2139082,
+      "sha256": "e46d33b00a7246187bb6c93a677896f48c6f2cd535ee7969d7a94e6dc48b4b81"
+    },
+    "release-sdk-test-demo.apk": {
+      "size_bytes": 384339499,
+      "sha256": "ca48c21ec333e30d34d9c3b2f5b67ad6575667ff40178e5dbe9664b2481aae9a"
+    },
+    "dingqiao-asr-v0.3.6.aar": {
+      "size_bytes": 299223115,
+      "sha256": "ccf3310015f3802b103feec0824bd725249d971cff67f1a036553652fdcbad6c"
+    },
+    "dingqiao-demo-release.apk": {
+      "size_bytes": 379556163,
+      "sha256": "d3d1c27e87210863c1833d5dc44a45bfb78a0ba3343d6be682a822a1bf356f5f"
+    },
+    "diagnostics-test.apk": {
+      "size_bytes": 2139082,
+      "sha256": "e46d33b00a7246187bb6c93a677896f48c6f2cd535ee7969d7a94e6dc48b4b81"
+    }
+  }
+}

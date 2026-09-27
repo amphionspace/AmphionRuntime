@@ -1,0 +1,8 @@
+test_different_model_in_har_is_rejected (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... ok
+test_missing_shared_model_is_rejected (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... ok
+test_shared_model_verifies_with_source_only_police_assets (test_verify_shared_lac_har.SharedLacHarVerificationTest) ... ok
+
+----------------------------------------------------------------------
+Ran 3 tests in 0.156s
+
+OK

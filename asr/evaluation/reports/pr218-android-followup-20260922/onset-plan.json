@@ -1,0 +1,13 @@
+{
+  "problem": "v04d early completion before explicit finish",
+  "hypothesis": "The original target plus 300 ms prefix has native VAD onset after 1000 ms, and ASR has no evidence before timeout; the same PCM with zero prefix confirms in time and continues.",
+  "single_variable": "prefix silence 300 -> 0 ms, same installed app, model, target and enrollment audio, parameters, real-time target feed",
+  "new_observation": "On-device native VAD confirmation time plus SDK DEBUG logs and complete ordered callback trace",
+  "falsifier": "Native onset or public termination does not follow the prediction; do not reclassify as input-only and inspect SDK state",
+  "stop_condition": "Run the two diagnostic arms once; no repeated stress matrix",
+  "scope": "Diagnostic only, not a current-HEAD release acceptance",
+  "expected_duration_minutes": [
+    2,
+    4
+  ]
+}

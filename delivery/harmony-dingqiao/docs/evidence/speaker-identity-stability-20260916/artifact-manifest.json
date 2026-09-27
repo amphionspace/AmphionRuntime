@@ -1,0 +1,111 @@
+{
+  "privateRoot": "/Users/boxp/.cache/amphion-runtime/diagnostics/speaker-stability-both-20260916-mv7h4c3y",
+  "sourceCommit": "ef9ef2ff0aa014589e5927e1791618d1f9539951",
+  "entries": [
+    {
+      "path": "assessment.json",
+      "bytes": 27777,
+      "sha256": "71c9d55f4fea433f327063b84344a1e154acf0ee13b79d92206770c349474cc4"
+    },
+    {
+      "path": "build-identity.json",
+      "bytes": 2351,
+      "sha256": "9f9bce9332ac26196cc7875752043b391e12c5d3ba727c5d4a6b042d7c860432"
+    },
+    {
+      "path": "build-install.log",
+      "bytes": 6377,
+      "sha256": "84f3df37ff12d06b60b0b93ca786f7c24e1af6143ff74205a87de7df331d4ea6"
+    },
+    {
+      "path": "regression-before.txt",
+      "bytes": 12744,
+      "sha256": "52ceceadb6347d9be609968948b09c00e9fc34fc08a85321cb722eb2912c8ccf"
+    },
+    {
+      "path": "all-state-tests.txt",
+      "bytes": 14968,
+      "sha256": "31fc1bb1df05e26456463eabdf8d4d025cfa6cb91574813b5bd4d946b934280a"
+    },
+    {
+      "path": "all-android-tests-online.txt",
+      "bytes": 4398,
+      "sha256": "9e4f3cdb3c84f01c1bed23d35e5f49617c41c05af90fddb1ad7a8d70a0b3c186"
+    },
+    {
+      "path": "carrier-tests.txt",
+      "bytes": 26027,
+      "sha256": "c9161a6615d21c42d0321587abe740a70f0b32b598caa91792a488381df0cefe"
+    },
+    {
+      "path": "device-input-manifest.json",
+      "bytes": 7090,
+      "sha256": "bffedb048c05f83631a199e1dd559e694fd435dc0cb5fa182a9053ac5ea7bca1"
+    },
+    {
+      "path": "rejected-prototypes.json",
+      "bytes": 832,
+      "sha256": "0955c9938f4be72ba11921986d71d2d1f062e006381f3eb18cd3f823452ea1fa"
+    },
+    {
+      "path": "candidate-evidence-preserved/summary.json",
+      "bytes": 1339,
+      "sha256": "684800a0fb6b5156824d67f33ae72aadea67994edab10e2721c3c641e1f71b13"
+    },
+    {
+      "path": "controls/summary.json",
+      "bytes": 1686,
+      "sha256": "834a1e2614948f0d392e567c1cdd9dfb42fa2e00ba2901ee042d445c6a2b14e6"
+    },
+    {
+      "path": "local-channel-capacity.json",
+      "bytes": 688,
+      "sha256": "543f75275691419cdbf257c9319abd04f1dc8130b42b871f266ccadaaf40ad42"
+    },
+    {
+      "path": "finish-timeout-issue.json",
+      "bytes": 2155,
+      "sha256": "d8960aa072e51af95b1e972d7bc3b4366c09ec669f479a2de8ea6cf7f2e230f8"
+    },
+    {
+      "path": "assessment-before-acceptance-clarification.json",
+      "bytes": 26685,
+      "sha256": "b7379a826ef7c63749537cd8a1cd802155073322587f8a71d7758c7dab06e455"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/report.json",
+      "bytes": 710392,
+      "sha256": "ebada4227892086a6b222131904957bfe5552b99a263ee73c061963af2f9d8f2"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/result.txt",
+      "bytes": 700677,
+      "sha256": "77425082b5367d280a1a27258db5aabdfc21fde3cecaa7aaa9c22ae92317a20e"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/hilog.txt",
+      "bytes": 1304803,
+      "sha256": "64d99d5d7a2c4246312e2ec4dba530ea18039c17dbf7bf50af0866e87e74b4c1"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/memory.csv",
+      "bytes": 44602,
+      "sha256": "ed7253a531375c4676db22b53dd9bf1d132b949e9adf071b2251f26f43a2caa3"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/inventory.json",
+      "bytes": 204,
+      "sha256": "a0b6288e550e90f3d034067fd7940cf00fe8e223e32bb67d227df7993c592067"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/payload/corpus.json",
+      "bytes": 2205,
+      "sha256": "2a7dc6eafb2d5edb9035bf1a864a3658307a273540cf68ad118ff3e1213da81a"
+    },
+    {
+      "path": "usb/20260916-112008-diarization-windows-09a37373/payload/manifest.txt",
+      "bytes": 654,
+      "sha256": "402cf5d4bf40c1773fb5ba5213b480a641f0005649601c98912b9fda3ccc441f"
+    }
+  ]
+}

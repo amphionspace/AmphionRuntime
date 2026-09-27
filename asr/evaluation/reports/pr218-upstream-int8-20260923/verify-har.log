@@ -1,0 +1,4 @@
+[OK] verified manifest v2 with 9 model assets in .cache/pr218-official-int8/sdk-preview/har/amphion_dingqiao.har
+[OK] pinned Dingqiao ZH_EN ONNX MD5 verified: amphion-zh-en-police-179m-1.4.0-chunk32-lc256-edge-transducer: .cache/pr218-official-int8/sdk-preview/har/amphion_dingqiao.har
+[OK] self-contained HAR police assets, ASR/voiceprint models, native libraries, and target-speaker model policy match local artifacts
+[OK] self-contained compatibility HAR installed and compiled in a clean customer host

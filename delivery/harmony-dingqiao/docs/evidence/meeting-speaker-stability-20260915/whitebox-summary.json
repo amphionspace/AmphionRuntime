@@ -1,0 +1,75 @@
+{
+  "canonical": false,
+  "basis": "One host inference pass plus unmodified current production session; commit boundaries from USB callbacks.",
+  "hostPrimaryTimelineAgreementWithUsb": 1.0,
+  "comparisonFrames": 18000,
+  "frameMs": 10,
+  "publicWindows": [
+    {
+      "begin": 0,
+      "end": 127200
+    },
+    {
+      "begin": 127200,
+      "end": 180000
+    }
+  ],
+  "internalClusterCounts": [
+    34,
+    18
+  ],
+  "samePersonBoundaryWitness": [
+    {
+      "key": "w00000045:1",
+      "windowEndSeconds": 112.5,
+      "selectedRangesSeconds": [
+        [
+          102.5309375,
+          105.0309375
+        ]
+      ],
+      "clusterDurationRank": 3,
+      "publicSpeakerIndex": 3,
+      "scoresToFirstFourClusters": [
+        0.228779,
+        0.587217,
+        0.057435,
+        0.982493
+      ]
+    },
+    {
+      "key": "w00000046:1",
+      "windowEndSeconds": 115.0,
+      "selectedRangesSeconds": [
+        [
+          105.0309375,
+          107.5309375
+        ]
+      ],
+      "clusterDurationRank": 1,
+      "publicSpeakerIndex": 1,
+      "scoresToFirstFourClusters": [
+        0.035112,
+        0.805675,
+        0.029521,
+        0.450746
+      ]
+    }
+  ],
+  "mixedClusterCosineToPriorThree": [
+    0.21847,
+    0.593657,
+    0.0558
+  ],
+  "similarityThreshold": 0.72,
+  "sourceArtifactHashes": {
+    "windows.json": "b56b4d847a2f464c56ca73eefb0c97ed48fbef70c30ed6a7e96152927cd39791",
+    "host-production-state.json": "e88504edf285df604517dcbe6bb975d8a241b76f91a3f805ca3b46072f3b6526",
+    "host-inference-identity.json": "5f4a3e238de2617154aacde63360b1b205fdfd76ee4cab11e0e9efae09a93d9e"
+  },
+  "limitations": [
+    "Host state is diagnostic, not a second device acceptance run.",
+    "Internal source masks already merge multiple reference people in the witness sample.",
+    "No parameter or implementation fix was validated."
+  ]
+}

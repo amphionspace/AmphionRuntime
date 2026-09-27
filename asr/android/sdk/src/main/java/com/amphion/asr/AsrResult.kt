@@ -9,7 +9,8 @@ package com.amphion.asr
  * @property rawText decoder 原文；final 的 [text] 可能已经过 ITN/标点处理
  * @property confidence 整段平均置信度，[0.0, 1.0]；若引擎不支持恒为 1.0
  * @property tokens 与 [text] 对应的 token（subword）序列；BPE 模型下是 sentencepiece 子词
- * @property timestamps 每个 token 在音频中的起始时间（秒），与 [tokens] 等长；引擎不支持时为空
+ * @property timestamps 每个 token 相对本 session 输入音频起点的时间（秒），跨句不归零；
+ *   与 [tokens] 等长，引擎不支持时为空
  * @property tokenConfidences 每个 token 的逐 token 置信度，与 [tokens] 等长；引擎不支持时为空
  * @property speakerScore 目标说话人余弦相似度；仅在目标说话人开关开启且该段完成打分时非空，
  *   否则为 null（开关关闭 / 未注册目标 / 无 ASR 语音证据或 extractor 技术上无法产生 embedding）

@@ -1,0 +1,116 @@
+{
+  "privateRoot": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv",
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/assessment.json",
+      "sha256": "1c33bcaa440161cce658799e814c3670aa72926139a13ef771e9d35bd2ed6ccc",
+      "bytes": 27580
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/input-manifest.json",
+      "sha256": "942e01e8cadb08211eb766063f38777f0274950ad689d034a2dfe6db64424d0c",
+      "bytes": 3965
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/source-scope.json",
+      "sha256": "8e9e3a3ce1cbb70907c894eea50b15b41bff8f20fd648301027a4ea5256f77b7",
+      "bytes": 2218
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/acceptance-plan.json",
+      "sha256": "589cf4a144422cd62903ccdad46f8c0edf55e9827329bf3f0a893febe64589e2",
+      "bytes": 3178
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/build-reuse-equivalence.json",
+      "sha256": "e71fb87355d86ef5ffcd380afa807b97061c8685449d1cc3ed413022a40e3397",
+      "bytes": 5146
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/host-session-source-identity.json",
+      "sha256": "ba74bfe95a7b997a90ab40fbfc3b8c94527b9301466b2a243d45dc0926f971a7",
+      "bytes": 2466
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/four-speaker-regression-stage.json",
+      "sha256": "7de900b76ac73e32a46c25a93b6690e2ed1bad37275cdbc77ad5420fe6062bdf",
+      "bytes": 1078
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/reused-cos-evidence.json",
+      "sha256": "74a8e855312d59acbc312159098f1650e77fd458e91961f86ae79c89d3a68ce5",
+      "bytes": 7486
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/obs-aishell4-members.json",
+      "sha256": "590ae806a7136bbe4645d504feb9ed059c474d56959218c71121e640e525197d",
+      "bytes": 8821
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/obs-annotation-provenance.json",
+      "sha256": "ebbda73ce762742d0433bcd330330543bd4275cd79f5fcb537a59bb470a5ce94",
+      "bytes": 7499
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/aishell4-whole-meeting-speakers.json",
+      "sha256": "daff03eef8c97aa2e727433b453a354da7d7a8b244f4aca27511d61ddd8525ce",
+      "bytes": 4564
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/aishell4-clip-candidates.json",
+      "sha256": "094f37f0fb303c9a3875602dd8f58e4bbc7d73c30fc0bdec0f0b28f4ef2fffbd",
+      "bytes": 154238
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/obs-bundle-catalog.jsonl",
+      "sha256": "375627e41e3b7f1a3207c0ec2d6cdb11addd0842573f60643134e84835d7bc8b",
+      "bytes": 62485
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/cos-batch-objects.json",
+      "sha256": "b59aa2e20e6ed499f8e2ee287ee6c0138c00f452ed36e23d5c97e22796687e1a",
+      "bytes": 284818
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/cos-meeting-matches.json",
+      "sha256": "d612470842316e721bf126e7d05e6c991bbeadd3acc12998f014634b6fc05fc8",
+      "bytes": 51914
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/cos-prefix-scan.json",
+      "sha256": "d43d52b927e6a5eb2190dbe5283e31b4be9bc85b29bf55e218fb7218f99c621c",
+      "bytes": 24735
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/cos-deeper-prefixes.json",
+      "sha256": "dd756a068ef526e0bedcbd0fa401e4fce991e8a9bd78dfe526f50970efd9cbf4",
+      "bytes": 4315
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/obs-prefix-scan.json",
+      "sha256": "2691a288a32ee45863297cd515ba224324042473668c4406770a8cee0326254a",
+      "bytes": 11395
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/install-frozen-hap.log",
+      "sha256": "9e74146146ef039077a46ab8673b767d69bcaa8b375f8a2c4a149c0b21b426e0",
+      "bytes": 228
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/host-extraction.log",
+      "sha256": "1c4dfe48e9d2349f3dec0427ed74760075cba043a9eb8d49fc5011f451fcc900",
+      "bytes": 2499
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/evaluation.log",
+      "sha256": "38e08c1677d9831fed87f5894baacbbb558aabc04d7a2bb2273baab0823e5285",
+      "bytes": 7472
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/device-run.log",
+      "sha256": "7f83d859513a7fd4de05b3be153ac7a7ea676423935e893645da0f5c69226b86",
+      "bytes": 487
+    }
+  ],
+  "rawPcmAndEmbeddingsCommitted": false
+}

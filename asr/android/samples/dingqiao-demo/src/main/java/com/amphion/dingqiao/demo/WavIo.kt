@@ -48,6 +48,36 @@ internal object WavIo {
         file.writeBytes(buf.array())
     }
 
+    /** File-input diagnostics accept only actual 20 ms PCM frames, without synthetic padding. */
+    fun readDemoInput(file: File): ByteArray {
+        val bytes = file.readBytes()
+        val buf = ByteBuffer.wrap(bytes).order(ByteOrder.LITTLE_ENDIAN)
+        fun tag(offset: Int) = String(bytes, offset, 4, Charsets.US_ASCII)
+        require(bytes.size >= 44 && tag(0) == "RIFF" && tag(8) == "WAVE") { "需要 WAV 文件" }
+        var offset = 12
+        var validFormat = false
+        var pcm: ByteArray? = null
+        while (offset + 8 <= bytes.size) {
+            val size = buf.getInt(offset + 4)
+            val start = offset + 8
+            require(size >= 0 && size <= bytes.size - start) { "WAV 数据不完整" }
+            when (tag(offset)) {
+                "fmt " -> {
+                    require(size >= 16) { "WAV 格式不完整" }
+                    validFormat = buf.getShort(start).toInt() == 1 &&
+                        buf.getShort(start + 2).toInt() == 1 && buf.getInt(start + 4) == 16000 &&
+                        buf.getShort(start + 12).toInt() == 2 && buf.getShort(start + 14).toInt() == 16
+                }
+                "data" -> pcm = bytes.copyOfRange(start, start + size)
+            }
+            offset = start + size + (size and 1)
+        }
+        require(validFormat) { "需要 16kHz 单声道 PCM16 WAV" }
+        val data = requireNotNull(pcm) { "WAV 缺少音频" }
+        require(data.isNotEmpty() && data.size % 640 == 0) { "音频时长需要对齐 20ms" }
+        return data
+    }
+
     fun readPcmBytes(file: File): ByteArray {
         val bytes = file.readBytes()
         if (bytes.size < WAV_HEADER_BYTES) return ByteArray(0)

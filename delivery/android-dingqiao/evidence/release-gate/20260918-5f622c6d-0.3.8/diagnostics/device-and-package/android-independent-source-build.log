@@ -1,0 +1,86 @@
+To honour the JVM settings for this build a single-use Daemon process will be forked. For more on this, please refer to https://docs.gradle.org/8.6/userguide/gradle_daemon.html#sec:disabling_the_daemon in the Gradle documentation.
+Daemon will be stopped at the end of the build 
+> Task :sample-dingqiao-demo:preBuild UP-TO-DATE
+> Task :sample-dingqiao-demo:preDebugBuild UP-TO-DATE
+> Task :sample-dingqiao-demo:mergeDebugNativeDebugMetadata NO-SOURCE
+> Task :sample-dingqiao-demo:checkKotlinGradlePluginConfigurationErrors
+> Task :sample-dingqiao-demo:generateDebugResValues
+> Task :sample-dingqiao-demo:checkDebugAarMetadata
+> Task :sample-dingqiao-demo:mapDebugSourceSetPaths
+> Task :sample-dingqiao-demo:generateDebugResources
+> Task :sample-dingqiao-demo:packageDebugResources
+> Task :sample-dingqiao-demo:createDebugCompatibleScreenManifests
+> Task :sample-dingqiao-demo:extractDeepLinksDebug
+> Task :sample-dingqiao-demo:parseDebugLocalResources
+> Task :sample-dingqiao-demo:mergeDebugResources
+> Task :sample-dingqiao-demo:processDebugMainManifest
+> Task :sample-dingqiao-demo:processDebugManifest
+> Task :sample-dingqiao-demo:javaPreCompileDebug
+> Task :sample-dingqiao-demo:mergeDebugShaders
+> Task :sample-dingqiao-demo:compileDebugShaders NO-SOURCE
+> Task :sample-dingqiao-demo:generateDebugAssets UP-TO-DATE
+> Task :sample-dingqiao-demo:mergeDebugAssets
+> Task :sample-dingqiao-demo:mergeDebugStartupProfile
+> Task :sample-dingqiao-demo:mergeDebugJniLibFolders
+> Task :sample-dingqiao-demo:checkDebugDuplicateClasses
+> Task :sample-dingqiao-demo:validateSigningDebug
+> Task :sample-dingqiao-demo:writeDebugAppMetadata
+> Task :sample-dingqiao-demo:mergeDebugNativeLibs
+> Task :sample-dingqiao-demo:mergeLibDexDebug
+> Task :sample-dingqiao-demo:writeDebugSigningConfigVersions
+> Task :sample-dingqiao-demo:preDebugAndroidTestBuild SKIPPED
+> Task :sample-dingqiao-demo:generateDebugAndroidTestResValues
+> Task :sample-dingqiao-demo:mapDebugAndroidTestSourceSetPaths
+> Task :sample-dingqiao-demo:generateDebugAndroidTestResources
+> Task :sample-dingqiao-demo:processDebugAndroidTestManifest
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestShaders
+> Task :sample-dingqiao-demo:compileDebugAndroidTestShaders NO-SOURCE
+> Task :sample-dingqiao-demo:generateDebugAndroidTestAssets UP-TO-DATE
+> Task :sample-dingqiao-demo:javaPreCompileDebugAndroidTest
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestResources
+> Task :sample-dingqiao-demo:checkDebugAndroidTestAarMetadata
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestAssets
+> Task :sample-dingqiao-demo:stripDebugDebugSymbols
+> Task :sample-dingqiao-demo:desugarDebugAndroidTestFileDependencies
+> Task :sample-dingqiao-demo:compressDebugAndroidTestAssets
+> Task :sample-dingqiao-demo:checkDebugAndroidTestDuplicateClasses
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestJniLibFolders
+> Task :sample-dingqiao-demo:mergeLibDexDebugAndroidTest
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestNativeLibs NO-SOURCE
+> Task :sample-dingqiao-demo:stripDebugAndroidTestDebugSymbols NO-SOURCE
+> Task :sample-dingqiao-demo:validateSigningDebugAndroidTest
+> Task :sample-dingqiao-demo:writeDebugAndroidTestSigningConfigVersions
+> Task :sample-dingqiao-demo:processDebugManifestForPackage
+> Task :sample-dingqiao-demo:processDebugAndroidTestResources
+> Task :sample-dingqiao-demo:processDebugResources
+> Task :sample-dingqiao-demo:compressDebugAssets
+> Task :sample-dingqiao-demo:mergeExtDexDebugAndroidTest
+> Task :sample-dingqiao-demo:desugarDebugFileDependencies
+> Task :sample-dingqiao-demo:mergeExtDexDebug
+> Task :sample-dingqiao-demo:compileDebugKotlin
+> Task :sample-dingqiao-demo:compileDebugJavaWithJavac NO-SOURCE
+> Task :sample-dingqiao-demo:dexBuilderDebug
+> Task :sample-dingqiao-demo:mergeDebugGlobalSynthetics
+> Task :sample-dingqiao-demo:processDebugJavaRes
+> Task :sample-dingqiao-demo:bundleDebugClassesToCompileJar
+> Task :sample-dingqiao-demo:mergeProjectDexDebug
+> Task :sample-dingqiao-demo:mergeDebugJavaResource
+> Task :sample-dingqiao-demo:packageDebug
+> Task :sample-dingqiao-demo:createDebugApkListingFileRedirect
+> Task :sample-dingqiao-demo:assembleDebug
+
+> Task :sample-dingqiao-demo:compileDebugAndroidTestKotlin
+w: file://<LOCAL_PATH> The corresponding parameter in the supertype 'CreateEngineCallback' is named 'engine'. This may cause problems when calling this function with named arguments.
+
+> Task :sample-dingqiao-demo:compileDebugAndroidTestJavaWithJavac NO-SOURCE
+> Task :sample-dingqiao-demo:dexBuilderDebugAndroidTest
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestGlobalSynthetics
+> Task :sample-dingqiao-demo:processDebugAndroidTestJavaRes
+> Task :sample-dingqiao-demo:mergeDebugAndroidTestJavaResource
+> Task :sample-dingqiao-demo:mergeProjectDexDebugAndroidTest
+> Task :sample-dingqiao-demo:packageDebugAndroidTest
+> Task :sample-dingqiao-demo:createDebugAndroidTestApkListingFileRedirect
+> Task :sample-dingqiao-demo:assembleDebugAndroidTest
+
+BUILD SUCCESSFUL in 22s
+64 actionable tasks: 64 executed

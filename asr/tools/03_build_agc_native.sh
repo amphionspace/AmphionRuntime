@@ -79,10 +79,10 @@ EOF
     "$TOOLCHAIN/llvm-strip" "$BUILD_DIR/libamphion_audio_processing.so"
     ;;
   ohos-arm64-v8a)
-    DEVECO_ROOT="${DEVECO_SDK_HOME:-/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony}"
-    CLANG="$(find "$DEVECO_ROOT" -path '*/native/llvm/bin/aarch64-unknown-linux-ohos-clang' -type f | sort -V | tail -1)"
-    if [[ -z "$CLANG" ]]; then
-      echo "[ERROR] OpenHarmony native clang not found under $DEVECO_ROOT" >&2
+    source "$SCRIPT_DIR/harmony_env.sh"
+    CLANG="$OHOS_SDK_NATIVE_DIR/llvm/bin/aarch64-unknown-linux-ohos-clang"
+    if [[ ! -x "$CLANG" ]]; then
+      echo "[ERROR] OpenHarmony native clang not found: $CLANG" >&2
       exit 1
     fi
     TOOLCHAIN="$(dirname "$CLANG")"

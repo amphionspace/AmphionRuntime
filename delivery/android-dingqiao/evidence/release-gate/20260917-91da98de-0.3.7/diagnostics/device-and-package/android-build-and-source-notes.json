@@ -1,0 +1,8 @@
+{
+  "source_commit": "91da98de35c137331f65436f58b5b7cc7c3de63a",
+  "independent_apk_sha256": "255edc8d3159860ec1c7008b3efd336e675abf2b7ae559c4ba10440612912caa",
+  "independent_apk_bytes": 688958063,
+  "independent_release_aar_equal_to_final_zip": true,
+  "known_demo_source_issue": "Default dingqiaoDemoAssetDir=demo also includes the distributed APK. Configure the property to a separate directory containing only amphion-license.lic to avoid the extra payload. This does not change SDK execution.",
+  "noncanonical_parent_build": "dfbc2ee8 candidate superseded by documentation-only freeze 91da98de before final device gates; parent build artifacts are not final evidence."
+}

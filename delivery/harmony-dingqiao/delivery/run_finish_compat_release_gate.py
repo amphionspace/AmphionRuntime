@@ -198,32 +198,34 @@ def build_runner_command(
     return command
 
 
-def build_verified_install_command(device: str = "") -> list[str]:
+def build_verified_install_command(device: str = "", build_mode: str = "debug") -> list[str]:
     """Install and smoke-test the already source-bound HAP without rebuilding it."""
     command = [str(SCRIPT_DIR / "build_install_smoke.sh"), "--skip-build", "--zh-en-only"]
+    command.extend(("--build-mode", build_mode))
     if device:
         command.extend(("--device", device))
     return command
 
 
-def verify_build_identity_command(build_identity: Path) -> list[str]:
+def verify_build_identity_command(build_identity: Path, build_mode: str = "debug") -> list[str]:
     return [
         sys.executable,
         str(SCRIPT_DIR / "harmony_build_identity.py"),
+        "--build-mode", build_mode,
         "--verify",
         str(build_identity),
     ]
 
 
-def prepare_verified_build(build_identity: Path, device: str = "") -> None:
+def prepare_verified_build(build_identity: Path, device: str = "", build_mode: str = "debug") -> None:
     """Verify, install, and smoke-test the reusable build before any device mode starts."""
     subprocess.run(
-        verify_build_identity_command(build_identity),
+        verify_build_identity_command(build_identity, build_mode),
         cwd=REPO_ROOT,
         check=True,
     )
     subprocess.run(
-        build_verified_install_command(device),
+        build_verified_install_command(device, build_mode),
         cwd=REPO_ROOT,
         check=True,
     )
@@ -266,6 +268,8 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Also write the root PASS/FAIL summary to this exact non-existing path.",
     )
+    parser.add_argument("--build-mode", choices=("debug", "diagnostics"), default="debug",
+                        help="Expected mode of the reusable HAP/HAR build (identity verification remains required).")
     args = parser.parse_args()
     if args.callback_cycles < 3:
         parser.error("--callback-cycles must be at least 3 to cover every callback entry")
@@ -360,7 +364,7 @@ def main() -> int:
         if git_output("status", "--porcelain"):
             raise GateFailure("release gate requires a clean worktree")
         if args.reuse_verified_build:
-            prepare_verified_build(args.build_identity, args.device)
+            prepare_verified_build(args.build_identity, args.device, args.build_mode)
         callback_path, callback_report, callback_exit = run_mode(
             build_runner_command(
                 mode="callback-api-reentrant",

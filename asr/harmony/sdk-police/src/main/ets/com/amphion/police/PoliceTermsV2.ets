@@ -51,8 +51,15 @@ class TermsHomophones {
     for (let i = 0; i < this.pairs.length; i++) {
       const pair = this.pairs[i];
       if (pair.from === pair.to) continue;
-      output = pair.to.startsWith(pair.from) ?
-        this.replaceExtending(output, pair.from, pair.to) : output.split(pair.from).join(pair.to);
+      if (pair.from === '出警人员') {
+        // 催促出发和登记出警人员姓名均保留「出警」，不能强制改成现场处置含义。
+        output = output.replace(/出警人员/g, (value: string, offset: number): string =>
+          output.substring(0, offset).endsWith('催促') ||
+          output.substring(offset + value.length).startsWith('姓名') ? value : pair.to);
+      } else {
+        output = pair.to.startsWith(pair.from) ?
+          this.replaceExtending(output, pair.from, pair.to) : output.split(pair.from).join(pair.to);
+      }
     }
     return output;
   }
@@ -122,6 +129,7 @@ class RadioDigits {
     ['洞', '0'], ['幺', '1'], ['拐', '7'], ['勾', '9'], ['钩', '9']
   ]);
   private static readonly WEAK: Map<string, string> = new Map<string, string>([
+    ['零', '0'], ['一', '1'], ['二', '2'], ['七', '7'], ['九', '9'],
     ['两', '2'], ['三', '3'], ['四', '4'], ['五', '5'], ['六', '6'], ['八', '8'],
     ['沟', '9'], ['腰', '1'], ['撩', '1']
   ]);

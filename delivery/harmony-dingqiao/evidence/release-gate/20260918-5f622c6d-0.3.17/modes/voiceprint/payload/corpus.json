@@ -1,0 +1,35 @@
+[
+  {
+    "channels": 1,
+    "duration_seconds": 3.0022,
+    "id": "000000",
+    "pcm_bytes": 96070,
+    "pcm_sha256": "e4574a10f35d13957c44b33bdefafbba986ad3849ec6a416e29acdef21a1f39d",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB0749/SSB07490257.wav",
+    "source_sha256": "fffa1d07b59fb9ca37e5b68963bb0ee6864d647c020c955df9a4f1414ad541a0"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 4.146848,
+    "id": "000001",
+    "pcm_bytes": 132700,
+    "pcm_sha256": "2795f5cb71877870c54b252414dc9f12373c3d318e34a856ddb768ffd2ff7d4b",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1891/SSB18910347.wav",
+    "source_sha256": "8b35717453d71a1682b477edf60d8ba9b918987cc1cb3e89423f385dcaed2f7e"
+  },
+  {
+    "channels": 1,
+    "duration_seconds": 9.417007,
+    "id": "000002",
+    "pcm_bytes": 301344,
+    "pcm_sha256": "7eb3f5f5edf9d8fa0a3da9462b5d49a3de5b93f1e42e1b2565823e32f5933161",
+    "sample_rate": 44100,
+    "sample_width": 2,
+    "source": "audio/SSB1437/SSB14370266.wav",
+    "source_sha256": "2186a974698fd40450d3a43274ba06be6b6a82b49996821c52cc1f1987b9a601"
+  }
+]

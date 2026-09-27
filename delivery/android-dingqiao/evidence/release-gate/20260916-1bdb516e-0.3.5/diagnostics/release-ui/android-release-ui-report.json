@@ -1,0 +1,127 @@
+{
+  "overall_status": "FAIL",
+  "apk_sha256": "010940840798b95db4ba57d5c276cf3d669abb996b2a540dabcb33f65ae3562f",
+  "source": "Release APK extracted from complete ZIP; R8 enabled",
+  "clicked": true,
+  "intermediate_observed": true,
+  "final_observed": false,
+  "elapsed_seconds": 305.68,
+  "snapshots": [
+    {
+      "path": "ui-000.xml",
+      "elapsed_seconds": 2.77
+    },
+    {
+      "path": "ui-001.xml",
+      "elapsed_seconds": 12.96
+    },
+    {
+      "path": "ui-002.xml",
+      "elapsed_seconds": 23.38
+    },
+    {
+      "path": "ui-003.xml",
+      "elapsed_seconds": 33.67
+    },
+    {
+      "path": "ui-004.xml",
+      "elapsed_seconds": 44.77
+    },
+    {
+      "path": "ui-005.xml",
+      "elapsed_seconds": 55.29
+    },
+    {
+      "path": "ui-006.xml",
+      "elapsed_seconds": 65.71
+    },
+    {
+      "path": "ui-007.xml",
+      "elapsed_seconds": 76.11
+    },
+    {
+      "path": "ui-008.xml",
+      "elapsed_seconds": 86.49
+    },
+    {
+      "path": "ui-009.xml",
+      "elapsed_seconds": 96.97
+    },
+    {
+      "path": "ui-010.xml",
+      "elapsed_seconds": 107.47
+    },
+    {
+      "path": "ui-011.xml",
+      "elapsed_seconds": 117.88
+    },
+    {
+      "path": "ui-012.xml",
+      "elapsed_seconds": 128.38
+    },
+    {
+      "path": "ui-013.xml",
+      "elapsed_seconds": 138.77
+    },
+    {
+      "path": "ui-014.xml",
+      "elapsed_seconds": 149.15
+    },
+    {
+      "path": "ui-015.xml",
+      "elapsed_seconds": 159.53
+    },
+    {
+      "path": "ui-016.xml",
+      "elapsed_seconds": 169.93
+    },
+    {
+      "path": "ui-017.xml",
+      "elapsed_seconds": 180.35
+    },
+    {
+      "path": "ui-018.xml",
+      "elapsed_seconds": 190.76
+    },
+    {
+      "path": "ui-019.xml",
+      "elapsed_seconds": 201.17
+    },
+    {
+      "path": "ui-020.xml",
+      "elapsed_seconds": 211.57
+    },
+    {
+      "path": "ui-021.xml",
+      "elapsed_seconds": 221.95
+    },
+    {
+      "path": "ui-022.xml",
+      "elapsed_seconds": 232.34
+    },
+    {
+      "path": "ui-023.xml",
+      "elapsed_seconds": 242.79
+    },
+    {
+      "path": "ui-024.xml",
+      "elapsed_seconds": 253.27
+    },
+    {
+      "path": "ui-025.xml",
+      "elapsed_seconds": 263.71
+    },
+    {
+      "path": "ui-026.xml",
+      "elapsed_seconds": 275.66
+    },
+    {
+      "path": "ui-027.xml",
+      "elapsed_seconds": 285.95
+    },
+    {
+      "path": "ui-028.xml",
+      "elapsed_seconds": 297.47
+    }
+  ]
+}

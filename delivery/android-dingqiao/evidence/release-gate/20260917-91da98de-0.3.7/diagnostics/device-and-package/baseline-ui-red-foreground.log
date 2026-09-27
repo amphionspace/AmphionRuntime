@@ -1,0 +1,95 @@
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stream=
+com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest:
+INSTRUMENTATION_STATUS: test=roleFragmentsKeepReadableSourceParagraphsAndHonestLabels
+INSTRUMENTATION_STATUS_CODE: 1
+INSTRUMENTATION_STATUS: class=com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest
+INSTRUMENTATION_STATUS: current=1
+INSTRUMENTATION_STATUS: id=AndroidJUnitRunner
+INSTRUMENTATION_STATUS: numtests=1
+INSTRUMENTATION_STATUS: stack=java.lang.AssertionError: UNKNOWN must not break a word in the readable paragraph: [说话人 2（最终结果）] 随便
+[未能区分说话人（最终结果）] 说两
+[说话人 1（最终结果）] 句你好。
+[未能区分说话人（最终结果）] 跟
+[说话人 2 · 重叠说话（最终结果）] 谁相似。
+[说话人 1（最终结果）] 好。
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.roleFragmentsKeepReadableSourceParagraphsAndHonestLabels$lambda$5(DiarizationDemoInstrumentedTest.kt:82)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.$r8$lambda$mlig9SwQc5H4cvTTG-K1weF70mA(Unknown Source:0)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest$$ExternalSyntheticLambda4.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2650)
+	at android.os.Handler.handleCallback(Handler.java:1051)
+	at android.os.Handler.dispatchMessage(Handler.java:107)
+	at android.os.Looper.loopOnce(Looper.java:266)
+	at android.os.Looper.loop(Looper.java:361)
+	at android.app.ActivityThread.main(ActivityThread.java:10374)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+
+INSTRUMENTATION_STATUS: stream=
+Error in roleFragmentsKeepReadableSourceParagraphsAndHonestLabels(com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest):
+java.lang.AssertionError: UNKNOWN must not break a word in the readable paragraph: [说话人 2（最终结果）] 随便
+[未能区分说话人（最终结果）] 说两
+[说话人 1（最终结果）] 句你好。
+[未能区分说话人（最终结果）] 跟
+[说话人 2 · 重叠说话（最终结果）] 谁相似。
+[说话人 1（最终结果）] 好。
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.roleFragmentsKeepReadableSourceParagraphsAndHonestLabels$lambda$5(DiarizationDemoInstrumentedTest.kt:82)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.$r8$lambda$mlig9SwQc5H4cvTTG-K1weF70mA(Unknown Source:0)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest$$ExternalSyntheticLambda4.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2650)
+	at android.os.Handler.handleCallback(Handler.java:1051)
+	at android.os.Handler.dispatchMessage(Handler.java:107)
+	at android.os.Looper.loopOnce(Looper.java:266)
+	at android.os.Looper.loop(Looper.java:361)
+	at android.app.ActivityThread.main(ActivityThread.java:10374)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+
+INSTRUMENTATION_STATUS: test=roleFragmentsKeepReadableSourceParagraphsAndHonestLabels
+INSTRUMENTATION_STATUS_CODE: -2
+INSTRUMENTATION_RESULT: stream=
+
+Time: 1.894
+There was 1 failure:
+1) roleFragmentsKeepReadableSourceParagraphsAndHonestLabels(com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest)
+java.lang.AssertionError: UNKNOWN must not break a word in the readable paragraph: [说话人 2（最终结果）] 随便
+[未能区分说话人（最终结果）] 说两
+[说话人 1（最终结果）] 句你好。
+[未能区分说话人（最终结果）] 跟
+[说话人 2 · 重叠说话（最终结果）] 谁相似。
+[说话人 1（最终结果）] 好。
+	at org.junit.Assert.fail(Assert.java:89)
+	at org.junit.Assert.assertTrue(Assert.java:42)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.roleFragmentsKeepReadableSourceParagraphsAndHonestLabels$lambda$5(DiarizationDemoInstrumentedTest.kt:82)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest.$r8$lambda$mlig9SwQc5H4cvTTG-K1weF70mA(Unknown Source:0)
+	at com.amphion.dingqiao.demo.DiarizationDemoInstrumentedTest$$ExternalSyntheticLambda4.run(D8$$SyntheticClass:0)
+	at java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:524)
+	at java.util.concurrent.FutureTask.run(FutureTask.java:317)
+	at android.app.Instrumentation$SyncRunnable.run(Instrumentation.java:2650)
+	at android.os.Handler.handleCallback(Handler.java:1051)
+	at android.os.Handler.dispatchMessage(Handler.java:107)
+	at android.os.Looper.loopOnce(Looper.java:266)
+	at android.os.Looper.loop(Looper.java:361)
+	at android.app.ActivityThread.main(ActivityThread.java:10374)
+	at java.lang.reflect.Method.invoke(Native Method)
+	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+
+FAILURES!!!
+Tests run: 1,  Failures: 1
+
+
+INSTRUMENTATION_CODE: -1

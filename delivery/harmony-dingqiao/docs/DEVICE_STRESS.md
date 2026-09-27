@@ -27,7 +27,7 @@ online-stream 存活数。
 它只构建一次并将两个客户时序的证据绑定到同一 commit、设备和 HAP/HAR：
 
 ```bash
-python3 asr/tools/test_data.py fetch aishell3-hotwords-500
+python3 asr/tools/test_data.py fetch aishell3-500
 python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py
 ```
 

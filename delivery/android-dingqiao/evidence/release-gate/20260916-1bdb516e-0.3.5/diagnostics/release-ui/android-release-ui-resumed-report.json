@@ -1,0 +1,20 @@
+{
+  "overall_status": "PASS",
+  "same_session_continued": true,
+  "apk_sha256": "010940840798b95db4ba57d5c276cf3d669abb996b2a540dabcb33f65ae3562f",
+  "intermediate_observed": true,
+  "final_and_stopped_observed": true,
+  "interruption": "screen timeout; resumed the existing file-input session after wake; screen timeout temporarily raised from 30000 to 600000ms",
+  "snapshots": [
+    {
+      "path": "ui-000.xml",
+      "elapsed_seconds": 2.72,
+      "status": "\u8bf4\u8bdd\u4eba\u5206\u79bb\u5df2\u964d\u7ea7\uff1aINFERENCE_TIMEOUT"
+    },
+    {
+      "path": "ui-001.xml",
+      "elapsed_seconds": 13.23,
+      "status": "SDK PCM \u5df2\u4fdd\u5b58 \u00b7 \u53ef\u8bd5\u542c\u6216\u539f\u6837\u91cd\u65b0\u8bc6\u522b \u00b7 \u6a21\u578b\u5df2\u5378\u8f7d"
+    }
+  ]
+}

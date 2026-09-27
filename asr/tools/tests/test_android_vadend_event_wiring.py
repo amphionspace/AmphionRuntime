@@ -29,7 +29,9 @@ class AndroidVadEndEventWiringTest(unittest.TestCase):
         body = SOURCE.split("private fun feedChunkAndDecode(", 1)[1].split(
             "private fun probeInitialSpeechAtTimeout", 1
         )[0]
-        self.assertIn("trailingSilenceClock.observeSilence(i)", body)
+        self.assertIn("vadProcessedSamples - vadLastSpeechEndSample", body)
+        self.assertIn("trailingSilenceMs + (i * 1000L / sampleRate)", body)
+        self.assertIn("recognizer.getVadEndpointWaitSeconds", body)
         self.assertNotIn("trailingSilenceMs += (processedSamples.size", body)
 
 if __name__ == "__main__":

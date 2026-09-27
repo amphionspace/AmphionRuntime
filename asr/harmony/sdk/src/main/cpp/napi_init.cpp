@@ -7,6 +7,8 @@
 #include "agc_bridge.h"
 #include "lac_person_ner.h"
 
+void RegisterCommunityDiarization(napi_env env, napi_value exports);
+
 static napi_value NativeVersion(napi_env env, napi_callback_info info) {
   napi_value value;
   napi_create_string_utf8(env, "amphion-harmony-native-0.1.0", NAPI_AUTO_LENGTH, &value);
@@ -29,6 +31,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
   RegisterTargetSpeakerEnhancer(env, exports);
   RegisterSpeakerTurnSegmenter(env, exports);
+  RegisterCommunityDiarization(env, exports);
   RegisterAgcBridge(env, exports);
   RegisterLacPersonNer(env, exports);
   return exports;

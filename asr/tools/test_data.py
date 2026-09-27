@@ -44,6 +44,9 @@ def load_manifest(path: Path = MANIFEST_PATH) -> dict:
         raise TestDataError("unsupported test-data manifest schema")
     if not isinstance(manifest.get("bundles"), dict):
         raise TestDataError("test-data manifest bundles must be an object")
+    for name, bundle in manifest["bundles"].items():
+        if bundle.get("status", "current") not in ("current", "historical"):
+            raise TestDataError(f"bundle {name} has an invalid status")
     return manifest
 
 
@@ -61,12 +64,19 @@ def bundle_dir(manifest: dict, name: str) -> Path:
 
 def selected_bundle_names(manifest: dict, requested: Iterable[str]) -> list[str]:
     names = list(requested)
+    bundles = manifest["bundles"]
+    lookup = {name: name for name in bundles}
+    for name, bundle in bundles.items():
+        for alias in bundle.get("aliases", []):
+            if alias in lookup or alias == "all":
+                raise TestDataError(f"duplicate or reserved test-data alias: {alias}")
+            lookup[alias] = name
     if names == ["all"]:
-        return sorted(manifest["bundles"])
-    unknown = sorted(set(names) - set(manifest["bundles"]))
+        return sorted(name for name, bundle in bundles.items() if bundle.get("status", "current") == "current")
+    unknown = sorted(set(names) - set(lookup))
     if unknown:
         raise TestDataError(f"unknown test-data bundle(s): {', '.join(unknown)}")
-    return names
+    return list(dict.fromkeys(lookup[name] for name in names))
 
 
 def sha256_file(path: Path, block_size: int = 8 * 1024 * 1024) -> str:
@@ -268,7 +278,7 @@ def parse_args() -> argparse.Namespace:
     subparsers.add_parser("list")
     for command in ("fetch", "verify"):
         child = subparsers.add_parser(command)
-        child.add_argument("bundles", nargs="+", help="bundle names or 'all'")
+        child.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
     publish = subparsers.add_parser("publish")
     publish.add_argument("bundle")
     publish.add_argument("archive", type=Path)
@@ -281,12 +291,21 @@ def main() -> int:
         manifest = load_manifest(args.manifest)
         if args.command == "list":
             for name, bundle in sorted(manifest["bundles"].items()):
-                print(f"{name}\t{bundle['size']}\t{bundle['license']}\t{bundle['description']}")
+                aliases = ",".join(bundle.get("aliases", [])) or "-"
+                print(
+                    f"{name}\t{bundle.get('status', 'current')}\t{bundle['size']}\t"
+                    f"{bundle['license']}\t{bundle['description']}\taliases={aliases}"
+                )
+            for name, entry in sorted(manifest.get("catalog", {}).items()):
+                print(
+                    f"{name}\tcatalog-only\tobs://{entry['bucket']}/{entry['object_key']}\t"
+                    f"{entry['size']}\t{entry['description']}\tmanual download; see asr/test-data/README.md"
+                )
             return 0
         if args.command == "publish":
-            selected_bundle_names(manifest, [args.bundle])
-            publish_bundle(manifest, args.bundle, args.archive.expanduser().resolve())
-            print(f"published {args.bundle}")
+            name, = selected_bundle_names(manifest, [args.bundle])
+            publish_bundle(manifest, name, args.archive.expanduser().resolve())
+            print(f"published {name}")
             return 0
         names = selected_bundle_names(manifest, args.bundles)
         action = fetch_bundle if args.command == "fetch" else verify_bundle

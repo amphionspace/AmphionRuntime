@@ -38,6 +38,107 @@ def run_node(script: str) -> None:
 
 
 class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
+    def test_diarization_degradation_survives_normal_and_automatic_completion(self) -> None:
+        source = INDEX.read_text()
+        complete = 'handleComplete(' + source.split('  handleComplete(', 1)[1].split(
+            '\n  handleSpeakerDiarizationUpdate(', 1)[0]
+        result = 'handleSpeakerDiarizationResult(' + source.split(
+            '  handleSpeakerDiarizationResult(', 1)[1].split('\n  private handleStopFailure(', 1)[0]
+        script = f"""
+            import assert from 'node:assert/strict';
+            class Page {{
+              replaySessionId = 'replay'; lastDiarizationWindowIndex = -1;
+              capturedCustomerScenario = 'meeting-minutes'; finalSegments = [];
+              listening = false; captureReady = false;
+              refreshSpeakerDisplayIndexes() {{}}
+              stopCapture() {{}}
+              saveSdkCapture() {{}}
+              writeSdkCaptureMetadataBestEffort() {{}}
+              releaseModel(status) {{ this.status = status; }}
+              {complete}
+              {result}
+            }}
+            for (const automatic of [false, true]) {{
+              for (const degraded of [false, true]) {{
+                const page = new Page();
+                page.listening = automatic;
+                page.handleSpeakerDiarizationResult('live', {{ windowIndex: 0,
+                  utterances: [], isSessionFinal: true, degraded }});
+                page.handleComplete('live');
+                for (let i = 0; i < 5; i++) await Promise.resolve();
+                assert.equal(page.status.includes('角色分离已降级'), degraded,
+                  'onComplete must retain the SDK degradation warning after model unload');
+                assert.ok(page.status.includes('模型已卸载'));
+              }}
+            }}
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'degraded-completion.mts'
+            harness.write_text(textwrap.dedent(script))
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
+    def test_all_lifecycle_listeners_record_diarization_and_cancel_violations(self) -> None:
+        carrier = CARRIER.read_text()
+        prefix = carrier[carrier.index('class SessionEvents'):carrier.index('class OnStartSpeakerVadListener')]
+        listeners = carrier[carrier.index('class CallbackRecord'):carrier.index('class TargetSpeakerEnhancementOnStartListener')]
+        script = "import assert from 'node:assert/strict';\n" + prefix + listeners + """
+            const engine = { cancel() {}, isBusy: () => false, startListening() {} };
+            const result = { windowIndex: 0, windowBeginTime: 0, windowEndTime: 1000,
+                isSessionFinal: true, utterances: [], speakerTurns: [], speakerCount: 1,
+                degraded: false, degradedReason: 0, inferenceMs: 123, rtf: 0.12 };
+            for (const create of [
+                events => new StartWriteListener(events, engine, [], false),
+                events => new ReentrantCompleteListener(events, engine, 'a', 'b'),
+                events => new StartCancelListener(events, engine),
+                events => { const listener = new SequenceListener(); listener.events = events; return listener; },
+            ]) {
+                const events = new SessionEvents();
+                const listener = create(events);
+                listener.onSpeakerDiarizationUpdate('a', { speakerIndex: 0, secondarySpeakerIndexes: [] });
+                listener.onSpeakerDiarizationResult('a', result);
+                assert.equal(events.speakerDiarizationUpdates, 1);
+                assert.equal(events.speakerDiarizationTerminalResults, 1);
+                assert.deepEqual(events.diarizationWindows, [result]);
+                assert.deepEqual(events.callbackTrace, ['a:diarization-update', 'a:diarization-result']);
+            }
+            for (const callback of ['onSpeakerDiarizationUpdate', 'onSpeakerDiarizationResult']) {
+                const listener = new StartCancelListener(new SessionEvents(), engine);
+                listener.onStart('cancelled');
+                listener[callback]('cancelled', result);
+                assert.equal(listener.eventAfterCancel, true, 'late speaker callbacks must fail cancel');
+            }
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'carrier-listeners.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
+
+    def test_diarization_profile_shortens_pause_without_changing_other_limits(self) -> None:
+        profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
+        script = f"""
+            import assert from 'node:assert/strict';
+            class StartParams {{ extraParams = {{}}; }}
+            class AudioInfo {{}}
+            class SpeakerDiarizationConfig {{}}
+            {profile}
+            for (const name of ['ptt','tap-vad','transcription','form','meeting-minutes']) {{
+              const baseline = customerProfileStartParams('s',name,false);
+              const enabled = customerProfileStartParams('s',name,true);
+              assert.equal(enabled.extraParams.vadEnd,800);
+              assert.equal(baseline.extraParams.vadEnd,customerScenarioProfile(name).vadEnd);
+              for (const key of ['vadBegin','maxAudioDuration','endpointMaxUtteranceMs','recognizerMode']) {{
+                assert.equal(enabled.extraParams[key],baseline.extraParams[key]);
+              }}
+              assert.equal(enabled.speakerDiarization.maxSpeakers,4);
+            }}
+            assert.equal(customerProfileStartParams('s','meeting-minutes').extraParams.vadEnd,800);
+            assert.equal(customerProfileStartParams('s','ptt').extraParams.vadEnd,1600);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "diarization-pause.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
+
     def test_window_stress_budget_admits_five_hours_without_changing_customer_profiles(self) -> None:
         profile = PROFILE.read_text(encoding="utf-8").split("\n", 1)[1]
         carrier = CARRIER.read_text(encoding="utf-8")
@@ -61,6 +162,13 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
                 await runCustomerScenarioCycle(engine, {{}}, 0, mode, 20);
             }}
             const [windows, meeting, form] = captured;
+            for (const value of [400, 600, 800]) {{
+                await runCustomerScenarioCycle(engine, {{}}, 0, 'diarization-windows', 20, value);
+                assert.equal(captured.at(-1).extraParams.vadEnd, value);
+            }}
+            await runCustomerScenarioCycle(engine, {{}}, 0, 'customer-form', 20, 400);
+            assert.equal(captured.at(-1).extraParams.vadEnd, form.extraParams.vadEnd);
+            assert.equal(meeting.extraParams.vadEnd, 800);
             assert.ok(maxAudioBytesOf(windows.extraParams) > 18000000 * 32,
                 'five-hour input must finish before the configured automatic stop');
             assert.equal(windows.extraParams.enableContinuousRecognition, false);
@@ -88,6 +196,170 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             assert.deepEqual(compactSpeakerDisplayIndexes([2, 2, 0]), [0, 0, 1]);
             """
         )
+
+    def test_final_diarization_replaces_visible_roles_when_text_is_unchanged(self) -> None:
+        source = INDEX.read_text(encoding="utf-8")
+        segment = source.split("class FinalSegment {", 1)[1].split("\n@Entry", 1)[0]
+        handlers = source.split("  handleSpeakerDiarizationUpdate(", 1)[1].split(
+            "  private async finishAutoEndedCapture", 1
+        )[0]
+        display = source.split("  private speakerLabel(", 1)[1].split(
+            "  private selectCustomerScenario", 1
+        )[0]
+        rows = source.split("ForEach(this.finalSegments,", 1)[1].split("\n      }", 1)[0]
+        key = rows.rsplit("}, ", 1)[1].rstrip().removesuffix(")")
+        label = rows.split("Span(", 1)[1].split("\n", 1)[0].rstrip().removesuffix(")")
+        label = label.replace("this.segmentSpeakerLabel", "page.segmentSpeakerLabel")
+        script = f"""
+            import assert from 'node:assert/strict';
+            class FinalSegment {{{segment}
+            class Page {{
+              replaySessionId = 'replay'; lastDiarizationWindowIndex = -1;
+              capturedCustomerScenario = 'ptt'; finalSegments = [];
+              handleSpeakerDiarizationUpdate({handlers}
+              private speakerLabel({display}
+            }}
+            const keyOf = {key};
+            const page = new Page();
+            // Same-key ForEach rows retain their original non-observed item.
+            page.finalSegments = [
+              new FinalSegment('甲句', undefined, 'u1', 0, 4000, true),
+              new FinalSegment('乙句', undefined, 'u2', 1, 9000, true),
+              new FinalSegment('丙句', undefined, 'u3', -1, 12000, true),
+            ];
+            page.refreshSpeakerDisplayIndexes(page.finalSegments);
+            const cache = new Map();
+            function render() {{
+              return page.finalSegments.map((item, index) => {{
+                const key = keyOf(item, index);
+                if (!cache.has(key)) cache.set(key,
+                  item.speakerDiarization ? ({label}).trim() : '');
+                return cache.get(key);
+              }});
+            }}
+            assert.deepEqual(render(), ['说话人 1（暂定，可修正）', '说话人 2（暂定，可修正）',
+              '说话人分析中（暂定，可修正）']);
+            const utterances = page.finalSegments.map((item, index) => ({{
+              text: item.text, sourceUtteranceId: item.utteranceId,
+              utteranceId: item.utteranceId + '-final', endTime: item.endTime,
+              speakerIndex: index === 2 ? -1 : 0, secondarySpeakerIndexes: [], overlap: false,
+            }}));
+            page.handleSpeakerDiarizationResult('live', {{
+              windowIndex: 0, utterances, isSessionFinal: false, degraded: false,
+            }});
+            assert.deepEqual(page.finalSegments.map(item => item.speakerIndex), [0, 0, -1]);
+            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
+              '不确定（最终结果）'],
+              'a committed window must refresh phase and identity before the session ends');
+            // Late provisional updates cannot overwrite published assignments.
+            page.handleSpeakerDiarizationUpdate('live', {{
+              utteranceId: 'u2-final', revision: 99, speakerIndex: 1,
+            }});
+            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
+              '不确定（最终结果）']);
+            // A real second speaker must remain distinct.
+            page.handleSpeakerDiarizationResult('live', {{
+              windowIndex: 1, isSessionFinal: true, degraded: false,
+              utterances: [{{sourceUtteranceId:'u4', utteranceId:'u4-final',
+                text:'丁句', endTime:15000, speakerIndex:1, secondarySpeakerIndexes:[],
+                overlap:false}}],
+            }});
+            assert.equal(render().at(-1), '说话人 2（最终结果）');
+            const mixed = new Page();
+            const parts = [
+              {{sourceUtteranceId:'u1',utteranceId:'u1',text:'张三。',beginTime:0,endTime:200,
+                speakerIndex:-1,secondarySpeakerIndexes:[0,1],overlap:true}},
+              {{sourceUtteranceId:'u1',utteranceId:'u1.2',text:'下一句。',beginTime:200,endTime:400,
+                speakerIndex:0,secondarySpeakerIndexes:[],overlap:false}},
+              {{sourceUtteranceId:'u2',utteranceId:'u2',text:'你好。',beginTime:500,endTime:1000,
+                speakerIndex:1,secondarySpeakerIndexes:[],overlap:false}},
+            ];
+            mixed.handleSpeakerDiarizationResult('live', {{
+              windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
+            }});
+            assert.deepEqual(mixed.finalSegments.map(x=>x.text),['张三。','下一句。','你好。'],
+              'readable SDK units sharing a source endpoint must keep their separate owners');
+            assert.deepEqual(mixed.finalSegments.map(x=>x.speakerIndex),[-1,0,1],
+              'the uncertain sentence must not acquire its neighbours identity');
+            assert.deepEqual(mixed.finalSegments[0].speakerParts,parts.slice(0,1),
+              'exact known/unknown text, times and overlap remain inspectable');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[0]),
+              '多人／不确定 · 含重叠发言');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[1]),'说话人 1');
+            assert.equal(mixed.segmentSpeakerLabel(mixed.finalSegments[2]),'说话人 2');
+            const multi = new FinalSegment('甲乙',undefined,'both',-1,1000,true,true);
+            multi.speakerParts = [parts[1],parts[2]];
+            assert.equal(mixed.segmentSpeakerLabel(multi),'多人／不确定',
+              'do not relabel a multi-speaker paragraph using its majority speaker');
+            const inferred = new FinalSegment('张三',undefined,'inferred',0,1000,true,true);
+            inferred.speakerParts = [{{...parts[1],text:'张三',confidence:0,speakerInferred:true}}];
+            assert.equal(mixed.segmentSpeakerLabel(inferred),'说话人 1 · 含推断补全',
+              'bounded UNKNOWN backfill must be visible as an inference');
+            mixed.handleSpeakerDiarizationUpdate('live',{{utteranceId:'u1',revision:99,speakerIndex:2}});
+            assert.equal(mixed.finalSegments[0].speakerIndex,-1);
+            mixed.handleSpeakerDiarizationResult('live', {{
+              windowIndex:0,utterances:parts,isSessionFinal:false,degraded:false,
+            }});
+            assert.equal(mixed.finalSegments.length,3,'a repeated window must not duplicate paragraphs');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "speaker-display.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
+
+    def test_demo_file_input_stops_at_eof_or_session_change(self) -> None:
+        source = INDEX.read_text(encoding="utf-8")
+        start = source.index("  private async feedDemoFile(")
+        end = source.index("  // ---- Runtime", start)
+        method = source[start:end]
+        script = f"""
+            import assert from 'node:assert/strict';
+            const SDK_FRAME_BYTES = 640, FRAME_AUDIO_MS = 20;
+            const bytes = Uint8Array.from({{length: 1920}}, (_, i) => i % 251);
+            const WavIo = {{ readPcmBytes: () => bytes.buffer }};
+            const timers = [];
+            const setTimeout = (callback, delay) => {{
+              assert.equal(delay, 20); timers.push(callback);
+            }};
+            class Page {{
+              active = true; listening = true; stoppingListening = false;
+              sessionId = 'a'; workPath = '/work'; frames = []; finishes = 0;
+              feedFrameLive(frame) {{ this.frames.push(new Uint8Array(frame)); }}
+              async stopListening() {{ this.finishes++; this.listening = false; }}
+              handleStopFailure(sid, error) {{ throw error; }}
+              {method}
+            }}
+            async function tick() {{ timers.shift()(); await Promise.resolve(); }}
+            const complete = new Page();
+            const done = complete.feedDemoFile('a');
+            for (let i = 0; i < 3; i++) await tick();
+            await done;
+            assert.deepEqual(complete.frames.flatMap(frame => [...frame]), [...bytes]);
+            assert.equal(complete.finishes, 1);
+            for (const change of [
+              page => page.stoppingListening = true,
+              page => page.listening = false,
+              page => page.active = false,
+              page => page.sessionId = 'b',
+            ]) {{
+              const page = new Page();
+              const run = page.feedDemoFile('a');
+              change(page);
+              await tick(); await run;
+              assert.equal(page.frames.length, 1, 'no frame after stop or into another session');
+              assert.equal(page.finishes, 0, 'old producer cannot finish another session');
+            }}
+            const lastFrame = new Page();
+            const lastRun = lastFrame.feedDemoFile('a');
+            await tick(); await tick();
+            lastFrame.sessionId = 'b';
+            await tick(); await lastRun;
+            assert.equal(lastFrame.finishes, 0, 'EOF cannot finish a replacement session');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "demo-file-input.mts"
+            harness.write_text(textwrap.dedent(script), encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)], check=True, cwd=ROOT)
 
     def test_customer_profiles_pin_the_mail_parameters(self) -> None:
         source = PROFILE.read_text(encoding="utf-8")
@@ -203,8 +475,9 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("显示为“说话人 + 数字编号”", source)
         self.assertIn("`说话人 ${speakerIndex + 1}`", source)
         self.assertNotIn("return speakerIndex < 0 ? '说话人'", source)
-        self.assertIn("return speakerIndex < 0 ? '未能区分说话人'", source)
-        self.assertIn("item.speakerIndex >= 0 || item.speakerAssignmentFinal", source)
+        self.assertIn("return speakerIndex < 0 ? '不确定'", source)
+        self.assertIn("if (item.speakerDiarization)", source)
+        self.assertIn("item.speakerAssignmentFinal ? '最终结果' : '暂定，可修正'", source)
         self.assertIn("next[i].endTime, true, next[i].speakerAssignmentFinal", source)
         self.assertIn("meta['audioSource'] = this.audioSourceName(this.capturedAudioSource)", source)
         self.assertIn("profile.allowVoiceprint", source)

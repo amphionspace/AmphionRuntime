@@ -1,0 +1,28 @@
+{
+  "hypothesis": "Hard replacement at the observed VAD boundary discards native undecoded context; keeping or soft-resetting the same stream changes the first missing token under identical subsequent real PCM.",
+  "inputs": [
+    "v6_1_1.wav",
+    "v6_2_1.wav"
+  ],
+  "branches": [
+    "keep",
+    "soft reset",
+    "inputFinished + fresh stream + existing 800 ms warmup"
+  ],
+  "observations": [
+    "input sample position",
+    "decode count",
+    "stream generation",
+    "native token IDs rendered with model vocabulary",
+    "token timestamps",
+    "native endpoint reason",
+    "separately labeled synthetic tail"
+  ],
+  "falsifier": "All branches omit the same target token, or fresh branch does not reproduce observed native loss; do not infer root cause from final text alone.",
+  "stop": "One three-way native fork per original sample; no product change in this experiment.",
+  "invariants": "No SDK parameter change, no text guessing, no audio submitted to public callback / speaker buffers by this isolated native diagnostic.",
+  "expected_minutes": [
+    1,
+    3
+  ]
+}

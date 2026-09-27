@@ -1,0 +1,82 @@
+[
+  {
+    "apk": "release-sdk-test.apk",
+    "asset": "assets/000_enroll.wav",
+    "sha256": "406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc",
+    "sample_rate": 16000,
+    "duration_seconds": 3.28,
+    "channels": 1
+  },
+  {
+    "apk": "release-sdk-test.apk",
+    "asset": "assets/001_recognize.wav",
+    "sha256": "3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc",
+    "sample_rate": 16000,
+    "duration_seconds": 11.04,
+    "channels": 1
+  },
+  {
+    "apk": "release-sdk-test.apk",
+    "asset": "assets/000_target.wav",
+    "sha256": "bdb9c80e5e099395ce89316b30dee4bbe3d9a72d4c7d45c730d5bfd1e883a303",
+    "sample_rate": 16000,
+    "duration_seconds": 1.84,
+    "channels": 1
+  },
+  {
+    "apk": "release-sdk-test.apk",
+    "asset": "assets/000_σú░τ║╣.wav",
+    "sha256": "9cd91afebad829790d5f292b451ecce9aa7b6839644fe5878219c861127c03e2",
+    "sample_rate": 16000,
+    "duration_seconds": 3.2,
+    "channels": 1
+  },
+  {
+    "apk": "release-sdk-test.apk",
+    "asset": "assets/900_ΘçìσÅá.wav",
+    "sha256": "255ec8d56f9fef898b839d4a3df599467181303884437b49c2cc846214a7b341",
+    "sample_rate": 16000,
+    "duration_seconds": 30.0,
+    "channels": 1
+  },
+  {
+    "apk": "diagnostics-test.apk",
+    "asset": "assets/000_enroll.wav",
+    "sha256": "406027619ac5356b902338e50c7c4ec665e86de1c205835216dde89a3cda67bc",
+    "sample_rate": 16000,
+    "duration_seconds": 3.28,
+    "channels": 1
+  },
+  {
+    "apk": "diagnostics-test.apk",
+    "asset": "assets/001_recognize.wav",
+    "sha256": "3b8255aed49b90df4bdbd5ae626f37c94da318a4b2f3bd0c746ef2dbc8a7f8fc",
+    "sample_rate": 16000,
+    "duration_seconds": 11.04,
+    "channels": 1
+  },
+  {
+    "apk": "diagnostics-test.apk",
+    "asset": "assets/000_target.wav",
+    "sha256": "bdb9c80e5e099395ce89316b30dee4bbe3d9a72d4c7d45c730d5bfd1e883a303",
+    "sample_rate": 16000,
+    "duration_seconds": 1.84,
+    "channels": 1
+  },
+  {
+    "apk": "diagnostics-test.apk",
+    "asset": "assets/000_σú░τ║╣.wav",
+    "sha256": "9cd91afebad829790d5f292b451ecce9aa7b6839644fe5878219c861127c03e2",
+    "sample_rate": 16000,
+    "duration_seconds": 3.2,
+    "channels": 1
+  },
+  {
+    "apk": "diagnostics-test.apk",
+    "asset": "assets/900_ΘçìσÅá.wav",
+    "sha256": "255ec8d56f9fef898b839d4a3df599467181303884437b49c2cc846214a7b341",
+    "sample_rate": 16000,
+    "duration_seconds": 30.0,
+    "channels": 1
+  }
+]

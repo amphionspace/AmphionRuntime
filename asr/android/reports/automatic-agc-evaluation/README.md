@@ -20,8 +20,9 @@ model-specific AGC accuracy acceptance for the newer Harmony model.
   [-0.1300, +0.1620] points.
 - Controlled low-volume speech improves from -40 dBFS onward. At -70 dBFS, CER changes from
   5.9361% to 2.7397%, exact match changes from 70% to 76%, and empty output changes from 2% to 0%.
-- The customer pink-noise set remains correct at SNR 30/25/20 dB. Below 20 dB it remains
-  incorrect; AGC does not improve SNR and is not presented as a denoiser.
+- SNR robustness and denoising are not evaluated. The historical customer pink-noise archive is
+  not present in the canonical OBS test-data manifest and is discarded; no local copy is used as
+  a substitute.
 - In the 213.28-second meeting recording, post-180-second non-empty text changes from 105 to 112
   characters. The previously missing opening `你就不能当成你的测试来测` is retained, but another
   short clause changes, so this is evidence of local benefit rather than complete transcript proof.
@@ -33,7 +34,8 @@ model-specific AGC accuracy acceptance for the newer Harmony model.
 - Model: the repository zh-en Zipformer2 bundle, modified beam search, 8 active paths.
 - Corpus: 500 AISHELL-3 utterances at original level; a deterministic RMS-stratified subset of 100
   utterances scaled to -30/-40/-50/-60/-70 dBFS without changing each source's SNR.
-- Customer SNR: eight pink-noise files from 30 dB through -5 dB, reference `你好一二三四`.
+- The canonical input policy is defined by `asr/test-data/manifest.json`; inputs absent from that
+  manifest are not valid evaluation data.
 - Repository regression fixture: `asr/test-fixtures/voiceprint-fallback/001_recognize.wav` scaled to
   -80 dBFS changes from `当我核查…` without AGC to the original `帮我核查…` with AGC.
 - Long audio: the supplied 213.28-second meeting WAV, using the SDK-style raw Silero VAD lane and
@@ -45,9 +47,9 @@ Machine-readable aggregate results and SHA-256 provenance are in [report.json](r
 raw customer audio and per-utterance hypotheses are intentionally not committed; their preserved
 local artifacts are identified by hashes so later delivery evidence can detect replacement.
 
-The report deliberately separates three axes: overall signal level (`dBFS`), signal-to-noise ratio
-(`SNR dB`), and the time region of long audio. A gain-only result must not be used as evidence for
-noise robustness, and a recovered long-audio phrase must not be described as a complete transcript.
+The report deliberately separates two evaluated axes: overall signal level (`dBFS`) and the time
+region of long audio. A gain-only result must not be used as evidence for noise robustness, and a
+recovered long-audio phrase must not be described as a complete transcript.
 
 Run the dependency-free checks as soon as AGC code, framing, session audio routing, build scripts,
 or evidence changes:
@@ -107,9 +109,11 @@ evidence fingerprint covers only sources that can change AGC samples or framing:
 source, public header, build/dependency description and tool bootstrap; the Android and Harmony
 streaming ingress/processors/backends; the Harmony native bridge; and the evaluator. AGC-named
 runtime helpers in those implementation directories are discovered automatically.
-If one of those sources changes, rerun all four recorded evaluation dimensions (normal-volume, SNR,
+If one of those sources changes, rerun all three canonical evaluation dimensions (normal-volume,
 long-audio time region, and the low-volume red/green fixture) and replace `report.json` with output
-from that evaluation. There is no fingerprint-only update command that can bless old results.
+from that evaluation. SNR robustness is outside the current evidence scope because its input is not
+in the canonical object-storage manifest. There is no fingerprint-only update command that can
+bless old results.
 
 The complete Android `SessionImpl.kt` and Harmony `Runtime.ets` are deliberately outside that
 fingerprint because they also contain VAD, speaker, voiceprint, and lifecycle state machines. Their

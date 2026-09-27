@@ -1,0 +1,13 @@
+{
+  "reason": "Device wall clock differs from host; use preserved append-only snapshots and the first current-run initialization after the prior-day run, never host-time filtering.",
+  "start_record_indexes": {
+    "full": 6353,
+    "fixture": 6811,
+    "stress": 6843
+  },
+  "raw_snapshot_sha256": {
+    "full": "ca3f3ce3ccdb0a451cb06382fda99dcecd60aaf860587f9347fb6e084228f4bf",
+    "fixture": "4507b5a9155f070c2bba6233d35ccc9405d3b06781032a5fc9c1af619d804d7d",
+    "stress": "b0dd1ea02824dc685f48a85d3efaf98a1b6745b325c3522c80f4141512c3e930"
+  }
+}

@@ -1,0 +1,275 @@
+{
+  "canonical": false,
+  "hypothesis": "Six-second sampling introduced later-window UNKNOWN collapse",
+  "status": "REJECTED: later utterance collapse already present in original 2.5-second baseline",
+  "cases": {
+    "old-baseline-state": [
+      {
+        "window": 0,
+        "begin": 0,
+        "end": 122980,
+        "unknownUtterances": 10,
+        "utterances": 13,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "S3",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "S2",
+          "S2"
+        ],
+        "clusters": 37,
+        "anchoredObservations": 0,
+        "namedTurnMs": 16050
+      },
+      {
+        "window": 1,
+        "begin": 122980,
+        "end": 246780,
+        "unknownUtterances": 12,
+        "utterances": 12,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 14,
+        "anchoredObservations": 1,
+        "namedTurnMs": 0
+      },
+      {
+        "window": 2,
+        "begin": 246780,
+        "end": 374160,
+        "unknownUtterances": 9,
+        "utterances": 9,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 29,
+        "anchoredObservations": 0,
+        "namedTurnMs": 0
+      }
+    ],
+    "old-query-state": [
+      {
+        "window": 0,
+        "begin": 0,
+        "end": 122980,
+        "unknownUtterances": 8,
+        "utterances": 13,
+        "roles": [
+          "S1",
+          "UNKNOWN",
+          "S3",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "S2",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "S2",
+          "S2"
+        ],
+        "clusters": 37,
+        "anchoredObservations": 0,
+        "namedTurnMs": 21351
+      },
+      {
+        "window": 1,
+        "begin": 122980,
+        "end": 246780,
+        "unknownUtterances": 12,
+        "utterances": 12,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 14,
+        "anchoredObservations": 1,
+        "namedTurnMs": 0
+      },
+      {
+        "window": 2,
+        "begin": 246780,
+        "end": 374160,
+        "unknownUtterances": 9,
+        "utterances": 9,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 29,
+        "anchoredObservations": 0,
+        "namedTurnMs": 0
+      }
+    ],
+    "unknown-query-state": [
+      {
+        "window": 0,
+        "begin": 0,
+        "end": 122980,
+        "unknownUtterances": 10,
+        "utterances": 13,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "S3",
+          "S1",
+          "UNKNOWN",
+          "S2",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 31,
+        "anchoredObservations": 0,
+        "namedTurnMs": 27918
+      },
+      {
+        "window": 1,
+        "begin": 122980,
+        "end": 246780,
+        "unknownUtterances": 12,
+        "utterances": 12,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 8,
+        "anchoredObservations": 0,
+        "namedTurnMs": 0
+      },
+      {
+        "window": 2,
+        "begin": 246780,
+        "end": 374160,
+        "unknownUtterances": 9,
+        "utterances": 9,
+        "roles": [
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN",
+          "UNKNOWN"
+        ],
+        "clusters": 27,
+        "anchoredObservations": 0,
+        "namedTurnMs": 0
+      }
+    ]
+  },
+  "interpretation": "Only speaker-label coverage is compared. No complete customer identity ground truth is available, so this is not DER or identity precision validation.",
+  "plan": {
+    "canonical": false,
+    "hypothesis": "Six-second sampling changed the first-window enrolled profiles and may have introduced the later UNKNOWN collapse in the six-minute customer recording.",
+    "onlyVariable": "Recompute only 2.5-second context embeddings from saved identical native segmentation. Keep owned-output queries, model, thresholds, maxSpeakers, commit boundaries and current production Session fixed. Also compute original no-query baseline to distinguish sampling from query behavior.",
+    "observation": "Compare first-window profile composition, later anchor/query acceptance, utterance UNKNOWN counts and exact identity intervals. No claim about accuracy without ground truth.",
+    "falsifier": "If the original 2.5-second baseline already has no named later utterances and no anchor matches, reject attribution of the later UNKNOWN collapse to the sampling fix.",
+    "stop": "One 2.5-second extraction and cached state forks; no thresholds sweep or additional device replay."
+  },
+  "evidence": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/meeting-sampling-regression-plan.json",
+      "sha256": "fa98b37f842f93519d4ee46db20216a69beaaedbcd8c65d0b4ed105a4aad6514",
+      "bytes": 995
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/meeting-sampling-regression-verdict.json",
+      "sha256": "351f51881dfdc4da8a641fe8a6d77577e60198a124ed1eb3b40475dce9e8fab9",
+      "bytes": 4892
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/extract_meeting_old_context.py",
+      "sha256": "a2c124ca3f8740e1fa7124b087c170a58efa4f79943bd7b615073910afa80f88",
+      "bytes": 1918
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/meeting-old-context.log",
+      "sha256": "a67d7bb5ee68831b0cffe7b03dad435c2b12e05a07f5217568f4f7d521b1dda4",
+      "bytes": 79
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/compare-meeting-sampling.mts",
+      "sha256": "4eda3ecb5b41f69a3fc3ab3a2e7bda3d6aa15b1ca814f10f93c9d1ea034ee0f1",
+      "bytes": 2334
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/host-meetingMinutes/old-query-windows.json",
+      "sha256": "4c4ec94b5e977d4d2cc6c713d071f17b09ac26165ac7465782d107b42c06f5e3",
+      "bytes": 2211928
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/host-meetingMinutes/old-baseline-state.json",
+      "sha256": "3531e7fd69e092e12ce32da794fbeef54d12c7363118fba8a6a8fae47f20f5a3",
+      "bytes": 16476438
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/meeting-speaker-fix-20260915-6f7oc5vh/customer-lark/host-meetingMinutes/old-query-state.json",
+      "sha256": "92c5b201114d7963852cc2fa9c23bc6e7ecdedc62c3650534c20679c66a98099",
+      "bytes": 17788691
+    }
+  ],
+  "scopeLimit": "First-window speaker assignments differ; equal UNKNOWN totals do not establish equal identity accuracy. Full customer speaker labels are unavailable."
+}

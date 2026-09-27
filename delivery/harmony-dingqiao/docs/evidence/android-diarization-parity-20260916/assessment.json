@@ -1,0 +1,643 @@
+{
+  "scope": "PR merge validation; not customer release or overall speaker-accuracy acceptance",
+  "runtimeCommit": "0492de542a82eaced93d9fbcb4c4d2c036dd511b",
+  "sourceFingerprint": "0a812c447f771803522725aa30f262cc5357086bb70e2fd8499005ba2951787f",
+  "harmonyArtifacts": {
+    "amphion_asr.har": {
+      "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+      "sha256": "c711c9f002b041e8a163b7ddfa1f275522c93b6e584959be51ad8c590b104e30",
+      "size_bytes": 219610275
+    },
+    "amphion_asr_demo.hap": {
+      "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+      "sha256": "6091b196b24c8f95ac6713cf1962b81b0c9390348b3398c864610b75c00a75c8",
+      "size_bytes": 380806144
+    },
+    "amphion_dingqiao.har": {
+      "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+      "sha256": "456d36c7924dc3bd5855fb620cffb90133aaf3e9785efcd0d51a41a6f6a5d2c9",
+      "size_bytes": 42352742
+    },
+    "amphion_police.har": {
+      "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+      "sha256": "2bc5773941f7ef910cf79f3988cd19aee59cefe4159cde5e50be0849a3785164",
+      "size_bytes": 30201906
+    },
+    "sherpa_onnx.har": {
+      "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+      "sha256": "f1715a44e21b93d9cb1cf4e5e266cf2286f68f03ec8fc440074b816bc2866047",
+      "size_bytes": 6950517
+    }
+  },
+  "androidArtifacts": [
+    {
+      "package": "com.amphion.dingqiao.demo",
+      "localPath": "asr/android/samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk",
+      "sha256": "70c442e4fc60247fcd78aaaf6b73715e257171260046fda55ce39cc328b03317",
+      "installedMatches": true
+    },
+    {
+      "package": "com.amphion.dingqiao.demo.test",
+      "localPath": "asr/android/samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk",
+      "sha256": "bec4df3c1c321c04cb5db1c826aa5850ea091a83be61491904706146223f5536",
+      "installedMatches": true
+    }
+  ],
+  "status": "PASS",
+  "overallSpeakerAccuracy": "OPEN",
+  "harmonyModes": [
+    {
+      "mode": "burst",
+      "status": "PASS",
+      "cycles": 3,
+      "reportSha256": "1906f5ef17e646138faba2dc8b710ab8c8dcb4cc00057a27b0db4fdce346bc6f",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.327
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "paced",
+      "status": "PASS",
+      "cycles": 12,
+      "reportSha256": "085a749bb5b807636d013791e7fbf4e6f0115e5858c050ac4ed8087e00c3928f",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 48,
+        "observation_seconds": 61.445,
+        "warmup_samples_excluded": 9,
+        "head_rss_mb": 452.59,
+        "tail_rss_mb": 497.312,
+        "rss_growth_mb": 44.723,
+        "rss_slope_mb_per_minute": 54.967,
+        "rss_third_medians_mb": [
+          457.055,
+          470.234,
+          489.816
+        ],
+        "peak_rss_mb": 506.828,
+        "peak_hwm_mb": 506.828,
+        "head_vm_data_mb": 776.27,
+        "tail_vm_data_mb": 830.254,
+        "vm_data_growth_mb": 53.984,
+        "peak_swap_mb": 0.066,
+        "head_threads": 45.0,
+        "tail_threads": 45.0,
+        "thread_growth": 0.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 12,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "vad-begin",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "e5b46e8a44a49087a5619417a3308e20243fbb432fab7fb0f5753d6f8846fe16",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "vad-begin-silence",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "d18cc424f7a1d0e5f69e7eb95937aed6803a52682c86b28f3c5ddf1e116029a9",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "voiceprint",
+      "status": "PASS",
+      "cycles": 7,
+      "reportSha256": "f419370c8fc2235ff1582f7aa67772c6371482f831761b616e94b12175ddbc74",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 12.764
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 7,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "voiceprint-fallback",
+      "status": "PASS",
+      "cycles": 8,
+      "reportSha256": "a650323b6de3e41cb06d1b528ffaacfaff355547febd38cf8288335f8d792126",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 64,
+        "observation_seconds": 81.562,
+        "warmup_samples_excluded": 12,
+        "head_rss_mb": 618.289,
+        "tail_rss_mb": 644.242,
+        "rss_growth_mb": 25.953,
+        "rss_slope_mb_per_minute": 40.902,
+        "rss_third_medians_mb": [
+          627.469,
+          629.529,
+          640.293
+        ],
+        "peak_rss_mb": 662.191,
+        "peak_hwm_mb": 662.191,
+        "head_vm_data_mb": 1084.973,
+        "tail_vm_data_mb": 1147.285,
+        "vm_data_growth_mb": 62.312,
+        "peak_swap_mb": 0.074,
+        "head_threads": 45,
+        "tail_threads": 46,
+        "thread_growth": 1,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 8,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "voiceprint-vad-begin",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "c820d2ebe5dd5efcebcd3071094321b13d67e25a76a3faeb4c348d89894cc8b7",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 12.786
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "voiceprint-vad-begin-idle",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "dc029e148b6e9f52dd7bbd630a875270109698d0955d59a12c0f55e0241f78e4",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.405
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "cancel",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "03616be34b646c521230e5ac49e9c1e06257153c80acfe31e4109f1aa26203f8",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "cancel-full",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "4a71cdd966120f91985166f7c1ab4feed60618e6915a8cffd59834c0a7a01db8",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "max-duration",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "18c450e982d10630b83041e7658ca1508b876e23c2b7ae23c635687d52096e91",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 11.831
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "edge",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "27d6b0dfe44286186d1fcc4ea03664d07b5168a9cf454009dc5e68fac7b6ffda",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "reentrant",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "2e9fd84ca2aabb26ed2cce9eb89ae17ac6287851f39d82550ff0230a074fd14d",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "start-cancel",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "a6fadfb64b4ccfd6d7546b9a74672cb7244c16bfaf76e034c460d21f27f8d758",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "start-write",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "558982c07f9394fd107eddfc267eae22797ce03d412fbfab47468d6fbe83c0d4",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 4
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "start-write-reload",
+      "status": "PASS",
+      "cycles": 4,
+      "reportSha256": "057b57a772cd3b412e782d384712146eb6ce6b125ba8ca1e27600ad9dbde5b3d",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 7.697
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "user-sequence",
+      "status": "PASS",
+      "cycles": 3,
+      "reportSha256": "59d2eb18b58f89f1b2d1b2e7e8ce08e3c1b2fbff45f5d8b875141a850b2851bb",
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.422
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    },
+    {
+      "mode": "numeric-edge",
+      "status": "PASS",
+      "cycles": 2,
+      "reportSha256": "b4cafd4ce9c1ff2467b156d1e4d39f819294b6563f09c7120c08ff7132633deb",
+      "memory": {
+        "status": "PASS",
+        "sample_count": 13,
+        "observation_seconds": 15.57,
+        "warmup_samples_excluded": 2,
+        "head_rss_mb": 466.188,
+        "tail_rss_mb": 483.656,
+        "rss_growth_mb": 17.469,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          474.27,
+          495.641,
+          482.383
+        ],
+        "peak_rss_mb": 530.652,
+        "peak_hwm_mb": 530.652,
+        "head_vm_data_mb": 786.383,
+        "tail_vm_data_mb": 825.977,
+        "vm_data_growth_mb": 39.594,
+        "peak_swap_mb": 0.066,
+        "head_threads": 49,
+        "tail_threads": 44,
+        "thread_growth": -5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      }
+    }
+  ],
+  "harmonyTotalCycles": 65,
+  "androidUi": {
+    "passed": 2,
+    "skippedOptInSdkBenchmark": 1,
+    "redThenGreenSpeakerNumberParity": true
+  },
+  "reusedValidation": {
+    "evidenceDirectoryName": "android-demo-vadend-20260916-r78tplev",
+    "sourceCommit": "e25a1fa15aec705caa8bd9916c8bfbcff013ca29",
+    "reason": "SDK runtime and Harmony experiment code unchanged; only Android display-number mapping and API comments changed after this source. UI rerun on the final APK.",
+    "unitTests": [
+      {
+        "module": "sdk",
+        "variant": "Debug",
+        "tests": 60,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "sdk",
+        "variant": "Release",
+        "tests": 59,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "sdk-dingqiao",
+        "variant": "Debug",
+        "tests": 110,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "sdk-dingqiao",
+        "variant": "Release",
+        "tests": 110,
+        "failures": 0,
+        "errors": 0
+      },
+      {
+        "module": "samples/dingqiao-demo",
+        "variant": "Debug",
+        "tests": 17,
+        "failures": 0,
+        "errors": 0
+      }
+    ],
+    "sameInputDeviceComparisons": [
+      {
+        "platform": "android",
+        "vadEndMs": 800,
+        "contract": {
+          "noError": true,
+          "lastOnce": true,
+          "completeOnce": true,
+          "terminalOrder": true
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 29,
+        "metrics": {
+          "speakerConfusionSeconds": 19.22,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468219
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 4.8,
+          "unknownTurnSeconds": 33.36,
+          "classicDer250msNoOverlap": 0.769426
+        },
+        "approximateCer": 0.6291390728476821,
+        "effectiveVadEndMs": 800
+      },
+      {
+        "platform": "android",
+        "vadEndMs": 600,
+        "contract": {
+          "noError": true,
+          "lastOnce": true,
+          "completeOnce": true,
+          "terminalOrder": true
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 29,
+        "metrics": {
+          "speakerConfusionSeconds": 19.22,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468219
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 4.4,
+          "unknownTurnSeconds": 47.48,
+          "classicDer250msNoOverlap": 0.771174
+        },
+        "approximateCer": 0.5794701986754967,
+        "effectiveVadEndMs": 600
+      },
+      {
+        "platform": "android",
+        "vadEndMs": 400,
+        "contract": {
+          "noError": true,
+          "lastOnce": true,
+          "completeOnce": true,
+          "terminalOrder": true
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 31,
+        "metrics": {
+          "speakerConfusionSeconds": 19.22,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468219
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 4.0,
+          "unknownTurnSeconds": 34.16,
+          "classicDer250msNoOverlap": 0.770618
+        },
+        "approximateCer": 0.5827814569536424,
+        "effectiveVadEndMs": 500
+      },
+      {
+        "platform": "harmony",
+        "vadEndMs": 800,
+        "contract": {
+          "rawHarness": "PASS",
+          "lastBeforeFinish": "0",
+          "errors": "0",
+          "rawFailures": []
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 30,
+        "metrics": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 14.29,
+          "unknownTurnSeconds": 53.52,
+          "classicDer250msNoOverlap": 0.710869
+        },
+        "approximateCer": 0.48344370860927155,
+        "effectiveVadEndMs": 800
+      },
+      {
+        "platform": "harmony",
+        "vadEndMs": 600,
+        "contract": {
+          "rawHarness": "PASS",
+          "lastBeforeFinish": "0",
+          "errors": "0",
+          "rawFailures": []
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 35,
+        "metrics": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 8.25,
+          "unknownTurnSeconds": 37.36,
+          "classicDer250msNoOverlap": 0.676545
+        },
+        "approximateCer": 0.5016556291390728,
+        "effectiveVadEndMs": 600
+      },
+      {
+        "platform": "harmony",
+        "vadEndMs": 400,
+        "contract": {
+          "rawHarness": "PASS",
+          "lastBeforeFinish": "0",
+          "errors": "0",
+          "rawFailures": []
+        },
+        "windowCount": 2,
+        "degraded": false,
+        "finalCount": 34,
+        "metrics": {
+          "speakerConfusionSeconds": 19.23,
+          "unknownTurnSeconds": 60.41,
+          "classicDer250msNoOverlap": 0.468378
+        },
+        "windowTextConserved": true,
+        "utteranceMetrics": {
+          "speakerConfusionSeconds": 6.7,
+          "unknownTurnSeconds": 41.72,
+          "classicDer250msNoOverlap": 0.712299
+        },
+        "approximateCer": 0.5115894039735099,
+        "effectiveVadEndMs": 500
+      }
+    ]
+  },
+  "review": {
+    "manual": "Completed; fixed SDK/UI speaker-number mismatch using an actual-device red/green test. No remaining blocker found.",
+    "unresolvedThreads": 0,
+    "copilot": "Quota exhausted; no substantive automated review."
+  },
+  "limitations": [
+    "Four-speaker overlapping-speech accuracy remains OPEN.",
+    "Approximate CER includes overlapping annotation ordering and clipped text boundaries.",
+    "Short-run memory INCONCLUSIVE is not a long-term leak PASS.",
+    "No customer delivery ZIP, release ledger, or new offline network acceptance."
+  ]
+}

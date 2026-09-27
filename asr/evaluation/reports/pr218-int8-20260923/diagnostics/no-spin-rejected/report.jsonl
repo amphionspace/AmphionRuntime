@@ -1,0 +1,16 @@
+{"ts":1789960163098,"case":"callback","sessionId":"prepared-cold-1789960163063","kind":"START","isLast":false}
+{"ts":1789960163181,"case":"callback","sessionId":"prepared-cold-1789960163063","kind":"EVENT","isLast":false}
+{"ts":1789960163760,"case":"callback","sessionId":"prepared-cold-1789960163063","kind":"PARTIAL","isLast":false}
+{"ts":1789960164091,"case":"callback","sessionId":"prepared-cold-1789960163063","kind":"FINAL","isLast":true}
+{"ts":1789960164092,"case":"callback","sessionId":"prepared-cold-1789960163063","kind":"COMPLETE","isLast":false}
+{"ts":1789960166952,"case":"callback","sessionId":"model-reload-1789960166937","kind":"START","isLast":false}
+{"ts":1789960166996,"case":"callback","sessionId":"model-reload-1789960166937","kind":"EVENT","isLast":false}
+{"ts":1789960167647,"case":"callback","sessionId":"model-reload-1789960166937","kind":"PARTIAL","isLast":false}
+{"ts":1789960168041,"case":"callback","sessionId":"model-reload-1789960166937","kind":"FINAL","isLast":true}
+{"ts":1789960168043,"case":"callback","sessionId":"model-reload-1789960166937","kind":"COMPLETE","isLast":false}
+{"ts":1789960170808,"case":"callback","sessionId":"runtime-reload-1789960170775","kind":"START","isLast":false}
+{"ts":1789960170873,"case":"callback","sessionId":"runtime-reload-1789960170775","kind":"EVENT","isLast":false}
+{"ts":1789960171558,"case":"callback","sessionId":"runtime-reload-1789960170775","kind":"PARTIAL","isLast":false}
+{"ts":1789960171953,"case":"callback","sessionId":"runtime-reload-1789960170775","kind":"FINAL","isLast":true}
+{"ts":1789960171954,"case":"callback","sessionId":"runtime-reload-1789960170775","kind":"COMPLETE","isLast":false}
+{"ts":1789960171959,"case":"runtime-fast-load","prepareMs":2297,"prepareBaselinePssKb":168013,"preparePeakPssKb":251033,"preparePeakDeltaPssKb":83020,"coldMs":203,"coldPeakDeltaPssKb":3987,"warmMs":139,"modelReloadMs":2452,"modelReloadBaselinePssKb":160358,"modelReloadPeakPssKb":237586,"modelReloadPeakDeltaPssKb":77228,"runtimePrepareMs":2327,"runtimePrepareBaselinePssKb":160786,"runtimePreparePeakPssKb":241575,"runtimePreparePeakDeltaPssKb":80789,"runtimeReloadMs":142,"runtimeReloadPeakDeltaPssKb":5684}

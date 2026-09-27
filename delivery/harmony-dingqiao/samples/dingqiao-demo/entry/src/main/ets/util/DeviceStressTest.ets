@@ -12,6 +12,7 @@ import {
   LicenseActivationResult,
   PrepareRuntimeCallback,
   RecognitionListener,
+  SpeakerDiarizationConfig,
   SpeakerDiarizationResult,
   SpeakerDiarizationUpdate,
   SpeakerTurn,
@@ -54,6 +55,8 @@ const COLD_START_HOTWORDS: string[] = ['鼎桥通信', '警务终端'];
 const VOICEPRINT_SCENARIOS: string[] = [
   'short', 'threshold', 'long', 'leading-silence', 'low-volume', 'multi-utterance', 'alternate-source'
 ];
+// Test-carrier option only. Every lifecycle mode uses the same public StartParams.
+let stressEnableDiarization: boolean = false;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -72,6 +75,9 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  speechEndMs: number = 0;
+  diarizationVadEndMs: number = 0;
+  enableDiarization: boolean = false;
 }
 
 class CorpusEntry {
@@ -95,6 +101,7 @@ class SessionEvents {
   finalChars: number = 0;
   finalTexts: string[] = [];
   audioFeedStartedAtMs: number = -1;
+  auditVadEndMs: number = 0;
   speechBeginAtMs: number = -1;
   firstNonEmptyResultAtMs: number = -1;
   firstNonEmptyFinalAtMs: number = -1;
@@ -113,6 +120,7 @@ class SessionEvents {
   speakerDiarizationViolations: number = 0;
   diarizationWindows: SpeakerDiarizationResult[] = [];
   diarizationTurns: SpeakerTurn[] = [];
+  provisionalSpeakerIndexes: Set<number> = new Set();
   frozenUtterances: Set<string> = new Set();
   speakerDiarizationSpeakerCount: number = -1;
   speakerDiarizationDegraded: number = -1;
@@ -171,6 +179,21 @@ function speakerDiarizationTerminalOrderOk(events: SessionEvents, sessionId: str
   return true;
 }
 
+function recordDiarizationResult(events: SessionEvents, result: SpeakerDiarizationResult): void {
+    events.diarizationWindows.push(result);
+    events.diarizationTurns.push(...result.speakerTurns);
+    if (result.isSessionFinal) events.speakerDiarizationTerminalResults += 1;
+    events.speakerDiarizationResults += 1;
+    events.speakerDiarizationSpeakerCount = result.speakerCount;
+    events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
+    events.speakerDiarizationReason = result.degradedReason;
+    events.speakerDiarizationMessage = result.degradedMessage ?? '';
+    events.speakerTurnsJson = JSON.stringify(events.diarizationTurns);
+    events.speakerDiarizationResultAtMs = Date.now();
+    events.speakerDiarizationInferenceMs = result.inferenceMs;
+    events.speakerDiarizationRtf = result.rtf;
+}
+
 class StressListener implements RecognitionListener {
   private events: SessionEvents;
   private expectedSessionId: string;
@@ -215,12 +238,24 @@ class StressListener implements RecognitionListener {
     if (result.targetSpeakerEnhancementApplied === true) {
       this.events.targetSpeakerEnhancementResults += 1;
     }
+    if (this.events.auditVadEndMs > 0) {
+      hilog.info(0x0000, 'DeviceStress', 'VADEND_FINAL %{public}s', JSON.stringify({
+        sessionId: sessionId, atMs: Date.now(), feedStartedAtMs: this.events.audioFeedStartedAtMs,
+        vadEndMs: this.events.auditVadEndMs, result: result
+      }));
+    }
     this.events.finals += 1;
     if (expectedSession && result.result.length > 0 && this.events.firstNonEmptyFinalAtMs < 0) {
       this.events.firstNonEmptyFinalAtMs = Date.now();
     }
     this.events.finalChars += result.result.length;
     this.events.finalTexts.push(result.result);
+    if (result.speakerIndex !== undefined && result.speakerIndex >= 0) {
+      this.events.provisionalSpeakerIndexes.add(result.speakerIndex);
+    }
+    for (const index of result.secondarySpeakerIndexes ?? []) {
+      if (index >= 0) this.events.provisionalSpeakerIndexes.add(index);
+    }
     this.events.lastIsLast = result.isLast;
     if (result.isLast) {
       this.events.lastFinals += 1;
@@ -247,6 +282,10 @@ class StressListener implements RecognitionListener {
   onSpeakerDiarizationUpdate(sessionId: string, update: SpeakerDiarizationUpdate): void {
     if (this.events.frozenUtterances.has(update.utteranceId)) this.events.speakerDiarizationViolations += 1;
     this.events.speakerDiarizationUpdates += 1;
+    if (update.speakerIndex >= 0) this.events.provisionalSpeakerIndexes.add(update.speakerIndex);
+    for (const index of update.secondarySpeakerIndexes) {
+      if (index >= 0) this.events.provisionalSpeakerIndexes.add(index);
+    }
     this.record(sessionId, 'diarization-update');
   }
 
@@ -265,18 +304,7 @@ class StressListener implements RecognitionListener {
       this.events.frozenUtterances.add(utterance.utteranceId);
       this.events.frozenUtterances.add(utterance.sourceUtteranceId);
     }
-    this.events.diarizationWindows.push(result);
-    this.events.diarizationTurns.push(...result.speakerTurns);
-    if (result.isSessionFinal) this.events.speakerDiarizationTerminalResults += 1;
-    this.events.speakerDiarizationResults += 1;
-    this.events.speakerDiarizationSpeakerCount = result.speakerCount;
-    this.events.speakerDiarizationDegraded = result.degraded ? 1 : 0;
-    this.events.speakerDiarizationReason = result.degradedReason;
-    this.events.speakerDiarizationMessage = result.degradedMessage ?? '';
-    this.events.speakerTurnsJson = JSON.stringify(this.events.diarizationTurns);
-    this.events.speakerDiarizationResultAtMs = Date.now();
-    this.events.speakerDiarizationInferenceMs = result.inferenceMs;
-    this.events.speakerDiarizationRtf = result.rtf;
+    recordDiarizationResult(this.events, result);
     this.record(sessionId, result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`);
   }
 
@@ -337,6 +365,17 @@ class CallbackRecord {
 class SequenceListener implements RecognitionListener {
   events: SessionEvents = new SessionEvents();
   records: CallbackRecord[] = [];
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.record(new CallbackRecord(sessionId, 'diarization-update'));
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    this.record(new CallbackRecord(sessionId,
+      result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`));
+  }
 
   protected record(callback: CallbackRecord): void {
     this.records.push(callback);
@@ -627,6 +666,17 @@ class ReentrantCompleteListener implements RecognitionListener {
     this.secondSessionId = secondSessionId;
   }
 
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
+  }
+
   onStart(sessionId: string, _eventMessage?: string): void {
     this.events.starts += 1;
     this.events.callbackTrace.push(`${sessionId}:start`);
@@ -671,6 +721,25 @@ class StartCancelListener implements RecognitionListener {
   constructor(events: SessionEvents, engine: SpeechRecognitionEngine) {
     this.events = events;
     this.engine = engine;
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    if (this.cancelledInStart) {
+      this.eventAfterCancel = true;
+      this.eventAfterCancelSessionId = sessionId;
+    }
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    if (this.cancelledInStart) {
+      this.eventAfterCancel = true;
+      this.eventAfterCancelSessionId = sessionId;
+    }
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
   }
 
   onStart(sessionId: string, _eventMessage?: string): void {
@@ -723,6 +792,17 @@ class StartWriteListener implements RecognitionListener {
     this.engine = engine;
     this.bufferedFrames = bufferedFrames;
     this.finishInStart = finishInStart;
+  }
+
+  onSpeakerDiarizationUpdate(sessionId: string, _update: SpeakerDiarizationUpdate): void {
+    this.events.speakerDiarizationUpdates += 1;
+    this.events.callbackTrace.push(`${sessionId}:diarization-update`);
+  }
+
+  onSpeakerDiarizationResult(sessionId: string, result: SpeakerDiarizationResult): void {
+    recordDiarizationResult(this.events, result);
+    const kind = result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`;
+    this.events.callbackTrace.push(`${sessionId}:${kind}`);
   }
 
   onStart(sessionId: string, _eventMessage?: string): void {
@@ -890,6 +970,7 @@ class CycleResult {
   speakerDiarizationReason: number = -1;
   speakerDiarizationMessageHex: string = '';
   speakerWindowsHex: string = '';
+  speakerProvisionalIndexes: string = '';
   speakerTurnsHex: string = '';
   speakerDiarizationInferenceMs: number = -1;
   speakerDiarizationRtf: number = -1;
@@ -907,6 +988,9 @@ class CycleResult {
   fedFrames: number = 0;
   startListeningMs: number = -1;
   tailSilenceMs: number = -1;
+  speechEndLatencyMs: number = -1;
+  audioFeedStartedAtMs: number = -1;
+  speechEndAtMs: number = -1;
   lastFinalsBeforeFinish: number = -1;
   speechEndsBeforeFinish: number = -1;
   finishToFirstNonEmptyResultMs: number = -1;
@@ -916,6 +1000,7 @@ class CycleResult {
   recoveryErrors: number = -1;
   recoveryTerminalOrder: number = -1;
   recoveryUnexpectedCallbacks: number = -1;
+  recoveryTrace: string = '';
   liveStreams: number = 0;
   elapsedMs: number = 0;
   firstNonEmptyResultMs: number = -1;
@@ -935,6 +1020,7 @@ class CycleResult {
       `|speakerDiarizationUpdates=${this.speakerDiarizationUpdates}` +
       `|speakerDiarizationResults=${this.speakerDiarizationResults}` +
       `|speakerWindowsHex=${this.speakerWindowsHex}` +
+      `|speakerProvisionalIndexes=${this.speakerProvisionalIndexes}` +
       `|speakerDiarizationSpeakerCount=${this.speakerDiarizationSpeakerCount}` +
       `|speakerDiarizationDegraded=${this.speakerDiarizationDegraded}` +
       `|speakerDiarizationReason=${this.speakerDiarizationReason}` +
@@ -953,6 +1039,8 @@ class CycleResult {
       `|voiceprintIdCount=${this.voiceprintIdCount}|fedFrames=${this.fedFrames}` +
       `|startListeningMs=${this.startListeningMs}` +
       `|tailSilenceMs=${this.tailSilenceMs}` +
+      `|speechEndLatencyMs=${this.speechEndLatencyMs}` +
+      `|audioFeedStartedAtMs=${this.audioFeedStartedAtMs}|speechEndAtMs=${this.speechEndAtMs}` +
       `|lastFinalsBeforeFinish=${this.lastFinalsBeforeFinish}` +
       `|speechEndsBeforeFinish=${this.speechEndsBeforeFinish}` +
       `|finishToFirstNonEmptyResultMs=${this.finishToFirstNonEmptyResultMs}` +
@@ -961,6 +1049,7 @@ class CycleResult {
       `|recoveryCompletes=${this.recoveryCompletes}|recoveryErrors=${this.recoveryErrors}` +
       `|recoveryTerminalOrder=${this.recoveryTerminalOrder}` +
       `|recoveryUnexpectedCallbacks=${this.recoveryUnexpectedCallbacks}` +
+      `|recoveryTrace=${this.recoveryTrace}` +
       `|unexpectedCallbacks=${this.unexpectedSessionCallbacks}|elapsedMs=${this.elapsedMs}` +
       `|firstNonEmptyResultMs=${this.firstNonEmptyResultMs}` +
       `|audioStartToFirstNonEmptyResultMs=${this.audioStartToFirstNonEmptyResultMs}` +
@@ -1157,6 +1246,7 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   const params = new StartParams();
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
+  if (stressEnableDiarization) params.speakerDiarization = new SpeakerDiarizationConfig();
   params.extraParams['enablePartialResult'] = false;
   // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
   params.extraParams['maxAudioDuration'] = 28800000;
@@ -1301,6 +1391,8 @@ function finishCycle(index: number, corpusId: string, events: SessionEvents, sta
   result.speakerDiarizationUpdates = events.speakerDiarizationUpdates;
   result.speakerDiarizationResults = events.speakerDiarizationResults;
   result.speakerWindowsHex = stringToUtf16Hex(JSON.stringify(events.diarizationWindows));
+  result.speakerProvisionalIndexes = Array.from(events.provisionalSpeakerIndexes)
+    .sort((left: number, right: number): number => left - right).join(',');
   result.speakerDiarizationSpeakerCount = events.speakerDiarizationSpeakerCount;
   result.speakerDiarizationDegraded = events.speakerDiarizationDegraded;
   result.speakerDiarizationReason = events.speakerDiarizationReason;
@@ -2056,8 +2148,76 @@ async function runCallbackApiReentrantCycle(engine: SpeechRecognitionEngine, ent
   return result;
 }
 
+class SpeechEndLatencyListener extends StressListener {
+  endAtMs: number = -1;
+  lastBeforeFinish: number = -1;
+  private engine: SpeechRecognitionEngine;
+  private observed: SessionEvents;
+
+  constructor(events: SessionEvents, sessionId: string, engine: SpeechRecognitionEngine) {
+    super(events, sessionId);
+    this.observed = events;
+    this.engine = engine;
+  }
+
+  onEvent(sessionId: string, eventCode: number, message: string): void {
+    super.onEvent(sessionId, eventCode, message);
+    if (eventCode === DingqiaoEventCode.SPEECH_END && this.endAtMs < 0) {
+      this.endAtMs = Date.now();
+      this.lastBeforeFinish = this.observed.lastFinals;
+      this.engine.finish(sessionId);
+    }
+  }
+}
+
+async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
+  index: number, voiceprintId: string, options: DeviceStressOptions): Promise<CycleResult> {
+  const startedAt = Date.now();
+  const sessionId = `speech-end-latency-${index}`;
+  const events = new SessionEvents();
+  const listener = new SpeechEndLatencyListener(events, sessionId, engine);
+  engine.setListener(listener);
+  const speakerVad = index % 2 === 1;
+  const params = startParams(sessionId, 'speech-end-latency', index);
+  params.extraParams['vadBegin'] = 5000;
+  params.extraParams['vadEnd'] = 1600;
+  params.extraParams['maxAudioDuration'] = 20000;
+  params.extraParams['enablePartialResult'] = true;
+  params.extraParams['enableVoiceprintVerification'] = speakerVad;
+  params.extraParams['enableSpeakerVad'] = speakerVad;
+  if (speakerVad) params.extraParams['voiceprintIds'] = [voiceprintId];
+  engine.startListening(params);
+  if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
+    return finishCycle(index, entry.id, events, startedAt, false, 'start-timeout');
+  }
+  let feedStartedAt = -1;
+  const fed = await feedPcmFile(engine, sessionId, entry.path, 0, FRAME_DURATION_MS,
+    (): boolean => listener.endAtMs >= 0, 1, (): void => { feedStartedAt = Date.now(); });
+  const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
+  const latency = listener.endAtMs < 0 ? -1 : listener.endAtMs - feedStartedAt - options.speechEndMs;
+  // The host validates the exact native sample deadline and independently attributes any wall
+  // delay to a decode already running when the deadline frame arrived. No blanket grace period.
+  const timingOk = latency >= 0;
+  const scoreOk = !speakerVad || (events.nonEmptySpeakerScores > 0 &&
+    events.nonEmptySpeakerScores === events.finalTexts.filter((text: string): boolean => text.length > 0).length);
+  const ok = completed && fed > 0 && timingOk && scoreOk && events.finalChars > 0 && events.speechEnds === 1 &&
+    listener.lastBeforeFinish === 0 && events.lastFinals === 1 && events.completes === 1 &&
+    events.errors === 0 && events.unexpectedSessionCallbacks === 0 &&
+    terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
+  if (!completed && engine.isBusy()) engine.cancel(sessionId);
+  const result = finishCycle(index, entry.id, events, startedAt, ok,
+    `${speakerVad ? 'speaker-vad' : 'ordinary'}-${timingOk ? 'latency-ok' : 'speech-end-late'}`);
+  result.speechEndLatencyMs = latency;
+  result.audioFeedStartedAtMs = feedStartedAt;
+  result.speechEndAtMs = listener.endAtMs;
+  result.lastFinalsBeforeFinish = listener.lastBeforeFinish;
+  result.voiceprintIdCount = speakerVad ? 1 : 0;
+  result.fedFrames = fed;
+  return result;
+}
+
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -2075,6 +2235,11 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
   }
   const profile = customerScenarioProfile(scenario);
   const params = customerProfileStartParams(sessionId, scenario);
+  if (params.speakerDiarization !== undefined &&
+    (diarizationVadEndMs === 400 || diarizationVadEndMs === 600 || diarizationVadEndMs === 800)) {
+    params.extraParams['vadEnd'] = diarizationVadEndMs;
+    events.auditVadEndMs = diarizationVadEndMs;
+  }
   // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
   const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
   params.extraParams['maxAudioDuration'] = maxAudioDurationMs;
@@ -2084,6 +2249,7 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     return finishCycle(index, entry.id, events, startedAt, false, 'customer-start-timeout');
   }
 
+  events.audioFeedStartedAtMs = Date.now();
   const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs,
     (): boolean => events.completes > 0);
   let tailFrames = 0;
@@ -2283,6 +2449,7 @@ async function runFinishShutdownRelicenseCycle(engine: SpeechRecognitionEngine, 
   result.recoveryErrors = recoveryEvents.errors;
   result.recoveryTerminalOrder = terminalCallbackOrderOk(recoveryEvents, recoverySessionId) ? 1 : 0;
   result.recoveryUnexpectedCallbacks = recoveryEvents.unexpectedSessionCallbacks;
+  result.recoveryTrace = recoveryEvents.callbackTrace.join('>');
   result.voiceprintIdCount = voiceprintId.length > 0 ? 1 : 0;
   return result;
 }
@@ -2766,6 +2933,7 @@ function safeDetail(value: string): string {
 
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
+  stressEnableDiarization = options.enableDiarization;
   const startedAt = Date.now();
   const lines: string[] = [];
   const totals = new StressTotals();
@@ -2794,7 +2962,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
       options.mode === 'cold-start-pcm-gap' ||
       options.mode === 'speaker-vad-shutdown-relicense' ||
       options.mode === 'continuous-voiceprint-speaker-vad' ||
-      options.mode === 'speaker-vad-turn' ||
+      options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
       options.mode === 'target-speaker-enhancement' ||
       options.mode === 'target-speaker-enhancement-onstart' ||
       options.mode === 'target-speaker-enhancement-cancel') {
@@ -2802,7 +2970,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entries.length < 2) {
         throw new Error('voiceprint-stress-requires-two-corpus-sources');
       }
-      const requiresSeparateCase = options.mode === 'speaker-vad-turn' ||
+      const requiresSeparateCase = options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
         options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel';
@@ -2844,7 +3012,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         entry = entries[1];
       } else if (options.mode === 'voiceprint-fallback') {
         entry = entries[1];
-      } else if (options.mode === 'speaker-vad-turn' ||
+      } else if (options.mode === 'speaker-vad-turn' || options.mode === 'speech-end-latency' ||
         options.mode === 'target-speaker-enhancement' ||
         options.mode === 'target-speaker-enhancement-onstart' ||
         options.mode === 'target-speaker-enhancement-cancel') {
@@ -2878,6 +3046,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         result = await runSpeakerVadOnStartCycle(engine, entry, i, stressVoiceprintId);
       } else if (options.mode === 'cold-start-pcm-gap') {
         result = await runColdStartPcmGapCycle(engine, entry, i, stressVoiceprintId);
+      } else if (options.mode === 'speech-end-latency') {
+        result = await runSpeechEndLatencyCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'speaker-vad-turn') {
         result = await runSpeakerVadTurnCycle(engine, entry, i, stressVoiceprintId, options);
       } else if (options.mode === 'callback-api-reentrant') {
@@ -2887,7 +3057,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes' ||
         options.mode === 'diarization-windows') {
         result = await runCustomerScenarioCycle(
-          engine, entry, i, options.mode, options.paceMs);
+          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {
@@ -2942,6 +3112,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     logLine(`FATAL|runId=${options.runId}|detail=${fatal}`);
   } finally {
     if (engine !== undefined) engine.shutdown();
+    stressEnableDiarization = false;
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }

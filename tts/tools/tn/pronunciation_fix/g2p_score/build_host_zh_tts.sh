@@ -2,9 +2,9 @@
 set -euo pipefail
 # =============================================================================
 # build_host_zh_tts.sh — rebuild the host (macOS) native TN binary the harness
-# needs (zh_tts), from the TN submodule source + a host ICU 78.1 build.
+# needs (zh_tts), from the repository TN source + a host ICU 78.1 build.
 #
-# The binary loads rules_v2/*.json at RUNTIME from the submodule, so you only
+# The binary loads rules_v2/*.json at RUNTIME from the TN source directory, so you only
 # need to rebuild it when the C++ engine (tts_normalizer_engine.cpp / zh.cpp)
 # changes — NOT when you edit rules_v2 JSON.
 #
@@ -25,9 +25,8 @@ ICU_PREFIX="$OUT_DIR/icu-inst"
 BIN="$OUT_DIR/zh_tts"
 
 if [[ ! -f "$TN/zh.cpp" ]]; then
-  echo "TN submodule not checked out. Run:" >&2
-  echo "  git submodule update --init tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS" >&2
-  echo "  (private repo; the logged-in gh account needs access — HTTPS works via gh creds)" >&2
+  echo "Missing repository TN source: $TN" >&2
+  echo "Use a complete AmphionRuntime checkout; TN source is tracked in this repository." >&2
   exit 1
 fi
 mkdir -p "$OUT_DIR"

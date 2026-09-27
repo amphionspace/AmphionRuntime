@@ -4,9 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 PROJECT_ROOT="$REPO_ROOT/delivery/harmony-dingqiao"
-DEVECO_HOME="${DEVECO_STUDIO_HOME:-/Applications/DevEco-Studio.app/Contents}"
-NODE="$DEVECO_HOME/tools/node/bin/node"
-HVIGOR="$DEVECO_HOME/tools/hvigor/bin/hvigorw.js"
+source "$REPO_ROOT/asr/tools/harmony_env.sh"
 OUTPUT_ROOT="${1:-$PROJECT_ROOT/build/diagnostics-sdk}"
 if [[ "$OUTPUT_ROOT" != /* ]]; then
   OUTPUT_ROOT="$PWD/$OUTPUT_ROOT"
@@ -20,9 +18,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-export PATH="$DEVECO_HOME/tools/node/bin:$PATH"
-export DEVECO_SDK_HOME="$DEVECO_HOME/sdk"
-export JAVA_HOME="${JAVA_HOME:-$DEVECO_HOME/jbr/Contents/Home}"
 cd "$PROJECT_ROOT"
 
 if [[ "${SKIP_BUILD:-false}" != "true" ]]; then

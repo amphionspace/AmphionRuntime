@@ -897,8 +897,12 @@ class DqSdkCornerCaseTest {
 
     @Test
     fun a11a_vadEnd800_publishesEndBeforeAnotherNativeEndpoint() {
+        // This assertion requires one uninterrupted speech segment. The bundled voiceprint
+        // fallback WAV contains an internal pause and is not a valid substitute.
+        val wav = InstrumentationRegistry.getArguments().getString("singleSpeechAsset")
+            ?: error("Pass -e singleSpeechAsset <qualified-single-speech.wav>; do not use the fallback corpus")
+        require(wav in mainWavs(testCtx)) { "singleSpeechAsset is missing: $wav" }
         val engine = sharedEngine()
-        val wav = mainWavs(testCtx).firstOrNull() ?: error("a real speech WAV is required")
         val pcm = readAssetPcm(testCtx, wav)
         val listener = CapturingListener()
         val sid = "vad-end-${System.currentTimeMillis()}"
@@ -917,7 +921,7 @@ class DqSdkCornerCaseTest {
         try {
             feedFrames(engine, sid, pcm, DQ_FRAME_MS)
             DqReport.append(ctx, mapOf("case" to "vad_tail_start", "sessionId" to sid,
-                "speechPcmBytes" to pcm.size, "vadEndMs" to 800))
+                "file" to wav, "speechPcmBytes" to pcm.size, "vadEndMs" to 800))
             // This permits Silero's 250ms confirmation plus the configured tail, but is shorter
             // than a fresh native Rule1 endpoint after the active VAD final.
             feedFrames(engine, sid, ByteArray(DQ_SR * 2 * 2), DQ_FRAME_MS)

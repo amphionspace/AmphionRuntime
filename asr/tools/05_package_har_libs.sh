@@ -10,13 +10,14 @@ AMPHION_DST="$REPO_ROOT/asr/harmony/sdk/src/main/cpp/libs/arm64-v8a"
 SHERPA_DST="$SHERPA_ROOT/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/arm64-v8a"
 AGC_SO="$REPO_ROOT/asr/native/audio-processing/build-ohos-arm64-v8a/libamphion_audio_processing.so"
 
+source "$SCRIPT_DIR/harmony_env.sh"
+
 resolve_llvm_nm() {
   local candidate
   for candidate in \
     "${OHOS_LLVM_NM:-}" \
     "${OHOS_SDK_NATIVE_DIR:-}/llvm/bin/llvm-nm" \
-    "${DEVECO_SDK_HOME:-}/default/openharmony/native/llvm/bin/llvm-nm" \
-    "/Applications/DevEco-Studio.app/Contents/sdk/default/openharmony/native/llvm/bin/llvm-nm"; do
+    "${DEVECO_SDK_HOME:-}/default/openharmony/native/llvm/bin/llvm-nm"; do
     [[ -n "$candidate" && -x "$candidate" ]] && { echo "$candidate"; return 0; }
   done
   return 1

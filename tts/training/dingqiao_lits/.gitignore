@@ -43,3 +43,7 @@ lits/utils/monotonic_align/core.cpython-*.so
 
 # make sure to ignore all transsion's data
 transsion*
+
+# Keep the imported TN documentation despite the local training-data exclusions.
+!Dingqiao_Multilingual_Text_Normalization_for_TTS/docs/
+!Dingqiao_Multilingual_Text_Normalization_for_TTS/docs/**
