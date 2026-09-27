@@ -63,3 +63,19 @@ class HarmonyDiarizationEvidenceSpoolTest(unittest.TestCase):
           assert.deepEqual(bytes(spool.read(1).segments),bytes(segments));
           spool.remove();assert.equal(open,0);
         ''')
+
+    def test_run_evidence_is_prefix_snapshot_with_window_identity(self):
+        self.run_spool('''
+          const spool=new DiarizationEvidenceSpool('.');
+          const segments=values(1767),embeddings=values(768),runs=values(256),
+            ranges=new Float32Array([0,0,10,130]);
+          spool.append(segments,embeddings,runs,ranges);
+          spool.append(segments,embeddings,new Float32Array(0),new Float32Array(0));
+          const first=spool.read(1);
+          assert.equal(first.runEmbeddings.length,256);
+          assert.deepEqual(Array.from(first.runRanges),[0,0,10,130]);
+          const all=spool.read(2);
+          assert.equal(all.runEmbeddings.length,256);
+          assert.deepEqual(Array.from(all.runRanges),[0,0,10,130]);
+          spool.remove();
+        ''')
