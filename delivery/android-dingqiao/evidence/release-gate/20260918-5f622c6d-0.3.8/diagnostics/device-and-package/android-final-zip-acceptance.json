@@ -1,0 +1,26 @@
+{
+  "overall_status": "PASS",
+  "scope": "ASR upgrade, sentence output and confirmed production Release speaker4 benefit; not all-platform/variant diarization acceptance.",
+  "source_commit": "5f622c6d390e2088570c5f9bbdc212f2f702f3a4",
+  "sdk_lifecycle": "PASS",
+  "diagnostics_asr_and_sentence_contract": "PASS",
+  "diagnostics_role_capability": "BLOCKED",
+  "diagnostics_role_failure": {
+    "degraded": true,
+    "known_sentence_speakers": [
+      0,
+      1
+    ],
+    "role4": false,
+    "reason": "Public diagnostic serializer omitted degradedReason; root cause not established. Installed model hashes match; per-job 10s watchdog is an unproven hypothesis."
+  },
+  "release_customer_benefit": "PASS",
+  "release_role4_anchor_ms": [
+    8420,
+    15740
+  ],
+  "release_sentence_count": 28,
+  "diagnostics_release_role_parity": "FAIL",
+  "generic_identity_accuracy": "BLOCKED",
+  "regression_attribution": "Not established: no same-device old-version differential. No runtime changes or timeout relaxation made to frozen release."
+}

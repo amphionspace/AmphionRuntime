@@ -1,0 +1,79 @@
+{
+  "status": "PASS",
+  "source_commit": "52a9169ffa72907cb41942cbbec34bbbf595629e",
+  "cases": [
+    {
+      "file": "v6_1_1.wav",
+      "expected": "开启记录仪NFC",
+      "actual": "开启记录仪NFC。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_1_2.wav",
+      "expected": "开启记录仪NFC",
+      "actual": "开启记录仪N F C。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_2_1.wav",
+      "expected": "把录像分辨率设置为D幺",
+      "actual": "把录像分辨率设置为D 幺。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_2_2.wav",
+      "expected": "把录像分辨率设置为D幺",
+      "actual": "把录像分辨率设置为D幺。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_3_1.wav",
+      "expected": "把视频分段时长设置为60分钟",
+      "actual": "把视频分段时长设置为60min。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_3_2.wav",
+      "expected": "把视频分段时长设置为60分钟",
+      "actual": "把视频分段时长设置为60min。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_4_1.wav",
+      "expected": "当前延录时长是多少",
+      "actual": "当前延录时长是多少？",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_4_2.wav",
+      "expected": "当前延录时长是多少",
+      "actual": "当前延录时长是多少？",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_5_1.wav",
+      "expected": "把记录仪的镜头模式分辨率帧率延录时长都告诉我",
+      "actual": "把记录仪的镜头模式分辨率、帧率延录时长都告诉我。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_5_2.wav",
+      "expected": "把记录仪的镜头模式分辨率帧率延录时长都告诉我",
+      "actual": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_6_1.wav",
+      "expected": "把记录仪亮度调到零档",
+      "actual": "把记录仪亮度调到零档。",
+      "status": "PASS"
+    },
+    {
+      "file": "v6_6_2.wav",
+      "expected": "把记录仪亮度调到零档",
+      "actual": "把记录仪亮度调到零档。",
+      "status": "PASS"
+    }
+  ],
+  "scope": "Original 12 synthetic V6 regression cases; no filler matching or numeric-value equivalence"
+}

@@ -1,0 +1,75 @@
+private final com.amphion.dingqiao.SpeechRecognitionResult resultPayload(com.amphion.asr.AsrResult, boolean, boolean, java.lang.String, java.lang.Float);
+    Code:
+       0: iload_2
+       1: ifeq          18
+       4: aload         4
+       6: dup
+       7: ifnonnull     22
+      10: pop
+      11: aload_1
+      12: invokevirtual #847                // Method com/amphion/asr/AsrResult.getText:()Ljava/lang/String;
+      15: goto          22
+      18: aload_1
+      19: invokevirtual #847                // Method com/amphion/asr/AsrResult.getText:()Ljava/lang/String;
+      22: astore        6
+      24: aload_1
+      25: invokevirtual #1034               // Method com/amphion/asr/AsrResult.getTimestamps:()Ljava/util/List;
+      28: invokestatic  #1038               // Method kotlin/collections/CollectionsKt.firstOrNull:(Ljava/util/List;)Ljava/lang/Object;
+      31: checkcast     #1040               // class java/lang/Float
+      34: dup
+      35: ifnull        62
+      38: checkcast     #1042               // class java/lang/Number
+      41: invokevirtual #1046               // Method java/lang/Number.floatValue:()F
+      44: fstore        9
+      46: iconst_0
+      47: istore        10
+      49: fload         9
+      51: ldc_w         #1047               // float 1000.0f
+      54: fmul
+      55: f2i
+      56: invokestatic  #494                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+      59: goto          64
+      62: pop
+      63: aconst_null
+      64: astore        7
+      66: aload_1
+      67: invokevirtual #1034               // Method com/amphion/asr/AsrResult.getTimestamps:()Ljava/util/List;
+      70: invokestatic  #1050               // Method kotlin/collections/CollectionsKt.lastOrNull:(Ljava/util/List;)Ljava/lang/Object;
+      73: checkcast     #1040               // class java/lang/Float
+      76: dup
+      77: ifnull        104
+      80: checkcast     #1042               // class java/lang/Number
+      83: invokevirtual #1046               // Method java/lang/Number.floatValue:()F
+      86: fstore        10
+      88: iconst_0
+      89: istore        11
+      91: fload         10
+      93: ldc_w         #1047               // float 1000.0f
+      96: fmul
+      97: f2i
+      98: invokestatic  #494                // Method java/lang/Integer.valueOf:(I)Ljava/lang/Integer;
+     101: goto          106
+     104: pop
+     105: aconst_null
+     106: astore        8
+     108: new           #908                // class com/amphion/dingqiao/SpeechRecognitionResult
+     111: dup
+     112: iload_2
+     113: iload_3
+     114: aload         6
+     116: aload         7
+     118: aload         8
+     120: iload_2
+     121: ifeq          129
+     124: aload         5
+     126: goto          130
+     129: aconst_null
+     130: aconst_null
+     131: aconst_null
+     132: iconst_0
+     133: aconst_null
+     134: fconst_0
+     135: sipush        1984
+     138: aconst_null
+     139: invokespecial #1053               // Method com/amphion/dingqiao/SpeechRecognitionResult."<init>":(ZZLjava/lang/String;Ljava/lang/Integer;Ljava/lang/Integer;Ljava/lang/Float;Ljava/lang/Boolean;Ljava/lang/String;ILjava/util/List;FILkotlin/jvm/internal/DefaultConstructorMarker;)V
+     142: areturn

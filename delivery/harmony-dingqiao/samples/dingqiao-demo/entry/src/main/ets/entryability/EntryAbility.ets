@@ -69,6 +69,8 @@ export default class EntryAbility extends UIAbility {
     // Headless SDK contract self-test: `aa start ... --ps selftest true`. Runs every public API and
     // logs a PASS/FAIL matrix under tag SdkSelfTest, without loading the UI.
     const params = want.parameters;
+    // USB 文件验收仍使用正常 Demo 页面和 SDK 回调；文件固定放在应用 workPath 下。
+    AppStorage.setOrCreate<boolean>('demoFileInput', params !== undefined && params['demoFileInput'] === 'true');
     this.selfTest = params !== undefined && params['selftest'] === 'true';
     this.stressTest = params !== undefined && params['stress'] === 'true';
     this.loadBench = params !== undefined && params['loadbench'] === 'true';
@@ -120,6 +122,9 @@ export default class EntryAbility extends UIAbility {
       options.cycles = this.numberParameter(want, 'stressCycles', 1);
       options.settleMs = this.numberParameter(want, 'stressSettleMs', 0);
       options.paceMs = this.numberParameter(want, 'stressPaceMs', 20);
+      options.speechEndMs = this.numberParameter(want, 'stressSpeechEndMs', 0);
+      options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
+      options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
       options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));

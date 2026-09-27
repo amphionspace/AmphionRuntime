@@ -21,7 +21,10 @@ shared/regression-set/
 └── hotwords/                # 带热词样本（含业务领域词）
 ```
 
-WAV 文件不入 git（避免仓库膨胀）。请把 WAV 放在公司内网对象存储 / NAS，CI 里用 `aws s3 sync` 或 rsync 拉到 `shared/regression-set/`，路径与 [manifest.jsonl](manifest.jsonl) 中保持一致。
+WAV 文件不入 git（避免仓库膨胀）。本目录目前只规定样本布局，未登记可自动恢复的对象存储桶、
+对象键或整包校验和；不能把“公司对象存储 / NAS”当作已配置的数据源。
+现有受维护语料的位置、用途和下载方式见 [测试语料目录](../../asr/test-data/README.md)。
+若要接入本目录的烟测，需另行明确具体输入映射，并与 [manifest.jsonl](manifest.jsonl) 中的相对路径保持一致。
 
 本目录默认 .gitignore 掉所有 .wav 文件（见 [.gitignore](.gitignore)），但 `manifest.jsonl` / `*.md` 必须入库。
 

@@ -1,0 +1,202 @@
+{
+  "base_commit": "78b294e66717b02a732a34ed1ca587fd97c5f5e1",
+  "model_archive_sha256": "58e6620604f528df997a13c71c12550a586f644e15228397728c977310a4991f",
+  "corpus_archive_sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
+  "runtime": {
+    "platform": "Linux-5.15.0-60-generic-x86_64-with-glibc2.31",
+    "sherpa_onnx": "1.13.1",
+    "decoding_method": "modified_beam_search",
+    "max_active_paths": 8,
+    "model_type": "zipformer2",
+    "num_threads": 1,
+    "sample_rate": 16000,
+    "chunk_samples": 320,
+    "endpoint_rules": [
+      2.4,
+      1.4,
+      20.0
+    ],
+    "final_tail_samples": 19200,
+    "itn": false,
+    "hotwords": false,
+    "sdk_lifecycle_test": false
+  },
+  "scope": "Compare existing vs six new exact police command mappings with the same Police 1.4.0 transcripts; not a model-version A/B or mobile SDK acceptance",
+  "metrics": {
+    "current_plate_number_1276": {
+      "cases": 40,
+      "before_cer": 0.07012750455373407,
+      "after_cer": 0.07012750455373407,
+      "before_exact": 22,
+      "after_exact": 22,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "all": {
+      "cases": 4156,
+      "before_cer": 0.019876205272373063,
+      "after_cer": 0.019087075534512096,
+      "before_exact": 3828,
+      "after_exact": 3846,
+      "improved": 18,
+      "regressed": 0,
+      "changed": 18
+    },
+    "current_police_station_394": {
+      "cases": 40,
+      "before_cer": 0.03981481481481482,
+      "after_cer": 0.03981481481481482,
+      "before_exact": 27,
+      "after_exact": 27,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_20260711_application_names_62": {
+      "cases": 40,
+      "before_cer": 0.019553072625698324,
+      "after_cer": 0.019553072625698324,
+      "before_exact": 38,
+      "after_exact": 38,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_20260711_industry_dialogue_189": {
+      "cases": 40,
+      "before_cer": 0.02472952086553323,
+      "after_cer": 0.02472952086553323,
+      "before_exact": 31,
+      "after_exact": 31,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_20260711_industry_vocab_1671": {
+      "cases": 40,
+      "before_cer": 0.0,
+      "after_cer": 0.0,
+      "before_exact": 40,
+      "after_exact": 40,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_20260711_special_codes_10": {
+      "cases": 10,
+      "before_cer": 0.29015544041450775,
+      "after_cer": 0.29015544041450775,
+      "before_exact": 0,
+      "after_exact": 0,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_20260727_190": {
+      "cases": 40,
+      "before_cer": 0.03826530612244898,
+      "after_cer": 0.03826530612244898,
+      "before_exact": 39,
+      "after_exact": 39,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_terms_2183": {
+      "cases": 40,
+      "before_cer": 0.056218057921635436,
+      "after_cer": 0.056218057921635436,
+      "before_exact": 28,
+      "after_exact": 28,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_ui_20260713_168": {
+      "cases": 40,
+      "before_cer": 0.025878003696857672,
+      "after_cer": 0.025878003696857672,
+      "before_exact": 30,
+      "after_exact": 30,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "current_police_ui_teacher_385": {
+      "cases": 40,
+      "before_cer": 0.0,
+      "after_cer": 0.0,
+      "before_exact": 40,
+      "after_exact": 40,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "police_v6_acceptance_205": {
+      "cases": 3773,
+      "before_cer": 0.014680328359997604,
+      "after_cer": 0.013721613038528372,
+      "before_exact": 3523,
+      "after_exact": 3541,
+      "improved": 18,
+      "regressed": 0,
+      "changed": 18
+    },
+    "v6_development": {
+      "cases": 217,
+      "before_cer": 0.01001001001001001,
+      "after_cer": 0.0055055055055055055,
+      "before_exact": 207,
+      "after_exact": 213,
+      "improved": 6,
+      "regressed": 0,
+      "changed": 6
+    },
+    "targeted_dingqiao_failures": {
+      "cases": 3,
+      "before_cer": 0.13953488372093023,
+      "after_cer": 0.13953488372093023,
+      "before_exact": 0,
+      "after_exact": 0,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "targeted_police_terms_multivoice_20260807_10": {
+      "cases": 10,
+      "before_cer": 0.0,
+      "after_cer": 0.0,
+      "before_exact": 10,
+      "after_exact": 10,
+      "improved": 0,
+      "regressed": 0,
+      "changed": 0
+    },
+    "v6_held_out_audio": {
+      "cases": 3556,
+      "before_cer": 0.014977692797960485,
+      "after_cer": 0.014244741873804971,
+      "before_exact": 3316,
+      "after_exact": 3328,
+      "improved": 12,
+      "regressed": 0,
+      "changed": 12
+    }
+  },
+  "local_evidence_root": ".cache/asr-police-v1.4",
+  "evidence_sha256": {
+    "baseline-tail1200.jsonl": "2d3ffd6a9d2c0e5d9ad1f65a9bdf15fdbb83641419b8505d568ad73e1544274a",
+    "baseline-tail1200-enhanced.jsonl": "f1f8650b097764eed9fa3b7418652368537e694ca97358b0c68608c781ecb23c",
+    "after-baseline.jsonl": "96ac7b7be7f1ead53f66642a259cf40ca9aa7b71961e1681fe71ad084fe1e03e",
+    "v6-holdout.jsonl": "ffe426144eb80c7d0cafe11a8693f951ba91a83a83aba3aaf5ebd6d741f21a57",
+    "holdout-before.jsonl": "41046914f106904a551587fc9c384eaff7e56b529cc9a2719e93bdf91c98447c",
+    "holdout-after.jsonl": "641bf7a8286c66ddb3776d7ca60ce1356b1e80356dc71aedc508a07f3b3ca95a",
+    "comparison.jsonl": "f3d43c99a9afac0e000082fe91da1a11c61a7ab72749b2ae8b9322ca37c5741d",
+    "v6-red.log": "7a42c35daa409a2d57ee99e37b475f3ba4a222ba598a2e2e562b84217023037e",
+    "decode_tail1200.py": "b37daab9011c946226b73c2825cb4d6a491bb872b7348cc675e88115b6b72343",
+    "decode_holdout.py": "8c7da87f6516681cc5faa4e455fe6626644504622035f6ddd1f82b446c59d66e",
+    "summarize.py": "94b552371280cee341e7892bc4f5c5a7f122011e9bf3f481990a3c15778556dc",
+    "police_exact_dictionary": "37482b19c59f49c1f3487ac4c93a525290aa462512d3c01cdfe7d83af475df60"
+  }
+}

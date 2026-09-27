@@ -2,7 +2,7 @@
 # 将 sdk + sdk-police + sdk-dingqiao 三个 release AAR 合并为单一 dingqiao-asr-*.aar（方案 A）。
 #
 # 用法（AmphionRuntime 仓库根目录）:
-#   bash asr/tools/delivery/merge_dingqiao_fat_aar.sh [交付版本号]
+#   bash asr/tools/delivery/merge_dingqiao_fat_aar.sh [--diagnostics] [交付版本号]
 #
 # 默认交付版本号 = gradle.properties 的 AMPHION_RUNTIME_VERSION
 set -euo pipefail
@@ -14,21 +14,36 @@ source "$SCRIPT_DIR/dingqiao_build_provenance.sh"
 REPO_ROOT="$(dingqiao_repo_root_from_script)"
 AR_ROOT="$(dingqiao_ar_root_from_repo "$REPO_ROOT")"
 BUILD_DATE="$(date +%Y%m%d)"
+SDK_VARIANT=release
+DINGQIAO_BUILD_VARIANT=release
+VARIANT_SUFFIX=""
+if [[ "${1:-}" == "--diagnostics" ]]; then
+  SDK_VARIANT=debug
+  DINGQIAO_BUILD_VARIANT=diagnostics
+  VARIANT_SUFFIX="-diagnostics"
+  shift
+fi
+[[ $# -le 1 && "${1:-}" != -* ]] || { echo "[ERROR] expected [--diagnostics] [VERSION]" >&2; exit 2; }
+export DINGQIAO_BUILD_VARIANT
 dingqiao_load_git_provenance "$REPO_ROOT"
 dingqiao_assert_reproducible_build
-dingqiao_assert_sdk_version_consistent "$AR_ROOT"
+dingqiao_assert_sdk_version_consistent "$AR_ROOT" "$SDK_VARIANT"
 
 VERSION="$(dingqiao_resolve_delivery_version "$AR_ROOT" "${1:-}")"
-OUT_NAME="dingqiao-asr-v${VERSION}.aar"
+OUT_NAME="dingqiao-asr${VARIANT_SUFFIX}-v${VERSION}.aar"
 
-SDK_AAR="$AR_ROOT/sdk/build/outputs/aar/sdk-release.aar"
-SDK_CLASSES_UNMINIFIED="$AR_ROOT/sdk/build/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar"
-POLICE_AAR="$AR_ROOT/sdk-police/build/outputs/aar/sdk-police-release.aar"
-DINGQIAO_AAR="$AR_ROOT/sdk-dingqiao/build/outputs/aar/sdk-dingqiao-release.aar"
+SDK_AAR="$AR_ROOT/sdk/build/outputs/aar/sdk-${SDK_VARIANT}.aar"
+if [[ "$SDK_VARIANT" == release ]]; then
+  SDK_CLASSES_UNMINIFIED="$AR_ROOT/sdk/build/intermediates/compile_library_classes_jar/release/bundleLibCompileToJarRelease/classes.jar"
+else
+  SDK_CLASSES_UNMINIFIED="$AR_ROOT/sdk/build/intermediates/compile_library_classes_jar/debug/bundleLibCompileToJarDebug/classes.jar"
+fi
+POLICE_AAR="$AR_ROOT/sdk-police/build/outputs/aar/sdk-police-${SDK_VARIANT}.aar"
+DINGQIAO_AAR="$AR_ROOT/sdk-dingqiao/build/outputs/aar/sdk-dingqiao-${DINGQIAO_BUILD_VARIANT}.aar"
 
 for f in "$SDK_AAR" "$SDK_CLASSES_UNMINIFIED" "$POLICE_AAR" "$DINGQIAO_AAR"; do
   if [[ ! -f "$f" ]]; then
-    echo "[ERROR] missing $f — run assembleRelease for :sdk :sdk-police :sdk-dingqiao first" >&2
+    echo "[ERROR] missing $f — build the selected SDK variants first" >&2
     exit 1
   fi
 done

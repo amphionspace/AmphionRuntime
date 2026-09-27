@@ -1,0 +1,33 @@
+{
+  "status": "FAIL",
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "apk_sha256": "d3d1c27e87210863c1833d5dc44a45bfb78a0ba3343d6be682a822a1bf356f5f",
+  "input": "phone-two-speakers-89.16s",
+  "input_sha256": "be1145e677def27fe3d86a57f372fad45121792134f722b32affedf10014672a",
+  "observation_note": "Same playback reused after result height pushed the start button outside the viewport; scrolled only after finalization.",
+  "intermediate_labels_observed": true,
+  "final_only_labels": true,
+  "button_ready_for_next_session": true,
+  "visible_final_equal_to_frozen_public_results": false,
+  "visible_final_sha256": "28d4c0ef9704522f41bee59be532a007826e186097d3e2881ee6d6fefaf5789c",
+  "expected_final_sha256": "62b951539c89b630b9958c547b4997248067fb4633ece341ba1d972228d29142",
+  "utterance_count": 23,
+  "general_diarization_identity_status": "BLOCKED",
+  "limitations": [
+    "Generic role diarization is BLOCKED; no claim of readable/correct role output.",
+    "Foreground-only ASR verification. Cross-platform text equality was an unsupported baseline assumption; the original comparison FAIL is retained."
+  ],
+  "scope": "ASR display contract passes; role readability fails and remains a delivery blocker.",
+  "asr_display_contract_status": "PASS",
+  "text_conserved_from_same_R8_sdk": true,
+  "display_alignment_with_android_public_sdk": "PASS",
+  "role_readability_status": "FAIL",
+  "public_sdk_utterance_count": 23,
+  "visible_segment_count": 23,
+  "same_android_public_text_and_primary_speaker": true,
+  "overlap_alignment": "NOT_COMPARED: public test serialization omits per-utterance overlap flags",
+  "role_fragment_examples": [
+    "说两 / 句",
+    "跟 / 谁"
+  ]
+}

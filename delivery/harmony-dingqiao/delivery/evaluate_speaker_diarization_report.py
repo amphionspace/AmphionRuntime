@@ -200,6 +200,40 @@ def evaluate(turns: list[dict[str, Any]],
         speaker: ratio(per_reference_correct[speaker], per_reference_total[speaker])
         for speaker in reference_ids
     }
+    # Follow each reference person across turns using raw SDK indexes. A global
+    # best mapping alone hides a person being split between several indexes.
+    identity_counts: dict[str, dict[str, int]] = {speaker: {} for speaker in reference_ids}
+    previous_identity: dict[str, tuple[int, float]] = {}
+    identity_switches: list[dict[str, Any]] = []
+    for frame in collar_frames:
+        if len(reference_frames[frame]) != 1:
+            continue
+        speaker = next(iter(reference_frames[frame]))
+        indexes = system_frames[frame]
+        label = (str(next(iter(indexes))) if len(indexes) == 1
+                 else "multiple" if indexes else "unknown" if frame in unknown_frames else "missing")
+        counts = identity_counts[speaker]
+        counts[label] = counts.get(label, 0) + 1
+        # Unknown, missed speech, and predicted overlap are reported separately;
+        # none establishes a new named identity for this person.
+        if len(indexes) != 1:
+            continue
+        index = next(iter(indexes))
+        at_seconds = round((frame + 0.5) * frame_seconds, 6)
+        previous = previous_identity.get(speaker)
+        if previous is not None and previous[0] != index:
+            identity_switches.append({
+                "referenceSpeaker": speaker,
+                "fromSpeakerIndex": previous[0],
+                "toSpeakerIndex": index,
+                "previousEvidenceSeconds": previous[1],
+                "atSeconds": at_seconds,
+            })
+        previous_identity[speaker] = (index, at_seconds)
+    split_speakers = [
+        speaker for speaker, counts in identity_counts.items()
+        if sum(label.isdigit() for label in counts) > 1
+    ]
     return {
         "durationSeconds": duration_seconds,
         "frameMs": frame_ms,
@@ -227,6 +261,17 @@ def evaluate(turns: list[dict[str, Any]],
         "identifiedSecondarySeconds": seconds(identified_overlap),
         "identifiedSecondaryRecall": ratio(identified_overlap_intersection, reference_overlap),
         "unknownTurnSeconds": seconds(len(unknown_frames)),
+        "identityStability": {
+            "scope": "single-reference speech outside boundary collar; single named SDK index",
+            "collarSeconds": collar_seconds,
+            "perReferenceLabelSeconds": {
+                speaker: {label: seconds(count) for label, count in counts.items()}
+                for speaker, counts in identity_counts.items()
+            },
+            "referenceSpeakersWithMultipleSystemIds": split_speakers,
+            "sameSpeakerIdSwitchCount": len(identity_switches),
+            "switches": identity_switches,
+        },
     }
 
 

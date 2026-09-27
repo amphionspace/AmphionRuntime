@@ -1,0 +1,8 @@
+{
+  "hypothesis": "300 ms configured silence plus roughly 500 ms low-energy source lead leaves too little confirmed speech before 1000 ms initial deadline",
+  "only_change": "trim 400 ms low-energy lead from recognition fixture; enrolled voice, SDK, parameters and call order unchanged",
+  "reject_hypothesis_if": "same early last persists after direct-onset crop",
+  "stop_if": "unique last/complete only after caller finish and nonempty scored final",
+  "before_sha256": "3642e95a2ae303ba9a74bcbde36d365031ed4f3fa7288f55679b9bdef8587df5",
+  "after_sha256": "bdb9c80e5e099395ce89316b30dee4bbe3d9a72d4c7d45c730d5bfd1e883a303"
+}

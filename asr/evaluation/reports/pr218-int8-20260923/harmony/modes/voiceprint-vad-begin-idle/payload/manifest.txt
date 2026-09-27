@@ -1,0 +1,1 @@
+000000	/data/storage/el2/base/files/asr-stress/20260922-194501-voiceprint-vad-begin-idle-efbdb798/audio/000000.pcm

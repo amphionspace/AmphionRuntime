@@ -1,0 +1,92 @@
+{
+  "status": "PASS",
+  "source_commit": "52a9169ffa72907cb41942cbbec34bbbf595629e",
+  "hap": "50ea0b87d0bb90cfa8f7a772f3afc19d8bd90f2f2eae92b8d4c7cdaf26da9320",
+  "passed": 12,
+  "cases": [
+    {
+      "source": "v6_1_1.wav",
+      "source_sha256": "04a632dea17ab3e67acec33b807e4cf073393c4d3779c6b3ab7fc45b28b02bf1",
+      "actual": "开启记录仪NFC。",
+      "expected": "开启记录仪NFC",
+      "pass": true
+    },
+    {
+      "source": "v6_1_2.wav",
+      "source_sha256": "0ab2d4296ff7628ebd87494bd269961e68229b775f00a2de8c6d17acb7cf9acf",
+      "actual": "开启记录仪N F C。",
+      "expected": "开启记录仪NFC",
+      "pass": true
+    },
+    {
+      "source": "v6_2_1.wav",
+      "source_sha256": "07b0394ecfecd03a35bfcead5acb72ebb2315897b6970216d3a3b9559fc957e0",
+      "actual": "把录像分辨率设置为D 幺。",
+      "expected": "把录像分辨率设置为D幺",
+      "pass": true
+    },
+    {
+      "source": "v6_2_2.wav",
+      "source_sha256": "07c465bfd3f80764d9757296f50fc9aac55407a2be0903345e11a23b1e3ac15a",
+      "actual": "把录像分辨率设置为D幺。",
+      "expected": "把录像分辨率设置为D幺",
+      "pass": true
+    },
+    {
+      "source": "v6_3_1.wav",
+      "source_sha256": "28805ff0342766123f8d90bd35ea087d212e7d4a8bba9049f553909628ffd070",
+      "actual": "把视频分段时长设置为60min。",
+      "expected": "把视频分段时长设置为60min",
+      "pass": true
+    },
+    {
+      "source": "v6_3_2.wav",
+      "source_sha256": "37bac3a59627b3be28a53a10e83264933a0caecc20d15eb358cc8c864de053f2",
+      "actual": "把视频分段时长设置为60min。",
+      "expected": "把视频分段时长设置为60min",
+      "pass": true
+    },
+    {
+      "source": "v6_4_1.wav",
+      "source_sha256": "089f393073d35cc336fc89207a7adfdf3e2c649f0ec8f6a92ba2c3b07b0c1dd9",
+      "actual": "当前延录时长是多少？",
+      "expected": "当前延录时长是多少",
+      "pass": true
+    },
+    {
+      "source": "v6_4_2.wav",
+      "source_sha256": "08ac3fd440ec4b99f985b49da58e67cd7680f98558eb0bd5392ca65089a58437",
+      "actual": "当前延录时长是多少？",
+      "expected": "当前延录时长是多少",
+      "pass": true
+    },
+    {
+      "source": "v6_5_1.wav",
+      "source_sha256": "03f1e777e84ec1b9797050013f688531bbeadc5d0d7603046aafa7d10c23b351",
+      "actual": "把记录仪的镜头模式分辨率、帧率延录时长都告诉我。",
+      "expected": "把记录仪的镜头模式分辨率帧率延录时长都告诉我",
+      "pass": true
+    },
+    {
+      "source": "v6_5_2.wav",
+      "source_sha256": "5249d1c1c9fb139fcc16d00dfce54f924ea80fd05eae057d937e7e5603490d26",
+      "actual": "把记录仪的镜头模式、分辨率、帧率、延录时长都告诉我。",
+      "expected": "把记录仪的镜头模式分辨率帧率延录时长都告诉我",
+      "pass": true
+    },
+    {
+      "source": "v6_6_1.wav",
+      "source_sha256": "06610f5f6b6476dd5b4a9345cf90d7c1aeec6c28a769e93530aeea7b61d94b98",
+      "actual": "把记录仪亮度调到零档。",
+      "expected": "把记录仪亮度调到零档",
+      "pass": true
+    },
+    {
+      "source": "v6_6_2.wav",
+      "source_sha256": "19e3933b545bd02331066360a638965fe747282974b79d09e0cc3a87a28ce5e3",
+      "actual": "把记录仪亮度调到零档。",
+      "expected": "把记录仪亮度调到零档",
+      "pass": true
+    }
+  ]
+}

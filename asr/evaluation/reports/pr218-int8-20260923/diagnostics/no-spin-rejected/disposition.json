@@ -1,0 +1,8 @@
+{
+  "adopted": false,
+  "reason": "Public cold prepare/model reload/runtime prepare remain 2297/2452/2327ms; hypothesis rejected",
+  "derived_source_restored": true,
+  "sdk_native_restored": true,
+  "evidence": "../tecno-no-spin-public-diagnostic",
+  "canonical": false
+}

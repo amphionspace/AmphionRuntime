@@ -1,0 +1,1 @@
+Device instrumentation completed PASS (1 test). First host collection used column-formatted ls, concatenated a filename with vp_samples, and failed JSON parsing. Corrected collection to ls -1 and reused the same completed run. No device replay or SDK changes.

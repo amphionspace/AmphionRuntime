@@ -1,0 +1,22 @@
+{
+  "baseline_commit": "6db11981",
+  "source_commit": "88a35fb14193068ac992c5f0a8b4985ac63379df",
+  "change": [
+    "Android public result timestamp conversion rounds milliseconds like Harmony and role tokens",
+    "Android caller groups finalized text by sourceUtteranceId with truthful mixed/unknown/overlap/inferred labels and inspectable original parts"
+  ],
+  "preserve": [
+    "raw ASR text and token times",
+    "raw speakerTurns and identity/UNKNOWN assignments except bounded endpoint backfill enabled by corrected time",
+    "real short turns and original part details",
+    "frozen windows and final/last/complete lifecycle"
+  ],
+  "excluded": [
+    "new speaker identity model/thresholds",
+    "background/lock screen operation",
+    "unrelated lifecycle/performance changes"
+  ],
+  "hypothesis": "Android truncation creates a negative-duration endpoint token; caller presentation diverges from Harmony despite equivalent role splitting algorithms",
+  "falsification": "If round conversion does not remove negative endpoint while preserving other tokens, reject; no identity guesses to join unknown between different speakers",
+  "stop": "Targeted red-green, adjacent tests, one final release matrix and final original-audio caller acceptance; no repeated black-box diagnosis"
+}

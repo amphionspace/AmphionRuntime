@@ -1,0 +1,95 @@
+{
+  "status": "BLOCKED",
+  "source_commit": "7dd914494b47cef848b012fb45a502532bceb334",
+  "scope": "Targeted upstream-model acceptance only; full 9748 accuracy and release matrices not run because critical errors and Android cold-load gate remain",
+  "files": {
+    "accuracy-summary.json": {
+      "sha256": "db82b488c35ffd1ac9b0c135dda29b9e50a61595047bf388ffe28abbebaf16aa",
+      "bytes": 1046
+    },
+    "android-artifact-identity.json": {
+      "sha256": "4ba71bdf7ea8515914e687bdb46e2f53a535a6790e6243749512ab6f0de930dc",
+      "bytes": 3487
+    },
+    "android-cold-load/instrumentation.txt": {
+      "sha256": "7a96922fb77e6cb05988fb7b10209311eb0b1d7952e72f5dc7aad40102342774",
+      "bytes": 2101
+    },
+    "android-cold-load/logcat.txt": {
+      "sha256": "f8130b0ba9ac4fa793a25ad8c4f76077a0ffea9ff53ca5fa96cb2a009fc5c27e",
+      "bytes": 8952
+    },
+    "android-cold-load/memory.csv": {
+      "sha256": "849961e8ab903e18556a7acd07af6f07551772c29be8fb79024abce2332d428a",
+      "bytes": 880
+    },
+    "android-cold-load/report.jsonl": {
+      "sha256": "e0b48ffd7292dd6fc65ca95548e556a1d90fcd6849f14fe05c9f861d8830fe2a",
+      "bytes": 2186
+    },
+    "android-cold-load/summary.json": {
+      "sha256": "d5d70d7bb0f2938d8de116b98858bdb5c00bae5eda1f00eb7ea50687ab5b34e9",
+      "bytes": 401
+    },
+    "harmony-start-write-reload/hilog.txt": {
+      "sha256": "9eae522b5b6cce34897c2ddda95251017ca993a86c3a5583bd1edfe1520aba4e",
+      "bytes": 7435
+    },
+    "harmony-start-write-reload/inventory.json": {
+      "sha256": "d7a71337397416d9af5de872268a200653796d89975859e805a102c0e474dc09",
+      "bytes": 210
+    },
+    "harmony-start-write-reload/memory.csv": {
+      "sha256": "f4c5e48c7d90c5b28eaa8fb19bdc738ac4f161a69b4302760cd6f9beb4028bff",
+      "bytes": 545
+    },
+    "harmony-start-write-reload/payload/corpus.json": {
+      "sha256": "8b4bad64d2f4a4b642da15617354f3c44604ad3e0cf608c9518bd617ae74e9f8",
+      "bytes": 1129
+    },
+    "harmony-start-write-reload/payload/manifest.txt": {
+      "sha256": "af4ba3697d1ad106d02aee00e56b6402dfb44ed7313ad016695ab117fb2bd0f9",
+      "bytes": 324
+    },
+    "harmony-start-write-reload/report.json": {
+      "sha256": "ca76bcda1ed909b268774457466059ee1b6b30ae396a855e68265aeccc7073cd",
+      "bytes": 12023
+    },
+    "harmony-start-write-reload/result.txt": {
+      "sha256": "d41882b6074643fa1ba994e9abbdff5a1bac59843c24eebe60f8175fb9aa63af",
+      "bytes": 4394
+    },
+    "model-policy.json": {
+      "sha256": "763b89371766706079b4efeb52475c01b75d2134c67a3d16f467a282f50c77ac",
+      "bytes": 1028
+    },
+    "pack-android.log": {
+      "sha256": "a00321b48245df1dd0a55089a651d6f74981d5173ba4f10ae4051d56e210efb8",
+      "bytes": 1607
+    },
+    "pack-harmony.log": {
+      "sha256": "4f329f57f131d0a8982c595a591e40c68afe6d2b5f83e074452bbba0080149b0",
+      "bytes": 2744
+    },
+    "paired-failure-subset.jsonl": {
+      "sha256": "f721d2479ab904741a9a2f8e463942c66215ddd01f47fdd43bea1e8aa356eb40",
+      "bytes": 23761
+    },
+    "sdk-size-evidence.json": {
+      "sha256": "1c53264031d3a3ea2ece9d1f846dd7780506ba7025751e28860af0e6cd9eef83",
+      "bytes": 471
+    },
+    "source-hashes.json": {
+      "sha256": "067c2cf2c5fb661a958e7fc4d2a5e63b90e5c2c9e529d4d89d1468318624d4d9",
+      "bytes": 1225
+    },
+    "verify-build-identity.log": {
+      "sha256": "cf44a0d06812012c549ecd2bfc6c65d1fc715d943f355dae02851ef3f08d7eec",
+      "bytes": 73
+    },
+    "verify-har.log": {
+      "sha256": "279337c954df8a35cf3f5337f2005c21e035a05f17ed1edd63fa8855c593f53a",
+      "bytes": 506
+    }
+  }
+}

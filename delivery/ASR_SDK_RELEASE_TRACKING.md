@@ -14,6 +14,14 @@
 3. 对最终交付物执行平台终检，不要从中间目录登记。
 4. 用最终 ZIP 登记交付，再单独提交台账更新：
 
+Android 新版本先用 `pack_dingqiao_customer_delivery.sh --stage-release /绝对路径/新的私有目录`
+生成待验收 ZIP。该入口只解决“最终 ZIP 尚不存在，无法预先登记”的顺序问题；目录中的
+`NOT-ACCEPTED.txt` 表示不可分发，包内 FORMAL 仅表示目标发布渠道。现有默认入口仍要求
+版本和 source commit 已精确登记，`--preview` 仍保留所有预览标记。
+对 staged ZIP 完成真机、独立源码构建及最终 ZIP 哈希验收后，必须使用 `record-evidence`
+原子登记产物及证据，再运行 `verify-evidence`，成功后才可将同一 ZIP 复制到交付目录。
+不得只调用 `record` 将未验收 staged ZIP 转成正式交付。
+
 ```bash
 python3 tools/delivery/asr_release_tracker.py record \
   --platform android \
@@ -34,3 +42,9 @@ python3 tools/delivery/asr_release_tracker.py record \
 SHA-256 与大小；重复的“平台 + 版本”会被拒绝。
 若上一交付 commit 不是本次 source commit 的祖先，更新日志生成也会失败，要求先明确分支或
 回移关系，不能静默生成不完整日志。
+
+## 已发布交付包归档
+
+台账登记后的最终包按 [对象存储归档规范](PUBLISHED_ARTIFACT_ARCHIVE.md) 长期保存在公司交付桶。
+上传、完整回下载及 SHA-256 校验通过，且归档索引已保存后，才移除对应本地副本。
+发布台账继续表示发布身份；[归档索引](published-artifact-archives.json) 记录精确远端位置与恢复校验信息，不改变发布结论。

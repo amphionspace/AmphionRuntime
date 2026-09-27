@@ -16,7 +16,7 @@
 `~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500/`：
 
 ```bash
-python3 asr/tools/test_data.py fetch aishell3-hotwords-500
+python3 asr/tools/test_data.py fetch aishell3-500
 ```
 
 先准备官方中英 demo 模型：

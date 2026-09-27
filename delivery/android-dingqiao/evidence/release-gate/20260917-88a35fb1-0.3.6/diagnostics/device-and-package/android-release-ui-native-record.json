@@ -1,0 +1,129 @@
+{
+  "schemaVersion": 1,
+  "baseName": "rec_20260917_182959_093",
+  "wavFile": "rec_20260917_182959_093.wav",
+  "startTimeMs": 1789640999094,
+  "endTimeMs": 1789641093536,
+  "durationMs": 89160,
+  "sampleRate": 16000,
+  "channels": 1,
+  "encoding": "PCM_16BIT",
+  "status": "completed",
+  "errorCode": null,
+  "errorMessage": null,
+  "sessionIds": [
+    "demo-1789640999306"
+  ],
+  "finalText": {
+    "redacted": true,
+    "sha256": "3e80f2182b11ef3f5c78ee2e9cc7f0d6f680aac2c6219733478f9ea37de952e3"
+  },
+  "lastPartial": "",
+  "finalResults": [
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "b920723d01026e53e7433d8f1b3e182ce9cba823f9da4fe562906985c5d3588b"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "48ada82243d80da09686ef78e43432c4b5e56626563ec52531566101806a49e7"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "4f965f42a4b7f7c454ece3e1f15566a2a79e8fb4edb015cfba66fba4e0cf31d5"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "c492148bfb0d8c6b5a7e93d00f3d7673a0ad816132d6629871542a8fc4de36fa"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "a2fdb354c1164388a69090f85aebabdb1040bbddd26bcf7b067e91ee77713702"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "1290536d349a7e9c07c54a808754fd1152179e816f99d5fce16060f54a26a86b"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "65018bc375bb30d27810d886d15743a1a188194adf5c5cd3e70263dfbdd5d97c"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "672e15eec009d25c48ed01c66f90d84ce666a6a4d97ed6dfc860b454f06fa867"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "a0283ee084fd1d76932716bd35530f25cdaf835ad813501f09f1fd9341afd9f7"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "cb7768d2ae81ad5ec761a835847ee48bc7c9e1801015a092206b5015b59e5e3a"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "6d0087c053f10497ce7517594ac18ec1eb7e28bf70aaa7cef64569508c8087a1"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "730110129f01d19cbfeaf1b4a23216ab627577dfc2d2d25ed032ac16879e6e4d"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "debc5e6d186bd6aab4eecabce96483dae7c0b15467382846b4aa20492a67d1f0"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "040875ab9bac8a26422c61dd61b95965baf3e0ce4ac9bee289cfa361a11fd3c8"
+      },
+      "speakerSimilarity": null
+    },
+    {
+      "text": {
+        "redacted": true,
+        "sha256": "47101139254878413323d4daca75ba8c049ef3d05032eead28b5c8f8df171ae0"
+      },
+      "speakerSimilarity": null
+    }
+  ]
+}

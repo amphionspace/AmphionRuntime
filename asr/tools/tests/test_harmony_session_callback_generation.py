@@ -16,6 +16,34 @@ class HarmonySessionCallbackGenerationTest(unittest.TestCase):
         cls.source = SDK.read_text(encoding="utf-8")
         cls.callback_source = cls.source.split("class DingqiaoAsrCallback", 1)[1]
 
+    def test_only_current_initial_silence_decision_marks_diarization_as_no_speech(self) -> None:
+        import subprocess
+        import tempfile
+        helper = self.source[self.source.index('  private requestSpeakerDiarizationFinish('):
+                             self.source.index('  private completeSpeakerDiarizationSession(')]
+        timeout = self.source[self.source.index('  handleInitialSilenceTimeout('):
+                              self.source.index('  private ownsAudioSession(')]
+        script = "import assert from 'node:assert/strict';\nconst DiagnosticsModule={isEnabled:()=>false};\n"
+        script += 'class Adapter {' + helper + timeout + '}\n'
+        script += """
+            const calls=[];
+            const owner=Object.assign(new Adapter(),{sessionStartGate:{isCurrent:g=>g===7},busy:true,
+              finishRequested:false,session:{},currentSessionId:'owned',
+              speakerDiarizationFinishBarrier:{begin:()=>calls.push('begin')},
+              speakerDiarizationSession:{finish:noSpeech=>calls.push(['speaker',noSpeech])},
+              audioDispatcher:{finish:()=>calls.push('asr-drain')}});
+            owner.handleInitialSilenceTimeout(6);assert.deepEqual(calls,[]);
+            owner.handleInitialSilenceTimeout(7);
+            assert.deepEqual(calls,['begin',['speaker',true],'asr-drain']);
+            assert.equal(owner.finishRequested,true);assert.equal(owner.lastAutoFinishedSessionId,'owned');
+            owner.handleInitialSilenceTimeout(7);assert.equal(calls.length,3);
+            calls.length=0;owner.requestSpeakerDiarizationFinish();
+            assert.deepEqual(calls,['begin',['speaker',false]],'ordinary finish must retain acoustic inference');
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            path=Path(directory)/'initial-silence-route.mts';path.write_text(script)
+            subprocess.run(['node','--experimental-strip-types',str(path)],check=True,cwd=REPO_ROOT)
+
     def test_every_native_callback_forwards_its_session_generation(self) -> None:
         expected_calls = (
             "handleSpeechBegin(this.startGeneration)",

@@ -137,7 +137,11 @@ export class PoliceStationV2 {
       if (best === undefined || match[0].length < best[0].length) best = match;
       match = regex.exec(text);
     }
-    return best === undefined ? undefined : new RawStationSpan(best.index, best.index + best[0].length, best[0]);
+    if (best === undefined) return undefined;
+    // Command words belong to the caller's sentence, outside the replaceable station span.
+    const station = this.stripCommandPrefix(best[0]);
+    const start = best.index + best[0].length - station.length;
+    return new RawStationSpan(start, best.index + best[0].length, station);
   }
 
   private normalizeSpan(raw: string, context: string): string {

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" tests="11" skipped="0" failures="0" errors="0" timestamp="2026-09-16T09:45:14" hostname="redacted" time="0.27">
+  <properties/>
+  <testcase name="unanimousSpeakerCoversGapsWithoutOverridingExplicitUncertainty" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <testcase name="transcriptPublishesRevisionAndPreservesOverlap" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <testcase name="globalSpeakerRemapPublishesRevisionAndStableFinalAssignment" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <testcase name="punctuationPreservesTimedSpeakersAndUnknownWithoutRewritingText" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.001"/>
+  <testcase name="cancelledFinishBarrierNeverPublishesTerminalOutput" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.106"/>
+  <testcase name="finishBarrierWaitsForRealAsrBeforeStartingDiarizationTimeout" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.136"/>
+  <testcase name="bbpeAlignmentKeepsTheFirstByteTimestampAndWholeCharacters" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.001"/>
+  <testcase name="schedulerMatchesHarmonyWindowHopAndFinalFlush" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <testcase name="globalClusterKeepsDistinctSpeakersAndStableDisplayIds" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <testcase name="finishBarrierWaitsForBothAndCompletesOnce" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.026"/>
+  <testcase name="initializationStorageFailureKeepsAsrTailAndPublishesExplicitDegradation" classname="com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

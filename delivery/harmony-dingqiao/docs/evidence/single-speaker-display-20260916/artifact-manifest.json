@@ -1,0 +1,15 @@
+{
+  "last_sdk_input.wav": "d3c1a2c50c3f7d269a3743aae8f2031a5a98da801c73bcf4434efbc8da7dd3f2",
+  "last_sdk_input.json": "fa32cc555dd2c85bf6ab0d0adbd04ddc687f3c1d84dd15a654d529dcee619bec",
+  "phone-layout.json": "3e34582e12224d8f729523da19e88280d2c93118f514e53bd0ef9e7a3b634acf",
+  "app-pid-hilog.txt": "2babf418c9cca86e19ac56c70b96e8a1986824e24e2d7d7e495681c55be5024d",
+  "current-state.json": "2abf47aa4c8f88263f623b15a4c65e63bc82e5382831c354517050261ba53014",
+  "original-ui-sdk-comparison.json": "5fc8b7ab9e86eda401df2eb3592cac4bbf808022f5af81b9f69c05a04c52df05",
+  "usb-before-windows.json": "d338aab6fb3e604b9f47a242915478db2cd83b8a8176e199376247fb969b46c2",
+  "usb-before/20260916-100805-diarization-windows-faca2cfa/report.json": "b570d506d4fdd2f22127341aeb4a8efbbd03d92f81b4e0aa1cfd31ce560ee850",
+  "after-build-identity.json": "28c94704a81e75f43b96bfc435dd6bdddc00f3e39d4c47247eb1c23f06958ad0",
+  "build-install.log": "50c5292b1ed3950dbfd9bc7095128830eaa0e6821c094c481da378291772cb2a",
+  "after-install.log": "9e74146146ef039077a46ab8673b767d69bcaa8b375f8a2c4a149c0b21b426e0",
+  "after-layout.json": "13ec4a709f9723856136e7e89cd58cb1d6cfce9791ae072a78f470f279f44ca7",
+  "after-installed-layout.json": "c6a864bc32f0448f75a201b194cf406a6d73890ecbc64d524a0ac3148b2c9e64"
+}

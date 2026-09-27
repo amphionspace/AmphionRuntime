@@ -57,6 +57,7 @@ export class SpeakerDiarizationUpdate {
 }
 
 export class DiarizedUtterance {
+  /** One intact original ASR final; it may contain multiple speakers. */
   sourceUtteranceId: string = '';
   utteranceId: string = '';
   rawText: string = '';
@@ -64,9 +65,14 @@ export class DiarizedUtterance {
   beginTime: number = 0;
   endTime: number = 0;
   speakerIndex: number = -1;
+  /** For speakerIndex=-1, observed sentence participants, not a confirmed text owner.
+   * Multiple speakers or overlap keep speakerIndex=-1 and confidence=0.
+   * speakerTurns retains the original acoustic intervals. */
   secondarySpeakerIndexes: number[] = [];
   confidence: number = 0;
   overlap: boolean = false;
+  /** Includes bounded UNKNOWN backfill; confidence is 0 and speakerTurns remains unchanged. */
+  speakerInferred: boolean = false;
 }
 
 export class SpeakerTurn {

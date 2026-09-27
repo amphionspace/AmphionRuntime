@@ -83,7 +83,7 @@ def check(report_path: Path = REPORT, root: Path = ROOT) -> bool:
                 file=sys.stderr,
             )
     print(
-        "Rerun the complete normal-volume, SNR, long-audio, and low-volume evaluation "
+        "Rerun the complete canonical normal-volume, long-audio, and low-volume evaluation "
         "and replace report.json with the evaluator-produced report.",
         file=sys.stderr,
     )

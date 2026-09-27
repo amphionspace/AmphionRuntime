@@ -6,6 +6,9 @@ Hvigor modules copy these files into their platform-specific package paths at
 build time; runtime asset paths remain unchanged.
 
 - `dingqiao/eres2net.onnx`: voiceprint embedding model.
+- `dingqiao/campplus.onnx`: offline complementary diarization model; does not replace voiceprint enrollment or verification.
+  Source: `asr/tools/speaker/00_download_models.sh --only campplus-zh`, original name `3dspeaker_speech_campplus_sv_zh-cn_16k-common.onnx`.
+  SHA-256: `f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11`; upstream 3D-Speaker license is retained in `dingqiao/campplus.LICENSE`.
 - `dingqiao/pyannote-segmentation-3.0.onnx`: offline speaker-turn segmentation model.
 - `dingqiao/pyannote-segmentation-3.0.LICENSE`: license shipped with the pyannote model.
 - `police/lac/v1/lac_encoder.onnx`: Police LAC encoder model.

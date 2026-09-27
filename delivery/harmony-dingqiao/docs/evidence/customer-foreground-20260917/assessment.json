@@ -1,0 +1,102 @@
+{
+  "commit": "8a24274932fd23df5286b1de31f31bd53d732774",
+  "hapSha256": "fc91b07ba1d6c60decf0179d438447a5028238d5e8c7990b8d388233d0fe0843",
+  "checks": {
+    "sdk_contracts": true,
+    "four_roles": true,
+    "text_conserved": true,
+    "text_and_identity_match_captured_state": true,
+    "inferred_text_explicit": true,
+    "no_zero_duration_unknown_fragments": true,
+    "no_early_last": true,
+    "no_live_streams": true,
+    "main1": true,
+    "main2": true,
+    "main3": true,
+    "main4": true
+  },
+  "anchors": [
+    {
+      "label": "main1",
+      "beginMs": 3900,
+      "endMs": 5300,
+      "expectedIndex": 0,
+      "observedMs": {
+        "0": 1400
+      }
+    },
+    {
+      "label": "main2",
+      "beginMs": 17900,
+      "endMs": 21500,
+      "expectedIndex": 1,
+      "observedMs": {
+        "1": 3600
+      }
+    },
+    {
+      "label": "main3",
+      "beginMs": 27400,
+      "endMs": 29300,
+      "expectedIndex": 2,
+      "observedMs": {
+        "2": 1900
+      }
+    },
+    {
+      "label": "main4",
+      "beginMs": 39450,
+      "endMs": 40600,
+      "expectedIndex": 3,
+      "observedMs": {
+        "3": 1150
+      }
+    }
+  ],
+  "status": "PASS",
+  "asrFinals": 21,
+  "textParts": 22,
+  "speakerUpdates": 10,
+  "finishToCompleteMs": 1431,
+  "updateIdentityEvidence": "Exact identities checked in captured callback-order replay. Phone carrier records update count/freeze violations, not individual update payloads; do not claim a complete phone update-identity trace.",
+  "scope": "Four louder principal speakers; quiet/background recall and full word-level identity annotation excluded. Development fix, not full release gate.",
+  "device": "7GK0226326015655",
+  "runId": "20260917-154629-diarization-windows-0ce3a455",
+  "inputPcmSha256": "ed112d4a51707203078edaefcce335ddb797b9dca880cd5cea691eec7ec45517",
+  "reportSha256": "90d1b89d3d830048ceafec1c5bc76d1fda541f66ffd83af72f283d00148782ef",
+  "canonicalScope": "Current four-louder-speaker customer scenario only; not a general release gate",
+  "baseline": {
+    "textParts": 31,
+    "asrFinals": 21
+  },
+  "tests": {
+    "harmony": 45,
+    "androidSdkAndDingqiao": "Debug unit tasks passed; final text change additionally passed 14 SpeakerDiarizationAlgorithmsTest cases"
+  },
+  "memory": {
+    "status": "PASS",
+    "sample_count": 129,
+    "observation_seconds": 167.78,
+    "warmup_samples_excluded": 25,
+    "head_rss_mb": 564.188,
+    "tail_rss_mb": 627.496,
+    "rss_growth_mb": 63.309,
+    "rss_slope_mb_per_minute": 1.946,
+    "rss_third_medians_mb": [
+      570.48,
+      602.0,
+      629.703
+    ],
+    "peak_rss_mb": 676.648,
+    "peak_hwm_mb": 682.824,
+    "head_vm_data_mb": 3179.828,
+    "tail_vm_data_mb": 3235.828,
+    "vm_data_growth_mb": 56.0,
+    "peak_swap_mb": 89.383,
+    "head_threads": 68,
+    "tail_threads": 69,
+    "thread_growth": 1,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2
+  }
+}

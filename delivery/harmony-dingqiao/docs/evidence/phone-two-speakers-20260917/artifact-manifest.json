@@ -1,0 +1,60 @@
+{
+  "sourceCommit": "c19db6d55d0e834c03238246fed4e2ac1df6541c",
+  "artifacts": [
+    {
+      "path": "phone-device-assessment.json",
+      "sha256": "5277bba075568a7407fd786a856eef0f542e018bda78d2b13b6064b1fd6d5652",
+      "sizeBytes": 1225
+    },
+    {
+      "path": "customer-device-assessment.json",
+      "sha256": "ae2f7303172d30360447b1f89c6788fa637a1cdcb4c5d70cf88f37260257043a",
+      "sizeBytes": 1208
+    },
+    {
+      "path": "production-controls-assessment.json",
+      "sha256": "33cdf61f0c600df2b1bf1163dd3483355f5e6001bda2201862ad0293cdcd56e0",
+      "sizeBytes": 26400
+    },
+    {
+      "path": "control-frame-difference.json",
+      "sha256": "a39578c45dcda4e3e24fc9591f877587338c468270d3968176048ce16df44d9d",
+      "sizeBytes": 620
+    },
+    {
+      "path": "final-build-identity.json",
+      "sha256": "b736ed46d6b19bd32593ae83e2fdab1bc4447df4d8f138132586810ea1934d7b",
+      "sizeBytes": 2351
+    },
+    {
+      "path": "android-test-summary.json",
+      "sha256": "b9e9ff646584992e6434b9063191fce41a721dc979dc3bc55a392421763aefd0",
+      "sizeBytes": 922
+    },
+    {
+      "path": "regression-red.log",
+      "sha256": "38c931750da9643fb5e366b39609cf4da89a6e0d9b0422306b08b9e8811c3061",
+      "sizeBytes": 5398
+    },
+    {
+      "path": "harmony-state-tests.log",
+      "sha256": "87a50521461b647e12a96efd792587e46bb88d3dd98f6ee3e36ccac743b94589",
+      "sizeBytes": 17801
+    },
+    {
+      "path": "harmony-inference-updated-contract.log",
+      "sha256": "65476d3847f1512dca8f5300004085c6d4db351d434001fe8f63cd559e0407c3",
+      "sizeBytes": 410
+    },
+    {
+      "path": "android-sdk-tests.log",
+      "sha256": "f5ffd6cc51db522243c6c51d07c1daac77faafee6e2bfa6814358efff8683a36",
+      "sizeBytes": 4358
+    },
+    {
+      "path": "android-release-tests.log",
+      "sha256": "6235f68dd551cd6c9422901812902132f3c9a2faf116b1a52291870a1caba2fb",
+      "sizeBytes": 7716
+    }
+  ]
+}

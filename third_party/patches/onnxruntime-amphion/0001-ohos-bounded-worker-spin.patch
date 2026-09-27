@@ -1,0 +1,163 @@
+diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
+index 82a4547..6e1697f 100644
+--- a/cmake/CMakeLists.txt
++++ b/cmake/CMakeLists.txt
+@@ -1,3 +1,7 @@
++set(CMAKE_SYSTEM_NAME Linux CACHE STRING "" FORCE)
++set(CMAKE_SYSTEM_PROCESSOR aarch64 CACHE STRING "" FORCE)
++set(ABSL_ENABLE_INSTALL ON)
++set(CPUINFO_ENABLE_INSTALL ON)
+ # Copyright (c) Microsoft Corporation. All rights reserved.
+ # Licensed under the MIT License.
+ 
+diff --git a/cmake/onnxruntime.cmake b/cmake/onnxruntime.cmake
+index 59ebf8e..03edcd5 100644
+--- a/cmake/onnxruntime.cmake
++++ b/cmake/onnxruntime.cmake
+@@ -110,7 +110,6 @@ elseif(onnxruntime_BUILD_APPLE_FRAMEWORK)
+     PUBLIC_HEADER "${APPLE_FRAMEWORK_HEADERS}"
+     MACOSX_FRAMEWORK_INFO_PLIST ${CMAKE_CURRENT_BINARY_DIR}/Info.plist
+     VERSION ${ORT_VERSION}
+-    SOVERSION  ${ORT_VERSION}
+   )
+ else()
+   onnxruntime_add_shared_library(onnxruntime ${CMAKE_CURRENT_BINARY_DIR}/generated_source.c)
+@@ -144,7 +143,6 @@ if (NOT WIN32)
+     set(ONNXRUNTIME_SO_LINK_FLAG " -Wl,-exported_symbols_list,${SYMBOL_FILE}")
+     if (${CMAKE_SYSTEM_NAME} STREQUAL "iOS")
+       set_target_properties(onnxruntime PROPERTIES
+-        SOVERSION ${ORT_VERSION}
+         MACOSX_RPATH TRUE
+         INSTALL_RPATH_USE_LINK_PATH FALSE
+         BUILD_WITH_INSTALL_NAME_DIR TRUE
+@@ -337,3 +335,7 @@ if(onnxruntime_BUILD_APPLE_FRAMEWORK)
+   # link the static library
+   add_custom_command(TARGET onnxruntime POST_BUILD COMMAND libtool -static -o ${STATIC_FRAMEWORK_DIR}/onnxruntime *.a WORKING_DIRECTORY ${STATIC_LIB_DIR})
+ endif()
++
++# Match the original OHOS publisher final SONAME without editing a linked binary.
++set_property(TARGET onnxruntime PROPERTY VERSION)
++set_property(TARGET onnxruntime PROPERTY SOVERSION)
+diff --git a/cmake/onnxruntime_common.cmake b/cmake/onnxruntime_common.cmake
+index 687a231..5f3fa38 100644
+--- a/cmake/onnxruntime_common.cmake
++++ b/cmake/onnxruntime_common.cmake
+@@ -221,3 +221,5 @@ if (NOT onnxruntime_BUILD_SHARED_LIB)
+             RUNTIME   DESTINATION ${CMAKE_INSTALL_BINDIR}
+             FRAMEWORK DESTINATION ${CMAKE_INSTALL_BINDIR})
+ endif()
++
++list(APPEND onnxruntime_EXTERNAL_LIBRARIES cpuinfo::cpuinfo cpuinfo::clog)
+diff --git a/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h b/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
+index f9b694e..2a3b7f2 100644
+--- a/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
++++ b/include/onnxruntime/core/platform/EigenNonBlockingThreadPool.h
+@@ -391,6 +391,12 @@ class ThreadPoolParallelSection {
+   std::atomic<bool> dispatch_started{false};
+   std::atomic<bool> dispatch_done{false};
+   std::atomic<bool> work_done{false};
++
++  // Completion notifications share a mutex with the predicates so no wake-up
++  // can be lost. The owner acquires it before releasing this section, including
++  // when all work has already completed, to outlive the final notification.
++  OrtMutex completion_mutex;
++  OrtCondVar completion_cv;
+ };
+ 
+ class ThreadPoolLoop {
+@@ -908,8 +914,9 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+     // finish dispatch work.  This avoids new tasks being started
+     // concurrently with us attempting to end the parallel section.
+     if (ps.dispatch_q_idx != -1) {
++      std::unique_lock<OrtMutex> completion_lock(ps.completion_mutex);
+       while (!ps.dispatch_done.load(std::memory_order_acquire)) {
+-        onnxruntime::concurrency::SpinPause();
++        ps.completion_cv.wait(completion_lock);
+       }
+     }
+ 
+@@ -929,17 +936,21 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+     }
+     profiler_.LogEnd(ThreadPoolProfiler::WAIT_REVOKE);
+ 
++    // Always acquire the mutex, even if completion is already visible. A
++    // worker may still be inside its final notification and touching ps.
++    std::unique_lock<OrtMutex> completion_lock(ps.completion_mutex);
++
+     // Wait for the dispatch task's own work...
+     if (ps.dispatch_q_idx > -1) {
+       while (!ps.work_done.load(std::memory_order_acquire)) {
+-        onnxruntime::concurrency::SpinPause();
++        ps.completion_cv.wait(completion_lock);
+       }
+     }
+ 
+     // ...and wait for any other tasks not revoked to finish their work
+     auto tasks_to_wait_for = tasks_started - ps.tasks_revoked;
+     while (ps.tasks_finished < tasks_to_wait_for) {
+-      onnxruntime::concurrency::SpinPause();
++      ps.completion_cv.wait(completion_lock);
+     }
+ 
+     // Clear status to allow the ThreadPoolParallelSection to be
+@@ -1105,7 +1116,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+         // This will form the preferred worker for the next loop.
+         UpdatePreferredWorker(preferred_workers, par_idx);
+         worker_fn(par_idx);
+-        ps.tasks_finished++;
++        {
++          std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++          ps.tasks_finished++;
++          ps.completion_cv.notify_one();
++        }
+       },
+                                            pt.tag, w_idx);
+ 
+@@ -1193,7 +1208,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+ 
+           // Schedule tasks par_idx=[current_dop+1,new_dop)
+           ScheduleOnPreferredWorkers(pt, ps, preferred_workers, current_dop + 1, new_dop, worker_fn);
+-          ps.dispatch_done.store(true, std::memory_order_release);
++          {
++            std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++            ps.dispatch_done.store(true, std::memory_order_release);
++            ps.completion_cv.notify_one();
++          }
+ 
+           // Record the worker thread that actually runs this task.
+           // This will form the preferred worker for the next loop.
+@@ -1203,7 +1222,11 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+           worker_fn(current_dop);
+ 
+           // Dispatcher's work complete
+-          ps.work_done.store(true, std::memory_order_release);
++          {
++            std::lock_guard<OrtMutex> completion_lock(ps.completion_mutex);
++            ps.work_done.store(true, std::memory_order_release);
++            ps.completion_cv.notify_one();
++          }
+         };
+ 
+         profiler_.LogStart();
+@@ -1532,7 +1555,7 @@ class ThreadPoolTempl : public onnxruntime::concurrency::ExtendedThreadPoolInter
+ 
+     assert(td.GetStatus() == WorkerData::ThreadStatus::Spinning);
+ 
+-    constexpr int log2_spin = 20;
++    constexpr int log2_spin = 14;
+     const int spin_count = allow_spinning_ ? (1ull << log2_spin) : 0;
+     const int steal_count = spin_count / 100;
+ 
+diff --git a/onnxruntime/core/platform/posix/env.cc b/onnxruntime/core/platform/posix/env.cc
+index 7cd81d8..c0cf831 100644
+--- a/onnxruntime/core/platform/posix/env.cc
++++ b/onnxruntime/core/platform/posix/env.cc
+@@ -230,7 +230,7 @@ class PosixThread : public EnvThread {
+   static void* ThreadMain(void* param) {
+     std::unique_ptr<Param> p(static_cast<Param*>(param));
+     ORT_TRY {
+-#if !defined(__APPLE__) && !defined(__ANDROID__) && !defined(__wasm__) && !defined(_AIX)
++#if 0
+       if (p->affinity.has_value() && !p->affinity->empty()) {
+         cpu_set_t cpuset;
+         CPU_ZERO(&cpuset);

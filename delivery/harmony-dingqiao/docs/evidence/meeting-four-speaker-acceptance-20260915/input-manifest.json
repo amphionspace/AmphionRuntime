@@ -1,0 +1,101 @@
+[
+  {
+    "meeting": "S_R003S01C01",
+    "wholeMeetingSpeakerCount": 5,
+    "startSeconds": 540,
+    "durationSeconds": 180,
+    "inputSpeakerCount": 2,
+    "speakerSeconds": {
+      "001-M": 99.97049999999956,
+      "005-M": 74.15689999999961
+    },
+    "referenceSegments": {
+      "001-M": 23,
+      "005-M": 24
+    },
+    "previouslyUsedMeeting": false,
+    "obsBucket": "cuhk-anfeiweng-benchmark",
+    "obsKey": "asr-zh-en-eval-20260804/aishell4-test.tar",
+    "member": {
+      "name": "DATA_ASR/LHOTSE/data_aishell4/test/wav/S_R003S01C01.flac",
+      "size": 255177109,
+      "offset": 2678022656
+    },
+    "sourceSha256": "e4a8a76315b7dabe63f43e2364486d9dee989ddcf111d73dc3eae47d86838cd0",
+    "sourceDurationSeconds": 2220.529,
+    "sourceChannels": 8,
+    "inputPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/input/2spk-S_R003S01C01.wav",
+    "inputSha256": "4dd123d601b2e7f97eaafdd823074208f0e8b71006f40c76d0e7ff0c550a8083",
+    "rttmPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/annotations/S_R003S01C01.rttm",
+    "rttmSha256": "95c05470f001274f0d91dafda2793f5539a4ce16dc7f9015723611a015f61ac3",
+    "downloadAndPrepareSeconds": 0.495864041
+  },
+  {
+    "meeting": "M_R003S02C01",
+    "wholeMeetingSpeakerCount": 6,
+    "startSeconds": 360,
+    "durationSeconds": 180,
+    "inputSpeakerCount": 3,
+    "speakerSeconds": {
+      "001-M": 37.24559999999997,
+      "005-F": 13.097800000000007,
+      "006-F": 135.0238000000001
+    },
+    "referenceSegments": {
+      "001-M": 11,
+      "005-F": 4,
+      "006-F": 16
+    },
+    "previouslyUsedMeeting": false,
+    "obsBucket": "cuhk-anfeiweng-benchmark",
+    "obsKey": "asr-zh-en-eval-20260804/aishell4-test.tar",
+    "member": {
+      "name": "DATA_ASR/LHOTSE/data_aishell4/test/wav/M_R003S02C01.flac",
+      "size": 258267458,
+      "offset": 4986281472
+    },
+    "sourceSha256": "b74f2c00c374b899c7b0154a1b492a9429b0dd270e0f236d83abff0f7a2c7e0f",
+    "sourceDurationSeconds": 2321.259,
+    "sourceChannels": 8,
+    "inputPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/input/3spk-M_R003S02C01.wav",
+    "inputSha256": "89e8fa17087c50546afb9db74f1e1e5e585536ff52a1316bf23dcf9faf54b2fd",
+    "rttmPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/annotations/M_R003S02C01.rttm",
+    "rttmSha256": "a46f07dd09b9e1062a3f366e8194fb37699acbad0e7728613bfe5527acc773bc",
+    "downloadAndPrepareSeconds": 0.495191959
+  },
+  {
+    "meeting": "L_R003S01C02",
+    "wholeMeetingSpeakerCount": 6,
+    "startSeconds": 690,
+    "durationSeconds": 180,
+    "inputSpeakerCount": 4,
+    "speakerSeconds": {
+      "002-F": 24.259800000000155,
+      "004-M": 25.525100000000066,
+      "003-F": 11.711099999999874,
+      "005-M": 124.76829999999995
+    },
+    "referenceSegments": {
+      "002-F": 17,
+      "004-M": 5,
+      "003-F": 3,
+      "005-M": 17
+    },
+    "previouslyUsedMeeting": false,
+    "obsBucket": "cuhk-anfeiweng-benchmark",
+    "obsKey": "asr-zh-en-eval-20260804/aishell4-test.tar",
+    "member": {
+      "name": "DATA_ASR/LHOTSE/data_aishell4/test/wav/L_R003S01C02.flac",
+      "size": 286036324,
+      "offset": 1355041280
+    },
+    "sourceSha256": "93125b2c8f9f73c042ccd63178d1fec6db2d3047af4078834da7c6c1aa118e72",
+    "sourceDurationSeconds": 2362.945,
+    "sourceChannels": 8,
+    "inputPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/input/4spk-L_R003S01C02.wav",
+    "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+    "rttmPath": "/Users/boxp/.cache/amphion-runtime/diagnostics/cos-four-speaker-acceptance-20260915-oaixm0jv/annotations/L_R003S01C02.rttm",
+    "rttmSha256": "93511cf38f65684174405cb4ee517404e95d19ea56e41c6fdb7be7fd096e385f",
+    "downloadAndPrepareSeconds": 0.509009083
+  }
+]

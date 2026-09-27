@@ -1,0 +1,32 @@
+{
+  "scope": "Saved-state localization only, no new PCM/device replay or parameter tuning.",
+  "question": "Does the new query path create the extra four-speaker confusion, or does it already occur with six-second context and no queries?",
+  "fixed": [
+    "input PCM",
+    "segmentation",
+    "public boundaries",
+    "models",
+    "thresholds"
+  ],
+  "changed": "Context cap 2.5s -> 6s while retaining the original production session with no queries.",
+  "sessionSourceEquivalence": "git diff e65395cf..a9df59dc for the complete Harmony diarization session directory is empty.",
+  "metrics": {
+    "classicDer250msNoOverlap": {
+      "original": 0.830447,
+      "sixSecondWithoutQuery": 0.46361,
+      "current": 0.46361
+    },
+    "speakerConfusionSeconds": {
+      "original": 5.99,
+      "sixSecondWithoutQuery": 19.39,
+      "current": 23.96
+    },
+    "unknownTurnSeconds": {
+      "original": 124.46,
+      "sixSecondWithoutQuery": 58.41,
+      "current": 53.84
+    }
+  },
+  "result": "Extra confusion already exists without the query path",
+  "noProductChange": true
+}

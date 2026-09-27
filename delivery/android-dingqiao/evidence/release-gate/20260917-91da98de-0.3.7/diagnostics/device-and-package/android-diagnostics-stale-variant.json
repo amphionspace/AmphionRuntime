@@ -1,0 +1,14 @@
+{
+  "cause": "local build driver assembled Debug but merge --diagnostics consumes sdk-dingqiao Diagnostics variant, leaving old Diagnostics component",
+  "public_release_not_affected": true,
+  "bytecode": {
+    "dingqiao-asr-v0.3.7.aar": {
+      "roundToInt": true,
+      "float_to_int": false
+    },
+    "dingqiao-asr-diagnostics-v0.3.7.aar": {
+      "roundToInt": false,
+      "float_to_int": true
+    }
+  }
+}

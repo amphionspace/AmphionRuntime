@@ -1,0 +1,27 @@
+{
+  "method": "dynamic QInt8 MatMul, all per-channel, reduce_range=True; no labels used",
+  "source_sha256": "cf59b5e889fd4eee8d4af3eb8a39e08f11f55b669c73a1d7a8094384fc8a5932",
+  "files": {
+    "decoder.onnx": {
+      "bytes": 17453084,
+      "sha256": "5ac4956a33520b2184b71ecabeb7925fa85a8ade9d3ada90df56b6593bffe460"
+    },
+    "joiner.onnx": {
+      "bytes": 16416467,
+      "sha256": "cab74315925720da98b8ffb53ef235ef90b706d92fa7c8c061a072218d202ef5"
+    },
+    "tokens.txt": {
+      "bytes": 115253,
+      "sha256": "1521aa1a13cef2d7e30579aaae39d109648f16af334727a6d95760c767a01e15"
+    },
+    "bbpe.vocab": {
+      "bytes": 232130,
+      "sha256": "aa7a1b34d6a10e666f32dd7bc34599f16bd7602a3ed67602873c603dae978514"
+    },
+    "encoder.int8.onnx": {
+      "bytes": 162293775,
+      "sha256": "9a2ea03946ab73e54334e4acec4eb0208655ed782d10bd4117a5dfd40efa82e3"
+    }
+  },
+  "onnx_gzip_bytes": 127681482
+}

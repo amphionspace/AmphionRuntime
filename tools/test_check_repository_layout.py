@@ -1,3 +1,4 @@
+import configparser
 import importlib.util
 import json
 import tempfile
@@ -93,6 +94,50 @@ class RepositoryLayoutTest(unittest.TestCase):
         gitlinks = {"third_party/sherpa-onnx": "74e48a3606ac9bac38f4912b1836da53ef7f4bb2"}
         violations = MODULE.find_gitlink_violations(gitlinks)
         self.assertTrue(any("reproducible upstream pin" in item for item in violations))
+
+    def test_only_public_sherpa_submodule_is_configured(self) -> None:
+        modules = configparser.ConfigParser(interpolation=None)
+        modules.read(ROOT / ".gitmodules", encoding="utf-8")
+        section = 'submodule "third_party/sherpa-onnx"'
+        self.assertEqual(modules.sections(), [section])
+        self.assertEqual(
+            dict(modules[section]),
+            {
+                "path": "third_party/sherpa-onnx",
+                "url": "https://github.com/k2-fsa/sherpa-onnx.git",
+            },
+        )
+        self.assertEqual(MODULE.tracked_gitlinks(ROOT), MODULE.REQUIRED_GITLINKS)
+
+    def test_tn_sources_are_tracked_without_private_checkout(self) -> None:
+        root = (
+            "tts/training/dingqiao_lits/"
+            "Dingqiao_Multilingual_Text_Normalization_for_TTS"
+        )
+        tracked = set(MODULE.tracked_files(ROOT))
+        self.assertNotIn(root, tracked, "TN must not be a submodule gitlink")
+        sources = {
+            "tts_normalizer_engine.cpp",
+            "tts_normalizer_engine.hpp",
+            "ru_year_spellout.cpp",
+            "ru_year_spellout.hpp",
+            "third_party/nlohmann/json.hpp",
+            "rules_v2/zh_pinyin.json",
+            "test/scripts/build.sh",
+            "docs/tts_ops.md",
+            "docs/transsion_testset_guide.md",
+            "original/morphodita/src_lib_only/morphodita.cpp",
+            "original/morphodita/src_lib_only/morphodita.h",
+            "original/morphodita/models/russian-syntagrus-morphodita-only.tagger",
+        }
+        for locale in ("en", "zh", "ar", "bn", "ru"):
+            sources.update(
+                {f"{locale}.cpp", f"rules_v2/{locale}.full.json", f"test/in/{locale}.txt"}
+            )
+        for source in sources:
+            with self.subTest(source=source):
+                self.assertIn(f"{root}/{source}", tracked)
+                self.assertTrue((ROOT / root / source).is_file())
 
     def test_rejects_missing_required_document(self) -> None:
         paths = self.valid_paths() - {"tts/docs/api/语音合成SDK接口.md"}

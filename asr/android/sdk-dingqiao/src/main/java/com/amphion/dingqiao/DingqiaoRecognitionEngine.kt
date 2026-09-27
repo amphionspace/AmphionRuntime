@@ -23,6 +23,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import kotlin.math.roundToInt
 
 /**
  * 鼎桥 [SpeechRecognitionEngine] 实现：
@@ -236,7 +237,6 @@ internal class DingqiaoRecognitionEngine(
                             output,
                         )
                     },
-                    timeoutAsrFallback = { createSpeakerDiarizationTimeoutLastResult() },
                 )
             }
             if (DiagnosticsModule.isBuildEnabled()) {
@@ -607,7 +607,10 @@ internal class DingqiaoRecognitionEngine(
     private fun scheduleStoppedFallback(epoch: Long, sessionId: String) {
         stopFallbackExecutor.schedule({
             val shouldComplete = synchronized(this@DingqiaoRecognitionEngine) {
-                ownsSessionLocked(epoch, sessionId) && finishRequested && !completeSent
+                // A real ASR tail may already be waiting for the speaker window.
+                // Sending another empty tail would overwrite its stored decoration.
+                ownsSessionLocked(epoch, sessionId) && finishRequested && !completeSent &&
+                    !diarizationTerminalClaimed
             }
             if (!shouldComplete) return@schedule
             enqueueTerminalResult(
@@ -807,12 +810,6 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
-    private fun createSpeakerDiarizationTimeoutLastResult() = SpeechRecognitionResult(
-        isFinal = true,
-        isLast = true,
-        result = "",
-    )
-
     private fun requestSpeakerDiarizationFinishLocked() {
         speakerDiarizationFinishBarrier?.begin()
         speakerDiarizationSession?.finish()
@@ -919,8 +916,8 @@ internal class DingqiaoRecognitionEngine(
         speakerSimilarity: Float?,
     ): SpeechRecognitionResult {
         val text = if (isFinal) enhancedText ?: asrResult.text else asrResult.text
-        val begin = asrResult.timestamps.firstOrNull()?.let { (it * 1000f).toInt() }
-        val end = asrResult.timestamps.lastOrNull()?.let { (it * 1000f).toInt() }
+        val begin = asrResult.timestamps.firstOrNull()?.let { (it * 1000f).roundToInt() }
+        val end = asrResult.timestamps.lastOrNull()?.let { (it * 1000f).roundToInt() }
         return SpeechRecognitionResult(
             isFinal = isFinal,
             isLast = isLast,

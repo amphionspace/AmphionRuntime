@@ -1,0 +1,22 @@
+[
+  {
+    "recording": "M_R003S01C01",
+    "matchingFrames": 18000,
+    "totalFrames": 18000
+  },
+  {
+    "recording": "S_R004S01C01",
+    "matchingFrames": 18000,
+    "totalFrames": 18000
+  },
+  {
+    "recording": "S_R004S03C01",
+    "matchingFrames": 18000,
+    "totalFrames": 18000
+  },
+  {
+    "recording": "meeting-180s-ch0",
+    "matchingFrames": 18000,
+    "totalFrames": 18000
+  }
+]

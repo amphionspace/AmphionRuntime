@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.amphion.dingqiao.diarization.DiarizationQueryTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-09-16T09:45:14" hostname="redacted" time="0.002">
+  <properties/>
+  <testcase name="correctedConfidenceIsFrozenWithItsUtterance" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.001"/>
+  <testcase name="queryCannotIntroduceContextOnlyIdentity" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.001"/>
+  <testcase name="shortQueryMatchesEstablishedRoleWithoutChangingItsProfile" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <testcase name="uncertaintyDoesNotEnrollAnotherIdentity" classname="com.amphion.dingqiao.diarization.DiarizationQueryTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

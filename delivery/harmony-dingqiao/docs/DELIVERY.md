@@ -58,7 +58,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 不重复运行。基准身份和当前验收值见
 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
 
-然后在 DevEco Studio 中构建 HAR 与 HAP：
+按 [命令行工具链说明](../../../asr/tools/HARMONY_TOOLCHAIN.md) 配置 DevEco CLI、独立 CLT 与 JDK，再在各工程中构建 HAR 与 HAP：
 
 - `asr/harmony`：`sdk`、`sdk-police`、`sdk-dingqiao`
 - `tts/harmony`：`sdk`
@@ -79,7 +79,7 @@ HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
 
 本地签名文件结构见 `delivery/harmony-dingqiao/delivery/harmony-signing.example.json`，应放在 `.secure/` 下并执行 `chmod 600`。构建脚本把工程复制到系统临时目录后再注入签名配置，仓库内的 `build-profile.json5` 不会接触口令。普通 Demo 运行时固定注入 ODID，因此设备绑定 license 默认读取 `.secure/amphion_asr_demo_device_ids.txt`，该清单必须包含运行时 `deviceInfo.ODID`；正式系统宿主使用 SN 时应通过 `DINGQIAO_DEVICE_ID_FILE` 显式指定另一份清单，两种标识不可混用。license 缺失时，smoke 脚本会从 `.secure/amphion-license-private.pem` 与设备清单本地签发；已有 license 与清单不一致时仍会失败，避免静默改写授权范围。脚本不会输出口令或明文设备标识。
 
-HAP 预检使用 DevEco Studio 自带的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。
+HAP 预检使用 独立 CLT 中的 `hap-sign-tool.jar` 校验应用签名和 profile，并核对 bundle、module、license、arm64 native 库及预期证书链。客户包组装自包含 ASR HAR 后，会在临时宿主中仅声明该 HAR，执行本地安装和 HAP 编译；`docs/checksum.txt` 不包含自身，打包脚本会在替换旧交付目录前执行一次完整 `shasum -c`。
 
 ## 客户包结构
 
@@ -144,7 +144,7 @@ bash asr/tools/08_pack_harmony_assets.sh
 
 其中 `04_build_harmony_so.sh` 会通过 `prepare_sherpa_source.sh` 在 `third_party/.derived/` 创建隔离 checkout 并应用 `third_party/patches/sherpa-amphion/` 中的 patch；受 Git 管理的 `third_party/sherpa-onnx` 保持只读。`08_pack_harmony_assets.sh` 默认直接使用 `asr/tools/demo-model/zhen`、`asr/tools/demo-model/yueen` 及标点/ITN/VAD 源文件，并在构建期生成 Harmony 专用 ORT 资产；不再要求先打 Android assets。
 
-构建 signed HAP 还需要本机 DevEco 签名配置；无签名配置时只能生成未签名或调试产物。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
+构建 signed HAP 还需要本机签名配置；无签名配置时只能生成未签名或调试产物。即使输入相同，HAP 的签名、时间戳和构建元数据也会影响 hash，因此交付验收以功能和清单一致为准，不承诺字节级一致。
 
 ## 验收
 

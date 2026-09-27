@@ -1,0 +1,14 @@
+[
+  {
+    "windowIndex": 0,
+    "isSessionFinal": false,
+    "utterances_sha256": "228987b6ae1edb4a94b97c2f00dabae843c77da87517c4029cceeca19b9fc9a4",
+    "speakerTurns_sha256": "c428e1a7fe8dfcce0cbb9ef57ae8d9a5529efca5c27c5dc734878a5e30c9c79d"
+  },
+  {
+    "windowIndex": 1,
+    "isSessionFinal": true,
+    "utterances_sha256": "c0041aa21d11b023dfb2e3ed0691dc9fde26c18c6640bad8c10ebd81188eb516",
+    "speakerTurns_sha256": "68ea86b29d7c68d62a3d67b88fd8a8e988d9acae11a0b47af00dfde7df58b69b"
+  }
+]

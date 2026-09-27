@@ -1,0 +1,542 @@
+[
+  {
+    "platform": "harmony",
+    "previous": "0.3.13",
+    "previous_source": "0aa5622e77cb55da46d40522af70ce1a372e331c",
+    "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+    "commits": [
+      {
+        "commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+        "subject": "docs(harmony): state unavailable enhancement model in release notes"
+      },
+      {
+        "commit": "91a0e6603a6809e13bf60577df651a9534b26e73",
+        "subject": "fix(build): verify optimized ITN rules by pinned digest"
+      },
+      {
+        "commit": "586cf2cddda621a02a86cb5ae8174004784d0fc9",
+        "subject": "build(asr): prepare Android 0.3.5 and Harmony 0.3.14 delivery"
+      },
+      {
+        "commit": "0194f1f121f48367e72ea90f46ebf873c8554fe3",
+        "subject": "fix(android): align diarization results and demo phases (#211)"
+      },
+      {
+        "commit": "d4275a92713950267780e904d77781eacfec5fdd",
+        "subject": "fix(asr): stabilize offline speaker evidence and final labels (#210)"
+      },
+      {
+        "commit": "b0dd1421039c663187a1d8abda184018342a3cf5",
+        "subject": "chore(tts): vendor text normalization sources (#208)"
+      },
+      {
+        "commit": "e65395cfbcf24a699026cc8bffd16c415e19ef09",
+        "subject": "fix(asr): prevent speaker refinement from delaying speech end (#207)"
+      },
+      {
+        "commit": "502b3cc2faf9519c241fd4e2f383741d0f18debe",
+        "subject": "Merge pull request #205 from amphionspace/fix/itn-preserve-interjections"
+      },
+      {
+        "commit": "8b95dbe6e11b320fc2ea82fff082d0603824f809",
+        "subject": "Merge pull request #204 from amphionspace/fix/sept14-vad-feedback"
+      },
+      {
+        "commit": "23847791cdd451d20840214e78feee825f6fec57",
+        "subject": "Merge pull request #202 from amphionspace/fix/license-delivery-trust-set-20260910"
+      },
+      {
+        "commit": "6fa57942a8b9c6337d38453dfe8d9ba8afd74ebf",
+        "subject": "Merge pull request #201 from amphionspace/codex/enterprise-license-trust"
+      },
+      {
+        "commit": "ffbccad53417eea8ae4af6a4e3d69132e84b530a",
+        "subject": "Merge pull request #200 from amphionspace/chore/harmony-asr-delivery-20260908"
+      }
+    ]
+  },
+  {
+    "platform": "android",
+    "previous": "0.3.3",
+    "previous_source": "eb7ebcf66a0b2062079b3fbd17203d4f3867c03d",
+    "source_commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+    "commits": [
+      {
+        "commit": "1bdb516e708d0c939fe199dddee554af4fb9a6f8",
+        "subject": "docs(harmony): state unavailable enhancement model in release notes"
+      },
+      {
+        "commit": "91a0e6603a6809e13bf60577df651a9534b26e73",
+        "subject": "fix(build): verify optimized ITN rules by pinned digest"
+      },
+      {
+        "commit": "586cf2cddda621a02a86cb5ae8174004784d0fc9",
+        "subject": "build(asr): prepare Android 0.3.5 and Harmony 0.3.14 delivery"
+      },
+      {
+        "commit": "0194f1f121f48367e72ea90f46ebf873c8554fe3",
+        "subject": "fix(android): align diarization results and demo phases (#211)"
+      },
+      {
+        "commit": "d4275a92713950267780e904d77781eacfec5fdd",
+        "subject": "fix(asr): stabilize offline speaker evidence and final labels (#210)"
+      },
+      {
+        "commit": "b0dd1421039c663187a1d8abda184018342a3cf5",
+        "subject": "chore(tts): vendor text normalization sources (#208)"
+      },
+      {
+        "commit": "e65395cfbcf24a699026cc8bffd16c415e19ef09",
+        "subject": "fix(asr): prevent speaker refinement from delaying speech end (#207)"
+      },
+      {
+        "commit": "502b3cc2faf9519c241fd4e2f383741d0f18debe",
+        "subject": "Merge pull request #205 from amphionspace/fix/itn-preserve-interjections"
+      },
+      {
+        "commit": "8b95dbe6e11b320fc2ea82fff082d0603824f809",
+        "subject": "Merge pull request #204 from amphionspace/fix/sept14-vad-feedback"
+      },
+      {
+        "commit": "23847791cdd451d20840214e78feee825f6fec57",
+        "subject": "Merge pull request #202 from amphionspace/fix/license-delivery-trust-set-20260910"
+      },
+      {
+        "commit": "6fa57942a8b9c6337d38453dfe8d9ba8afd74ebf",
+        "subject": "Merge pull request #201 from amphionspace/codex/enterprise-license-trust"
+      },
+      {
+        "commit": "ffbccad53417eea8ae4af6a4e3d69132e84b530a",
+        "subject": "Merge pull request #200 from amphionspace/chore/harmony-asr-delivery-20260908"
+      },
+      {
+        "commit": "564dd90df835b5dd5331a36e7cc8c47b12cb69d3",
+        "subject": "fix(test): validate stress corpus before device runs (#199)"
+      },
+      {
+        "commit": "8fe641b9e93abf754bf94931c52a7f495179f9da",
+        "subject": "fix(police): constrain acceptance residual corrections (#198)"
+      },
+      {
+        "commit": "f01691eaadf9e4da3c358359d74164201140142c",
+        "subject": "Merge pull request #197 from amphionspace/codex/tts-bracket-token-fix"
+      },
+      {
+        "commit": "3781f09e3da5cb583adc6f11362805a60887a87f",
+        "subject": "feat(harmony): add optional ASR scheduling controls (#196)"
+      },
+      {
+        "commit": "6bc09c7b4d73c6269544b50345c97d8146a4d0ca",
+        "subject": "Merge pull request #195 from amphionspace/fix/speaker-vad-final-tail"
+      },
+      {
+        "commit": "4d2620857baefdd3a4aac0be61e1d70f9186e15a",
+        "subject": "Merge pull request #194 from amphionspace/fix/adaptive-final-tail-flush"
+      },
+      {
+        "commit": "1c3817caae38390bba2b5feddb773cee242febbf",
+        "subject": "Merge pull request #193 from amphionspace/test/asr-model-1-1-0-validation"
+      },
+      {
+        "commit": "d11ad0a605573c1080a828fd8750e5de85899946",
+        "subject": "feat(diarization): finalize immutable speaker windows (#192)"
+      },
+      {
+        "commit": "f0f956c1c013c0b68a0985dd033974deb21782ce",
+        "subject": "fix(tts): preserve digit readings after stock code labels (#191)"
+      },
+      {
+        "commit": "1a338571620a5316883749268e82d000f36e4c9e",
+        "subject": "test(tts): gate pronunciation reports and archive full corpus baseline (#190)"
+      },
+      {
+        "commit": "45e4398b7a64a2a41fcfcb059946ca193ef0d3a9",
+        "subject": "test(tts): migrate batch tests to licensed external resources (#189)"
+      },
+      {
+        "commit": "927abb90b40859eca5b51ecff6f69c799cd9d856",
+        "subject": "test(tts): verify release aar integration in a standalone host (#188)"
+      },
+      {
+        "commit": "700a847af04ec40857febfe67373fc593ddedb0d",
+        "subject": "fix(tts): preserve frontend contracts and reduce lexicon allocation (#187)"
+      },
+      {
+        "commit": "5df13577adf215a23175d78738489587f483b6a2",
+        "subject": "test(android): enforce demo build and device gates (#184)"
+      },
+      {
+        "commit": "bd8d3253a534865980c6b4bab9d460746b6ecfb5",
+        "subject": "refactor(tts): consolidate training sources (#186)"
+      },
+      {
+        "commit": "24ba64b7aaa890975d69ecea1abea81ab7497356",
+        "subject": "refactor(tts): deduplicate generated assets (#185)"
+      },
+      {
+        "commit": "77af6515f79e2601668d5112674ce475d24a6788",
+        "subject": "test(asr): refresh AGC evidence after path redaction (#183)"
+      },
+      {
+        "commit": "bcba75139c0b36322720f67e81052bb691d02f89",
+        "subject": "fix(security): harden public demo and repository evidence (#182)"
+      },
+      {
+        "commit": "8161ea7e999ed1ee3fb0a66a312eef7454a50992",
+        "subject": "fix(build): isolate patched sherpa source"
+      },
+      {
+        "commit": "111f8ea2c0a54d3b5bdbe31453307f24e6943b41",
+        "subject": "Merge pull request #180 from amphionspace/refactor/align-version-and-asr-tooling"
+      },
+      {
+        "commit": "a77733672fc1ea109e57e58de055e9a2c62c2e6b",
+        "subject": "refactor: consolidate TTS tooling (#179)"
+      },
+      {
+        "commit": "a8e7ac82a3098b067d972a38fd7417182ddaff14",
+        "subject": "Merge pull request #178 from amphionspace/chore/sync-tts-assets"
+      },
+      {
+        "commit": "22bf13639fbfbfbb2ec67967c90804de29ceb620",
+        "subject": "Merge pull request #177 from amphionspace/refactor/relocate-tts-training-source"
+      },
+      {
+        "commit": "e072a06eb25e80f851f3ae3da2050dd01871e884",
+        "subject": "Merge pull request #176 from amphionspace/feat/sync-demo-license-asset"
+      },
+      {
+        "commit": "0755ab4bd8b5a6ea044864ec194211ec7e654fa0",
+        "subject": "Merge pull request #175 from amphionspace/feat/secure-obs-asset-sync"
+      },
+      {
+        "commit": "de66998ce04246568ff1917c8d6926b5390ba691",
+        "subject": "Merge pull request #174 from amphionspace/feat/bos-asset-sync"
+      },
+      {
+        "commit": "7c31fbcff912418336188b00c3ace2ab7bc83188",
+        "subject": "Merge pull request #173 from amphionspace/refactor/repository-layout"
+      },
+      {
+        "commit": "b118ba849ba3c0b5129c0b39101c9b0caed444d1",
+        "subject": "Merge pull request #172 from amphionspace/refactor/repository-organization"
+      },
+      {
+        "commit": "eb2eb430f021eeb27d58229c4d8b0a733aed4012",
+        "subject": "Merge pull request #167 from amphionspace/codex/ios-dingqiao-sdk-parity"
+      },
+      {
+        "commit": "f32975a81232fa3d5800b263e3c2163955cf7219",
+        "subject": "Merge pull request #170 from amphionspace/codex/android-harmony-demo-parity"
+      },
+      {
+        "commit": "cbd360a3d5a1f7e9c7fcb4a49f3a82075ecfb9ec",
+        "subject": "Merge pull request #169 from amphionspace/codex/revert-android-dingqiao-asset-guard"
+      },
+      {
+        "commit": "ec6387f469b6c45ff4a9f8166d0934d460431fa3",
+        "subject": "Merge pull request #168 from amphionspace/codex/android-dingqiao-asset-guard"
+      },
+      {
+        "commit": "c00950035de32e400bbee2fa76ce162263df522e",
+        "subject": "Merge pull request #166 from amphionspace/fix/harmony-speaker-vad-realtime"
+      },
+      {
+        "commit": "3f9724a38d74423aa66ba25da751ab0ba0aeb464",
+        "subject": "Merge pull request #165 from amphionspace/codex/android-harmony-parameter-contract"
+      },
+      {
+        "commit": "6fa88290e140dc74a680c578e43bb42a7dbdf832",
+        "subject": "chore(harmony): prepare 0.3.12 delivery (#164)"
+      },
+      {
+        "commit": "0129e82807a68a40a679ca39a1e38a3903bb8d07",
+        "subject": "Merge pull request #160 from amphionspace/codex/android-harmony-0.3.11-parity"
+      },
+      {
+        "commit": "2a3c85c83973a1881d2326ab889e805050c53585",
+        "subject": "Merge pull request #162 from amphionspace/codex/fix-harmony-cold-start-pcm-gap"
+      },
+      {
+        "commit": "fcac325713bce758e371446f95af9c03cd2a2db5",
+        "subject": "feat(test): fetch versioned data from OBS"
+      },
+      {
+        "commit": "b47ecb958197ce1f850b97578a0d60f59b683d35",
+        "subject": "Merge pull request #161 from amphionspace/fix/harmony-lockscreen-inference"
+      },
+      {
+        "commit": "6876957200eaa521d8d6d87e5cfbedb784353133",
+        "subject": "Merge pull request #159 from amphionspace/feat/offline-speaker-diarization"
+      },
+      {
+        "commit": "01ffaf7c85b4401a0d0549c06430cfbededc0853",
+        "subject": "Merge pull request #158 from amphionspace/chore/release-0-3-11"
+      },
+      {
+        "commit": "8c1f8507a2681791578d54929dfbc0df6414dd71",
+        "subject": "fix(harmony): preserve short target speech across speaker turns (#157)"
+      },
+      {
+        "commit": "4964e30ae12c4d40d1e1412d9ee3d14b4427bcf5",
+        "subject": "Merge pull request #156 from amphionspace/fix/harmony-backward-compat"
+      },
+      {
+        "commit": "f6d083ffd21cb8eaa9505809ffcbd46771df04d2",
+        "subject": "Merge pull request #155 from amphionspace/feat/android-harmony-parity"
+      },
+      {
+        "commit": "45ebf58bfd21de92da934530f2dfc065038ec424",
+        "subject": "fix(asr): compact stable prefixes for long-form sessions"
+      },
+      {
+        "commit": "48829b8a7c4fe6b095b17816a642dcfa0d2acd7b",
+        "subject": "Merge pull request #153 from amphionspace/fix/ci-follow-up-validation"
+      },
+      {
+        "commit": "a74695c965d00f3796b2abbcdfc6dfab2cec0ac8",
+        "subject": "Merge pull request #151 from amphionspace/fix/ci-evidence-and-scoping"
+      },
+      {
+        "commit": "743ad088fc4506b200f2bd55952d068094ac371a",
+        "subject": "ci: optimize Android ASR gates"
+      },
+      {
+        "commit": "8dfe81b4bce9c3f2d924b46592535358b9547255",
+        "subject": "Merge pull request #149 from amphionspace/docs/final-delivery-evidence-reuse"
+      },
+      {
+        "commit": "53b0fb2c2c383d1c6288cb5830f13b95835fd5a9",
+        "subject": "Merge pull request #147 from amphionspace/fix/police-cp5500-postprocess-20260824"
+      },
+      {
+        "commit": "7b6070e1326b14611d23c78e26a30b09ec13eda0",
+        "subject": "Merge pull request #146 from amphionspace/fix/license-sn-hyphen-main"
+      },
+      {
+        "commit": "ab29bd1344004559d2f8e7ac23bedf43a573dec8",
+        "subject": "Merge pull request #145 from amphionspace/feat/harmony-log-level-v0-3-9"
+      },
+      {
+        "commit": "369e7eb575fdbe17f311d65bf0ec0beacd59bb9f",
+        "subject": "chore(harmony): deliver ASR SDK 0.3.8 (#144)"
+      },
+      {
+        "commit": "cc2b0dc34e05cbb9875e48b3b856bc8a26e90136",
+        "subject": "feat(harmony): add compile-time controlled ASR diagnostics SDK (#141)"
+      },
+      {
+        "commit": "e1cc82e7739e5440fd42cdbe3aa8fe9c7d8bd588",
+        "subject": "perf(harmony): reduce speaker vad tail latency"
+      },
+      {
+        "commit": "dba4935083c362900f36dbee52045de1c8af1853",
+        "subject": "Merge pull request #143 from amphionspace/feat/android-harmony-parity"
+      },
+      {
+        "commit": "b6f7da86366dc3ce30b3c1bb5fc5d849b082b78b",
+        "subject": "Merge pull request #140 from amphionspace/fix/harmony-speaker-vad-stream-race"
+      },
+      {
+        "commit": "64679050235fb074e888af3102e2992d0c621036",
+        "subject": "fix(harmony): keep speaker inference off app lane (#139)"
+      },
+      {
+        "commit": "06a072a0aece19ce658e82e9442bbaf6b62b3a12",
+        "subject": "fix(asr): preserve context across rule3 checkpoints (#138)"
+      },
+      {
+        "commit": "584c89d5c2e6428e8eeb450a6a56cbd08f8ed9fc",
+        "subject": "Merge pull request #137 from amphionspace/fix/remove-unreleased-037"
+      },
+      {
+        "commit": "5a86b1cc404ef34d7d137d361620f5ddc51ecc95",
+        "subject": "Merge pull request #136 from amphionspace/feat/amphion-119-model-037"
+      },
+      {
+        "commit": "4e0bc84f5ad4ff1d82a07bfd2e3d85fa7587f0a5",
+        "subject": "Merge pull request #133 from amphionspace/feat/harmony-lac-hotword-top50"
+      },
+      {
+        "commit": "0a4f275d1adf2668f2b5802d4954301335c3f23b",
+        "subject": "Merge pull request #129 from amphionspace/release/harmony-asr-0.3.6-old-model"
+      },
+      {
+        "commit": "ead1fd42bc10df52f249d421ad8dc704f5740fe7",
+        "subject": "Merge pull request #127 from amphionspace/release/harmony-asr-0.3.6"
+      },
+      {
+        "commit": "f6e879d5fbd16356bdd7fd31ffbc689c89012b4f",
+        "subject": "Merge pull request #126 from amphionspace/release/harmony-asr-0.3.5"
+      },
+      {
+        "commit": "d3f6da6c601f875120f574f61f5321d7b4214704",
+        "subject": "fix(asr): improve Harmony long-session recovery (#125)"
+      },
+      {
+        "commit": "a3c5b966dd7e9a66b753bd6fb0d80fb1afcb4954",
+        "subject": "fix(ci): prefer official Gradle repositories (#124)"
+      },
+      {
+        "commit": "b366867a0c5c615b09af148a66bc6ec5f75ce786",
+        "subject": "ci: reduce redundant Android workflow work"
+      },
+      {
+        "commit": "75c507db66f7069ea1a3acecb7e5e5d275b9da41",
+        "subject": "docs: add hypothesis-driven debugging guidance"
+      },
+      {
+        "commit": "a7467d611b212973a571e5a23896ff928990213f",
+        "subject": "perf(ci): remove redundant Android checkouts"
+      },
+      {
+        "commit": "d560c7c92876e183567ed1e78d2908e589b319bf",
+        "subject": "fix(asr): preserve context in continuous sessions"
+      },
+      {
+        "commit": "bbb607b3aaeb70ec053c8b03b7112da82450c0a7",
+        "subject": "Exp/police hotword pruning iter250 20260819 (#119)"
+      },
+      {
+        "commit": "ea4ea26a3cf77d3b64d5bb9b94c5135f3a532188",
+        "subject": "fix(asr): publish empty final for rejected speaker vad"
+      },
+      {
+        "commit": "911ab9e04e59cbbab40bc499759e547b4e7558ec",
+        "subject": "feat(harmony): add long customer ASR scenarios"
+      },
+      {
+        "commit": "e71fac6db1fbb0b5ec608fd6ca3d87baaae9c877",
+        "subject": "ci: verify and reuse Android native cache"
+      },
+      {
+        "commit": "2b7985673d9950bb70c864417992f22ef33af649",
+        "subject": "ci: split Android workflow by changed paths"
+      },
+      {
+        "commit": "d74af7470d5e1e5cc96aed173e308f380c7b5777",
+        "subject": "Merge pull request #114 from amphionspace/feat/replace-default-asr-model-260819-pr"
+      },
+      {
+        "commit": "8c14ac2bcdd5a3011db23c9ffd6dc19484144bc9",
+        "subject": "fix(harmony): use UTF-8 byte length for hotwords (#112)"
+      },
+      {
+        "commit": "bafab4c213490008e3cbeff13ca886484e67c8f6",
+        "subject": "docs(harmony): archive SourceType evaluation results"
+      },
+      {
+        "commit": "d976331fb51eb4956118c78398d42240f24be543",
+        "subject": "fix(asr): harden speaker-vad finish handling (#110)"
+      },
+      {
+        "commit": "00c43e2e6c0323536d9badf5a92d6dd19ea625ed",
+        "subject": "feat(harmony): add customer ASR demo cases (#111)"
+      },
+      {
+        "commit": "cf951a6a74e6253cdd93a6d9c781428506ae54fb",
+        "subject": "fix(police): recover latest client term variants (#109)"
+      },
+      {
+        "commit": "9c10b6ebc1c92fbe184c3ccd09a1f77d265df06c",
+        "subject": "fix(police): recover Xiaoqiao semantic device variants (#108)"
+      },
+      {
+        "commit": "591410e157c0d688a9b123f992c2914632e5d517",
+        "subject": "fix(police): recover qianshou-jingdan device variants (#107)"
+      },
+      {
+        "commit": "722841556178dc4d5a421438782a8137082a26e3",
+        "subject": "fix(asr): preserve Speaker VAD partial callbacks (#106)"
+      },
+      {
+        "commit": "029c03b7ccf3cc66d5c46c8fc308ff5e574a2f90",
+        "subject": "fix(asr): contain sequential speaker turn leakage"
+      },
+      {
+        "commit": "ea77b61362b695aef08ed3bc3774f803c6831a93",
+        "subject": "Merge pull request #104 from amphionspace/fix/police-sign-terms-device-20260814"
+      },
+      {
+        "commit": "9ed4f8bc15296bc8caf2a33bb727abe4479b3cb4",
+        "subject": "fix(asr): return voiceprint scores for short utterances"
+      },
+      {
+        "commit": "0d71131ef9593659c34026cc024b960b62dc49a8",
+        "subject": "Merge pull request #101 from amphionspace/chore/asr-agc-release-gate"
+      },
+      {
+        "commit": "b37757398e1a2c6979ec22e22e6c5aa58a393e6d",
+        "subject": "chore(harmony): release ASR SDK 0.3.2 (#102)"
+      },
+      {
+        "commit": "3f0ab90ca50cf776cc0b1a6f475eb5849e03e478",
+        "subject": "feat(harmony): preload default model in prepareRuntime"
+      },
+      {
+        "commit": "36a233fa00b7d1f1cb5c078a25d069dbbd006816",
+        "subject": "Merge pull request #100 from amphionspace/feat/asr-agc"
+      },
+      {
+        "commit": "a49af8beaff8c1051a813fe0eae74447767f8a23",
+        "subject": "fix(harmony): clean sequential speaker turn finals"
+      },
+      {
+        "commit": "1fda0bf82062822511384554f6fc067799c5148b",
+        "subject": "fix(harmony): defer runtime release until sessions drain"
+      },
+      {
+        "commit": "9b1526bd80b7cfe63ec8fb1ff39ce3cb32cfbf3b",
+        "subject": "Merge pull request #95 from amphionspace/fix/harmony-v028-police-report"
+      },
+      {
+        "commit": "218b4f2386256e42a6d1a5c91599692b2a33a1cf",
+        "subject": "test(harmony): clarify fingerprint test name (#97)"
+      },
+      {
+        "commit": "2f8d22311a1aab37d8908ef4005e17d4587063af",
+        "subject": "Merge pull request #96 from amphionspace/release/harmony-asr-sdk-0.3.0"
+      },
+      {
+        "commit": "46603ac7fc702456052ffdc2b7c870185d020799",
+        "subject": "fix(police): make arrival scene normalization idempotent (#94)"
+      },
+      {
+        "commit": "cd5f1ac8d4320c84175a8d828cfc4d5736f81a0e",
+        "subject": "fix(harmony): prevent cold-start ASR audio loss (#92)"
+      },
+      {
+        "commit": "1b27507322ddde0c944e4872dbb89c56b628e1a9",
+        "subject": "fix(ci): initialize only required submodule (#93)"
+      },
+      {
+        "commit": "0367ac65c8f9a463a89c27d4e1bd485529144c07",
+        "subject": "docs(speaker): conclude open-source TSE edge assessment (#91)"
+      },
+      {
+        "commit": "2ee1126e88541034b28d006388d7efbde2ecb9ac",
+        "subject": "Merge pull request #90 from amphionspace/lits_dingqiao_sdk_vocos24k_v3"
+      },
+      {
+        "commit": "05a1d4c157c34d0cbf9fe60eb25903c65b054e31",
+        "subject": "Merge pull request #89 from amphionspace/docs/voiceprint-evaluation-plan"
+      },
+      {
+        "commit": "6bb6d0722a598397d7882907b89d10d47f6ee4e7",
+        "subject": "Merge pull request #88 from amphionspace/fix/police-terms-20260727-term-hit"
+      },
+      {
+        "commit": "1ca9108ad64ebf3645afc3295d9b3245fe0d97a5",
+        "subject": "Merge pull request #87 from amphionspace/docs/license-delivery-governance"
+      },
+      {
+        "commit": "ad43cfc438bae8f175bcb223cd37a05f14220968",
+        "subject": "Merge pull request #86 from amphionspace/chore/harmony-stress-observability"
+      },
+      {
+        "commit": "ad7ec9f833aa458e53092280ca1a34570be0b5ad",
+        "subject": "Merge pull request #85 from amphionspace/release/asr-sdk-0.3.3-0.2.9"
+      }
+    ]
+  }
+]

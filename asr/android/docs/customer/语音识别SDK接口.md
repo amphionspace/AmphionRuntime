@@ -200,8 +200,8 @@ interface RecognitionListener {
 | `endTime` | `Int?` | 结束时间毫秒，可能为空 |
 | `speakerSimilarity` | `Float?` | final 且启用声纹能力时返回 |
 | `utteranceId` | `String?` | 启用说话人分离时 final utterance 的稳定 ID |
-| `speakerIndex` | `Int` | 稳定的零基说话人序号；`-1` 表示尚未分配 |
-| `secondarySpeakerIndexes` | `List<Int>` | 重叠说话时的其他说话人序号 |
+| `speakerIndex` | `Int` | 稳定的零基说话人序号；`-1` 表示尚未分配、多人或不确定 |
+| `secondarySpeakerIndexes` | `List<Int>` | 句内观察到的其他角色；多人或不确定句可汇总全部角色，可含 `-1`；非空不等于重叠 |
 | `speakerConfidence` | `Float` | `[0,1]` 归属分数，不是校准概率 |
 
 `speakerSimilarity` 是可选值。`TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK
@@ -248,13 +248,22 @@ engine.startListening(
 )
 ```
 
-该能力使用 AAR 内置 pyannote segmentation 与 eres2net 模型，断网可用，适合会议长转写。SDK 以
+该能力使用 AAR 内置 pyannote segmentation、eres2net 与 CAMPPlus 互补模型，断网可用，适合会议长转写。SDK 以
 10 秒窗口、2.5 秒 hop 增量推理，支持重叠说话；在线聚类产生的显示序号会在后续证据到达时通过
 revision 修订。约每 120 秒在句末发布一批 `onSpeakerDiarizationResult`，该批编号随后冻结。
 `finish` 非阻塞，SDK 仅校准未定稿的尾窗，按固定顺序回调：唯一 last →
 `onSpeakerDiarizationResult(isSessionFinal=true)` → 唯一 complete。分离超时或模型/存储不可用时仍保持 ASR 完整结束，
 最终结果通过 `degraded/degradedReason/degradedMessage` 明确降级；`cancel` 不产生 last、最终分离结果
 或 complete。
+
+定稿 `utterances` 的每项完整保留一条原 ASR final，`utteranceId` 与 `sourceUtteranceId` 相同；
+不再按 token 角色拆开文字。同句出现多位已知角色、重叠或未解决的未知时，返回
+`speakerIndex=-1`、`confidence=0`，`secondarySpeakerIndexes` 汇总句内观察到的角色，可含 `-1`。
+调用方显示“多人／不确定”或“不确定”，不得用多数角色覆盖全文。
+`overlap` 仅表示实际观察到同时说话，精确区间以原始 `speakerTurns` 为准。
+同句内符合有限邻接补全条件的 UNKNOWN 可返回 `speakerInferred=true`、`confidence=0`；
+原始声学 UNKNOWN 保留，不能将推断当成声学身份确认。临时 final/update 的归属仍可修正，
+定稿窗口须冻结。详细迁移及已知限制见 `UPGRADE_0.3.8.md`。
 
 ## 6. 声纹
 
