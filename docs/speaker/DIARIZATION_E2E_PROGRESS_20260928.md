@@ -1,8 +1,10 @@
 # 角色分离端到端推进记录（2026-09-28）
 
-**发布结论：BLOCKED。** 下文保留逐提交证据，不能将早期数值当作最新产物验收。`ad16789a` 已在同产物四锚点中验证容量修复：客户不同主讲人不再被 KMeans 误合并，三个相邻锚点公开结果不变。`f6aef3d4` 进一步修复 XNNPACK 空闲 arena 在销毁后仍被保留的问题，短录音资源门禁转绿，连续短会话和124秒锚点共137窗公开状态不变。但客户开场短段仍为 UNKNOWN，首次出场完整性未通过；短段候选仍有新增公开边界误认，长期内存仍 INCONCLUSIVE。四锚点、完整实录及最终展示尚未全部验收通过。未合入最终 PR，也没有生成正式发布 ZIP。最新记录见 [arena 回收及同产物验收](DIARIZATION_ARENA_RELEASE_20260928.md)，身份根因及独立短段实验见 [容量修复](DIARIZATION_CAPACITY_FIX_20260928.md)和[短段恢复差分](DIARIZATION_SHORT_RUN_AND_CAPACITY_20260928.md)。
+**发布结论：BLOCKED。** 下文保留逐提交证据，不能将早期数值当作最新产物验收。`ad16789a` 已验证客户不同主讲人不再被 KMeans 误合并；`f6aef3d4` 修复销毁后空闲 arena 保留，短录音资源门禁转绿，连续短会话和124秒锚点共137窗公开状态不变。最新运行提交 `196caeec` 另含短 clean run 的 mask 归属修复：固定公开片真机strict DER为33.6679%，171窗在修复前后同张量分叉中的公开结果、临时更新、身份及调用方展示不变。但客户开场短段仍为 UNKNOWN，公开集仍有既有误认和少数说话人低召回，长期内存及本次公开片严格实时趋势仍 INCONCLUSIVE。最新提交没有完整四锚点、16段及最终展示验收；未合入最终 PR，也没有生成正式发布 ZIP。最新记录见[短 mask 归属及公开片验证](DIARIZATION_SHORT_MASK_OWNERSHIP_20260928.md)，前序记录见 [arena 回收](DIARIZATION_ARENA_RELEASE_20260928.md)、[容量修复](DIARIZATION_CAPACITY_FIX_20260928.md)和[短段恢复差分](DIARIZATION_SHORT_RUN_AND_CAPACITY_20260928.md)。
 
 ## 代码变化
+
+短 mask 修复只阻止一个短 clean run 借用同时池化 overlap 的整窗 embedding 建档，保留纯净1帧/2帧证据。55项相关测试通过；Android共用native重编译通过，48项未变化的JVM测试复用有效缓存。四实录及一个公开片的既有host回放结果不变；新真机公开片又以自己的171窗张量完成前后分叉。最初与主机向量逐位比较的分析红灯已保留并纠正来源，未降低精度门槛；旧新真机共有的86个绝对PCM窗口全部逐位一致。它不构成DER改善或当前客户短段UNKNOWN已解决的证据。
 
 资源修复见[空闲 arena 销毁回收](DIARIZATION_ARENA_RELEASE_20260928.md)：最早错误状态是模型销毁后 live=0、reserved=255 MiB。仅在没有活跃分配时回收后 reserved=1 MiB；正式候选已去除临时日志。两次连续短会话、124秒锚点、cancel-full及Runtime释放后恢复均通过对应SDK门禁，长时内存结论仍未通过。[首窗 Run 后释放实验](DIARIZATION_MEMORY_OWNERSHIP_20260928.md)保留为已否决的历史分叉，不作为当前生产候选。
 
