@@ -150,9 +150,14 @@ class HarmonyCommunityPublicContractTest(unittest.TestCase):
           const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
             onWindowResult(){},onFinished(){}},(event,fields)=>events.push({event,fields}));
           const first=window(0);first.result.embeddings[0]=Math.fround(1/3);
+          first.result.runRanges=Float32Array.of(0,0,10,130);
+          first.result.runEmbeddings=new Float32Array(256);first.result.runEmbeddings[0]=Math.fround(2/3);
           s.totalSamples=176000;s.onWindow(first);
           const captured=events.find(e=>e.event==='DIARIZATION_COMMUNITY_WINDOW').fields;
           first.result.embeddings[0]=7;
+          first.result.runEmbeddings[0]=9;first.result.runRanges[2]=20;
+          assert.equal(captured.runEmbeddings[0],Math.fround(2/3),'replay must use the original run vector');
+          assert.deepEqual([...captured.runRanges],[0,0,10,130]);
           assert.equal(captured.embeddings[0],Math.fround(1/3),'captured scores cannot change after recording');
           captured.segmentations[0]=99;
           const next=window(1);s.onWindow(next);

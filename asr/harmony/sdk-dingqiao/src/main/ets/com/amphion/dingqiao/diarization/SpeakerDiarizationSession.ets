@@ -264,6 +264,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       // per-run evidence fields. Keep their snapshots readable as empty run
       // evidence while native production windows always provide the arrays.
       fields['runRanges'] = (window.result.runRanges ?? new Float32Array(0)).slice();
+      fields['runEmbeddings'] = (window.result.runEmbeddings ?? new Float32Array(0)).slice();
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
