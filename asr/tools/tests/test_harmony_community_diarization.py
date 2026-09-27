@@ -45,6 +45,45 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    def test_commit_period_only_changes_freeze_deadline_and_finish_drains_short_tail(self):
+        run_community_session("""
+          for(const period of [30000,60000,120000]) {
+            const published=[],updates=[];
+            const s=new SpeakerDiarizationSession({},'',4,{
+              onSpeakerDiarizationUpdate:u=>updates.push(u),
+              onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)},
+              undefined,undefined,period);
+            s.client.cluster=async(segments,embeddings,cap,starts,begin)=>({
+              speakerCount:1,hard:Array(starts.length*3).fill(0),turns:[[begin/16,period+5000,0]]});
+            s.totalSamples=(period+5000)*16;
+            s.observeAsrFinal({result:'完整原句',beginTime:100,endTime:5000,isLast:false},
+              {tokens:['完','整','原','句'],timestamps:[.1,1,2,3],audioEndSample:6000*16,isLast:false});
+            s.asrFinalDelivered({audioEndSample:6000*16,isLast:false});
+            s.onWindow(window(0));s.asrAudioProcessed(10000*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(updates.length,1,'preview remains at 10 seconds for every commit period');
+            assert.equal(published.length,0);
+            s.onWindow(window(period/1000-6));
+            s.asrAudioProcessed((period-20)*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,0,'never freeze before the selected deadline');
+            s.asrAudioProcessed(period*16);
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,1);
+            assert.equal(published[0].windowEndTime,6000);
+            const frozen=JSON.stringify(published[0]);
+            s.finish();s.onDrained();
+            s.observeAsrFinal({result:'尾句',beginTime:period,endTime:period+1000,isLast:true},
+              {tokens:['尾','句'],timestamps:[period/1000,period/1000+.5],
+                audioEndSample:(period+5000)*16,isLast:true});
+            await new Promise(r=>setImmediate(r));
+            assert.equal(published.length,2);
+            assert.equal(published[1].isSessionFinal,true);
+            assert.equal(published[1].utterances.map(u=>u.text).join(''),'尾句');
+            assert.equal(JSON.stringify(published[0]),frozen,'finish cannot change an earlier batch');
+          }
+        """)
+
     def test_window_identity_survives_pruning_and_preview_does_not_enroll(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -61,6 +100,23 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.equal(next.before,2,'temporary labels must not consume frozen identities');
           assert.equal(next.after,3);
           assert.deepEqual(new Set(ids.anchorWindowIds()),new Set(['a','b','new']));
+        """)
+
+    def test_enrollment_keeps_the_original_batch_without_growing_on_later_speech(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
+          const ids=new CommunitySpeakerIdentity(4);
+          ids.assign(['a','b','c'],[0,-2,-2,0,-2,-2,1,-2,-2],2,[10,0,0,20,0,0,10,0,0]);
+          assert.deepEqual(ids.anchorWindowIds(),['a','b','c'],'one representative loses the original VBx support');
+          for(let round=0;round<100;round++){{
+            const key=`later-${{round}}`;
+            ids.assign(['a','b','c',key],[0,-2,-2,0,-2,-2,1,-2,-2,0,-2,-2],2,
+              [10,0,0,20,0,0,10,0,0,500,0,0]);
+            ids.retainWindows(ids.anchorWindowIds());
+          }}
+          assert.deepEqual(ids.anchorWindowIds(),['a','b','c']);
+          assert.equal(ids.committedIds.size,3,'discarded windows cannot accumulate identity records');
         """)
 
     def test_live_preview_arrives_before_finish_and_final_can_revoke_it(self):
@@ -136,7 +192,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           };
           for(const start of [0,2,4,6,8,10])s.onWindow(window(start));
           const first=await s.commitWindow(20000,20000,false,0),frozen=JSON.stringify(first);
-          assert.equal(first.speakerCount,2);assert.equal(s.windows.length,2,'only enrollment anchors remain');
+          assert.equal(first.speakerCount,2);assert.equal(s.windows.length,6,'retain the original enrollment batch');
           s.onWindow(window(280));
           const second=await s.commitWindow(290000,Infinity,true,20000);
           assert.equal(second.speakerCount,2);

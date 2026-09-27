@@ -9,6 +9,7 @@ export interface CommunityIdentityAssignment {
 export class CommunitySpeakerIdentity {
   private committedIds: Map<string, number> = new Map<string, number>();
   private committedActivity: Map<string, number> = new Map<string, number>();
+  private enrollmentWindows: Set<string> = new Set<string>();
   private nextId: number = 0;
   private readonly maxSpeakers: number;
 
@@ -18,22 +19,17 @@ export class CommunitySpeakerIdentity {
     const copy = new CommunitySpeakerIdentity(this.maxSpeakers);
     copy.committedIds = new Map(this.committedIds);
     copy.committedActivity = new Map(this.committedActivity);
+    copy.enrollmentWindows = new Set(this.enrollmentWindows);
     copy.nextId = this.nextId;
     return copy;
   }
 
-  /** Keep one actual enrollment window per published identity across pruning. */
+  /** Keep the evidence that established each identity, once per enrollment.
+   * VBx depends on observation support; a single selected window is not an
+   * equivalent summary of the batch that established a frozen identity.
+   */
   anchorWindowIds(): string[] {
-    const anchors: string[] = new Array<string>(this.nextId).fill('');
-    const weights: number[] = new Array<number>(this.nextId).fill(-1);
-    this.committedIds.forEach((id: number, key: string): void => {
-      const weight = this.committedActivity.get(key) ?? 0;
-      if (weight > weights[id]) {
-        weights[id] = weight;
-        anchors[id] = key.substring(0, key.lastIndexOf(':'));
-      }
-    });
-    return anchors.filter(id => id.length > 0);
+    return Array.from(this.enrollmentWindows);
   }
 
   retainWindows(windowIds: string[]): void {
@@ -87,6 +83,7 @@ export class CommunitySpeakerIdentity {
         publishedActivity[index] <= 0 || (visibleClusters !== undefined && !visibleClusters[cluster])) continue;
       this.committedIds.set(keys[index], best[cluster]);
       this.committedActivity.set(keys[index], publishedActivity[index]);
+      if (best[cluster] >= before) this.enrollmentWindows.add(windowIds[Math.floor(index / 3)]);
     }
     return { mapping: best, votes, before, after: this.nextId };
   }

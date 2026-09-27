@@ -287,6 +287,15 @@ export class SpeakerDiarizationLocalClient {
     result: CommunityDiarizationWindow): void {
     if (this.diagnostic === undefined) return;
     try {
+      const queueFields: Record<string, Object> = {};
+      queueFields['jobId'] = job.jobId;
+      queueFields['pendingJobs'] = this.queue.length;
+      queueFields['nativeCallsInFlight'] = 1;
+      queueFields['audioEndSample'] = this.spool.endOffset() / 2;
+      queueFields['completedThroughSample'] = job.realEndSample;
+      queueFields['audioDelayMs'] = Math.max(0, this.spool.endOffset() / 2 - job.realEndSample) / 16;
+      queueFields['elapsedMs'] = Date.now() - this.activeJobStartedMs;
+      this.diagnostic('DIARIZATION_QUEUE', queueFields);
       for (let channel = 0; channel < 3; channel++) {
         const active: number[] = [];
         const clean: number[] = [];

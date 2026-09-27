@@ -34,7 +34,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   SpeakerDiarizationSessionController {
   private readonly client: SpeakerDiarizationLocalClient;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
-  private readonly commitClock: DiarizationCommitClock = new DiarizationCommitClock();
+  private readonly commitClock: DiarizationCommitClock;
   private readonly identities: CommunitySpeakerIdentity;
   private readonly windows: DiarizationLocalWindowResult[] = [];
   private readonly observer: SpeakerDiarizationSessionObserver;
@@ -63,10 +63,11 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void,
-    clientOptions?: SpeakerDiarizationLocalClientOptions) {
+    clientOptions?: SpeakerDiarizationLocalClientOptions, commitPeriodMs: number = 120000) {
     this.observer = observer;
     this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
+    this.commitClock = new DiarizationCommitClock(commitPeriodMs);
     this.identities = new CommunitySpeakerIdentity(maxSpeakers);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
@@ -82,6 +83,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   append(audio: ArrayBuffer): void {
     if (this.finishRequested || this.finished) return;
     this.totalSamples += audio.byteLength / 2;
+    if (this.diagnostic !== undefined) {
+      this.recordDecision('DIARIZATION_AUDIO_APPENDED', { audioEndSample: this.totalSamples });
+    }
     try {
       this.client.append(audio);
     } catch (e) {
@@ -154,6 +158,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   asrAudioProcessed(endSample: number): void {
     if (this.finished) return;
     this.processedThroughMs = Math.max(this.processedThroughMs, endSample * 1000 / SAMPLE_RATE);
+    if (this.diagnostic !== undefined) {
+      this.recordDecision('DIARIZATION_ASR_PROCESSED', { audioEndSample: endSample });
+    }
     const queued = this.commitClock.observeProcessedAudio(this.processedThroughMs);
     if (queued && this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
@@ -168,6 +175,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finishRequested || this.finished) return;
     this.finishRequested = true;
     this.confirmedInitialSilence = confirmedInitialSilence;
+    if (this.diagnostic !== undefined) {
+      this.recordDecision('DIARIZATION_FINISH', { confirmedInitialSilence });
+    }
     if (confirmedInitialSilence) {
       // The recognizer has already closed the initial-silence decision. A padded
       // model tail must not delay that deadline or invent speech after it.
@@ -237,6 +247,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   onDrained(): void {
     if (!this.finishRequested || this.finished) return;
     this.processDrained = true;
+    this.recordDecision('DIARIZATION_DRAINED', {});
     this.finalizeIfReady();
   }
 
@@ -327,9 +338,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const startedMs = Date.now();
       const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
         starts, beginTime * SAMPLE_RATE / 1000);
+      const clusterElapsedMs = Date.now() - startedMs;
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
-      this.inferenceMs += Date.now() - startedMs;
+      this.inferenceMs += clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
       for (const turn of clustered.turns) {
         if (turn[0] < endTime && turn[1] > beginTime) visibleClusters[turn[2]] = true;
@@ -368,6 +380,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['clusterToFrozenId'] = identity.mapping;
         fields['registryBefore'] = identity.before;
         fields['registryAfter'] = identity.after;
+        fields['clusterElapsedMs'] = clusterElapsedMs;
         this.recordDecision(provisional ? 'DIARIZATION_COMMUNITY_PREVIEW' : 'DIARIZATION_COMMUNITY_COMMIT', fields);
       }
     }
@@ -396,8 +409,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
     this.transcript.commitThrough(endTime);
     this.publishedThrough = endTime;
-    // Retain acoustic context crossing this boundary plus one real enrollment
-    // window per frozen identity. Array positions are never identity keys.
+    // Retain crossing context and the original enrollment evidence. Later
+    // batches for existing identities do not enlarge the enrollment set.
+    // Array positions are never identity keys.
     if (isSessionFinal) {
       this.windows.splice(0, this.windows.length);
     } else if (Number.isFinite(evidenceEndTime)) {
