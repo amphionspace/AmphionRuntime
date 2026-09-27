@@ -52,3 +52,11 @@ Amphion-Harmony-ASR-Complete-<version>.zip.sha256
 - 最终 ZIP 专属报告、邮件放在 ZIP 外，绑定其 SHA-256，避免把报告回填 ZIP 后改变已验收输入。更改任何 ZIP 内容须生成新的身份记录并判断相关验证是否失效；仅邮件/外置说明变化不重跑真机。
 
 合入遵守仓库 PR 门禁：当前 HEAD 检查通过，拉取全部 review threads 并处理有效问题。二进制未改变的模板、文档和组包调整使用小型组包测试验证，复用已冻结二进制证据，不重新生成大型交付包。
+
+## 本地暂存与交付后归档
+
+每次交付按[对象存储归档规范](../../PUBLISHED_ARTIFACT_ARCHIVE.md)使用唯一暂存目录：
+`~/.cache/amphion-runtime/delivery-staging/asr/harmony/<version>/<source-commit>/`。
+打包脚本显式指定 `packages/` 为输出目录，最终外置报告放 `acceptance/`，解包验收放 `scratch/`。
+已发布完整包及必要外置附件上传公司交付桶，逐项回下载校验 SHA-256，并将精确对象位置记入项目归档索引。
+交付完成且归档可恢复后清理本地包与未修改的解包副本，不在仓库或个人交付目录长期保留历史版本。

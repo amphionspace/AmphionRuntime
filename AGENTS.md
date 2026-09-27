@@ -128,6 +128,8 @@ Debug 的核心不是反复重现现象，而是缩短“假设—证伪”的�
 
 ## 最终交付冻结与证据复用
 
+- 每次交付遵循 `delivery/PUBLISHED_ARTIFACT_ARCHIVE.md`：交付包只暂存于 `~/.cache/amphion-runtime/delivery-staging/<product>/<platform>/<version>/<source-commit>/`，长期归档到 `cos-amphion-delivery:amphion-runtime/releases/`，精确 URI 和 SHA-256 记录在 `delivery/published-artifact-archives.json`。归档完整回下载验证及远端索引保存后清理本地副本；身份不清的历史交付包记录哈希后直接删除，不作为历史包归档。不得将此规则扩大为删除独立诊断证据、源码或原始录音。
+
 - 鸿蒙 ASR 默认交付件遵循 `delivery/harmony-dingqiao/docs/DEFAULT_DELIVERY.md`，邮件使用同目录的 `customer/DELIVERY_EMAIL_TEMPLATE.md`。除用户明确调整外，保持完整 ZIP 五个目录及外置验收报告；不得默认退回 SDK-only 交付。
 - 更新日志逐项核对上一交付基线到当前构建提交的 PR；公共回调语义变化必须突出迁移方式，不能笼统宣称全部兼容。验收结论必须绑定最终 ZIP，并区分通过、未覆盖条件、失败及 INCONCLUSIVE。
 
