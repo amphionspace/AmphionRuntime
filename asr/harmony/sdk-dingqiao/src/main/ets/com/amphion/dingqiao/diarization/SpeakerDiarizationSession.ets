@@ -2,7 +2,7 @@ import { AsrResult, AsrTextNormalizationSpan, ResultAudioTimeline } from 'amphio
 import { DiarizationCommitClock } from './DiarizationCommitClock';
 import {
   DiarizedUtterance, SpeakerDiarizationDegradedReason, SpeakerDiarizationResult,
-  SpeakerDiarizationUpdate, SpeakerTurn, SpeechRecognitionResult
+  SpeakerDiarizationUpdate, SpeakerTurn, SpeakerTextSpan, SpeechRecognitionResult
 } from '../DingqiaoModels';
 import { DiarizationLocalWindowResult, SpeakerDiarizationLocalClient,
   SpeakerDiarizationLocalObserver, SpeakerDiarizationLocalClientOptions } from './SpeakerDiarizationLocalClient';
@@ -521,6 +521,19 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     result.confidence = value.confidence ?? 0;
     result.overlap = value.overlap;
     result.speakerInferred = value.speakerInferred ?? false;
+    result.speakerTextSpans = (value.speakerTextSpans ?? []).map(span => {
+      const item = new SpeakerTextSpan();
+      item.sourceBegin = span.sourceBegin;
+      item.sourceEnd = span.sourceEnd;
+      item.textBegin = span.textBegin;
+      item.textEnd = span.textEnd;
+      item.speakerIndex = speakerIndexFromInternalId(span.speakerId, this.maxSpeakers);
+      item.secondarySpeakerIndexes = speakerIndexesFromInternalIds(span.secondarySpeakerIds, this.maxSpeakers, true);
+      item.confidence = span.confidence;
+      item.overlap = span.overlap;
+      item.speakerInferred = span.speakerInferred;
+      return item;
+    });
     return result;
   }
 

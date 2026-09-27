@@ -388,6 +388,16 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 `overlap` 只表示实际观察到重叠，先后换人不会被伪装成重叠。
 精确的角色及重叠起止位置以 `speakerTurns` 为准，不能把汇总字段解释为整段同时发言。
 
+Harmony `DiarizedUtterance.speakerTextSpans` 提供与句级汇总独立的文字归属。
+每项的 `sourceBegin/sourceEnd`、`textBegin/textEnd` 分别是本项 `rawText`、`text` 内的
+UTF-16 半开区间，另含 `speakerIndex`、`secondarySpeakerIndexes`、`confidence`、
+`overlap` 和 `speakerInferred`。来源不明确时数组为空；不能按字符数或时长自行补映射。
+转换单元跨角色时保留 UNKNOWN；推断范围仍标 `speakerInferred=true`、`confidence=0`。
+标点只影响呈现偏移，不重新计算这些范围的角色。它们不是声学时间区间，也不是词语或段落边界。
+需要展示一句内换人的调用方应使用这些范围，例如在完整连续原文上标色并提供角色图例；
+不要仅凭句级 `speakerIndex=-1` 把已对齐文字全部标成不确定，也不要据此拆坏完整词语。
+不使用新字段的调用方继续获得原有句级汇总；回调时序、冻结及结束语义不变。
+
 调用方直接展示完整 `text`；多个已知角色显示“多人／不确定”，其余 `-1` 显示“不确定”。
 迁移时停止依赖句内子片段 ID 或按时长多数决定整句身份；原始声学时间线仍可供核查。
 同一原句中最多 2500 ms 的 UNKNOWN 段允许有限邻接补全：首尾只有一个相邻已知角色，或前后角色一致，

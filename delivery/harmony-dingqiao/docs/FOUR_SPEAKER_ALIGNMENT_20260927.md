@@ -7,9 +7,12 @@
 用户确认四人；MOSS 仅接收原音，独立输出四个角色，属于辅助标注，不能当作人工真值。
 
 本次改变：新身份按首次可发布的声学出场顺序编号；ITN 通过实际选中路径提供来源关系；
-调用方区分句内轮流发言和声学 overlap。已发布身份、原始声学区间、文字、推断标记、
+SDK 新增原文到展示文字的角色范围 `speakerTextSpans`，调用方连续显示文字并标识角色。
+句级汇总仍表达整句参与者，不再被调用方当作每个字的归属。已发布身份、原始声学区间、文字、推断标记、
 回调及生命周期语义保持不变。不改模型、FST、阈值、窗口、hop、timeout 或默认定稿周期。
-不处理原生 ASR 错词、短插话声学边界争议，不把展示改善称为身份精度修复。
+用户听审确认轻声插话只有不完整单字，并明确要求不要围绕该 hard case 继续投入。
+本轮优先修复正常音量主讲人的文字归属传递；不补写漏词，不修改轻声声学边界，
+不把 SDK 对齐修复称为声学身份精度提升。原生 ASR 错词单独记录。
 
 ## 第一个错误状态与修复
 
@@ -21,9 +24,18 @@
    新接口沿实际选中的 tagger 路径记录输入消费位置，以语法 record 为不可拆分转换单元，
    保留重排、合并和展开的来源；验证 record 输出拼接与既有完整 Normalize 输出相同。
    无法对应时保留空映射，文字不变。没有 edit distance、字符串去重或均匀时间分配。
-3. 展示：末尾同一原生 utterance 的多个参与者被统一标为“多人／不确定”，容易与重叠混淆。
-   原始 turns 均 `overlap=false`。调用方按显式 overlap 区分“句内换人（文字归属不确定）”
-   与重叠，保留完整句子和时间区间，不按 token 标签拆坏词语。
+3. SDK 文字归属：原句 u11 在 94.840 秒（原文 UTF-16 offset 5）已有女声 token
+   对应的已知角色，但 `sentenceUtterances` 将整个混合句汇总为 UNKNOWN，公共结果没有
+   保留已知文字范围。固定 token、时间戳及声学 turns，仅插入标点，后半句就变为已知。
+   第一个归属信息损失在 SDK 句级聚合；调用方随后忠实显示该汇总，并非 UI 自行误认。
+   新增 `speakerTextSpans`，在原始 utterance 上先计算文字角色及推断，再按精确 ITN 来源
+   投影到展示文字；标点分句仅选择已有范围。每段保留主/副角色、UNKNOWN、overlap、
+   `speakerInferred` 和 confidence。跨角色的不可拆分 ITN record 保持 UNKNOWN，
+   包括未落到 token 起点的短暂相反声学证据；映射不明时返回空范围。
+4. 调用方使用文字范围给完整句子着色并列出角色图例，不在字符间插标签或强制换行。
+   同句顺序换人与声学 overlap 分开显示；推断提示和原始角色时间区间保留。
+   只改“句内换人”提示文案的旧候选不算此缺陷修复。旧调用方需要读取新字段才能显示
+   句内每段的归属；原句汇总、回调和 final/last/complete 语义均未修改。
 
 角色先在原始 utterance/token 时间轴上计算；ITN 来源及标点只选择原有证据，
 不重算邻接补全。跨人物的转换单元保持 UNKNOWN，来源不完整亦保持 UNKNOWN。
@@ -43,14 +55,33 @@ Speaker VAD 拒绝结果同时清除新增的来源文字，保持原有拒绝�
 | 文字变化 | — | 0 |
 | 新增强制身份合并 | — | 0 |
 
-剩余 10 字属于句内接话且对应边界存在争议。MOSS 提示 92.81–93.62 秒的短插话；
-SDK 只有非常短的该角色区间，原生 ASR 也未完整输出重复接话内容。
-未经听审裁定，不将这个差异归咎于 ITN，不把它改成单人或隐藏 UNKNOWN。
+上表 95→10 是 ITN 来源修复后的**句级 UNKNOWN 字符数**，不能当作身份准确率。
+新增文字范围后句级指标仍为 10，但这些文字不再全部显示为未知：前 5 个原文字符
+属于说话人 1，后 4 个属于说话人 2，其中末尾 2 字为有限邻接推断，confidence=0。
+文字仍是原生 ASR 输出；未用听审答案替换错词或补上轻声插话。
 
-原录音手机基线：48 窗，推理平均 573.153 ms / 最大 696.813 ms；
-平均 inference/hop 0.287，pending 最大 0，in-flight 最大 1，完成时音频延迟最大
-860 ms，finish 等待 887 ms；finish 前 last=0，之后 last/complete 各 1，无 timeout。
-这不是长时内存稳定证明：交互录音没有连续 RSS 采样。
+用户听审确认 90–97 秒有不完整的轻声插话，来自先前发言的男声（按出场为说话人 4），
+并非 MOSS 给出的完整词语。以下证据区分了各层，未据此宣称模型能力已经到顶：
+
+- 原生 ASR final 在 92.760–94.840 秒之间没有对应插话 token；女声原文也存在错词。
+  错误在 ITN 前已出现，但尚未用解码状态分叉确定其最内层原因。本补丁不修 ASR 漏词/错词。
+- 固定 PCM 的 5 个 10 秒窗口：主机同一 ONNX 的 589 帧输出与手机 segmentation mask
+  逐帧一致（0 差异），排除所查窗口输入和 native powerset 解码差异。
+- 重叠窗口对轻声插话有冲突：93.30 秒两窗投给说话人 4，三窗投给说话人 1。
+  2:2 平票区间仅置换 cluster 标签再还原，边界变化 135 ms，证明重建存在编号相关的
+  平票行为；不是“native 异常因此模型无能”的证据。此轻声范围未修，不继续叠加阈值。
+- 完整在线状态回放保留 48 窗、10 次预览、真实完成顺序；仅 finish 提交一次，之前无
+  已定稿身份、无跨提交历史裁剪。回放公共 turns/文字与手机一致，排除本样本的冻结、
+  历史身份分配及裁剪导致差异。
+- 新增字段后原始完整在线回放的旧公共字段、文字和 raw turns 均不变；同 token 的公共
+  文字归属、UNKNOWN、overlap 和推断标记在只改标点的对照中一致。
+
+0e057a55 真机对照：48 窗，推理平均 551.875 ms / 最大 684.632 ms；
+pending 最大 0、in-flight 最大 1、完成时音频延迟最大 580 ms；ASR 队列最大 780 ms，
+结束归零。finish 932 ms，finish 前 last=0，之后 last/complete 各 1，无 error/timeout。
+10 次预览聚类合计 123 ms，finish 聚类 232 ms。RSS 峰值 671.49 MiB，活跃尾部
+450.55 MiB，卸载后 308.01 MiB。该 UI 播放 102.38 秒音频耗时 123.142 秒，
+因此不以 inference/hop 或本次录音单独宣称长期实时无积压。新增字段后的同条件真机待补。
 
 ## 定稿周期
 
@@ -85,7 +116,11 @@ SDK 只有非常短的该角色区间，原生 ASR 也未完整输出重复接�
 - 原生 ITN 测试覆盖数值、百分比、日期、Unicode、重复字、规范化以及无法回溯来源的
   人工延迟输出 FST，普通 Normalize 输出逐项不变。
 - 已覆盖已定稿冻结、预览不建档、短插话、UNKNOWN、overlap、推断标记及拒绝结果清除来源。
-- 新 HAP 真机、平台构建、当前 HEAD CI 和全部 review threads：待完成，未宣称合入门禁通过。
+- 0e057a55：Harmony ZH_EN 构建/签名/安装、原录音 UI、18 模式 61 轮真机矩阵、
+  Android 381 项单测及 CI 通过，全部 review threads 已拉取（0 条）。这是新增字段之前的证据。
+- 新文字范围：37 项相关回归通过，原始在线回放通过。覆盖只改标点、ITN 跨角色、
+  映射不明、短插话、UNKNOWN、overlap、提交冻结及真实公共结果到页面的推断标记传递。
+  对应新提交 HAP、原录音 UI、当前 HEAD CI 和 review 门禁尚待补齐，未宣称合入通过。
 
 私有证据根：`~/.cache/amphion-runtime/diagnostics/four-speaker-tail-20260927-135910/`。
 原音及完整转写不入库。`input-map.json` 绑定完整 WAV/PCM；`session-3-events.ndjson` 是原始
@@ -93,3 +128,9 @@ SDK 只有非常短的该角色区间，原生 ASR 也未完整输出重复接�
 完整 WAV SHA-256：`0b31db1204abd6687c66dfea5e86ed2f2848e54bb67993f8930f81ec0957dc2b`。
 `original-device-metrics.json` 保留逐窗口与队列数据；`moss-run.json`、`moss-annotation/`
 保留辅助标注及绑定。模型/短插话精度问题继续由 #222 跟踪，长时稳定性由 #224 跟踪。
+
+白盒证据位于私有根 `tail-whitebox/`：`public-attribution-red.json`、
+`text-spans-red.log`、`online-tail-spans-replay.json`、`text-spans-regression.log`、
+`window-channels.json`、`segmentation-parity.json`、`reconstruction-frames.csv`、
+`reconstruct-label-permutation.json`、`asr-tail-events.json` 以及 `human-review-*.json`。
+轻声短插话/overlap 的未解决范围由 #222 单独跟踪，不能写成本补丁已修复。

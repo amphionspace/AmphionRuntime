@@ -80,6 +80,11 @@ class FinalSegment {
   }
 }
 
+interface SpeakerTextRun {
+  text: string;
+  speakerIndex: number;
+}
+
 @Entry
 @Component
 struct Index {
@@ -601,8 +606,10 @@ struct Index {
     const source = segment.speakerParts[0]?.sourceUtteranceId ?? '';
     const sequential = source.length > 0 && segment.speakerParts.every(part =>
       part.sourceUtteranceId === source && part.overlap === false);
+    const alignedText = segment.speakerParts.some(part =>
+      (part.speakerTextSpans ?? []).some(span => span.speakerIndex >= 0));
     if (known.size > 1) label = sequential && !overlap ?
-      '句内换人（文字归属不确定）' : '多人／不确定';
+      (alignedText ? '句内换人' : '句内换人（文字归属不确定）') : '多人／不确定';
     else if (unknown || overlap) label = '不确定';
     else if (known.size === 1) label = this.speakerLabel(Array.from(known)[0]);
     if (inferred) label += ' · 含推断补全';
@@ -612,6 +619,29 @@ struct Index {
 
   private refreshSpeakerDisplayIndexes(segments: FinalSegment[]): void {
     for (const segment of segments) segment.displaySpeakerIndex = segment.speakerIndex;
+  }
+
+  private segmentTextRuns(segment: FinalSegment): SpeakerTextRun[] {
+    const runs: SpeakerTextRun[] = [];
+    for (const part of segment.speakerParts) {
+      if ((part.speakerTextSpans ?? []).length === 0) {
+        runs.push({ text: part.text, speakerIndex: part.speakerIndex });
+        continue;
+      }
+      for (const span of part.speakerTextSpans) {
+        const text = part.text.slice(span.textBegin, span.textEnd);
+        const previous = runs[runs.length - 1];
+        // Color continuous text; ownership ranges are not word/paragraph cuts.
+        if (previous !== undefined && previous.speakerIndex === span.speakerIndex) previous.text += text;
+        else runs.push({ text, speakerIndex: span.speakerIndex });
+      }
+    }
+    return runs;
+  }
+
+  private speakerTextColor(speakerIndex: number): string {
+    const colors = ['#2E6BE6', '#B45309', '#047857', '#7C3AED'];
+    return speakerIndex >= 0 && speakerIndex < colors.length ? colors[speakerIndex] : '#666666';
   }
 
   private selectCustomerScenario(name: CustomerScenarioName): void {
@@ -1512,10 +1542,24 @@ struct Index {
             if (item.score !== undefined) {
               Span(`[声纹相似度 ${item.score.toFixed(2)}] `).fontColor(BRAND_ACCENT).fontWeight(FontWeight.Bold)
             }
-            Span(item.text)
+            if (item.speakerDiarization && item.speakerParts.length > 0) {
+              ForEach(this.segmentTextRuns(item), (run: SpeakerTextRun) => {
+                Span(run.text).fontColor(this.speakerTextColor(run.speakerIndex))
+              })
+            } else {
+              Span(item.text)
+            }
           }
           .width('100%')
           .fontSize(16)
+          if (item.speakerIndex < 0 && item.speakerParts.some(part => (part.speakerTextSpans ?? []).length > 0)) {
+            Row({ space: 12 }) {
+              ForEach(Array.from(new Set<number>(this.segmentTextRuns(item).map((run: SpeakerTextRun): number =>
+                run.speakerIndex))), (speakerIndex: number) => {
+                Text(this.speakerLabel(speakerIndex)).fontSize(12).fontColor(this.speakerTextColor(speakerIndex))
+              })
+            }
+          }
           if (item.speakerParts.length > 1 || item.speakerParts.some(part =>
             part.overlap || part.speakerInferred || part.secondarySpeakerIndexes.length > 0)) {
             Button(item.showSpeakerParts ? '收起角色详情' : '查看角色详情')

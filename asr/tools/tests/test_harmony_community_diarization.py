@@ -22,7 +22,7 @@ def run_community_session(body):
       const ResultAudioTimeline={endSample:r=>r.audioEndSample};
       const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
-      class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
+      class DiarizedUtterance {} class SpeakerTurn {} class SpeakerTextSpan {} class SpeakerDiarizationUpdate {}
       class SpeakerDiarizationLocalClient {
         evidence=[];
         retainEvidence(w){this.evidence.push({segments:w.segments.slice(),embeddings:w.embeddings.slice()});}
