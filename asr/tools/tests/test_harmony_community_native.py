@@ -626,6 +626,69 @@ int main() {
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
 
+    def test_saturated_short_tail_does_not_repeat_training(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Count fitted rows in an isolated header, not wall-clock time. Extending
+        # a saturated input with evidence that cannot be admitted must preserve
+        # identities without repeating the same training for every short tail.
+        header = (CPP / 'community_cluster.h').read_text()
+        entry = 'inline std::vector<int> Ahc(const Matrix& x) {'
+        self.assertEqual(header.count(entry), 1)
+        instrumented = header.replace(entry, 'inline size_t fittedRows=0;\n' + entry +
+                                      '\n  fittedRows+=x.size();')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  for(bool initiallyFull:{false,true}) {
+    std::vector<float> segments(2*589*3),embeddings(2*3*256),runs;
+    std::vector<int32_t> ranges;
+    auto add=[&](int w,int ch,int begin,int end,int axis) {
+      for(int f=begin;f<end;++f)segments[(w*589+f)*3+ch]=1;
+      embeddings[(w*3+ch)*256+axis]=1;
+      runs.resize(runs.size()+256);
+      if(end-begin>=118)runs[runs.size()-256+axis]=1;
+      ranges.insert(ranges.end(),{w,ch,begin,end});
+    };
+    add(0,0,0,130,0);add(0,1,150,280,1);add(0,2,300,430,2);
+    add(1,0,0,initiallyFull?130:68,3);
+    add(1,1,150,280,1);add(1,2,300,430,2);
+    community::fittedRows=0;
+    auto before=community::Cluster(segments,embeddings,2,p,4,runs,ranges);
+    const auto fitWork=community::fittedRows;
+    assert(before.centroids.size()==4);
+    assert(before.shortRunTrainingCount==(initiallyFull?0:1));
+    constexpr int windows=34;
+    segments.resize(windows*589*3);embeddings.resize(windows*3*256);
+    for(int w=2;w<windows;++w)add(w,0,0,68,w+2);
+    community::fittedRows=0;
+    auto after=community::Cluster(segments,embeddings,windows,p,4,runs,ranges);
+    assert(after.trainingRunIndices==before.trainingRunIndices);
+    assert(after.ahc==before.ahc && after.vbx.q==before.vbx.q);
+    assert(after.centroids==before.centroids);
+    assert(std::equal(before.frame_hard.begin(),before.frame_hard.end(),after.frame_hard.begin()));
+    for(int w=2;w<windows;++w)assert(after.frame_hard[(w*589+20)*3]==-2);
+    assert(community::fittedRows==fitWork);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            local = Path(directory)
+            (local / 'community_cluster.h').write_text(instrumented)
+            source = local / 'saturated-tail.cpp'
+            binary = local / 'saturated-tail'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(local),
+                            '-I', str(CPP), str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_short_enrollment_owns_the_full_embedding_mask(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:

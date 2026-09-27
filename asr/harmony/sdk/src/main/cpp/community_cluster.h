@@ -243,7 +243,10 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     };
     int groups=groupCount(train);
     if(groups>0){
-      for(size_t r=0;r<shortCandidate.size();++r)if(shortCandidate[r]){
+      // Admission requires exactly one additional group within the cap. Once
+      // full, no later candidate can change train or groups; avoid refitting
+      // the same history for every remaining, necessarily rejected short run.
+      for(size_t r=0;r<shortCandidate.size()&&groups<maxSpeakers;++r)if(shortCandidate[r]){
         Matrix proposed=train;proposed.push_back(shortCandidateVectors[r]);
         const int next=groupCount(proposed);
         if(next==groups+1&&next<=maxSpeakers){
