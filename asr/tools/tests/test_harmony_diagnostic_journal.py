@@ -86,6 +86,19 @@ class HarmonyDiagnosticJournalTest(unittest.TestCase):
             assert.equal(faults.open,0);
         ''')
 
+    def test_preview_releases_persisted_tensor_history_without_losing_export(self):
+        self.run_journal('''
+            const records=[event(1,'DIARIZATION_COMMUNITY_PREVIEW',
+              {trainingPosteriors:[[.2,.8]],hard:[0,1],clusterElapsedMs:12})];
+            const expected=encoded(records);
+            const journal=new DiagnosticEventJournal('events.full.ndjson');
+            journal.persist(records);
+            assert.equal(records[0].fields.trainingPosteriors,undefined);
+            assert.equal(records[0].fields.hard,undefined);
+            assert.equal(records[0].fields.clusterElapsedMs,12);
+            assert.equal(read(journal,records),expected);
+        ''')
+
     def test_partial_write_keeps_fields_and_retry_preserves_exact_history(self):
         self.run_journal('''
             const journal=new DiagnosticEventJournal('events.full.ndjson');

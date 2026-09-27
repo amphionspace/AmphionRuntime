@@ -199,7 +199,7 @@ internal class DiarizationTranscriptState {
             }
             val single = known.size == 1 && !overlap && bounded && parts.isNotEmpty() &&
                 parts.all { it.speakerId == known.single() }
-            val inferred = single && (unknown.isNotEmpty() || parts.any { it.speakerInferred })
+            val inferred = parts.any { it.speakerInferred } || (single && unknown.isNotEmpty())
             DiarizedTranscriptUtterance(
                 utteranceId = utterance.utteranceId, sourceUtteranceId = utterance.utteranceId,
                 rawText = utterance.rawText, text = utterance.text,
@@ -353,11 +353,10 @@ internal class DiarizationTranscriptState {
 
     private fun splitByTokenSpeaker(utterance: StoredUtterance, textBoundaries: List<Int>): List<DiarizedTranscriptUtterance> {
         val result = mutableListOf<DiarizedTranscriptUtterance>()
-        val unanimous = unanimousSpeakerTurn(utterance)
         var groupStart = 0
-        var active = turnAt(utterance.tokenTimesMs[0]) ?: unanimous
+        var active = turnAt(utterance.tokenTimesMs[0])
         for (index in 1..utterance.tokens.size) {
-            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) ?: unanimous else null
+            val next = if (index < utterance.tokens.size) turnAt(utterance.tokenTimesMs[index]) else null
             val same = index < utterance.tokens.size &&
                 (next?.speakerId ?: "UNKNOWN") == (active?.speakerId ?: "UNKNOWN")
             if (same) continue
@@ -394,7 +393,7 @@ internal class DiarizationTranscriptState {
     }
 
     private fun backfillUnknown(parts: List<DiarizedTranscriptUtterance>): List<DiarizedTranscriptUtterance> {
-        // One current inference hop; operating points are recorded in
+        // Fixed authorized backfill bound, independent of the inference hop; see
         // delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
         val resolved = parts.mapIndexed { index, part ->
             val duration = part.endTime - part.beginTime
@@ -446,29 +445,19 @@ internal class DiarizationTranscriptState {
     private fun blocksBackfill(secondary: List<String>, overlap: Boolean): Boolean =
         secondary.any { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" } || (overlap && secondary.isEmpty())
 
-    private fun unanimousSpeakerTurn(utterance: StoredUtterance): SpeakerTimelineTurn? {
-        var candidate: SpeakerTimelineTurn? = null
-        for (turn in turns) {
-            if (overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) <= 0) continue
-            // No acoustic coverage is not the same as explicit uncertainty or overlap.
-            if (turn.speakerId == "UNKNOWN" || turn.overlap || turn.secondarySpeakerIds.isNotEmpty() ||
-                (candidate != null && candidate.speakerId != turn.speakerId)) return null
-            candidate = turn
-        }
-        return candidate
-    }
-
     private fun unsplit(utterance: StoredUtterance): DiarizedTranscriptUtterance {
         val assignment = assignmentFor(utterance.beginTime, utterance.endTime)
+        // Text-only ITN has no exact source provenance for lexical rewrites.
+        val exactText = tokenTextBoundaries(listOf(utterance.rawText), utterance.text) != null
         return DiarizedTranscriptUtterance(
             utterance.utteranceId,
             utterance.rawText,
             utterance.text,
             utterance.beginTime,
             utterance.endTime,
-            utterance.speakerId,
+            if (exactText) utterance.speakerId else "UNKNOWN",
             utterance.secondarySpeakerIds.toList(),
-            assignment.confidence,
+            if (exactText) assignment.confidence else 0f,
             turns.any { it.overlap && overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 },
         )
     }
