@@ -631,7 +631,7 @@ struct Index {
       const pieces: SpeakerTextRun[] = (part.speakerTextSpans ?? []).length === 0 ? [{
         text: part.text, speakerIndex: part.speakerIndex, hasUnknown: part.speakerIndex < 0,
         overlap: part.overlap, speakerInferred: part.speakerInferred, confidence: part.confidence
-      }] : part.speakerTextSpans.map(span => ({
+      }] : part.speakerTextSpans.map((span): SpeakerTextRun => ({
         text: part.text.slice(span.textBegin, span.textEnd), speakerIndex: span.speakerIndex,
         hasUnknown: span.speakerIndex < 0, overlap: span.overlap,
         speakerInferred: span.speakerInferred, confidence: span.confidence
