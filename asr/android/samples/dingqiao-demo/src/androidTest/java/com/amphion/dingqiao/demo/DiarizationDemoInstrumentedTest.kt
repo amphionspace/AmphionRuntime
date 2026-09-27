@@ -100,6 +100,10 @@ class DiarizationDemoInstrumentedTest {
         val vadEnd = args.getString("diarizationVadEndMs")?.toIntOrNull()
         assumeTrue("Pass diarizationVadEndMs=800/600/400 to run the audio experiment", vadEnd != null)
         require(vadEnd in listOf(800, 600, 400))
+        val foreground = if (args.getString("harmonyAcceptance") == "true") activity() else null
+        foreground?.let { current -> instrumentation.runOnMainSync {
+            current.window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } }
         val app = instrumentation.targetContext.applicationContext as DingqiaoApp
         val ready = CountDownLatch(1)
         var runtimeError = ""
@@ -246,6 +250,7 @@ class DiarizationDemoInstrumentedTest {
         } finally {
             if (engine.isBusy()) engine.cancel(sid)
             engine.shutdown()
+            foreground?.let { current -> instrumentation.runOnMainSync { current.finish() } }
         }
     }
 
