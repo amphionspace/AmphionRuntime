@@ -143,20 +143,26 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
       for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
     }
   }
-  // Upstream pads zero-score tracks to the maximum observed voice count.
-  // An unenrolled simultaneous voice stays anonymous, even when another voice
-  // has a centroid. Enrollment count must not discard overlap evidence.
-  int clusters=knownClusters;
+  // Voice count is evidence of speech, not of a particular identity. Reserve
+  // anonymous tracks even when the global registry already has enough named
+  // voices: none of those voices may have acoustic support at this frame.
+  int anonymousTracks=0;
   for(int t=0;t<total;++t){
     counts[t]=weights[t]>0?std::min(static_cast<int>(std::nearbyint(counts[t]/weights[t])),maxSpeakers):0;
-    clusters=std::max(clusters,static_cast<int>(counts[t]));
+    anonymousTracks=std::max(anonymousTracks,static_cast<int>(counts[t]));
   }
+  const int clusters=knownClusters+anonymousTracks;
   for(auto& row:activation)row.resize(clusters);
   std::vector<Turn> turns;std::vector<int> start(clusters,-1);
   for(int t=0;t<total;++t){
     int count=static_cast<int>(counts[t]);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
     std::stable_sort(order.begin(),order.end(),[&](int a,int b){return activation[t][a]>activation[t][b];});
-    std::vector<bool> on(clusters,false);for(int j=0;j<count;++j)on[order[j]]=true;
+    std::vector<bool> on(clusters,false);int anonymous=knownClusters;
+    for(int j=0;j<count;++j){
+      const int candidate=order[j];
+      if(candidate<knownClusters && activation[t][candidate]>0)on[candidate]=true;
+      else on[anonymous++]=true;
+    }
     for(int k=0;k<clusters;++k){
       if(on[k]&&start[k]<0)start[k]=t;
       if(!on[k]&&start[k]>=0){turns.push_back({(firstFrame+start[k])*step+halfFrame,(firstFrame+t)*step+halfFrame,k<knownClusters?k:-1});start[k]=-1;}
@@ -173,9 +179,13 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     for(int k=0;k<local;++k){int i=w*local+k;Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}}
   }
   if(train.empty()){result.hard=std::vector<int>(windows*local,-2);return result;}
-  if(train.size()==1){result.centroids=Matrix(1,train[0]);result.hard=std::vector<int>(windows*local,0);for(int i=0;i<windows*local;++i)if(!activity[i])result.hard[i]=-2;return result;}
-  result.ahc=Ahc(train);result.features=plda.Apply(train);result.vbx=Vbx(result.features,plda.phi,result.ahc);
-  for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
+  // A single enrollment still goes through the same constrained assignment.
+  // Other active local tracks must not inherit its identity unconditionally.
+  if(train.size()==1)result.centroids=Matrix(1,train[0]);
+  else {
+    result.ahc=Ahc(train);result.features=plda.Apply(train);result.vbx=Vbx(result.features,plda.phi,result.ahc);
+    for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
+  }
   if(maxSpeakers<1||maxSpeakers>4)throw std::runtime_error("invalid speaker cap");
   if(result.centroids.size()>static_cast<size_t>(maxSpeakers)) {
     auto labels=KMeans(train,maxSpeakers);
@@ -188,8 +198,8 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   }
   const int k=result.centroids.size();
   if(k<1)throw std::runtime_error("Community clustering has no centroid");
-  Matrix scores(windows*local,Vec(k));double minimum=std::numeric_limits<double>::infinity();bool anyNan=false;
-  for(int i=0;i<windows*local;++i)for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=embeddings[i*dim+j],u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double score=1+dot/std::sqrt(a*b);scores[i][c]=score;if(std::isfinite(score))minimum=std::min(minimum,score);else anyNan=true;}
+  Matrix scores(windows*local,Vec(k));double minimum=std::numeric_limits<double>::infinity();
+  for(int i=0;i<windows*local;++i)for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=embeddings[i*dim+j],u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double score=1+dot/std::sqrt(a*b);scores[i][c]=score;if(std::isfinite(score))minimum=std::min(minimum,score);}
   result.scores=scores;
   if(result.usedKMeans) {
     // The upstream cap branch explicitly disables constrained assignment.
@@ -201,7 +211,9 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     }
     return result;
   }
-  double inactive=anyNan?minimum:minimum-1.;
+  // Silent tracks must rank below every active track, including when their
+  // embeddings are zero/NaN. A tie can otherwise consume the only identity.
+  double inactive=minimum-1.;
   for(int i=0;i<windows*local;++i)for(auto& score:scores[i]){if(!activity[i])score=inactive;else if(!std::isfinite(score))score=minimum;}
   result.hard=std::vector<int>(windows*local,-2);
   for(int w=0;w<windows;++w){
