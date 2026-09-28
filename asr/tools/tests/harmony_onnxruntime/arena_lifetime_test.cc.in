@@ -1,0 +1,88 @@
+// Provider lifetime regression. The destructor is extracted from the patched
+// runtime. This fixture models retained storage; it does not replace the real
+// BFCArena or device memory checks.
+#include <cassert>
+#include <cstdint>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
+enum { OrtArenaAllocator = 1, OrtDeviceAllocator = 0 };
+struct AllocatorStats { int64_t bytes_in_use = 0; };
+struct Status {
+  bool IsOK() const { return true; }
+  std::string ErrorMessage() const { return ""; }
+};
+struct BFCArena {
+  struct Region { std::vector<int> values; bool live; };
+  std::vector<Region> regions;
+  int type = OrtArenaAllocator;
+  struct MemoryInfo { int alloc_type; };
+  MemoryInfo Info() const { return {type}; }
+  int Allocate(int value) {
+    regions.push_back({std::vector<int>(1024, value), true});
+    return static_cast<int>(regions.size()) - 1;
+  }
+  void Free(int id) { regions[id].live = false; }
+  void GetStats(AllocatorStats* stats) {
+    stats->bytes_in_use = 0;
+    for (auto& region : regions) {
+      if (region.live) stats->bytes_in_use += region.values.size() * sizeof(int);
+    }
+  }
+  Status Shrink() {
+    for (auto& region : regions) if (!region.live) region.values.clear();
+    return {};
+  }
+  size_t Retained() const {
+    size_t count = 0;
+    for (auto& region : regions) count += region.values.size();
+    return count;
+  }
+};
+static std::shared_ptr<BFCArena> stored = std::make_shared<BFCArena>();
+static int deinitializations = 0, poolsClosed = 0;
+auto GetStoredAllocator() {
+  return std::pair<std::shared_ptr<BFCArena>&, void*>(stored, nullptr);
+}
+void xnn_deinitialize() { ++deinitializations; }
+void pthreadpool_destroy(void*) { ++poolsClosed; }
+#define LOGS_DEFAULT(level) std::cerr
+class XnnpackExecutionProvider {
+ public:
+  ~XnnpackExecutionProvider();
+ private:
+  void* xnnpack_thread_pool_ = nullptr;
+};
+/* DESTRUCTOR */
+
+int main() {
+  auto first = std::make_unique<XnnpackExecutionProvider>();
+  auto second = std::make_unique<XnnpackExecutionProvider>();
+  int a = stored->Allocate(11), b = stored->Allocate(42);
+  stored->Free(a);
+  first.reset();
+  assert(stored->Retained() == 2048 && "another provider is still active");
+  for (int value : stored->regions[b].values) assert(value == 42);
+  stored->Free(b);
+  second.reset();
+  assert(stored->Retained() == 0 && "last provider must release unused workspace");
+
+  auto next = std::make_unique<XnnpackExecutionProvider>();
+  int c = stored->Allocate(7);
+  for (int value : stored->regions[c].values) assert(value == 7);
+  stored->Free(c);
+  next.reset();
+  assert(stored->Retained() == 0);
+
+  // Non-arena allocators retain their own cleanup policy.
+  stored->type = OrtDeviceAllocator;
+  auto nonArena = std::make_unique<XnnpackExecutionProvider>();
+  int d = stored->Allocate(8);
+  stored->Free(d);
+  nonArena.reset();
+  assert(stored->Retained() == 1024);
+  assert(deinitializations == 4 && poolsClosed == 4);
+  std::cout << "PASS final-owner release, live owner, next provider, non-arena policy\n";
+}

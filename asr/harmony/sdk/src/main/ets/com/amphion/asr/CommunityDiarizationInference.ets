@@ -16,6 +16,8 @@ export interface CommunityDiarizationCluster {
   usedKMeans: boolean;
   frameHard: number[];
   trainingRunIndices: number[];
+  capacityRms: number[];
+  retainedClusters: number[];
 }
 
 export class CommunityDiarizationInference {
@@ -36,10 +38,10 @@ export class CommunityDiarizationInference {
 
   async cluster(segments: Float32Array, embeddings: Float32Array, runEmbeddings: Float32Array,
     runRanges: Float32Array, maxSpeakers: number, windowStartSamples: Float64Array,
-    beginSample: number): Promise<CommunityDiarizationCluster> {
+    beginSample: number, runRms: Float32Array): Promise<CommunityDiarizationCluster> {
     if (this.closed || this.handle === undefined) throw new Error('Community model is not loaded');
     const result = await clusterCommunityDiarization(this.handle, segments, embeddings, runEmbeddings,
-      runRanges, maxSpeakers, windowStartSamples, beginSample);
+      runRanges, maxSpeakers, windowStartSamples, beginSample, runRms);
     return JSON.parse(result) as CommunityDiarizationCluster;
   }
 

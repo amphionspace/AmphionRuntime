@@ -21,7 +21,7 @@ internal data class CommunityDiarizationCluster(
 internal class CommunityDiarizationInference(assets: List<File>) : AutoCloseable {
     init { System.loadLibrary("amphion_diarization_jni") }
     private var handle = nativeLoad(assets[0].absolutePath, assets[1].absolutePath,
-        assets[2].absolutePath, assets[3].absolutePath)
+        assets[2].absolutePath, assets[3].absolutePath, assets[4].absolutePath)
 
     fun process(samples: FloatArray): CommunityDiarizationWindow = nativeProcess(handle, samples)
 
@@ -39,7 +39,7 @@ internal class CommunityDiarizationInference(assets: List<File>) : AutoCloseable
     }
 
     override fun close() { if (handle != 0L) nativeClose(handle); handle = 0 }
-    private external fun nativeLoad(segmentation: String, embedding: String, feature: String, plda: String): Long
+    private external fun nativeLoad(segmentation: String, encoder: String, pooling: String, feature: String, plda: String): Long
     private external fun nativeProcess(handle: Long, samples: FloatArray): CommunityDiarizationWindow
     private external fun nativeCluster(handle: Long, segments: FloatArray, embeddings: FloatArray,
         maxSpeakers: Int, starts: DoubleArray, beginSample: Double): String

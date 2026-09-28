@@ -68,14 +68,23 @@ class HarmonyDiarizationEvidenceSpoolTest(unittest.TestCase):
         self.run_spool('''
           const spool=new DiarizationEvidenceSpool('.');
           const segments=values(1767),embeddings=values(768),runs=values(256),
-            ranges=new Float32Array([0,0,10,130]);
-          spool.append(segments,embeddings,runs,ranges);
+            ranges=new Float32Array([0,0,10,130]),levelBuffer=Float32Array.of(99,.125,99);
+          spool.append(segments,embeddings,runs,ranges,levelBuffer.subarray(1,2));
+          levelBuffer.fill(99);
           spool.append(segments,embeddings,new Float32Array(0),new Float32Array(0));
           const first=spool.read(1);
           assert.equal(first.runEmbeddings.length,256);
           assert.deepEqual(Array.from(first.runRanges),[0,0,10,130]);
+          assert.deepEqual([...first.runRms],[.125]);first.runRms[0]=55;
           const all=spool.read(2);
           assert.equal(all.runEmbeddings.length,256);
           assert.deepEqual(Array.from(all.runRanges),[0,0,10,130]);
-          spool.remove();
+          assert.deepEqual([...all.runRms],[.125]);
+          assert.throws(()=>spool.append(segments,embeddings,runs,ranges),/shape/);
+          spool.append(segments,embeddings,runs,ranges,Float32Array.of(.75));
+          assert.deepEqual([...spool.read(1).runRms],[.125]);
+          const later=spool.read(3);
+          assert.deepEqual([...later.runRms],[.125,.75]);
+          assert.deepEqual([...later.runRanges],[0,0,10,130,2,0,10,130]);
+          spool.remove();assert.equal(open,0);assert.ok(!nodefs.existsSync('run-rms.f32'));
         ''')

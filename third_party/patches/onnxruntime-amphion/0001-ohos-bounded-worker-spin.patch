@@ -161,3 +161,36 @@ index 7cd81d8..c0cf831 100644
        if (p->affinity.has_value() && !p->affinity->empty()) {
          cpu_set_t cpuset;
          CPU_ZERO(&cpuset);
+diff --git a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
+index ba577ac..8680762 100644
+--- a/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
++++ b/onnxruntime/core/providers/xnnpack/xnnpack_execution_provider.cc
+@@ -12,6 +12,7 @@
+ #include "detail/node_support_checker.h"
+ 
+ #include "core/framework/compute_capability.h"
++#include "core/framework/bfc_arena.h"
+ #include "core/framework/kernel_registry.h"
+ #include "core/providers/shared/node_unit/node_unit.h"
+ #include "core/session/onnxruntime_session_options_config_keys.h"
+@@ -324,6 +325,20 @@ std::shared_ptr<KernelRegistry> XnnpackExecutionProvider::GetKernelRegistry() co
+ XnnpackExecutionProvider::~XnnpackExecutionProvider() {
+   xnn_deinitialize();
+   pthreadpool_destroy(xnnpack_thread_pool_);
++  // The XNNPACK allocator outlives every session. Release its empty regions
++  // after the last kernel owner is gone, instead of retaining graph workspace
++  // until process exit. Other sessions' live allocations must remain intact.
++  const auto& [allocator, ignored] = GetStoredAllocator();
++  if (allocator && allocator->Info().alloc_type == OrtArenaAllocator) {
++    AllocatorStats stats{};
++    allocator->GetStats(&stats);
++    if (stats.bytes_in_use == 0) {
++      auto status = static_cast<BFCArena*>(allocator.get())->Shrink();
++      if (!status.IsOK()) {
++        LOGS_DEFAULT(WARNING) << "XNNPACK idle arena release failed: " << status.ErrorMessage();
++      }
++    }
++  }
+ }
+ 
+ }  // namespace onnxruntime

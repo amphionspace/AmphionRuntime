@@ -60,6 +60,7 @@ struct Window {
   // [window, channel, begin frame, end frame) for each contiguous clean run.
   std::vector<float> run_embeddings;
   std::vector<float> run_ranges;
+  std::vector<float> run_rms;
   double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
 };
 
@@ -88,7 +89,8 @@ std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const ch
 
 class Model {
  public:
-  Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& embedding,
+  Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
+        const std::vector<uint8_t>& pooling,
         const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
     if (feature.size() != (400 + 80 * 257) * sizeof(float)) {
@@ -123,10 +125,11 @@ class Model {
     options.DisableMemPattern();
     options.SetIntraOpNumThreads(1);
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
+    pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
     // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
     // a second pool cannot compete with them between convolution operators.
     options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
-    embedding_ = Ort::Session(env_, embedding.data(), embedding.size(), options);
+    encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
     output_name_ = segmentation_.GetOutputNameAllocated(0, allocator).get();
@@ -170,13 +173,25 @@ class Model {
     auto features = community::Fbank(pcm, constants_);
     result.feature_ms = Milliseconds(start);
     std::array<int64_t, 3> feature_shape{1, 998, 80}, mask_shape{1, 3, 589};
-    std::vector<Ort::Value> tensors;
-    tensors.push_back(Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3));
-    tensors.push_back(Ort::Value::CreateTensor<float>(memory, masks.data(), masks.size(), mask_shape.data(), 3));
-    const char* names[] = {"fbank", "masks"};
-    const char* outputs[] = {"embeddings"};
+    std::array<int64_t, 3> encoded_shape{1, 2560, 125};
+    auto feature_tensor = Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3);
+    const char* encoder_inputs[] = {"fbank"};
+    const char* encoder_outputs[] = {"/resnet/pool/Reshape_output_0"};
     start = Clock::now();
-    auto embeddings = embedding_.Run(Ort::RunOptions{nullptr}, names, tensors.data(), 2, outputs, 1);
+    // The split graphs retain the pinned model's weights. Encoded features
+    // belong to this Process call and outlive all of its synchronous pooling
+    // calls; they are never retained across windows, generations or sessions.
+    auto encoded = encoder_.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
+    if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
+      throw std::runtime_error("invalid Community encoder output");
+    }
+    auto* encoded_values = encoded[0].GetTensorMutableData<float>();
+    std::vector<Ort::Value> tensors;
+    tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values, 2560 * 125, encoded_shape.data(), 3));
+    tensors.push_back(Ort::Value::CreateTensor<float>(memory, masks.data(), masks.size(), mask_shape.data(), 3));
+    const char* names[] = {"/resnet/pool/Reshape_output_0", "masks"};
+    const char* outputs[] = {"embeddings"};
+    auto embeddings = pooling_.Run(Ort::RunOptions{nullptr}, names, tensors.data(), 2, outputs, 1);
     if (embeddings[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
       throw std::runtime_error("invalid Community embedding output");
     }
@@ -194,19 +209,37 @@ class Model {
         const int next_kind = active ? (clean[base + frame] > 0 ? 1 : 0) : -1;
         if (next_kind != kind && begin >= 0) {
           const int end = frame;
+          // Match the same frame-center cells used for public reconstruction.
+          // Other runs, pauses and overlap must not set this run's level.
+          double squared = 0;
+          const size_t first = std::min(pcm.size(), static_cast<size_t>(std::llround(495.5 + begin * 270.)));
+          const size_t last = std::min(pcm.size(), static_cast<size_t>(std::llround(495.5 + end * 270.)));
+          if (kind == 1) for (size_t i = first; i < last; ++i) squared += static_cast<double>(pcm[i]) * pcm[i];
+          result.run_rms.push_back(kind == 1 && last > first ? std::sqrt(squared / (last - first)) : 0.f);
           if (kind == 1 && end - begin >= .2 * 589) {
-            std::vector<float> run_masks(3 * 589, 0.f);
-            for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
-            std::vector<Ort::Value> run_tensors;
-            run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3));
-            run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, run_masks.data(), run_masks.size(), mask_shape.data(), 3));
-            auto run_output = embedding_.Run(Ort::RunOptions{nullptr}, names, run_tensors.data(), 2, outputs, 1);
-            if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
-              throw std::runtime_error("invalid Community run embedding output");
+            // The pinned model pools each mask channel independently. When
+            // this run is the entire selected channel mask, its vector was
+            // already computed from these exact features in this window.
+            // A disconnected tail (including a short one) prevents reuse.
+            const int selected_frames = std::count(masks.begin() + base,
+              masks.begin() + base + 589, 1.f);
+            if (selected_frames == end - begin) {
+              result.run_embeddings.insert(result.run_embeddings.end(), values + channel * 256,
+                                           values + (channel + 1) * 256);
+            } else {
+              std::vector<float> run_masks(3 * 589, 0.f);
+              for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
+              std::vector<Ort::Value> run_tensors;
+              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values, 2560 * 125, encoded_shape.data(), 3));
+              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, run_masks.data(), run_masks.size(), mask_shape.data(), 3));
+              auto run_output = pooling_.Run(Ort::RunOptions{nullptr}, names, run_tensors.data(), 2, outputs, 1);
+              if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
+                throw std::runtime_error("invalid Community run embedding output");
+              }
+              const auto* run_values = run_output[0].GetTensorData<float>();
+              result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
+                                           run_values + (channel + 1) * 256);
             }
-            const auto* run_values = run_output[0].GetTensorData<float>();
-            result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
-                                         run_values + (channel + 1) * 256);
           } else if (kind == 0) {
             // A finite zero vector would become eligible for a long overlap
             // run. NaN is deliberately rejected by the clusterer and keeps
@@ -232,7 +265,8 @@ class Model {
 
   std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
                       const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
-                      int max_speakers, const std::vector<double>& starts, double begin_sample) const {
+                      int max_speakers, const std::vector<double>& starts, double begin_sample,
+                      const std::vector<float>& run_rms = {}) const {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
@@ -246,7 +280,7 @@ class Model {
       native_ranges.push_back(static_cast<int32_t>(value));
     }
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers,
-                                     run_embeddings, native_ranges);
+                                     run_embeddings, native_ranges, run_rms);
     auto turns = community::Reconstruct(segments, result.hard, starts, begin_sample, max_speakers,
                                         result.frame_hard);
     std::ostringstream json;
@@ -261,6 +295,7 @@ class Model {
     ints("trainingIndices", result.trainingIndices);
     ints("trainingRunIndices", result.trainingRunIndices);
     ints("ahc", result.ahc);
+    ints("retainedClusters", result.retainedClusters);
     auto matrix = [&](const char* key, const community::Matrix& rows) {
       json << ",\"" << key << "\":[";
       for (size_t i = 0; i < rows.size(); ++i) {
@@ -278,6 +313,9 @@ class Model {
     matrix("scores", result.scores);
     matrix("centroids", result.centroids);
     matrix("posteriors", result.vbx.q);
+    json << ",\"capacityRms\":[";
+    for (size_t i = 0; i < result.capacityRms.size(); ++i) { if (i) json << ','; json << result.capacityRms[i]; }
+    json << ']';
     json << ",\"usedKMeans\":" << (result.usedKMeans ? "true" : "false")
          << ",\"usedAhcFallback\":" << (result.usedAhcFallback ? "true" : "false")
          << ",\"shortRunTrainingCount\":" << result.shortRunTrainingCount;
@@ -294,7 +332,7 @@ class Model {
 
  private:
   Ort::Env env_;
-  Ort::Session segmentation_{nullptr}, embedding_{nullptr};
+  Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::Plda plda_;
@@ -319,9 +357,9 @@ struct Work {
   napi_ref resource_ref = nullptr;
   std::unique_ptr<NativeResourceManager, decltype(&OH_ResourceManager_ReleaseNativeResourceManager)>
     resource_manager{nullptr, OH_ResourceManager_ReleaseNativeResourceManager};
-  std::array<std::vector<uint8_t>, 4> assets;
+  std::array<std::vector<uint8_t>, 5> assets;
   std::vector<float> pcm, segments, embeddings, run_embeddings;
-  std::vector<float> run_ranges;
+  std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
   Window window;
@@ -339,18 +377,19 @@ void Execute(napi_env, void* data) {
       if (task.resource_manager) {
         constexpr const char* names[] = {
           "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
-          "amphion-dingqiao/community-wespeaker-masked.fp32.onnx",
+          "amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+          "amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
           "amphion-dingqiao/community-feature.f32", "amphion-dingqiao/community-plda.f64"
         };
         for (size_t i = 0; i < task.assets.size(); ++i) {
           task.assets[i] = ReadCommunityAsset(task.resource_manager.get(), names[i]);
         }
       }
-      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3]);
+      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4]);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
                                            task.run_ranges, task.max_speakers, task.window_starts,
-                                           task.begin_sample);
+                                           task.begin_sample, task.run_rms);
   } catch (const std::exception& error) { task.error = error.what(); }
 }
 void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {
@@ -387,6 +426,7 @@ void Complete(napi_env env, napi_status status, void* data) {
       FloatProperty(env, value, "embeddings", task->window.embeddings);
       FloatProperty(env, value, "runEmbeddings", task->window.run_embeddings);
       FloatProperty(env, value, "runRanges", task->window.run_ranges);
+      FloatProperty(env, value, "runRms", task->window.run_rms);
       NumberProperty(env, value, "segmentationMs", task->window.segmentation_ms);
       NumberProperty(env, value, "featureMs", task->window.feature_ms);
       NumberProperty(env, value, "embeddingMs", task->window.embedding_ms);
@@ -396,12 +436,13 @@ void Complete(napi_env env, napi_status status, void* data) {
   napi_delete_async_work(env, task->work);
 }
 napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
-  size_t count = 8;
-  napi_value args[8] = {};
+  size_t count = 9;
+  napi_value args[9] = {};
   napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
   try {
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
-    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : 8u) : 4u)) {
+    const bool clusterLevels = operation == Operation::Cluster && count == 9;
+    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 5u)) {
       throw std::runtime_error("invalid Community arguments");
     }
     auto task = std::make_unique<Work>();
@@ -415,7 +456,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           throw std::runtime_error("Community resource reference failed");
         }
       } else {
-        for (size_t i = 0; i < 4; ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
+        for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
       }
     } else {
       uint32_t handle = 0;
@@ -435,6 +476,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           task->run_embeddings = CopyArray<float>(env, args[3], napi_float32_array);
           task->run_ranges = CopyArray<float>(env, args[4], napi_float32_array);
           offset = 2;
+          if (clusterLevels) task->run_rms = CopyArray<float>(env, args[8], napi_float32_array);
         }
         if (napi_get_value_int32(env, args[3 + offset], &task->max_speakers) != napi_ok) throw std::runtime_error("invalid speaker cap");
         task->window_starts = CopyArray<double>(env, args[4 + offset], napi_float64_array);

@@ -108,6 +108,8 @@ struct ClusterResult {
   std::vector<int> trainingIndices,ahc,hard;
   std::vector<int> trainingRunIndices,frame_hard;
   Matrix features,centroids,scores;
+  Vec capacityRms;
+  std::vector<int> retainedClusters;
   bool usedKMeans = false;
   bool usedAhcFallback = false;
   int shortRunTrainingCount = 0;
@@ -178,13 +180,17 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   return turns;
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4,
-                            const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={}) {
+                            const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={},
+                            const std::vector<float>& runRms={}) {
   constexpr int frames=589,local=3,dim=256;
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
   ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
   for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
   }
   const bool runMode=!runRanges.empty()&&runRanges.size()%4==0&&runEmbeddings.size()==(runRanges.size()/4)*dim;
+  if(!runRms.empty()&&(!runMode||runRms.size()!=runRanges.size()/4||
+     !std::all_of(runRms.begin(),runRms.end(),[](float v){return std::isfinite(v)&&v>=0;})))
+    throw std::runtime_error("invalid Community run level evidence");
   std::vector<int> runWindow,runChannel,runBegin,runEnd;
   std::vector<bool> shortCandidate;
   std::vector<Vec> shortCandidateVectors;
@@ -219,7 +225,10 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       const int fullIndex=runWindow[r]*local+runChannel[r];
       Vec full(embeddings.begin()+fullIndex*dim,embeddings.begin()+(fullIndex+1)*dim);
       double norm=0;for(double value:full)norm+=value*value;
-      if(length<.2*frames&&clean[r]&&cleanRunCount[fullIndex]==1&&
+      // Process uses the clean mask only above two clean frames. Otherwise
+      // its full-window vector also pools any overlap on this channel.
+      const bool ownsFullMask=length>2||activity[fullIndex]==length;
+      if(length<.2*frames&&clean[r]&&cleanRunCount[fullIndex]==1&&ownsFullMask&&
          std::all_of(full.begin(),full.end(),[](double x){return std::isfinite(x);})&&norm>1e-12){
         shortCandidate[r]=true;shortCandidateVectors[r]=std::move(full);
       }
@@ -234,7 +243,10 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     };
     int groups=groupCount(train);
     if(groups>0){
-      for(size_t r=0;r<shortCandidate.size();++r)if(shortCandidate[r]){
+      // Admission requires exactly one additional group within the cap. Once
+      // full, no later candidate can change train or groups; avoid refitting
+      // the same history for every remaining, necessarily rejected short run.
+      for(size_t r=0;r<shortCandidate.size()&&groups<maxSpeakers;++r)if(shortCandidate[r]){
         Matrix proposed=train;proposed.push_back(shortCandidateVectors[r]);
         const int next=groupCount(proposed);
         if(next==groups+1&&next<=maxSpeakers){
@@ -261,13 +273,55 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
      result.ahc.size()&&*std::max_element(result.ahc.begin(),result.ahc.end())+1<=maxSpeakers&&
      result.centroids.size()<static_cast<size_t>(*std::max_element(result.ahc.begin(),result.ahc.end())+1)){
     const int groups=*std::max_element(result.ahc.begin(),result.ahc.end())+1;
-    result.centroids.assign(groups,Vec(dim));std::vector<int> counts(groups);
-    for(size_t i=0;i<train.size();++i){const int c=result.ahc[i];if(c<0||c>=groups)continue;++counts[c];for(int j=0;j<dim;++j)result.centroids[c][j]+=train[i][j];}
-    for(int c=0;c<groups;++c)for(int j=0;j<dim;++j)result.centroids[c][j]/=std::max(1,counts[c]);
-    result.usedAhcFallback=true;
+    // Short-run admission must not undo VBx merges among the long runs.
+    // Only a missing short group can be recovered: the supported long-run
+    // partition must already agree with VBx, independent of label numbering.
+    std::vector<int> ahcToVbx(groups,-1),vbxToAhc(result.vbx.priors.size(),-1);
+    bool sameLongPartition=true;
+    const size_t longCount=train.size()-result.shortRunTrainingCount;
+    for(size_t i=0;i<longCount;++i){
+      const int a=result.ahc[i];
+      const auto& q=result.vbx.q[i];
+      const int v=std::max_element(q.begin(),q.end())-q.begin();
+      if(result.vbx.priors[v]<=1e-7 || (ahcToVbx[a]>=0&&ahcToVbx[a]!=v) ||
+         (vbxToAhc[v]>=0&&vbxToAhc[v]!=a)){sameLongPartition=false;break;}
+      ahcToVbx[a]=v;vbxToAhc[v]=a;
+    }
+    if(sameLongPartition){
+      result.centroids.assign(groups,Vec(dim));std::vector<int> counts(groups);
+      for(size_t i=0;i<train.size();++i){const int c=result.ahc[i];if(c<0||c>=groups)continue;++counts[c];for(int j=0;j<dim;++j)result.centroids[c][j]+=train[i][j];}
+      for(int c=0;c<groups;++c)for(int j=0;j<dim;++j)result.centroids[c][j]/=std::max(1,counts[c]);
+      result.usedAhcFallback=true;
+    }
   }
   if(maxSpeakers<1||maxSpeakers>4)throw std::runtime_error("invalid speaker cap");
-  if(result.centroids.size()>static_cast<size_t>(maxSpeakers)) {
+  Matrix uncappedCentroids;
+  if(result.centroids.size()>static_cast<size_t>(maxSpeakers)&&!runRms.empty()) {
+    // Capacity is not evidence that two people are the same. Retain existing
+    // VBx identities using the clean PCM level belonging to their training
+    // runs; apply no level gate when all inferred identities fit the capacity.
+    std::vector<int> columns;
+    for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7)columns.push_back(c);
+    result.capacityRms.assign(columns.size(),0.);Vec weights(columns.size());
+    for(size_t i=0;i<train.size();++i){
+      const int r=result.trainingRunIndices[i];const double level=runRms[r];
+      for(size_t c=0;c<columns.size();++c){
+        const double weight=result.vbx.q[i][columns[c]]*(runEnd[r]-runBegin[r]);
+        result.capacityRms[c]+=weight*level*level;weights[c]+=weight;
+      }
+    }
+    for(size_t c=0;c<columns.size();++c)result.capacityRms[c]=weights[c]>0?std::sqrt(result.capacityRms[c]/weights[c]):0.;
+    const double maximum=*std::max_element(result.capacityRms.begin(),result.capacityRms.end());
+    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0&&result.capacityRms[c]>=maximum*.5)
+      result.retainedClusters.push_back(static_cast<int>(c));
+    std::stable_sort(result.retainedClusters.begin(),result.retainedClusters.end(),[&](int a,int b){return result.capacityRms[a]>result.capacityRms[b];});
+    if(result.retainedClusters.size()>static_cast<size_t>(maxSpeakers))result.retainedClusters.resize(maxSpeakers);
+    std::sort(result.retainedClusters.begin(),result.retainedClusters.end());
+    uncappedCentroids=std::move(result.centroids);
+    result.centroids.clear();
+    for(int c:result.retainedClusters)result.centroids.push_back(uncappedCentroids[c]);
+  } else if(result.centroids.size()>static_cast<size_t>(maxSpeakers)) {
+    // Legacy whole-window callers do not yet carry clean-run PCM levels.
     auto labels=KMeans(train,maxSpeakers);
     result.centroids=Matrix(maxSpeakers,Vec(dim));
     for(int c=0;c<maxSpeakers;++c){std::vector<float> mean(dim);int count=0;
@@ -277,9 +331,26 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     result.usedKMeans=true;
   }
   const int k=result.centroids.size();
+  if(k==0&&!uncappedCentroids.empty()){
+    result.hard.assign(windows*local,-2);result.frame_hard.assign(windows*frames*local,-2);return result;
+  }
   if(k<1)throw std::runtime_error("Community clustering has no centroid");
+  auto scoreVector=[&](const Vec& vector){
+    const Matrix& centers=uncappedCentroids.empty()?result.centroids:uncappedCentroids;
+    Vec all(centers.size());int best=-1;
+    for(size_t c=0;c<centers.size();++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=vector[j],u=centers[c][j];dot+=v*u;a+=v*v;b+=u*u;}all[c]=1+dot/std::sqrt(a*b);
+      if(std::isfinite(all[c])&&(best<0||all[c]>all[best]))best=c;
+    }
+    if(uncappedCentroids.empty())return all;
+    Vec kept(k,-std::numeric_limits<double>::infinity());
+    // An overflow voice must stay anonymous, never inherit its second-best
+    // foreground identity just because its own centroid was not retained.
+    if(std::find(result.retainedClusters.begin(),result.retainedClusters.end(),best)!=result.retainedClusters.end())
+      for(int c=0;c<k;++c)kept[c]=all[result.retainedClusters[c]];
+    return kept;
+  };
   Matrix scores(windows*local,Vec(k));double minimum=std::numeric_limits<double>::infinity();
-  for(int i=0;i<windows*local;++i)for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=embeddings[i*dim+j],u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double score=1+dot/std::sqrt(a*b);scores[i][c]=score;if(std::isfinite(score))minimum=std::min(minimum,score);}
+  for(int i=0;i<windows*local;++i){scores[i]=scoreVector(Vec(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim));for(double score:scores[i])if(std::isfinite(score))minimum=std::min(minimum,score);}
   result.scores=scores;
   if(runMode) {
     const int runCount=static_cast<int>(runWindow.size());
@@ -298,7 +369,9 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       hasRun[runWindow[r]*local+runChannel[r]]=true;
       for(int f=runBegin[r];f<runEnd[r];++f)runFor[(runWindow[r]*frames+f)*local+runChannel[r]]=r;
       if(!eligible[r])continue;
-      for(int c=0;c<k;++c){double dot=0,a=0,b=0;for(int j=0;j<dim;++j){double v=runValue(r,j),u=result.centroids[c][j];dot+=v*u;a+=v*v;b+=u*u;}double value=1+dot/std::sqrt(a*b);if(std::isfinite(value))runScores[r][c]=value;}
+      Vec vector(dim);for(int j=0;j<dim;++j)vector[j]=runValue(r,j);
+      auto values=scoreVector(vector);
+      for(int c=0;c<k;++c)if(std::isfinite(values[c]))runScores[r][c]=values[c];
     }
     result.frame_hard.assign(windows*frames*local,-2);
     for(int w=0;w<windows;++w)for(int f=0;f<frames;++f){

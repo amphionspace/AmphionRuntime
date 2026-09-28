@@ -1,0 +1,721 @@
+{
+  "schemaVersion": 1,
+  "releaseStatus": "BLOCKED",
+  "scope": "Short clean-run embedding ownership fix; no DER improvement claim",
+  "runtimeCommit": "196caeecb3a009c63a34763c3ef0d58b86e8bf93",
+  "fixCommit": "25391d12963adc16b6e8eb020bccab06320993e0",
+  "device": "7GK0226326015655",
+  "systemVersion": "OpenHarmony-6.1.1.120",
+  "sourceFingerprint": "7e1c41f8e2dc179b268cf5ed8cdfbae50ae13af2146a43de2a1a0265f07c2b80",
+  "artifacts": {
+    "amphion_asr.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_asr.har",
+      "sha256": "247038db9202e71208be9509204af6aedcbaeabd73396eec08c27355eaa9ccd5",
+      "bytes": 7686669
+    },
+    "amphion_asr_demo.hap": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_asr_demo.hap",
+      "sha256": "348a61568450e0a833f5e8f31ac7260f9fcead771d8bf470213b94f382a6ecc0",
+      "bytes": 436840233
+    },
+    "amphion_dingqiao.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_dingqiao.har",
+      "sha256": "2ca55e71be9d69e7a52b9c85e95a3aefaf42ee682eb9dda87a9a58a285da718f",
+      "bytes": 93076283
+    },
+    "amphion_police.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_police.har",
+      "sha256": "148797b8b32198d4dd42aa70ee66e73dd4dec4c97a64e81dbf4d8511831bb615",
+      "bytes": 30205113
+    },
+    "sherpa_onnx.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/sherpa_onnx.har",
+      "sha256": "8423b1c9bc242115c7c15003401bf2b629ac814d1f2ed93e9ffb81c991091b4d",
+      "bytes": 7178271
+    }
+  },
+  "files": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.CommunityDiarizationTest.xml",
+      "sha256": "eb7f62073e60a6dab42561f4d27c216a3f92d7f03782756b61151bb2dc6dc645",
+      "bytes": 1326
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.CommunityHarmonyParityTest.xml",
+      "sha256": "5473a8a18baa137c682627db6ccbadeb23d4d9e87e7fc1c2fc428fcbbe56c1b2",
+      "bytes": 502
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.CommunityLocalClientTest.xml",
+      "sha256": "d0674c2d689b29f6a4a2a19a8634b5a4e74afeede48a35358af467eded534120",
+      "bytes": 1190
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.CommunitySessionTest.xml",
+      "sha256": "c3cbd6b5d6d95647313967491adc90fb17749d4d0c670999b37086246d9bb0ff",
+      "bytes": 978
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "f161b314efc462177395056449fc113d9731203fb0371cb5a8cf802efa4cdb57",
+      "bytes": 1882
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.DiarizationSentenceOutputTest.xml",
+      "sha256": "711fa600cbd103c1cdf92287e64f71117d4e73fa6db4a038b12bb6ba17de6488",
+      "bytes": 1003
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "86a4752bfaf5336211c6f19971deef4b1dac46e728133349969e4cfa76e1271d",
+      "bytes": 1210
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "056cecfe2445f890c8b902a173687b45f3ce15cd4e0906ad7e8ba1dac7cd90bf",
+      "bytes": 2706
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "6af268a5edc47e327fb70f7d0e9fc1860b24182da843fb9850c11e8e54b3781d",
+      "bytes": 702
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android-tests.json",
+      "sha256": "5b2e50e708026c01d120acfc6db46709e5830f6c2d91acc3046e19bbce0fea62",
+      "bytes": 1536
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/android.log",
+      "sha256": "c8b7e3de00c8d065f9f10da51b99a83fbdd81972ca2af54f2b40f1d64d229cc8",
+      "bytes": 4045
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/archive.py",
+      "sha256": "9001a15a41cbd9e9cf772bf20cd8ccbf4ef76f8de4a6992419237f84322efa5e",
+      "bytes": 3232
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_asr.har",
+      "sha256": "247038db9202e71208be9509204af6aedcbaeabd73396eec08c27355eaa9ccd5",
+      "bytes": 7686669
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_asr_demo.hap",
+      "sha256": "348a61568450e0a833f5e8f31ac7260f9fcead771d8bf470213b94f382a6ecc0",
+      "bytes": 436840233
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_dingqiao.har",
+      "sha256": "2ca55e71be9d69e7a52b9c85e95a3aefaf42ee682eb9dda87a9a58a285da718f",
+      "bytes": 93076283
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/amphion_police.har",
+      "sha256": "148797b8b32198d4dd42aa70ee66e73dd4dec4c97a64e81dbf4d8511831bb615",
+      "bytes": 30205113
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/artifacts/sherpa_onnx.har",
+      "sha256": "8423b1c9bc242115c7c15003401bf2b629ac814d1f2ed93e9ffb81c991091b4d",
+      "bytes": 7178271
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/build-identity.json",
+      "sha256": "ecdec3e3efb39586acd23641210820fc25e579bb3ef6370683957155b35c9091",
+      "bytes": 3523
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/compare_public.py",
+      "sha256": "1c9b9b9eda261719c6105f6a7562dbaad67e283b640ed7ab45f94606157d7287",
+      "bytes": 4261
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/experiment.json",
+      "sha256": "ec0d783409c9a9f571cc28e27d7b27a6f13bdac217af1a2f6464f573796f18b0",
+      "bytes": 712
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/hap-build.log",
+      "sha256": "194b35d147c13e30c1abb0a6f0e3d3682a5198104b9a9ebff118b19a8135c959",
+      "bytes": 6555
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/input-case.json",
+      "sha256": "1dfa6214a72ac35495379e00878852df9b4a2d6e250479dd64264f09259dc9c2",
+      "bytes": 1095
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/before-on-phone-tensors-caller/provenance.json",
+      "sha256": "cf3e7db9e515b57252d78c3517b1f227715d541c3463893b967ed40f83b9832f",
+      "bytes": 311
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/before-on-phone-tensors-caller/result.json",
+      "sha256": "7d386fba8d872d67245d006cba95ed9f6bcd88c9a0c0319acf7fcd99cf799f02",
+      "bytes": 19358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/before-on-phone-tensors-payload.json",
+      "sha256": "248369e100c5455b88833e1999b49e95920aaee11f4df38dcf0d7fe8ead108fa",
+      "bytes": 53064
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/collect.log",
+      "sha256": "4eec51080bcc3527a953f02f29fc01d96d3cbea921cb4b984b498a5a1447b1f8",
+      "bytes": 292
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/comparison.json",
+      "sha256": "1bc09665fa7ad06588d49f50cb66177a216f0f5ee94119bdff69b6db74ac83bc",
+      "bytes": 7022
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/comparison.log",
+      "sha256": "450b27f55e59a885f9e2b304866082122576be6af0ceb0a30392e9ced15645a9",
+      "bytes": 2997
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/hilog.txt",
+      "sha256": "5e1509ccd90ac285d27d903d5c6b3d9b6a34461805043827818f6638ded687f8",
+      "bytes": 1094850
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/inventory.json",
+      "sha256": "9bd07dcad462524f18ce27bad543836e26b20cabec5c5a5352e420157d06c595",
+      "bytes": 202
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/memory.csv",
+      "sha256": "4df35a92e0e568963727d7402055e81acd306b233d44460e58d01d662fd3b60c",
+      "bytes": 9748
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/payload/corpus.json",
+      "sha256": "d5222434e7b8baec08135be692a3c50b917ce4fe33024d72d94c68367e6f2be7",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/payload/manifest.txt",
+      "sha256": "5da955ce174bfad8123867ec9a7664196cb3454039ccd119a6133971d98cf5f4",
+      "bytes": 109
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/report.json",
+      "sha256": "a75f1b4e609f08dfa088d0071e8e1fe13e381111f00fc015652f9965ac83d4f2",
+      "bytes": 170587
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device/20260928-051615-diarization-windows-8ac90d92/result.txt",
+      "sha256": "b1cc25d177a64d461054c415b16efc495b35fcf266e90cab21ad14283d110a89",
+      "bytes": 162927
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device-acoustic-parity.json",
+      "sha256": "b4d9352846ab5366bb3c55add7617ba73a52bd9d0559c5ea77b45c4935445c7a",
+      "bytes": 488
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device-caller/provenance.json",
+      "sha256": "1ea3ea1cfe0b0d2813903ec71b08571cfa014ca5a4f3cf01cdb43d6edd13e89d",
+      "bytes": 311
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device-caller/result.json",
+      "sha256": "7d386fba8d872d67245d006cba95ed9f6bcd88c9a0c0319acf7fcd99cf799f02",
+      "bytes": 19358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device-payload.json",
+      "sha256": "f6f76a9e9bb9a37a6d3fb1e15062c046ca352018ff8e64e28d1463064544f420",
+      "bytes": 53064
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/device-windows.json",
+      "sha256": "6239358776a6c0e19a430a1f274fd03636d8b5df326a002d60edfcc03b8723f1",
+      "bytes": 5505803
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/asr-diagnostics-20260928-051950.zip",
+      "sha256": "dd99328f0507e5f57288b99071ce60a8ede7d4c961d366e9ed284ea6413af159",
+      "bytes": 9637240
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/asr-diagnostics-20260928-051950.zip.sha256",
+      "sha256": "00b82ed6a2abfbbd531f2fd14a2fb48bed4fc33a859733936fc37b7f5e10b4b3",
+      "bytes": 102
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/collection.json",
+      "sha256": "dc1088549b3ef2ae15d4c956905334ced2eb5ac624bc3bce1c2160a4760b82cf",
+      "bytes": 240
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/hilog.txt",
+      "sha256": "f757f4fdaa2e165c6688fd83b06e18bab6b905c3b97e31af2f335bca6a6056d7",
+      "bytes": 510539
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/note.txt",
+      "sha256": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b",
+      "bytes": 1
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/build-identity.json",
+      "sha256": "ecdec3e3efb39586acd23641210820fc25e579bb3ef6370683957155b35c9091",
+      "bytes": 3523
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/callbacks.ndjson",
+      "sha256": "54e9c7f2b2d09f7ddc68af3fa86c7cf0a206f4b714e0f2f4c27870fbe84d0a79",
+      "bytes": 50288
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/effective-config.json",
+      "sha256": "c2c68e30af750b4abae9ed01c719903f266ce5d8f4054e584adb56faa4494f20",
+      "bytes": 167
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/events.full.ndjson",
+      "sha256": "e970469475b76e68fa289ecb32d3080dff8922d9c0c25b4dfce99e554dff09f2",
+      "bytes": 21580081
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/events.ndjson",
+      "sha256": "8fb34a28895633477abd5bd3d80e561603f839b7e444603010f42417d6fbe61d",
+      "bytes": 12199231
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/hilog.txt",
+      "sha256": "f757f4fdaa2e165c6688fd83b06e18bab6b905c3b97e31af2f335bca6a6056d7",
+      "bytes": 510539
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/manifest.json",
+      "sha256": "59d319dacb69d0c358dd6f130f2b4c059b1e6ed33c628bc76bac311a87ce8333",
+      "bytes": 488
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/model-manifest.json",
+      "sha256": "ca1278d9d2d87d8ee6c3822e46e9c23279ab822849b932b6c6e6773d6e57a140",
+      "bytes": 3777
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/native-state.json",
+      "sha256": "985536497ba8a31c4c5abdbaeeabf9758b27d1dd1a5d7a9131af5527eda8f457",
+      "bytes": 326
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/resource-samples.csv",
+      "sha256": "15436147cb8a9e8faaf7b6f6d29c10dcedc23481021bc084bb6d1fb7ccb3ee67",
+      "bytes": 3352
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/sessions/session-1/result.json",
+      "sha256": "d7a67d50931e2d47ba4329c88fd7727274496b5e6e836df265e4a55909f19aaf",
+      "bytes": 407
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/sessions/session-1/sdk-input.json",
+      "sha256": "48290594a96a5b7d473ef25c5bf6fc76188c53acd5692f863ff012ccbde4f781",
+      "bytes": 616
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/sessions/session-1/timeline.json",
+      "sha256": "06a8b37c619b1dd14bede7de8f049ecaf608beb71a09923de7fd9eda5b4ab604",
+      "bytes": 12198712
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/diagnostics/unpacked/asr-diagnostics-20260928-051950/run-1790543778795/summary.json",
+      "sha256": "479757781fd797e5291ddf3a8e92cda66d7e02147ddc636db89b62f7ef2ecd1a",
+      "bytes": 602
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/events-path.txt",
+      "sha256": "b81270c146b476d594540df2f5ee7a627d5904e58d394adc4be54d371e9bc83d",
+      "bytes": 168
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-after/input.json",
+      "sha256": "b6f52ec488fdb2d0e425e030c7013dec8437eef2abc84db8eb16e5502b459e82",
+      "bytes": 17239492
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-after/provenance.json",
+      "sha256": "30c50b843231a4d3112cb5d52c12d724c873f7732624bfc5b85d7c98b42e57ab",
+      "bytes": 2345
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-after/result.json",
+      "sha256": "6326bd30c07fd96f71bcb6592b41a10c7c0f90c2430723164538567162c328ff",
+      "bytes": 38050461
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-before/input.json",
+      "sha256": "b6f52ec488fdb2d0e425e030c7013dec8437eef2abc84db8eb16e5502b459e82",
+      "bytes": 17239492
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-before/provenance.json",
+      "sha256": "076c70a404eefe9e14bcc8d16329a55e43ad60c97d0554b1e9315f1592692857",
+      "bytes": 2342
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/phone-tensors-before/result.json",
+      "sha256": "6ea10a6abfa5ffd651431872bd564eb27f5a18aedff714afb8ee2fb5ff97c5db",
+      "bytes": 38050461
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/resolution.log",
+      "sha256": "8624120267cec5e614b8f5d6210430ce383ff3ba830ce668255153dc969d8f91",
+      "bytes": 308
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/resolved-assessment.json",
+      "sha256": "c8cbec8400158a81975961c35ffbf4878c896915a387285c4daf01bfdee66925",
+      "bytes": 4496
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public/vector-difference.json",
+      "sha256": "313e3fa2a0f90bf07637f1f16364048c38c7ed020ae1876d8f7b25d6c5175b50",
+      "bytes": 196893
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/public-device.log",
+      "sha256": "8ec53a65ba7b19382bb02465009feff9564a3591237b0feef6d0c7ac57755238",
+      "bytes": 429
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/red.log",
+      "sha256": "f73aace8b9161e8864e732569afccf3d48900e419a52bff3a745a2d1c696a8b5",
+      "bytes": 1256
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/resolve_comparison.py",
+      "sha256": "5fd51a85c3c25555283990c98fe717ab9afe45429414d1b161e045271cd38fd7",
+      "bytes": 3124
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/reused-replay-evidence.json",
+      "sha256": "92aede63df55b900ad67f7fe53c6fa8f2e1bfc39afa01d5a15724d5d478f8560",
+      "bytes": 801
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/tests.log",
+      "sha256": "93af9d841ff51a40e432872c3a594a875414db795a3be168a8409f0faa100e02",
+      "bytes": 23830
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/aishell4-4/input.json",
+      "sha256": "5d40e832b4fba3ea44d133cedfa79e1b712c16d2342cfadd66aefb45e0295100",
+      "bytes": 15224439
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/aishell4-4/provenance.json",
+      "sha256": "bd6c5c7633bde0f87bf562692774d1a00fec4029fc162d71c477c5d5b9ee6ad1",
+      "bytes": 2330
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/aishell4-4/result.json",
+      "sha256": "a881ec4ab8b4051b0593ef9d8650937f5d0f37a2783bcd4b0af9fc2a51bcfc04",
+      "bytes": 38050339
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/aishell4-4.log",
+      "sha256": "af2a54a56e496a279ed1e673fa93db12db4356f67a6fc1951ede1f4a57fb19b0",
+      "bytes": 507
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/community_cluster.h",
+      "sha256": "2eb453ba8e37004845a595fd1f3cbd2d4d721b7f6688d30b2f9e87f92319fcc9",
+      "bytes": 25963
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/community_kmeans.h",
+      "sha256": "e78a8c77bce6e5ae95c31331cd052396a4d58370671cdf4be75078ce3786ac7d",
+      "bytes": 4254
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/comparison.json",
+      "sha256": "d0e54959285285e247a39ba412ad1f293238224c6b2497ca5a162055b9969bcb",
+      "bytes": 500
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/customer-main-four/input.json",
+      "sha256": "a10bc315e05facb96a7c24445d4591855c84f8641d8746db4622b37fdd1e9c3e",
+      "bytes": 14305600
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/customer-main-four/provenance.json",
+      "sha256": "ec3a2ef8c9f2292e036e79d1f6ed6a28497fa84c183dd8deaaf8529a273f1b0c",
+      "bytes": 2358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/customer-main-four/result.json",
+      "sha256": "7eab5927df501dd100ca07f8c1c71e0487057fd39929fb4791e587e61861ae5f",
+      "bytes": 33107641
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/customer-main-four.log",
+      "sha256": "1aa4c1345d452a373d61ef0611fdf1f54e60848cbb159cddda72977de18fb9fc",
+      "bytes": 507
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/experiment.json",
+      "sha256": "97ad76bd46a3a1fecb4c4bfd3b5a3103788a2860e359d195c6695b1dc52e256d",
+      "bytes": 903
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-124s/input.json",
+      "sha256": "d8b725d734600f617d8557130ac4e62b8c524b98f7ff217077a4b238a81a0f0b",
+      "bytes": 11541317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-124s/provenance.json",
+      "sha256": "b254cbe1780b4b3cb20a2775fa88eef68bf48fa64ac5b1c5ecd4cda7eb6c4cca",
+      "bytes": 2351
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-124s/result.json",
+      "sha256": "e4a1987ac37adb0f4a5583c405a2eeba7ec5fbc315d750cb69e17f84acad5ae3",
+      "bytes": 22333077
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-124s.log",
+      "sha256": "f14775ade10f5d59870249f875b602961c2386bb01552f68357cf71cdb8ed394",
+      "bytes": 507
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-short/input.json",
+      "sha256": "f3f968075ab732df454cacaf8ed22cf80b959bb227c0cb3a26d35179eb548274",
+      "bytes": 1365136
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-short/provenance.json",
+      "sha256": "652edebe8ce013d81a688f834e3fbb641844e565167ec2d49dea93b0b7b80b86",
+      "bytes": 2354
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-short/result.json",
+      "sha256": "f2aee4a7f731431152dae07e89484c8623ec28432313a3b131ad0a6c6b965317",
+      "bytes": 321200
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/four-speaker-short.log",
+      "sha256": "3c8793a64465d4a6c539ab2afc2db60319dbda46acd557a5ab9b2feb3039e6c7",
+      "bytes": 504
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/ownership-green.log",
+      "sha256": "cb082c4c548edfc6b630eb0771df872ecddb1e9dce330b6f3ff44761ad4238e3",
+      "bytes": 67
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/ownership.cpp",
+      "sha256": "7b30af592ab20689bab1e3eec1793a0c0e50a901624787b1edad9eb4623c0a67",
+      "bytes": 1915
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/prepare.py",
+      "sha256": "7300c7758c329f0c8c8f530f5d4976eb377186d56a0dd6c13cb5c10ac1e45c19",
+      "bytes": 1616
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/replay_cases.py",
+      "sha256": "6f0e785c44e688ca427cfde3c4d0932c3061cd173bac1c1151772525c1cd7b41",
+      "bytes": 1130
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/short-mask-green.log",
+      "sha256": "6944300e5353a33a496e540a8572d1edb3f2d06a11a5dbeb73070032f35da600",
+      "bytes": 27
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/single-speaker-unknown/input.json",
+      "sha256": "41576c43922b8c3114354e32df397d8d26723097e55a0731e8096a07cb9d59f6",
+      "bytes": 3689232
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/single-speaker-unknown/provenance.json",
+      "sha256": "3a32212cb66919567b1f55b99a40b66c72b4e73f5967cb638f4d82bf9c08c26b",
+      "bytes": 2366
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/single-speaker-unknown/result.json",
+      "sha256": "b36de5cd3b326b493232111ea7d971cf6e9ff05fcc41d1ff01287e41ec1f1fea",
+      "bytes": 2617650
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/single-speaker-unknown.log",
+      "sha256": "86b9cd0d96098819386a73aa6e1145d988ca41619518367638e8cacabbf36e34",
+      "bytes": 504
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/evaluation-manifest.json",
+      "sha256": "7aa6e422a0cc56e33fa4888662f21211f903b9185fe17ce4a4c712d272c06a34",
+      "bytes": 24620
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/allocator-state-20260928/short-mask-ownership.json",
+      "sha256": "149f46d42571b47fdafe198e50462101dcb959471009724d17c2a597dd8ebb64",
+      "bytes": 2500
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/allocator-state-20260928/audit_short_mask.py",
+      "sha256": "664b2095a8c10b055984b7d891a1e2facc6fece0f0b6871aafc65410746cc0ff",
+      "bytes": 2033
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/replay-inputs.json",
+      "sha256": "70dd835112dc12e8d147386283746d80e8d0abc01fc406d9219505698d282b92",
+      "bytes": 2291
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/dense-sdk-20260928/caller.py",
+      "sha256": "b83a4ceadd6e779a8d2d9288269e79c8a3026604a4c23fc87ee3cb56a1663f98",
+      "bytes": 2041
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/dense-sdk-20260928/step-1-sdk/provenance.json",
+      "sha256": "fb853340637f9bda522c1b17e1be68b3a28d93ec414cd323f6172c6da7c4852b",
+      "bytes": 1372
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/prepare_replay.py",
+      "sha256": "15a71d0591339cee2890df05630149cd0171b7822968b947d4f622449569f6cf",
+      "bytes": 1666
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/replay",
+      "sha256": "b26d3a8407414bf417f9d2781b2c14647d7d374b2e7904eacc47b865af83cab6",
+      "bytes": 124376
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-guard-20260928/replay",
+      "sha256": "587cfec10e3e7afdf3bc3ccab933b96b28d9dfed4bea3fc4bfec4835b56eed2d",
+      "bytes": 124376
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/aishell4-4/diagnostics/unpacked/asr-diagnostics-20260928-020144/run-1790531909573/events.full.ndjson",
+      "sha256": "856f9c47ae9ef372eda8a60b1a1f159849fb3d62efbd85f208a7cefae4d1e12f",
+      "bytes": 13630677
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/result.json",
+      "sha256": "7dfe8cf4f87505e58d8e9f3931b0c2c38ee14258e3f201eaa24abc3a9349c5cd",
+      "bytes": 2617649
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/provenance.json",
+      "sha256": "ace79a958a816c46d04700cae3ff1c015365e83707845e815b4102d332570bdb",
+      "bytes": 2358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown-windows.json",
+      "sha256": "97ca18a362b65ed8bee74c532eb6d7989c4df96616e0a53b4d06cab9cd38f0a4",
+      "bytes": 1028899
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/result.json",
+      "sha256": "619e5e691da3bc4eaffecf93466af9dd36cac8eadbdd2f0f096f48c73c3dc7db",
+      "bytes": 321199
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/provenance.json",
+      "sha256": "f4aa13f52f588ec8d51085c049af3a525f81d0b70031da7a5785bf1b14595c12",
+      "bytes": 2346
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short-windows.json",
+      "sha256": "08a4c22d3f2bd31986f43eae110cb380b408cec8c44d8ac66930d870d8906a6d",
+      "bytes": 350070
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/result.json",
+      "sha256": "543761a09b275ab30e9b04902a5e8cc9e4b1d28ab8cbeda2a1d49e8ca92ed388",
+      "bytes": 22333075
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/provenance.json",
+      "sha256": "7a214ec72d655d74bcb25732cd5f387f30bd3d52024f5187a5302647fa2c5c4f",
+      "bytes": 2343
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s-windows.json",
+      "sha256": "82b13de0f2c14d9ec0965cbb8d91a511800fa9b826e00658cddb4b3e828d12dd",
+      "bytes": 3634457
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/result.json",
+      "sha256": "520121b1f238f90e755e349fded8d4e2a5c7ec1fa9ff904a8af195fc9fb2be3d",
+      "bytes": 33107636
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/provenance.json",
+      "sha256": "6d5064b5ae5d3eefd2ec25d93a4f1b33291a91b5fd1226f35e6adf6eeb2e0dcb",
+      "bytes": 2350
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four-windows.json",
+      "sha256": "bc40bec2b72dd7dce8f82188ea8a9d76f981c3639889ce23d34812fff1055e1c",
+      "bytes": 4429516
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/aishell4-4/result.json",
+      "sha256": "1b64938daca7a938961c3c7b7b8e4aeda232702939b1927e9906a8e29b84b5e5",
+      "bytes": 38050336
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/aishell4-4/provenance.json",
+      "sha256": "ce25ee9091ee934363e20d6828cf649f408c12245b75b654174d6346fca7bc1c",
+      "bytes": 2322
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/aishell4-4-windows.json",
+      "sha256": "b1e6d53c9410ebe015856a063896febd74768e5b8f229dc85171dd1cbf31fd79",
+      "bytes": 6264789
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/benchmark/aishell4-current/L_R003S01C02.rttm",
+      "sha256": "9dfd301c5b96f60813aaddec2549edc007851699917d9326e4db7e13c6b05ed9",
+      "bytes": 33636
+    }
+  ],
+  "sources": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/asr/harmony/sdk/src/main/cpp/community_cluster.h",
+      "sha256": "2eb453ba8e37004845a595fd1f3cbd2d4d721b7f6688d30b2f9e87f92319fcc9",
+      "bytes": 25963
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/asr/harmony/sdk/src/main/cpp/community_diarization.cpp",
+      "sha256": "c5158dda476757c936df3a3c4463fe50a900d4fa47358618be7c0080dd5f2ce1",
+      "bytes": 26961
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/asr/tools/tests/test_harmony_community_native.py",
+      "sha256": "3c88515bd40fa5769bb9375ba7e4c21177574b7387fcb763d6c4e37cd095c9be",
+      "bytes": 42081
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/delivery/harmony-dingqiao/delivery/diarization_evaluation.py",
+      "sha256": "328ec8489963840d8c662d900c415cfc65ea5e5e82aa6edddd17ed014595b5ab",
+      "bytes": 25401
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/delivery/harmony-dingqiao/delivery/evaluate_speaker_diarization_report.py",
+      "sha256": "b3a56d72eb05165ac7bc17c35f414a7981a66d3f1e6b827b0ab680024f36dd0b",
+      "bytes": 14855
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/delivery/harmony-dingqiao/delivery/run_device_stress.py",
+      "sha256": "f4a9d9a9bd5eb7121cf6f5d02585663e0b3b742eb4ec288aa2eeeac22e9af666",
+      "bytes": 66333
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-mask-fix-20260928/sources/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/pages/Index.ets",
+      "sha256": "3490dab56f63c007c1adbb376361f6cdc81686ea06ee3aa9ec8a4c9248e186c2",
+      "bytes": 74013
+    }
+  ]
+}
