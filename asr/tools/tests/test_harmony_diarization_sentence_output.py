@@ -264,6 +264,62 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           assert.ok(result.every(x=>x.sourceUtteranceId==='u1'));
         """)
 
+    def test_punctuation_model_deleting_ascii_cjk_space_keeps_owners(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          // sherpa's CT punctuation rejoins tokens with a space only between two
+          // ASCII-leading tokens, so an ASCII/CJK separator is always dropped.
+          const raw='WHAT IS 阿拉测试', text='WHAT IS阿拉测试。';
+          const turn=(beginTime,endTime,speakerId)=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          const s=new State();
+          s.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>i*100),
+            beginTime:0,endTime:raw.length*100}});
+          s.applySpeakerTurns([turn(0,800,'S1'),turn(800,1200,'S2')]);
+          const before=s.allTurns(),out=s.sentenceUtterances();
+          const owners=out.flatMap(u=>(u.speakerTextSpans??[]).flatMap(p=>
+            [...u.text.slice(p.textBegin,p.textEnd)].map(()=>p.speakerId)));
+          assert.deepEqual(owners,[...Array(7).fill('S1'),...Array(5).fill('S2')]);
+          assert.equal(out.map(x=>x.text).join(''),text);assert.equal(out.map(x=>x.rawText).join(''),raw);
+          assert.deepEqual(s.allTurns(),before);
+        """)
+
+    def test_postprocessor_clause_records_localize_lexical_rewrites(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='先讨论方案这这个我理解然后继续嗯';
+          const clauses=[['先讨论方案，','先讨论方案，'],['这这个我理解，','浙J个我理解，'],['然后继续，','然后继续，'],['嗯。','嗯。']];
+          const source=clauses.map(c=>c[0]).join(''),text=clauses.map(c=>c[1]).join('');
+          const spans=[];let sourceBegin=0,textBegin=0;
+          for(const [input,output] of clauses){{spans.push({{sourceBegin,sourceEnd:sourceBegin+input.length,
+            textBegin,textEnd:textBegin+output.length}});sourceBegin+=input.length;textBegin+=output.length;}}
+          const turn=(beginTime,endTime,speakerId)=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          const sample=(turns,presentation)=>{{const s=new State();s.addUtterance({{rawText:raw,text,tokens:[...raw],
+            tokenTimesMs:[...raw].map((_,i)=>i*100),beginTime:0,endTime:raw.length*100,presentation}});
+            s.applySpeakerTurns(turns);return s;}};
+          const turns=[turn(0,500,'S1'),turn(500,1100,'S2'),turn(1100,1500,'S1'),turn(1500,1600,'S2')];
+          const s=sample(turns,{{sourceText:source,spans}}),before=s.allTurns(),out=s.sentenceUtterances();
+          assert.deepEqual(out.map(x=>[x.text,x.speakerId]),
+            [['先讨论方案，','S1'],['浙J个我理解，','S2'],['然后继续，','S1'],['嗯。','S2']]);
+          const rewritten=out[1].speakerTextSpans;
+          assert.deepEqual(rewritten.map(p=>[p.textBegin,p.textEnd,p.speakerId]),[[0,7,'S2']],
+            'a rewritten postprocessor record is one indivisible text span');
+          assert.equal(out.map(x=>x.text).join(''),text);assert.equal(out.map(x=>x.rawText).join(''),raw);
+          assert.deepEqual(s.allTurns(),before);
+          // A speaker change inside the rewritten record keeps only that record uncertain.
+          const inner=sample([turn(0,500,'S1'),turn(500,700,'S3'),turn(700,1100,'S2'),turn(1100,1500,'S1'),
+            turn(1500,1600,'S2')],{{sourceText:source,spans}}).sentenceUtterances();
+          assert.deepEqual(inner.map(x=>[x.text,x.speakerId]),
+            [['先讨论方案，','S1'],['浙J个我理解，','UNKNOWN'],['然后继续，','S1'],['嗯。','S2']]);
+          // Without records, or with records that do not rebuild the published text, nothing is guessed.
+          for(const presentation of [undefined,{{sourceText:source,spans:spans.slice(1)}},
+            {{sourceText:source.slice(1),spans}}]) {{
+            assert.deepEqual(sample(turns,presentation).sentenceUtterances().map(x=>[x.text,x.speakerId]),
+              [[text,'UNKNOWN']]);
+          }}
+        """)
+
     def test_repeated_deleted_text_cannot_supply_an_ambiguous_punctuation_cut(self):
         run_node(f"""
           import assert from 'node:assert/strict';

@@ -855,7 +855,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           this.listener?.onResult?.(sessionId, payload);
           return;
         }
-        diarization.observeAsrFinal(payload, result);
+        diarization.observeAsrFinal(payload, result, finalSession.provenance(result.text, payload.result));
         if (payload.isLast) {
           this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
         } else {
