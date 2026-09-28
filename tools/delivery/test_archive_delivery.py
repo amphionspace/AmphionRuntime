@@ -156,6 +156,20 @@ class ArchiveTest(unittest.TestCase):
         self.assertTrue(result['published'])
         self.assertTrue(report.exists())
 
+    def test_pass_assessment_does_not_promote_explicitly_unpublished_package(self):
+        report = self.repo/'delivery/final-report.json'
+        module.write_json(report, dict(artifact=self.record['artifact'], **module.identity(self.outer)))
+        self.record.update(result='PASS', acceptance_report='delivery/final-report.json',
+            acceptance_sha256=module.identity(report)['sha256'])
+        self.args.record = 'delivery/published-deliveries/release.json'
+        module.write_json(self.repo/self.args.record, self.record)
+        self.args.publication = 'published'
+        with patch.object(module.subprocess, 'check_output', return_value=json.dumps(self.record).encode()):
+            with self.assertRaisesRegex(ValueError, 'publication record'):
+                self.run_archive()
+        self.assertEqual(self.bucket.uploads, [])
+        self.assert_retained()
+
     def test_missing_publication_companion_blocks_before_upload(self):
         report = self.repo/'delivery/final-report.json'
         module.write_json(report, {})

@@ -95,7 +95,8 @@ def archive(args, bucket, repo=REPO, staging=STAGING):
         # The record must already exist unchanged on canonical main, not merely on this branch.
         canonical = subprocess.check_output(
             ['git', 'show', f'origin/main:{args.record}'], cwd=repo)
-        if json.loads(canonical) != record or record.get('result') != 'PASS':
+        if (json.loads(canonical) != record or record.get('result') != 'PASS'
+                or record.get('published') is not True):
             raise ValueError('Published mode requires a canonical PASS publication record')
         if not args.record.startswith('delivery/published-deliveries/'):
             raise ValueError('Published mode requires an outer-package publication record')
