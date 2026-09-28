@@ -1,21 +1,13 @@
-# Native Probe
+# Harmony ASR Native 接入
 
-`asr/harmony/sdk/src/main/cpp/napi_init.cpp` 暴露了首个 Amphion NAPI 探针：
+`asr/harmony/sdk/src/main/cpp/napi_init.cpp` 是 `libamphion_asr.so` 的 NAPI 注册入口，包含：
 
-```ts
-import { probe, nativeVersion } from 'libamphion_asr.so';
-```
+- `probe` / `nativeVersion`：加载与版本探针。
+- 目标说话人增强、角色区间分割和离线角色分离推理绑定。
+- AGC 输入电平处理和 LAC 人名处理绑定。
 
-当前 NAPI 入口用于验证 HAR 能加载 `libamphion_asr.so`，并在链接阶段依赖：
+ASR/VAD/标点等通用能力继续通过 `sherpa_onnx` HAR 接入。上述注册项说明代码边界，不能代替各能力的公共 SDK 和真机验收结论。
 
-- `libsherpa-onnx-c-api.so`
-- `libonnxruntime.so`
+构建、库同步和模型资源准备使用仓库根目录的 `asr/tools/04_build_harmony_so.sh`、`05_package_har_libs.sh`、`08_pack_harmony_assets.sh`。AGC 库构建见[模块 README](../README.md)。
 
-完整 wav 解码探针由 `amphion_asr` ArkTS 层通过 `sherpa_onnx` HAR 完成：把模型同步到 rawfile 后，HAP demo 可以直接实时识别。后续如需绕过 `sherpa_onnx` HAR，可在这里扩展自研 NAPI 封装。
-
-## 验证步骤
-
-1. `bash asr/tools/04_build_harmony_so.sh`
-2. `bash asr/tools/05_package_har_libs.sh`
-3. `bash asr/tools/08_pack_harmony_assets.sh`
-4. 按 [工具链说明](../../tools/HARMONY_TOOLCHAIN.md) 在 `asr/harmony` 使用 DevEco CLI 构建 `amphion_asr` 验证 native 加载；端到端 demo 见 `delivery/harmony-dingqiao/`（`samples/dingqiao-demo`）。
+使用独立 CLT 和 DevEco CLI，见[工具链说明](../../tools/HARMONY_TOOLCHAIN.md)。端到端测试载体及交付入口见[鼎桥交付工程](../../../delivery/harmony-dingqiao/README.md)。

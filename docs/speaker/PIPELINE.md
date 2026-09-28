@@ -1,4 +1,6 @@
-# 目标说话人 ASR（TS-ASR）当前方案
+# 目标说话人 ASR（TS-ASR）调研期方案与实验记录
+
+> TS-ASR 调研期方案与实验快照，以下“当前”“下一步”均指记录当时。可执行评测入口见[工具说明](../../asr/tools/speaker/README.md)，后续方向见[阶段决策](VOICEPRINT_NEXT_STEP_MAP_20260804.md)，不据此判断当前 SDK 验收状态。
 
 本文档是 amphion-runtime 在 sherpa-onnx 上做"目标说话人 ASR"调研期的工程方案定稿，落地代码在 [asr/tools/speaker/](../../asr/tools/speaker/)，调研依据见 [Target_speaker.md](../../asr/android/docs/Target_speaker.md)。
 
@@ -146,11 +148,11 @@ def overlap_seconds(supervisions):
 | --- | --- | --- |
 | ts_asr/core.py | 完成 | 调研文档 5 段骨架函数（build_recognizer / build_speaker / enroll / segment_score / asr_decode_full_segment） |
 | ts_asr/metrics.py | 完成 | FAR / FRR / EER / sweep_threshold / binary_metrics |
-| ts_asr/dataset.py | 待写 | lhotse cuts manifest 适配层；契约见本文 4.2 节 |
+| ts_asr/dataset.py | 已实现 | lhotse cuts manifest 适配层；契约见本文 4.2 节 |
 | 00_download_models.sh | 完成 | 拉 silero_vad / 3D-Speaker eres2net / CAM++（支持 --mirror） |
 | 01_enroll_target.py | 完成 | 多模板注册 → target_embedding.npy + .meta.json |
 | 02_ts_asr_offline.py | 完成 | 加固版完整 pipeline；输入 wav，输出 [target]/[other]/[unknown]/[below_min_seg] 标签 JSONL |
-| 03_eval.py | 待写 | 调用 dataset.py 跑 ROC、切片长度分布、重叠占比、注册/使用余弦分布 |
+| 03_eval.py | 已实现 | 调用 dataset.py 跑 ROC、切片长度分布、重叠占比、注册/使用余弦分布 |
 | 04_check_zipformer_drc.py | 完成 | 用 onnx 包读 encoder.int8.onnx metadata，启发式判 DRC 启用 |
 | 05_rtf_local.py | 完成 | 主机 CPU bench 声纹模型 RTF（量级参考） |
 | README.md | 完成 | asr/tools/speaker/ 用户入口、决策门、已知未知空表（待执行后回填） |
@@ -172,7 +174,7 @@ def overlap_seconds(supervisions):
 
 ### 6.1 实测对照（ts_hw_test 全量 6555 条）
 
-跑出 [asr/tools/speaker/03_eval.py](../../asr/tools/speaker/03_eval.py) + [04_eval_summary.py](../../asr/tools/speaker/04_eval_summary.py)，配置：业务自有 zipformer-zh-en INT8 + 3D-Speaker eres2net 中文版 + 单段 enrollment（多模板 ablation 留作下一步）。完整 markdown 报告见 [asr/tools/speaker/results/eval_full_summary.md](../../asr/tools/speaker/results/eval_full_summary.md)。
+跑出 [asr/tools/speaker/03_eval.py](../../asr/tools/speaker/03_eval.py) + [04_eval_summary.py](../../asr/tools/speaker/04_eval_summary.py)，配置：业务自有 zipformer-zh-en INT8 + 3D-Speaker eres2net 中文版 + 单段 enrollment（多模板 ablation 留作下一步）。完整 markdown 报告见 asr/tools/speaker/results/eval_full_summary.md（历史生成产物，未入库；原相对路径 `../../asr/tools/speaker/results/eval_full_summary.md`）。
 
 | 决策门信号 | 实测 | 通过/触发 |
 | --- | --- | --- |

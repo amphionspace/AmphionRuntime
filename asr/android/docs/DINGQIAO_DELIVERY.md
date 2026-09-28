@@ -37,7 +37,7 @@
 | 文件 | 用途 |
 |------|------|
 | 声纹模型 `eres2net.onnx` | 已内置于 `dingqiao-asr-v*.aar`，首次运行自动解包到 `setWorkPath` |
-| 说话人分离模型 `pyannote-segmentation-3.0.onnx` | 已内置于 AAR，与 eres2net 一起在启用 diarization 时按需准备 |
+| 说话人分离模型 `pyannote-segmentation-3.0.onnx` | 已内置于 AAR，与专用说话人特征及聚类资源一起在启用 diarization 时按需准备；eres2net 仅用于声纹校验 |
 | LAC 人名模型/字典 | 已内置于 `sdk-police`，仅对调用方 `sysGeneralLexicon` 中的人名候选做门控纠正 |
 | `amphion-license.lic` | 商用授权（武装构建 AAR 时必需，见 `docs/LICENSING.md`） |
 
@@ -65,7 +65,7 @@ dependencies {
 }
 ```
 
-若只分发 AAR，需同时提供 `:sdk`、`:sdk-police`、`:sdk-dingqiao` 三个 library 的 release AAR（或合并为单一 fat AAR，需自行脚本打包）。当前工程未配置 `:sdk-dingqiao` 的 `maven-publish`，正式交付前需补发布任务或拷贝 `build/outputs/aar/*.aar`。
+源码集成使用上述模块依赖。二进制交付默认使用仓库 `merge_dingqiao_fat_aar.sh` 合并三层 SDK；不要只复制 `sdk-dingqiao` 的薄 AAR。完整交付还包含 Diagnostics、签名 Demo、Demo 源码和文档，按 [Android 默认交付](../../../delivery/android-dingqiao/DEFAULT_DELIVERY.md) 执行。
 
 ### 4.1 交付打包脚本（AmphionRuntime 仓库根目录执行）
 
@@ -77,7 +77,7 @@ dependencies {
 | `asr/tools/delivery/pack_dingqiao_delivery_scheme_b.sh` | 三 AAR 分模块 scheme B |
 | `asr/tools/delivery/merge_dingqiao_fat_aar.sh` | 仅合并 fat AAR |
 | `asr/tools/delivery/verify_dingqiao_delivery.sh` | 校验 VERSION.txt / AAR 与 Demo APK native 库 / 交付目录含 `docs/NOTICE` |
-| `tools/delivery/verify_delivery_zip_e2e.sh` | 通用 zip-only 验证；只以最终 zip 为输入，解压后校验 AAR/APK/license/声纹模型，可选安装 Demo 和运行 demo-src 设备测试，并生成验收报告 |
+| `tools/delivery/verify_delivery_zip_e2e.sh` | Android 子包 zip-only 验证；只以最终 zip 为输入，解压后校验 AAR/APK/license/声纹模型，可选安装 Demo 和运行 demo-src 设备测试，并生成验收报告 |
 
 **构建溯源（强制）**
 
@@ -88,27 +88,22 @@ dependencies {
 5. fat AAR 必须包含 sherpa、ONNX Runtime、`libamphion_diarization_jni.so` 与
    `libamphion_police_jni.so`；Demo APK 必须包含对应 `lib/arm64-v8a/*.so`。缺失会导致创建引擎或
    首次说话人分离/LAC 推理失败。
-6. 正式包要求工作区 **clean**，且版本与源码 commit 必须精确匹配 `delivery/asr-sdk-release-history.json`；未登记的新版本直接拒绝正式打包。
-7. 门禁完成前使用 `--preview`；目录名、ZIP/AAR 文件名、README、`VERSION.txt` 和 AAR 内部 manifest 都会强制标记 `PREVIEW / NON-CANONICAL`。脏工作区预览还须显式设置 `DINGQIAO_ALLOW_DIRTY=1`。
-8. 交付版本号默认 = `AMPHION_RUNTIME_VERSION`（勿再手写 `0.1.0` 与 SDK `0.2.x` 混用）。
+6. 发布构建要求工作区 **clean**。新版本先使用 `--stage-release` 在新建暂存子目录构建，最终包通过验收、登记并验证证据后才可发布；已登记版本要求版本及源码 commit 精确匹配发布账本。
+7. 开发预览使用 `--preview`，保留所有 `PREVIEW / NON-CANONICAL` 标记；脏工作区还须显式设置 `DINGQIAO_ALLOW_DIRTY=1`。
+8. 版本省略时读取 `AMPHION_RUNTIME_VERSION`；不能将预览包去掉标记后作为正式包。
 
 ```bash
-# 当前版本尚未完成发布账本登记：只能生成显式预览包
-bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh --preview
+# 仓库根目录；先按统一交付流程设置 DELIVERY_STAGE，目标子目录须尚不存在
+bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh \
+  --stage-release "${DELIVERY_STAGE:?请先设置本次暂存目录}/packages/release-sdk"
 
-# 正式发包（仓库根；版本和 commit 已精确登记后才会放行）
-bash asr/tools/delivery/pack_dingqiao_customer_delivery.sh
+# 将占位符替换成上一步实际生成的子包文件名；路径须精确，不用通配符代替
+ZIP="${DELIVERY_STAGE:?}/packages/release-sdk/<实际子包文件名>.zip"
+bash asr/tools/delivery/verify_dingqiao_delivery.sh "$ZIP"
 
-# 验收同事收到的包
-bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../VERSION.txt
-bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../aar/dingqiao-asr-v*.aar
-bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*-customer/
-bash asr/tools/delivery/verify_dingqiao_delivery.sh delivery/.../amphion-dingqiao-*.zip
-
-# 最终交付验收必须从 zip 开始；设备验证也安装 zip 解压出的 Demo APK
-ZIP=delivery/.../amphion-dingqiao-*.zip
-export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,jni/arm64-v8a/libamphion_diarization_jni.so:1,jni/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520'
-export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,lib/arm64-v8a/libamphion_diarization_jni.so:1,lib/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/lac/v1/lac_encoder.onnx:20971520,assets/amphion-license.lic:1'
+# 最终交付验收从 ZIP 开始，设备也安装 ZIP 解压出的 Demo APK
+export DELIVERY_VERIFY_REQUIRED_AAR_ENTRIES='jni/arm64-v8a/libsherpa-onnx-jni.so:1,jni/arm64-v8a/libonnxruntime.so:1,jni/arm64-v8a/libamphion_diarization_jni.so:1,jni/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx:1,assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx:1,assets/amphion-dingqiao/community-feature.f32:1,assets/amphion-dingqiao/community-plda.f64:1,assets/lac/v1/lac_encoder.onnx:20971520'
+export DELIVERY_VERIFY_REQUIRED_APK_ENTRIES='lib/arm64-v8a/libsherpa-onnx-jni.so:1,lib/arm64-v8a/libonnxruntime.so:1,lib/arm64-v8a/libamphion_diarization_jni.so:1,lib/arm64-v8a/libamphion_police_jni.so:1,assets/amphion-dingqiao/eres2net.onnx:31457280,assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx:5242880,assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx:1,assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx:1,assets/amphion-dingqiao/community-feature.f32:1,assets/amphion-dingqiao/community-plda.f64:1,assets/lac/v1/lac_encoder.onnx:20971520,assets/amphion-license.lic:1'
 export DELIVERY_VERIFY_LICENSE_ENTRY='assets/amphion-license.lic'
 export DELIVERY_VERIFY_LICENSE_FEATURES='ASR'
 export DELIVERY_VERIFY_LICENSE_DEVICE_HASH_COUNT=0
@@ -118,7 +113,7 @@ export DELIVERY_VERIFY_DEVICE_MODEL_PATH='/sdcard/Android/data/com.amphion.dingq
 export DELIVERY_VERIFY_FORBIDDEN_RELATIVE_PATHS='models/eres2net.onnx'
 DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 
-# 强校验：同时从 zip 内 demo-src 工程运行声纹自动解包 / 注册测试
+# 源码验证（仅适用于含该 demo-src 工程与任务的包；完整包按 DEFAULT_DELIVERY.md 验证）
 DELIVERY_VERIFY_DEVICE=1 \
 DELIVERY_VERIFY_SOURCE_TEST=1 \
 DELIVERY_VERIFY_SOURCE_DIR='demo-src' \
@@ -159,7 +154,8 @@ SpeechRecognizeSdk.setWorkPath("/data/your_app/asr_work")  // 可读写目录
 ### 5.2 识别主链
 
 ```
-createEngine → setListener → startListening
+init → setWorkPath → setLicense 成功 → prepareRuntime 就绪
+  → createEngineAsync 成功 → setListener → startListening
   → writeAudio(640B/20ms) × N
   → finish
   → onResult(isFinal=true, 增强文本)
@@ -168,11 +164,11 @@ createEngine → setListener → startListening
 
 | 鼎桥 API | 实现要点 |
 |----------|----------|
-| `createEngine` | `AmphionRuntime.create` + 警务热词默认全开 |
+| `createEngine` / `createEngineAsync` | Runtime 就绪后创建或复用模型；UI 调用优先使用异步接口 |
 | `writeAudio` | 仅接受 640 字节 PCM 帧 |
 | `finish` | 触发 final；`isLast=true` |
 | `onResult` | partial：ASR 原文；final：警务增强后文本 |
-| `speakerSimilarity` | final 且启用声纹校验、有效语音达到门槛时返回；短句省略分数但仍返回识别结果，SDK 不丢弃非目标人结果 |
+| `speakerSimilarity` | 启用声纹校验且 ID 有效时，对有 ASR 语音证据和真实 PCM 的 final 尝试评分；不按短句时长省略，精度与阈值由业务方判断 |
 
 警务后处理顺序：**术语 → LAC 人名 → 车牌 → 派出所**（`PoliceEnhancePipeline`）。
 
@@ -208,7 +204,7 @@ createEngine → setListener → startListening
 - 离线 only；警务三场景 normalize **默认开启**
 - FST 后处理默认关（可在 `sdk-police` prefs 层扩展）
 - 系统热词：`CreateEngineParams.extraParams["sysGeneralLexicon"]`
-- 离线说话人分离：会议模式按需启用，内置 pyannote segmentation + eres2net，支持重叠说话和显式降级结果
+- 离线说话人分离：会议模式按需启用，内置语音分割、专用说话人特征及聚类资源（资源清单见 [角色模型清单](../../../delivery/harmony-dingqiao/docs/COMMUNITY_MODELS.md)），支持重叠说话和显式降级结果
 - 冷启动默认跳过 ORT INT8 prepack；如需吞吐优先可设置 `CreateEngineParams.extraParams["disablePrepack"]=false`
 
 ## 8. License 与 Release 打包
@@ -249,7 +245,7 @@ cd ../../asr/android
 keytool -genkeypair -v -storetype PKCS12 \
   -keystore keystore/dingqiao-demo-release.jks -alias dingqiao-demo \
   -keyalg RSA -keysize 2048 -validity 10000 \
-  -storepass <pwd> -keypass <pwd> \
+  -storepass '<pwd>' -keypass '<pwd>' \
   -dname "CN=Dingqiao Demo, OU=Amphion, O=Amphion, C=CN"
 ```
 
@@ -275,7 +271,7 @@ bash ../../asr/tools/license/issue_dingqiao_demo.sh
 
 ```bash
 # Release 与 Debug 签名不同，需先卸载旧包；必须安装最终 zip 解压出的 APK
-ZIP=delivery/.../amphion-dingqiao-*.zip
+ZIP=${DELIVERY_STAGE:?}/packages/amphion-dingqiao-*.zip
 rm -rf /tmp/dingqiao-release-smoke
 unzip -q "$ZIP" -d /tmp/dingqiao-release-smoke
 APK=$(find /tmp/dingqiao-release-smoke -path '*/demo/*.apk' | head -1)
@@ -309,7 +305,7 @@ DELIVERY_VERIFY_DEVICE=1 bash tools/delivery/verify_delivery_zip_e2e.sh "$ZIP"
 
 | 文档 | 内容 |
 |------|------|
-| [`语音识别SDK接口.md`](../../../../语音识别SDK接口.md) | 鼎桥抽象接口（客户契约） |
+| [`语音识别SDK接口.md`](customer/语音识别SDK接口-交付批注版.md) | 鼎桥抽象接口（客户契约） |
 | [`docs/INTEGRATION.md`](INTEGRATION.md) | 底层 `:sdk` 接入 |
 | [`docs/customer/DINGQIAO_INTEGRATION.md`](customer/DINGQIAO_INTEGRATION.md) | 客户向集成说明（随包复制为 `docs/DINGQIAO_INTEGRATION.md`） |
 | [`docs/customer/NOTICE`](customer/NOTICE) | 第三方开源声明（随包复制为 `docs/NOTICE`） |

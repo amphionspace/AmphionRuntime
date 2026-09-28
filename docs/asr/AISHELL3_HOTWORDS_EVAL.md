@@ -103,7 +103,7 @@ bash asr/tools/00_fetch_demo_model.sh
 运行评测：
 
 ```bash
-export AISHELL3_HOTWORDS_DIR=<aishell3_test_hotwords_500目录>
+export AISHELL3_HOTWORDS_DIR='<aishell3_test_hotwords_500目录>'
 python3 asr/tools/hotwords/01_eval_aishell3_hotwords.py \
   --dataset-dir "$AISHELL3_HOTWORDS_DIR" \
   --model-dir asr/tools/demo-model/zipformer_L_zh_en \

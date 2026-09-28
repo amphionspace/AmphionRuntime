@@ -23,11 +23,11 @@
 
 ### 方案 A：AAR 直接放 libs/
 
-把 `amphion-runtime-0.3.4.aar` 拷到你 app 工程的 `libs/`：
+把 `amphion-runtime-0.3.9.aar` 拷到你 app 工程的 `libs/`：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/amphion-runtime-0.3.4.aar"))
+    implementation(files("libs/amphion-runtime-0.3.9.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
 }
 ```
@@ -39,7 +39,7 @@ dependencies {
 ```bash
 cd asr/android
 ./gradlew :sdk:publishReleasePublicationToLocalFileRepoRepository
-# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.4/
+# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.9/
 ```
 
 在你 app 的 `settings.gradle.kts`：
@@ -58,7 +58,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.amphion:amphion-runtime:0.3.4")
+    implementation("com.amphion:amphion-runtime:0.3.9")
 }
 ```
 
@@ -225,7 +225,7 @@ val newEngine = AmphionRuntime.create(context, AsrLanguage.YUE_EN)
 
 ## 9. 隐私 / 网络
 
-SDK 不发起任何网络请求。所有模型加载、识别都在端上完成；不会上传音频或文本，也不会读取任何 ID。详见 [PRIVACY.md](PRIVACY.md)。
+SDK 不发起任何网络请求。所有模型加载、识别都在端上完成；不会上传音频或文本，核心 SDK 不主动读取 IMEI、Android ID 或 MAC；设备绑定授权会在本地处理宿主提供的 SN 及其哈希。详见 [PRIVACY.md](PRIVACY.md)。
 
 ## 10. FAQ
 

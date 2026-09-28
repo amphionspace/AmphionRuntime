@@ -188,7 +188,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         command = "delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py"
-        self.assertIn(command, agreement)
+        validation_path = "docs/engineering/ASR_VALIDATION.md"
+        self.assertIn(f"({validation_path})", agreement)
+        validation = (REPO_ROOT / validation_path).read_text(encoding="utf-8")
+        self.assertIn(command, validation)
         self.assertIn(command, device_stress)
         self.assertIn("FINISH_COMPATIBILITY_POSTMORTEM.md", device_stress)
 

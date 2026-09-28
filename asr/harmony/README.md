@@ -8,7 +8,7 @@
 - `sdk-police/`：警务增强 HAR（`amphion_police`），映射术语、车牌、派出所 final 后处理。
 - `sdk-dingqiao/`：鼎桥接口 HAR（`amphion_dingqiao`），映射 `SpeechRecognizeSdk` 契约。
 
-当前工程使用上游 `sherpa_onnx` HarmonyOS HAR 作为 ASR/VAD/标点 NAPI 绑定基础；`WetextItn`、license 与声纹会在 Amphion 专用 NAPI 层补齐。
+当前工程使用 `sherpa_onnx` HarmonyOS HAR 提供 ASR/VAD/标点及 WeText ITN 等绑定；授权校验由 SDK 完成。声纹、角色分离和输入电平处理已有实现，Native 边界见 [native/README.md](native/README.md)。具体能力的发布状态以对应交付版本和验收报告为准。
 
 ## Native 产物
 
