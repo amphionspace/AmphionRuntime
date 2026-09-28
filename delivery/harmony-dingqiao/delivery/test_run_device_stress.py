@@ -56,6 +56,39 @@ class DiarizationLifecycleTest(unittest.TestCase):
         ])["status"])
 
 
+class ResourceAlarmScopeTest(unittest.TestCase):
+    def verdict(self, *flags, threads=4):
+        with mock.patch.object(sys, "argv", [str(SCRIPT), *flags]):
+            args = MODULE.parse_args()
+        samples = [MODULE.MemorySample(
+            elapsed_seconds=i * 15, pid=7, vm_rss_kb=(100 if i < 4 else 200) * 1024,
+            vm_hwm_kb=200 * 1024, vm_data_kb=200 * 1024, vm_swap_kb=0,
+            threads=4 if i < 4 else threads) for i in range(8)]
+        return MODULE.stress_memory_verdict(samples, args)
+
+    def test_default_budget_remains_hard_for_asr_and_advisory_for_diarization(self):
+        self.assertEqual("FAIL", self.verdict()["status"])
+        for flags in (("--enable-diarization",), ("--mode", "diarization-windows"),
+                      ("--mode", "customer-meeting-minutes", "--expected-tail-manifest", "tail.json")):
+            with self.subTest(flags=flags):
+                result = self.verdict(*flags)
+                self.assertEqual("INCONCLUSIVE", result["status"])
+                self.assertEqual("FAIL", result["generic_status"])
+                self.assertEqual(100, result["rss_growth_mb"])
+                self.assertEqual("FAIL", self.verdict(*flags, threads=7)["status"])
+
+    def test_explicit_budget_is_enforced_even_when_it_equals_old_default(self):
+        for budget, expected in (("64", "FAIL"), ("128", "PASS")):
+            result = self.verdict("--enable-diarization", "--max-rss-growth-mb", budget)
+            self.assertEqual(expected, result["status"])
+            self.assertTrue(result["rss_growth_limit_enforced"])
+
+    def test_invalid_explicit_budget_is_rejected(self):
+        for budget in ("nan", "inf", "-1"):
+            with self.subTest(budget=budget), self.assertRaises(SystemExit):
+                self.verdict("--max-rss-growth-mb", budget)
+
+
 class CustomerStopLatencyTest(unittest.TestCase):
     def test_meeting_requires_completion_within_customer_fifteen_seconds(self):
         for mode in ("diarization-windows", "customer-meeting-minutes"):

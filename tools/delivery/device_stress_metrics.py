@@ -13,6 +13,7 @@ from typing import Iterable
 MIN_MEMORY_SAMPLES = 6
 MIN_MEMORY_OBSERVATION_SECONDS = 15.0
 MIN_MEMORY_SLOPE_SECONDS = 60.0
+DEFAULT_RSS_GROWTH_MB = 64.0
 
 
 @dataclass
@@ -228,6 +229,36 @@ def memory_verdict(
         "max_rss_growth_mb": max_growth_mb,
         "max_thread_growth": max_thread_growth,
     }
+
+
+def diarization_memory_verdict(memory: dict[str, object]) -> dict[str, object]:
+    """Interpret the generic RSS alert without treating mixed phases as a budget.
+
+    Legacy reports remain immutable. Their non-default limits, and explicitly
+    enforced limits in new reports, retain their original verdicts.
+    """
+    result = dict(memory)
+    custom_budget = memory.get("max_rss_growth_mb", DEFAULT_RSS_GROWTH_MB) != DEFAULT_RSS_GROWTH_MB
+    if memory.get("rss_growth_limit_enforced", custom_budget):
+        return result
+    result.setdefault("generic_status", memory.get("status", "INCONCLUSIVE"))
+    result["rss_growth_limit_enforced"] = False
+    values = [memory.get(key) for key in (
+        "rss_growth_mb", "max_rss_growth_mb", "thread_growth", "max_thread_growth")]
+    if all(isinstance(value, (int, float)) and math.isfinite(value) for value in values):
+        rss, rss_limit, threads, thread_limit = values
+        result["rss_growth_status"] = "FAIL" if rss > rss_limit else "PASS"
+        result["thread_growth_status"] = "FAIL" if threads > thread_limit else "PASS"
+        result["status"] = "FAIL" if threads > thread_limit else "INCONCLUSIVE"
+    elif memory.get("status") != "FAIL":
+        # Missing metrics cannot establish stability, or erase an unexplained FAIL.
+        result["status"] = "INCONCLUSIVE"
+    result.setdefault("reason",
+        "Generic RSS growth is advisory for diarization; model/workspace and "
+        "completion phases are mixed. Phase-aligned resource evidence is required; "
+        "thread growth remains enforced."
+    )
+    return result
 
 
 def write_samples(path: Path, samples: Iterable[MemorySample]) -> None:
