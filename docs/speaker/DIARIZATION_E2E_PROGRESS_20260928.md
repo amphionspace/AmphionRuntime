@@ -1,6 +1,6 @@
 # 角色分离端到端推进记录（2026-09-28）
 
-**分支收敛：** 评测协议、配对防回退工具及历史诊断已由 [PR #236](https://github.com/amphionspace/AmphionRuntime/pull/236) 合入主线，未修改 SDK 运行行为。运行时改进留在 [PR #235](https://github.com/amphionspace/AmphionRuntime/pull/235)，当前合入阻断：`6578c787` 同产物连续四轮 19.58 秒 paced 的生命周期和 stream 回收通过，但默认结束观察下 RSS 增长 85.650 MiB，超过 64 MiB 既有门槛，后续矩阵已停止。详情及失败现场哈希见[合入范围](DIARIZATION_EVALUATION_MERGE_SCOPE_20260928.md)。没有放宽阈值，也没有将这次失败归因为已经证实的泄漏或仅仅采样误差。
+**分支收敛：** 评测协议、配对防回退工具及历史诊断已由 [PR #236](https://github.com/amphionspace/AmphionRuntime/pull/236) 合入主线，未修改 SDK 运行行为。[PR #235](https://github.com/amphionspace/AmphionRuntime/pull/235) 保留经过验证的运行时改进。用户随后明确指示“内存增长是正常的，推进合入”，本轮据此接受已观察到的 RSS 增长并补齐矩阵：同一 Mate80、同一 HAP/HAR 的 25 个模式、70 轮 SDK 契约通过，finish 兼容根门禁 PASS。两份原始 RSS FAIL 不改写，阈值不变。合入决定、产物复用依据和剩余范围见[运行时合入验收](DIARIZATION_PR235_MERGE_ACCEPTANCE_20260928.md)；此前[阻断记录](evidence/DIARIZATION_PR235_MERGE_BLOCK_20260928.json)保留为历史。
 
 **发布结论：BLOCKED。** 下文保留逐提交证据，不能将早期数值当作最新产物验收。前序运行提交 `7f8a7e4d` 跳过必定无法准入的短段重复AHC拟合：同设备180秒公开片的171窗、ASR、角色及调用方41段结果完全不变，聚类总耗时8075→2600 ms，finish到complete 2045→1134 ms，严格实时转为PASS，长期内存仍INCONCLUSIVE。strict DER仍为33.6679%，客户开场短段UNKNOWN、公开误认和少数说话人低召回未解决。当前提交没有完整四锚点、16段、长会议及最终发布验收；未合入最终PR或生成正式ZIP。相应证据见[重复拟合成本修复](DIARIZATION_AHC_COST_20260928.md)。此前 `196caeec` 含[短mask归属修复](DIARIZATION_SHORT_MASK_OWNERSHIP_20260928.md)，`f6aef3d4` 含[空闲arena回收](DIARIZATION_ARENA_RELEASE_20260928.md)，`ad16789a` 含[前景身份容量修复](DIARIZATION_CAPACITY_FIX_20260928.md)；各自验收范围独立保留。
 

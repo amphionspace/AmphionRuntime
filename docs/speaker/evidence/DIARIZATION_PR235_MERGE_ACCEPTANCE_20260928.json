@@ -1,0 +1,1796 @@
+{
+  "schemaVersion": 1,
+  "scope": "PR235 bounded runtime improvements; not full diarization delivery or formal release PASS",
+  "mergeDecision": "ACCEPTED_WITH_USER_RSS_GROWTH_DECISION",
+  "userDecision": {
+    "date": "2026-09-28",
+    "instruction": "内存增长是正常的，推进合入",
+    "effect": "Accept observed RSS growth for this merge. Preserve raw FAIL verdicts; do not change test thresholds or infer proven long-meeting memory stability."
+  },
+  "buildIdentity": {
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "3263aac74792d20b4a0a8016e5f75e2a1b7b5142f92caf13658bb57e8c75e171",
+        "size_bytes": 7686751
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "c4583f3031dc39a743783770d2edcdae6d54a23263c27b309ea3c1e9a17e3317",
+        "size_bytes": 436840236
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "b40b9b3e19aabee1188b3f3579bee73f9ae5febabbb669ea37366b79812d8c20",
+        "size_bytes": 93076229
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "86bc926657c766971283de70aebfec9dccd0a35e0567caf15fc94539414eb795",
+        "size_bytes": 30205147
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "1cb7f822ba33254379e55a67ee6612caa5b8babda07febf8786b2d99f2ac2ef9",
+        "size_bytes": 7178307
+      }
+    },
+    "build_mode": "diagnostics",
+    "created_at": "2026-09-28T01:13:05.230318+00:00",
+    "git_commit": "6578c787f26d181253861f8c5e203208ae8a65a0",
+    "model_manifest_sha256": "ff1c56bd349818bb366ce382d6ee400ef887d130d5a46ca725cb57c4840f1a84",
+    "native_sha256": {
+      "libamphion_audio_processing.so": "ca9035bcef12471d695827df4e7b1ca97d4ba99f3a384551ac9c4c87a2612bee",
+      "libonnxruntime.so": "503ac466600ce4e75843684159f5903b653cf0406bbfd2a1558e49d04157fcbf",
+      "libsherpa-onnx-c-api.so": "d354f871e6088fb8448a211c1f31d7fa0d2f54af5ea836dd4ac1234a13c3371c"
+    },
+    "optional_models": {
+      "community_feature_transform": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/community-feature.f32",
+        "sha256": "379fcc7bc891b5172cb5dd84899cc96124e7d191c76fbb68a8342b0ddffcdc33",
+        "size_bytes": 83840
+      },
+      "community_plda": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/community-plda.f64",
+        "sha256": "b6e0f558d31272e1ed2f00a7c26aa4142602fbabf4cdf97ff251d1c8ab24f50c",
+        "size_bytes": 398352
+      },
+      "community_speaker_encoder": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+        "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f",
+        "size_bytes": 21301300
+      },
+      "community_speaker_pooling": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
+        "sha256": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094",
+        "size_bytes": 5264664
+      },
+      "speaker_complementary_embedding": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/campplus.onnx",
+        "sha256": "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11",
+        "size_bytes": 28281138
+      },
+      "speaker_turn_segmentation": {
+        "hap_path": "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+        "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+        "size_bytes": 5986908
+      }
+    },
+    "schema_version": 3,
+    "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+    "source_fingerprint_sha256": "aa6808711b228d1258f32a6253d3c51bb20946798f0ff68e153b6ac8cc5d8c36",
+    "zh_en_only": true
+  },
+  "device": "7GK0226326015655",
+  "systemVersion": "OpenHarmony-6.1.1.120",
+  "bindingReuse": {
+    "testedRuntimeCommit": "6578c787f26d181253861f8c5e203208ae8a65a0",
+    "preEvidenceBranchHead": "41b7fdbea3d3c4ecb015b7f6d274691e42bd6d12",
+    "reason": "Only documentation and evidence indexes differ. Runtime inputs, model/native hashes and all five artifact hashes match. No build identity was rewritten."
+  },
+  "checks": {
+    "targetedTests": 127,
+    "androidTests": 379,
+    "logs": [
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/diarization-pr-convergence-20260928/targeted-tests.log",
+        "sha256": "95011274436620267f21ee788383820a98b38a5ed84cd43a8b0cf55fe69641c6",
+        "sizeBytes": 43276
+      },
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/diarization-pr-convergence-20260928/android-release-matrix.log",
+        "sha256": "0df01da558298e68eeaccdf5a621dbca93e3f40cc84172e050712a2241591850",
+        "sizeBytes": 17147
+      },
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/diarization-pr-convergence-20260928/ort-ownership-tests.log",
+        "sha256": "94448eb92d8fd12df7039360616178ee1efa5a878ec8fac8419d0cace3160181",
+        "sizeBytes": 227
+      },
+      {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/android-summary.json",
+        "sha256": "9d3fdaae996349e43ef8b905a17278fecb8802e22d8e1a2f5e02e61a1729d2d3",
+        "sizeBytes": 1202
+      }
+    ],
+    "finishCompatReport": {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/finish-compat-report.json",
+      "sha256": "3cc1db81eccac76c5ca77ae9e0400492b631d7131f276e10ef88fefa4d6e7046",
+      "sizeBytes": 4530
+    }
+  },
+  "runs": [
+    {
+      "mode": "burst",
+      "runId": "20260928-091402-burst-cc32952e",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 3,
+      "coveredCases": [
+        "finished",
+        "finished",
+        "finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 3,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 10.294
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/report.json",
+          "sha256": "da328feac4a3a376cea8c6ed4855450adef22227f5b9493b5916b69a028cd828",
+          "sizeBytes": 28392
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/memory.csv",
+          "sha256": "3856e7872d8648e15705cfe87cb2e5e1c9bc8d6a5231d00f13ca12c1e9f970be",
+          "sizeBytes": 680
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/hilog.txt",
+          "sha256": "43b89d1c8ec7c0aa2f5ab70e531f4a177cb359bda6d04acd57ab4d2639f53168",
+          "sizeBytes": 997406
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "paced",
+      "runId": "20260928-091414-paced-ceb511e5",
+      "rawStatus": "FAIL",
+      "mergeAssessment": "NON_CANONICAL_PROTOCOL_VARIANT",
+      "failures": [
+        "RSS/thread growth exceeded threshold"
+      ],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "finished",
+        "finished",
+        "finished",
+        "finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 65,
+        "observation_seconds": 83.191,
+        "warmup_samples_excluded": 13,
+        "head_rss_mb": 481.16,
+        "tail_rss_mb": 579.094,
+        "rss_growth_mb": 97.934,
+        "rss_slope_mb_per_minute": 26.974,
+        "rss_third_medians_mb": [
+          553.039,
+          571.779,
+          500.535
+        ],
+        "peak_rss_mb": 600.73,
+        "peak_hwm_mb": 611.301,
+        "head_vm_data_mb": 3146.953,
+        "tail_vm_data_mb": 3156.953,
+        "vm_data_growth_mb": 10.0,
+        "peak_swap_mb": 89.34,
+        "head_threads": 50,
+        "tail_threads": 50,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/report.json",
+          "sha256": "25638937e836f4a491db4da337702a436d601051d0c970a1e805c1d527e8aeef",
+          "sizeBytes": 74528
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/memory.csv",
+          "sha256": "a806ccfe191ff21ac5ea06bfc03fbb83317a77c3e83e386fa8a780452e54d293",
+          "sizeBytes": 4292
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/hilog.txt",
+          "sha256": "e2ec76c04e0d12ce322896d103bbbfdc835ac839be656ae4bb47752d84afc4e0",
+          "sizeBytes": 1069570
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/inventory.json",
+          "sha256": "c5279e73afc9ff9646447aacf6a004959365ebf4b9c81f09ec7e6ad63748062d",
+          "sizeBytes": 202
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/payload/corpus.json",
+          "sha256": "cd0e55fe5e40bf966f51f58a6219d48b98e2da64b592fe60a643b8688897bced",
+          "sizeBytes": 370
+        }
+      ]
+    },
+    {
+      "mode": "paced",
+      "runId": "20260928-092013-paced-a9f8a82c",
+      "rawStatus": "FAIL",
+      "mergeAssessment": "USER_ACCEPTED_RSS_GROWTH",
+      "failures": [
+        "RSS/thread growth exceeded threshold"
+      ],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "finished",
+        "finished",
+        "finished",
+        "finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 70,
+        "observation_seconds": 87.733,
+        "warmup_samples_excluded": 14,
+        "head_rss_mb": 484.721,
+        "tail_rss_mb": 570.371,
+        "rss_growth_mb": 85.65,
+        "rss_slope_mb_per_minute": -17.813,
+        "rss_third_medians_mb": [
+          562.32,
+          506.396,
+          488.082
+        ],
+        "peak_rss_mb": 599.746,
+        "peak_hwm_mb": 604.84,
+        "head_vm_data_mb": 3158.844,
+        "tail_vm_data_mb": 3169.734,
+        "vm_data_growth_mb": 10.891,
+        "peak_swap_mb": 89.348,
+        "head_threads": 50.0,
+        "tail_threads": 49.5,
+        "thread_growth": -0.5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/report.json",
+          "sha256": "13a0da5b30abc1c7a41f6934c10234a836f75a7a7086a18c69acc3300267df81",
+          "sizeBytes": 74464
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/memory.csv",
+          "sha256": "1f48f56ff90c8e56a88e29958b292f069b67156375e64491b1012dedb3261137",
+          "sizeBytes": 4612
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/hilog.txt",
+          "sha256": "7f83f3cb811800623f18fbd32a61a78c061e55a99c28f92dbf33db49f9760557",
+          "sizeBytes": 1073884
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/inventory.json",
+          "sha256": "c5279e73afc9ff9646447aacf6a004959365ebf4b9c81f09ec7e6ad63748062d",
+          "sizeBytes": 202
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/payload/corpus.json",
+          "sha256": "cd0e55fe5e40bf966f51f58a6219d48b98e2da64b592fe60a643b8688897bced",
+          "sizeBytes": 370
+        }
+      ]
+    },
+    {
+      "mode": "vad-begin",
+      "runId": "20260928-094906-vad-begin-80e86f58",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "vad-begin-no-early-last-speech-events-1",
+        "vad-begin-no-early-last-speech-events-1"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.113
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094906-vad-begin-80e86f58/report.json",
+          "sha256": "c226b9f002eeabb03e87cdb9f3be1585ba8c156bb125c12c727fe7c127569183",
+          "sizeBytes": 18606
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094906-vad-begin-80e86f58/memory.csv",
+          "sha256": "b987811356619232001ff20935c67fb8b700c6d394d59a4d16debcaa2eabbedc",
+          "sizeBytes": 617
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094906-vad-begin-80e86f58/hilog.txt",
+          "sha256": "c9dcaf076e5cb0bf692b0cc50845fdc3e434341894544e4934987b7b73280dfc",
+          "sizeBytes": 831378
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094906-vad-begin-80e86f58/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094906-vad-begin-80e86f58/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "vad-begin-silence",
+      "runId": "20260928-094918-vad-begin-silence-7550381e",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "vad-begin-silence-auto-finished",
+        "vad-begin-silence-auto-finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 6.71
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094918-vad-begin-silence-7550381e/report.json",
+          "sha256": "5a77d94c277f77b6eebd0d683edf4b4e43daf933f339769451fe4bc68f29faf9",
+          "sizeBytes": 12382
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094918-vad-begin-silence-7550381e/memory.csv",
+          "sha256": "0e7b91f30c97118281a69973a36b10bf40bf772fe30df61c1dce7176d5f4a0dd",
+          "sizeBytes": 550
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094918-vad-begin-silence-7550381e/hilog.txt",
+          "sha256": "5c57842adc13bfa19f3fbc8d78967497d4e6d0e21e0c9a071c46e369356550ca",
+          "sizeBytes": 606016
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094918-vad-begin-silence-7550381e/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094918-vad-begin-silence-7550381e/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "voiceprint",
+      "runId": "20260928-094928-voiceprint-1bcaf971",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 7,
+      "coveredCases": [
+        "voiceprint-short-scored",
+        "voiceprint-threshold-scored",
+        "voiceprint-long-scored",
+        "voiceprint-leading-silence-scored",
+        "voiceprint-low-volume-scored",
+        "voiceprint-multi-utterance-scored",
+        "voiceprint-alternate-source-scored"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 7,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 7,
+        "failures": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 20,
+        "observation_seconds": 23.578,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 628.221,
+        "tail_rss_mb": 524.609,
+        "rss_growth_mb": -103.611,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          626.086,
+          638.799,
+          537.391
+        ],
+        "peak_rss_mb": 657.492,
+        "peak_hwm_mb": 673.656,
+        "head_vm_data_mb": 2827.078,
+        "tail_vm_data_mb": 2871.391,
+        "vm_data_growth_mb": 44.312,
+        "peak_swap_mb": 89.281,
+        "head_threads": 53.0,
+        "tail_threads": 47.0,
+        "thread_growth": -6.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094928-voiceprint-1bcaf971/report.json",
+          "sha256": "c218e7cbd6523de670cf795dd34fcd64693bc6adfcac64151e7c749fd6500a32",
+          "sizeBytes": 52444
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094928-voiceprint-1bcaf971/memory.csv",
+          "sha256": "6b0798891a24d50d1eaf74dd6c18a7499639db196b20a843ee5739bdb8642d87",
+          "sizeBytes": 1382
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094928-voiceprint-1bcaf971/hilog.txt",
+          "sha256": "f3e76a80e1f941df3ebc20ebefd615b12850a84ae1d25ab72c84212fe4b30bcb",
+          "sizeBytes": 1047091
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094928-voiceprint-1bcaf971/inventory.json",
+          "sha256": "32678ddbf16dfde69514653a1375864e1829da23a38754ee244839f56e322039",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094928-voiceprint-1bcaf971/payload/corpus.json",
+          "sha256": "6ab3ecc4cb348369c87ed336432c8e467e87d33a9ff8583bdf3f408425a350b9",
+          "sizeBytes": 1131
+        }
+      ]
+    },
+    {
+      "mode": "voiceprint-fallback",
+      "runId": "20260928-094954-voiceprint-fallback-e8f2dfe2",
+      "rawStatus": "FAIL",
+      "mergeAssessment": "USER_ACCEPTED_RSS_GROWTH",
+      "failures": [
+        "RSS/thread growth exceeded threshold"
+      ],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "voiceprint-fallback-cold-scored",
+        "voiceprint-fallback-warm-scored"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 23,
+        "observation_seconds": 27.973,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 506.914,
+        "tail_rss_mb": 575.027,
+        "rss_growth_mb": 68.113,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          512.426,
+          569.824,
+          575.027
+        ],
+        "peak_rss_mb": 652.895,
+        "peak_hwm_mb": 702.543,
+        "head_vm_data_mb": 2823.453,
+        "tail_vm_data_mb": 3130.641,
+        "vm_data_growth_mb": 307.188,
+        "peak_swap_mb": 83.059,
+        "head_threads": 57.0,
+        "tail_threads": 47.0,
+        "thread_growth": -10.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/report.json",
+          "sha256": "d0658af98b247131ad928aa8341264b1955a93bf2f472e79d3f2a364fe031e60",
+          "sizeBytes": 22973
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/memory.csv",
+          "sha256": "d6879728e737b7691132bbc3612dcfb9eb01b85c239e3f0d20b527ef34a59dcb",
+          "sizeBytes": 1570
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/hilog.txt",
+          "sha256": "e828f8472536ae9b1a49c5b95cf5ccd987b298ee90b57fe03a22672d1f873a9f",
+          "sizeBytes": 946475
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/inventory.json",
+          "sha256": "1f54ce4abb5e4f125c0c44f38cce2ded889d0e93b801b4fa201054dfca48d4ad",
+          "sizeBytes": 202
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/payload/corpus.json",
+          "sha256": "fd4582a0c74d3cd6fe1caf3518d09f5677287849319866f0bdcb62757262bd35",
+          "sizeBytes": 723
+        }
+      ]
+    },
+    {
+      "mode": "voiceprint-vad-begin",
+      "runId": "20260928-095112-voiceprint-vad-begin-9ebda5bd",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "voiceprint-vad-begin-burst-direct",
+        "voiceprint-vad-begin-paced-direct",
+        "voiceprint-vad-begin-burst-leading",
+        "voiceprint-vad-begin-paced-leading"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 16,
+        "observation_seconds": 18.503,
+        "warmup_samples_excluded": 3,
+        "head_rss_mb": 537.488,
+        "tail_rss_mb": 479.273,
+        "rss_growth_mb": -58.215,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          537.604,
+          569.105,
+          479.322
+        ],
+        "peak_rss_mb": 636.922,
+        "peak_hwm_mb": 640.898,
+        "head_vm_data_mb": 2873.609,
+        "tail_vm_data_mb": 2858.859,
+        "vm_data_growth_mb": -14.75,
+        "peak_swap_mb": 90.098,
+        "head_threads": 54,
+        "tail_threads": 46,
+        "thread_growth": -8,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095112-voiceprint-vad-begin-9ebda5bd/report.json",
+          "sha256": "bc94eca5c6800cc35b2fcd5ef065f9c6914ef2974e6ee1d0ff8514e88c9fa8b8",
+          "sizeBytes": 33910
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095112-voiceprint-vad-begin-9ebda5bd/memory.csv",
+          "sha256": "19b3eda0c4bf2dec1461b3cc79f92f7190a1e9e81c6a9393c24e6549b6b881a1",
+          "sizeBytes": 1126
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095112-voiceprint-vad-begin-9ebda5bd/hilog.txt",
+          "sha256": "5e21c29e6eeaebfd7f26c40eaf301ea13f4a0e1475cd2b864b577869778310f8",
+          "sizeBytes": 882404
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095112-voiceprint-vad-begin-9ebda5bd/inventory.json",
+          "sha256": "35a10a5b66a5e03cf6215006c47638cb120c0a4af5c5cce98ccc7d5633d205f6",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095112-voiceprint-vad-begin-9ebda5bd/payload/corpus.json",
+          "sha256": "2ee51c9ab3b029c11bca18f0fffc249fda638106397b3b2d3d0ea020eb5312eb",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "voiceprint-vad-begin-idle",
+      "runId": "20260928-095134-voiceprint-vad-begin-idle-f49c9991",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "voiceprint-vad-begin-pure-silence",
+        "voiceprint-vad-begin-bounded-noise"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.76
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095134-voiceprint-vad-begin-idle-f49c9991/report.json",
+          "sha256": "b98b56447f5339cdcd18849056212fffd94aae592658b24ba89eac5e40f35cab",
+          "sizeBytes": 12494
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095134-voiceprint-vad-begin-idle-f49c9991/memory.csv",
+          "sha256": "d2566b09f1204912d00850b9ac4e62bf728506667cfea6899db2fdebc2a2f75f",
+          "sizeBytes": 735
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095134-voiceprint-vad-begin-idle-f49c9991/hilog.txt",
+          "sha256": "c707d3911cbfe79e5e5665ea2f696141e4e2ec8123489224ca55a282aa5932ae",
+          "sizeBytes": 717516
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095134-voiceprint-vad-begin-idle-f49c9991/inventory.json",
+          "sha256": "82759feb3c7c2950d60390c4534f601dab9c312555d986362928f475f0736d3f",
+          "sizeBytes": 209
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095134-voiceprint-vad-begin-idle-f49c9991/payload/corpus.json",
+          "sha256": "cd8bb61f66fcf55ef0e6d5a5177e37c3e7849a3398db4d546e5498c5f070313d",
+          "sizeBytes": 380
+        }
+      ]
+    },
+    {
+      "mode": "cancel",
+      "runId": "20260928-095147-cancel-06626c7f",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 3,
+      "coveredCases": [
+        "cancelled",
+        "cancelled",
+        "cancelled"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 0,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.525
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095147-cancel-06626c7f/report.json",
+          "sha256": "77507da0c5cc7c9e89ed20fa499dea2e84fc7814a6cc4f0206aad921a9e99399",
+          "sizeBytes": 12548
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095147-cancel-06626c7f/memory.csv",
+          "sha256": "8b60ff1fffb75e87402404b67edb8aa81a5e455d8ea5be662698398d9798c4a3",
+          "sizeBytes": 487
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095147-cancel-06626c7f/hilog.txt",
+          "sha256": "dc139986d8167e4f9730e1622b0ae0a3ff33ebc64b291639a4c056d24975b54a",
+          "sizeBytes": 549677
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095147-cancel-06626c7f/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095147-cancel-06626c7f/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "cancel-full",
+      "runId": "20260928-095156-cancel-full-9db97189",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "cancelled-full",
+        "cancelled-full"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 0,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.389
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095156-cancel-full-9db97189/report.json",
+          "sha256": "ed3bbfd2abf195e95a8eec88eb54739712ef3398da335ab54c3b58146acad97f",
+          "sizeBytes": 10569
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095156-cancel-full-9db97189/memory.csv",
+          "sha256": "6126d3a0041af2638ab1713017a6b65584c093eda05e43110e7fe3795677b4bc",
+          "sizeBytes": 487
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095156-cancel-full-9db97189/hilog.txt",
+          "sha256": "ad28a0a9e2551f08ad03de6cbfd56401267fc4a4e3ac02e90f6182fd6bb0d2fe",
+          "sizeBytes": 575882
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095156-cancel-full-9db97189/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095156-cancel-full-9db97189/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "recreate",
+      "runId": "20260928-095204-recreate-1c94cd50",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "finished",
+        "finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 8,
+        "observation_seconds": 8.084
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095204-recreate-1c94cd50/report.json",
+          "sha256": "290d2495cd0eb44713e85a2ee3123b2b4fc62758fc99f1f54542327fb459accb",
+          "sizeBytes": 18539
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095204-recreate-1c94cd50/memory.csv",
+          "sha256": "471657900a3a4ec9b81d2434ecef173af7a5e921e407a4af50f077b24c6f8d2b",
+          "sizeBytes": 616
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095204-recreate-1c94cd50/hilog.txt",
+          "sha256": "3f35dc4b555eccaae6524fa7fd8749ccd2ccb41c7998fb6f9c0caba0dc9f7a2a",
+          "sizeBytes": 701458
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095204-recreate-1c94cd50/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095204-recreate-1c94cd50/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "reconfigure",
+      "runId": "20260928-095216-reconfigure-fa9b0de0",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 3,
+      "coveredCases": [
+        "finished",
+        "finished",
+        "finished"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 3,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 13,
+        "observation_seconds": 14.528
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095216-reconfigure-fa9b0de0/report.json",
+          "sha256": "cb40188ad7b9902a8d2b7659944b0c055ff990ed00282cc727b637122f966ddf",
+          "sizeBytes": 28452
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095216-reconfigure-fa9b0de0/memory.csv",
+          "sha256": "e9eae334fc76a4cac2833fa98847b815af5e2fe294932256371dc7a33ee908a3",
+          "sizeBytes": 936
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095216-reconfigure-fa9b0de0/hilog.txt",
+          "sha256": "40a90afdb07ffe0f5a8806c1d8436c0887a063b2f7d32778b1e88bda12be352d",
+          "sizeBytes": 915817
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095216-reconfigure-fa9b0de0/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095216-reconfigure-fa9b0de0/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "max-duration",
+      "runId": "20260928-095234-max-duration-7f46f9dd",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "auto-finished-burst",
+        "auto-finished-paced"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 16,
+        "observation_seconds": 18.474,
+        "warmup_samples_excluded": 3,
+        "head_rss_mb": 476.012,
+        "tail_rss_mb": 383.062,
+        "rss_growth_mb": -92.949,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          469.516,
+          444.406,
+          383.332
+        ],
+        "peak_rss_mb": 513.738,
+        "peak_hwm_mb": 526.078,
+        "head_vm_data_mb": 2774.703,
+        "tail_vm_data_mb": 2797.859,
+        "vm_data_growth_mb": 23.156,
+        "peak_swap_mb": 89.293,
+        "head_threads": 52,
+        "tail_threads": 46,
+        "thread_growth": -6,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095234-max-duration-7f46f9dd/report.json",
+          "sha256": "66c4eaf1d3d2cc5dd4ce96963ed68783e1bd155c19afb08c422a1183702cb455",
+          "sizeBytes": 26779
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095234-max-duration-7f46f9dd/memory.csv",
+          "sha256": "d2a46896eb27afbf4411c2be30aa20015f64701da4aa5ca29e46f0c7e9d89608",
+          "sizeBytes": 1129
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095234-max-duration-7f46f9dd/hilog.txt",
+          "sha256": "2ea064aee1531a2814089e0461e48b2fdc518bd178fe1cd351a7c875a54a0598",
+          "sizeBytes": 922873
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095234-max-duration-7f46f9dd/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095234-max-duration-7f46f9dd/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "edge",
+      "runId": "20260928-095255-edge-736dd524",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "edge-contracts",
+        "edge-contracts"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 7,
+        "observation_seconds": 6.804
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095255-edge-736dd524/report.json",
+          "sha256": "f9803eb58a557fe9567cabc12fe296cdd7108818fb920213f760ffaa21a90097",
+          "sizeBytes": 18118
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095255-edge-736dd524/memory.csv",
+          "sha256": "ea5508664bc774c929edd1ebd015fd9d0ebdc13c8642520fc8df2becd24abfbd",
+          "sizeBytes": 550
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095255-edge-736dd524/hilog.txt",
+          "sha256": "e216ffc6ae27cda177930f896c063c4959af61d8aad430077d59fad76a5fdb65",
+          "sizeBytes": 632870
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095255-edge-736dd524/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095255-edge-736dd524/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "reentrant",
+      "runId": "20260928-095305-reentrant-7bd7581d",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "reentrant-complete",
+        "reentrant-complete"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 9.336
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095305-reentrant-7bd7581d/report.json",
+          "sha256": "6b4fc02f2b46e519a28810cbbc8fb5f0218a35a2475f36035732c8f4bff9b21a",
+          "sizeBytes": 24850
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095305-reentrant-7bd7581d/memory.csv",
+          "sha256": "41b68bd8ee0f9f60439550a376a99726d331802cfb355922b96699226443bafc",
+          "sizeBytes": 678
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095305-reentrant-7bd7581d/hilog.txt",
+          "sha256": "adff1867a2e38c32b8834118e71814060f501765730d8a04b58715d3e015ae54",
+          "sizeBytes": 1023079
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095305-reentrant-7bd7581d/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095305-reentrant-7bd7581d/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "start-cancel",
+      "runId": "20260928-095318-start-cancel-1c26e2f5",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "start-cancel",
+        "start-cancel"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 0,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 5.441
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095318-start-cancel-1c26e2f5/report.json",
+          "sha256": "29ef217d335024ace270833c5a1044bd6925739a7662145a70fe0e1deab8bfbe",
+          "sizeBytes": 10589
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095318-start-cancel-1c26e2f5/memory.csv",
+          "sha256": "763088384692f3f1b4dd61ddd51958a4c0f56be28f18ccfe04eab15efdbfcc12",
+          "sizeBytes": 481
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095318-start-cancel-1c26e2f5/hilog.txt",
+          "sha256": "85176db48f673cdc818b6606a74404f55bc0de23f671a8c4260739df90a3ba78",
+          "sizeBytes": 619831
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095318-start-cancel-1c26e2f5/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095318-start-cancel-1c26e2f5/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "start-write",
+      "runId": "20260928-095328-start-write-50c6229d",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "onstart-write-32-frames-continue-batch-2ms-max-1ms",
+        "onstart-write-88-frames-continue-batch-6ms-max-1ms",
+        "onstart-write-32-frames-finish-batch-2ms-max-1ms",
+        "onstart-write-88-frames-finish-batch-9ms-max-1ms"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.703
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095328-start-write-50c6229d/report.json",
+          "sha256": "c3f9fd700f9cfeb15437184e5b56cdccbb2586c38d1d3eb26fb70ef9df5d3f8f",
+          "sizeBytes": 30159
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095328-start-write-50c6229d/memory.csv",
+          "sha256": "8a4c26609f1deb3016283a8dc0ef9b924974e0d3202f18854e56851f269a2c10",
+          "sizeBytes": 731
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095328-start-write-50c6229d/hilog.txt",
+          "sha256": "384df87c3a20892dcce2975fabd608c7eb4e56276272a16b2372830c71144124",
+          "sizeBytes": 946214
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095328-start-write-50c6229d/inventory.json",
+          "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095328-start-write-50c6229d/payload/corpus.json",
+          "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+          "sizeBytes": 1129
+        }
+      ]
+    },
+    {
+      "mode": "start-write-reload",
+      "runId": "20260928-095343-start-write-reload-77d6eb7c",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "onstart-write-32-frames-continue-batch-3ms-max-1ms",
+        "onstart-write-88-frames-continue-batch-6ms-max-1ms",
+        "onstart-write-32-frames-finish-batch-2ms-max-1ms",
+        "onstart-write-88-frames-finish-batch-8ms-max-1ms"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 12,
+        "observation_seconds": 13.325
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095343-start-write-reload-77d6eb7c/report.json",
+          "sha256": "e79d83bf8d436590abf0d6c99b9fd79bfd1b2f6487e464bcf3e2ec74cc03d154",
+          "sizeBytes": 30163
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095343-start-write-reload-77d6eb7c/memory.csv",
+          "sha256": "2659c7c6dcca72e32f83146c057576ce3e5cb20cb4d52e2ddec90b0c8063dc24",
+          "sizeBytes": 858
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095343-start-write-reload-77d6eb7c/hilog.txt",
+          "sha256": "f3c409854c7fcd207071a59d14f809cab6ce9c459fd42246621e7e46b7ec3cdd",
+          "sizeBytes": 1012959
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095343-start-write-reload-77d6eb7c/inventory.json",
+          "sha256": "e25377fe4ff5fe77b58622877330a770cdc2eaabf121fdbec43253e9533161f7",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095343-start-write-reload-77d6eb7c/payload/corpus.json",
+          "sha256": "8391344bf08073ca5f26a60ccc83fcd79e22a08e0bed5c9ac4201c920d18de45",
+          "sizeBytes": 1129
+        }
+      ]
+    },
+    {
+      "mode": "speaker-vad-onstart",
+      "runId": "20260928-095402-speaker-vad-onstart-031d5fd3",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 4,
+      "coveredCases": [
+        "speaker-vad-onstart-burst-direct",
+        "speaker-vad-onstart-paced-direct",
+        "speaker-vad-onstart-burst-leading",
+        "speaker-vad-onstart-paced-leading"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 18,
+        "observation_seconds": 21.06,
+        "warmup_samples_excluded": 3,
+        "head_rss_mb": 561.984,
+        "tail_rss_mb": 502.598,
+        "rss_growth_mb": -59.387,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          610.57,
+          638.836,
+          530.324
+        ],
+        "peak_rss_mb": 648.156,
+        "peak_hwm_mb": 651.887,
+        "head_vm_data_mb": 2871.078,
+        "tail_vm_data_mb": 2901.891,
+        "vm_data_growth_mb": 30.812,
+        "peak_swap_mb": 89.25,
+        "head_threads": 53,
+        "tail_threads": 47,
+        "thread_growth": -6,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095402-speaker-vad-onstart-031d5fd3/report.json",
+          "sha256": "7e99b48d9733ff91ea107927b163afb3c0d691bdb6a7527757803804fc36dbaa",
+          "sizeBytes": 35648
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095402-speaker-vad-onstart-031d5fd3/memory.csv",
+          "sha256": "22d3604ce9b7f1416b71ca1890ebf2ced85c35245c143e45207cd8d8fb9baa05",
+          "sizeBytes": 1237
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095402-speaker-vad-onstart-031d5fd3/hilog.txt",
+          "sha256": "636025058f898e35198ac048e73ccff611bd919047dc31a01e9566859f90d222",
+          "sizeBytes": 1010893
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095402-speaker-vad-onstart-031d5fd3/inventory.json",
+          "sha256": "8e469f4b54a59ecd9e757f20435d65e02dd0bd50f9771895da3bd67837701ec9",
+          "sizeBytes": 209
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095402-speaker-vad-onstart-031d5fd3/payload/corpus.json",
+          "sha256": "a98a6b563df4a4b35ce708a704ef919df896c76a3fac1163afcd27637e8ab42c",
+          "sizeBytes": 380
+        }
+      ]
+    },
+    {
+      "mode": "endpoint-reentrant",
+      "runId": "20260928-095427-endpoint-reentrant-f2121e31",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "endpoint-reentrant-speech-end",
+        "endpoint-reentrant-last-result"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 10,
+        "observation_seconds": 10.643
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095427-endpoint-reentrant-f2121e31/report.json",
+          "sha256": "c5187109621ebeb785b9c3e6f22cf3d87fae2bd3709876066347d4c876d337f5",
+          "sizeBytes": 18894
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095427-endpoint-reentrant-f2121e31/memory.csv",
+          "sha256": "02492ba28f76a9d9785e37a649d1be88752a725f150540060ee2829f0f78cba7",
+          "sizeBytes": 734
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095427-endpoint-reentrant-f2121e31/hilog.txt",
+          "sha256": "67b3983ebe3b0261c5e03dd7332b3193087cb89ce5f4eebabf443f3298805bbe",
+          "sizeBytes": 832552
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095427-endpoint-reentrant-f2121e31/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095427-endpoint-reentrant-f2121e31/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "user-sequence",
+      "runId": "20260928-095441-user-sequence-38c94eb7",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 3,
+      "coveredCases": [
+        "user-sequence",
+        "user-sequence",
+        "user-sequence"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 6,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 13,
+        "observation_seconds": 14.524
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095441-user-sequence-38c94eb7/report.json",
+          "sha256": "1a0913c2e299d246cb98e79be1ae4ebb4e0662edb635ad6604f94423485e3c9f",
+          "sizeBytes": 36584
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095441-user-sequence-38c94eb7/memory.csv",
+          "sha256": "1688a78ff96229569f19e4d01544fc71b37901134f8d32f37bebca9638074bfd",
+          "sizeBytes": 922
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095441-user-sequence-38c94eb7/hilog.txt",
+          "sha256": "6eaf34094375eff3c4104d51431f61a857d4466114aaae5860b857a4fbcfac94",
+          "sizeBytes": 974595
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095441-user-sequence-38c94eb7/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095441-user-sequence-38c94eb7/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "numeric-edge",
+      "runId": "20260928-095459-numeric-edge-9861fa70",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "omitted-max-duration-disabled",
+        "nan-max-duration-disabled"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 2,
+        "failures": []
+      },
+      "memory": {
+        "status": "PASS",
+        "sample_count": 28,
+        "observation_seconds": 33.709,
+        "warmup_samples_excluded": 5,
+        "head_rss_mb": 579.551,
+        "tail_rss_mb": 436.059,
+        "rss_growth_mb": -143.492,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          579.398,
+          582.0,
+          458.617
+        ],
+        "peak_rss_mb": 595.141,
+        "peak_hwm_mb": 607.414,
+        "head_vm_data_mb": 3126.578,
+        "tail_vm_data_mb": 3213.172,
+        "vm_data_growth_mb": 86.594,
+        "peak_swap_mb": 90.219,
+        "head_threads": 53,
+        "tail_threads": 48,
+        "thread_growth": -5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095459-numeric-edge-9861fa70/report.json",
+          "sha256": "0c29950d8a45c5f59a6261264dde816cb551f89cc70541db1136de0b2fa89ed1",
+          "sizeBytes": 57937
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095459-numeric-edge-9861fa70/memory.csv",
+          "sha256": "a622324cf983eb307c288bb4ecfed049a1cb4216bc748ddf5f04409a57c7c66c",
+          "sizeBytes": 1877
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095459-numeric-edge-9861fa70/hilog.txt",
+          "sha256": "480488924f21fd9f54a085d84bc93fb4c463fce404693516e99cc052895bf50e",
+          "sizeBytes": 1071147
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095459-numeric-edge-9861fa70/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095459-numeric-edge-9861fa70/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "finish-shutdown-relicense",
+      "runId": "20260928-095535-finish-shutdown-relicense-ff0cbb39",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "finish-shutdown-relicense-drained",
+        "finish-shutdown-relicense-drained"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 11,
+        "observation_seconds": 11.88
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095535-finish-shutdown-relicense-ff0cbb39/report.json",
+          "sha256": "8b0f29a8ebbb9749d9040f224886a8d4ac28d357f445750d523fb95b42424052",
+          "sizeBytes": 19490
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095535-finish-shutdown-relicense-ff0cbb39/memory.csv",
+          "sha256": "121b1f427a216d04641d1e68382e5771c65c85b54843326483faf484a5b61ad4",
+          "sizeBytes": 791
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095535-finish-shutdown-relicense-ff0cbb39/hilog.txt",
+          "sha256": "91b7520c2d3b875faa10f217920293234ec19da1100aab4abec8b59c40989783",
+          "sizeBytes": 849754
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095535-finish-shutdown-relicense-ff0cbb39/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095535-finish-shutdown-relicense-ff0cbb39/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "callback-api-reentrant",
+      "runId": "20260928-095701-callback-api-reentrant-25153ccd",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 3,
+      "coveredCases": [
+        "callback-api-reentrant-speech-begin",
+        "callback-api-reentrant-speech-end",
+        "callback-api-reentrant-result"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "NOT_APPLICABLE"
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 6,
+        "observation_seconds": 6.42
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095701-callback-api-reentrant-25153ccd/report.json",
+          "sha256": "861847b6d8b139a80a11dc87a6d3bfa9783b6ece0946e594ee67fa7f5301d635",
+          "sizeBytes": 13224
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095701-callback-api-reentrant-25153ccd/memory.csv",
+          "sha256": "784dc1ba313b705006382f5f545b655a0547c08e05cb0181c76e184d10a97ae4",
+          "sizeBytes": 484
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095701-callback-api-reentrant-25153ccd/hilog.txt",
+          "sha256": "6765aa7f8a839b682d730a0d6e28b5d520b1636434f55a67acda4a300b781d48",
+          "sizeBytes": 620911
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095701-callback-api-reentrant-25153ccd/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095701-callback-api-reentrant-25153ccd/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "finish-shutdown",
+      "runId": "20260928-095710-finish-shutdown-d8bda648",
+      "rawStatus": "PASS",
+      "mergeAssessment": "PASS",
+      "failures": [],
+      "sdkStatus": "PASS",
+      "cycleCount": 2,
+      "coveredCases": [
+        "finish-shutdown-drained",
+        "finish-shutdown-drained"
+      ],
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 2,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "NOT_APPLICABLE"
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "fewer than 6 process samples",
+        "sample_count": 3
+      },
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095710-finish-shutdown-d8bda648/report.json",
+          "sha256": "d759d12e0e192f638283eee34d183c49242a0753da7463ad097e71cbd66bbfd4",
+          "sizeBytes": 10794
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095710-finish-shutdown-d8bda648/memory.csv",
+          "sha256": "ae1366a428f39b19e2169e8786eae64c1e0db9a79eb4ffc53266065f771b77f4",
+          "sizeBytes": 299
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095710-finish-shutdown-d8bda648/hilog.txt",
+          "sha256": "38550365e2bfb3509b83bf5453d6f9f129c69c8d2429a4e0f8e0938b6e670cef",
+          "sizeBytes": 458756
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095710-finish-shutdown-d8bda648/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-095710-finish-shutdown-d8bda648/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Public identity accuracy, mixed-run boundaries and minority recall are still not fully resolved.",
+    "No claim that four full anchor gates, 16 recordings, long meetings, or final Debug/Release delivery are complete.",
+    "Short memory observations marked INCONCLUSIVE remain so; accepted growth is not a memory-stability proof.",
+    "The missing Python ONNX dependency preflight produced no device run; it was corrected by using the existing pinned environment.",
+    "Raw audio, transcript and embeddings are not committed."
+  ]
+}
