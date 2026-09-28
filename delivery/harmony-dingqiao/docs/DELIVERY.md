@@ -13,9 +13,10 @@
 ## 构建步骤
 
 从干净检出开始，先从受控制品库准备 `asr/tools/demo-model/zhen`、`yueen`、标点、ITN、VAD 和可选
-TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decoder.int8.onnx`、
-`joiner.int8.onnx`、`tokens.txt` 和 `bbpe.vocab`。这些模型目录被 Git 忽略；公开 demo 下载
-脚本不是本次交付模型。当前源 SHA-256 见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
+TTS 模型输入。模型文件与哈希按[受控资产说明](../../../tools/assets/README.md)、
+[ASR 模型输入说明](../../../asr/tools/demo-model/README.md)和交付模型白名单核对，
+不能把旧版 decoder/joiner 的 INT8 文件名当作当前必需输入。这些目录被 Git 忽略；公开 demo 下载脚本不能代替交付模型。
+历史加载性能数据见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)，不作为当前模型身份清单。
 
 ```bash
 # 1) native（AGC2 + ASR/TTS 共用的 sherpa_onnx .so）

@@ -62,7 +62,8 @@ amphion-runtime/
 | HarmonyOS TTS SDK | [tts/harmony/docs/BUILD.md](tts/harmony/docs/BUILD.md) |
 | 鼎桥 Android 客户接口契约 | [asr/android/docs/customer/语音识别SDK接口-交付批注版.md](asr/android/docs/customer/语音识别SDK接口-交付批注版.md) |
 | 鼎桥 HarmonyOS 交付聚合层 | [delivery/harmony-dingqiao/README.md](delivery/harmony-dingqiao/README.md) |
-| 客户交付包验收规则 | [docs/delivery-zip-verification.md](docs/delivery-zip-verification.md) |
+| 双端鼎桥交付与归档 | [统一交付流程](delivery/ASR_DELIVERY_WORKFLOW.md) |
+| Android 子包 ZIP 检查 | [docs/delivery-zip-verification.md](docs/delivery-zip-verification.md) |
 
 文档分层原则：
 
@@ -94,7 +95,7 @@ git submodule update --init --recursive
 | iOS | `bash asr/ios/build_xcframework.sh` | 详见 [asr/ios/README.md](asr/ios/README.md) |
 | ASR Server | `cmake -DSHERPA_ONNX_DIR=...` | 详见 [asr/server/README.md](asr/server/README.md)，需要先在 `third_party/sherpa-onnx` 内做 cxx-api install |
 | ASR WebSocket | `uv pip install -e asr/ws-server` 后运行 `python -m amphion_asr_ws` | 详见 [asr/ws-server/README.md](asr/ws-server/README.md) |
-| 鼎桥 HarmonyOS 交付 | `bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh` | 详见 [delivery/harmony-dingqiao/README.md](delivery/harmony-dingqiao/README.md) |
+| 鼎桥 HarmonyOS 交付 | `bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh "${DELIVERY_STAGE:?请先设置本次暂存目录}/packages"` | 先按[交付流程](delivery/ASR_DELIVERY_WORKFLOW.md)设置暂存目录，再见 [Harmony 入口](delivery/harmony-dingqiao/README.md) |
 
 ## 与 sherpa-onnx 的关系
 

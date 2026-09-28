@@ -43,6 +43,8 @@
 
 ## 推荐验证命令
 
+从仓库根目录执行；以下是按需选用的命令，不是要求每个任务顺次全跑。
+
 ```bash
 python3 -m unittest \
   asr.tools.tests.test_harmony_initial_silence_tracker \
@@ -52,9 +54,8 @@ python3 -m unittest \
 python3 delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py \
   --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500"
 
-cd asr/android
-./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain
-./gradlew --no-daemon :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain
+(cd asr/android && ./gradlew --no-daemon :sdk:testDebugUnitTest :sdk-dingqiao:testDebugUnitTest --console=plain)
+(cd asr/android && ./gradlew --no-daemon :sdk:testReleaseUnitTest :sdk-dingqiao:testReleaseUnitTest --rerun-tasks --console=plain)
 
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --data-dir "$HOME/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500" \
@@ -69,4 +70,4 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --mode user-sequence --cycles 300 --files 3
 ```
 
-真机命令中的次数和语料数量可按耗时调整，但合入前至少要覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-fallback`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
+完整发布或约定完整回归的运行逻辑合入使用以下矩阵，次数和语料数量可按耗时调整；问题定位只运行相关子集。完整矩阵至少覆盖 `burst`、`paced`、`vad-begin`、`vad-begin-silence`、`voiceprint`、`voiceprint-fallback`、`voiceprint-vad-begin`、`voiceprint-vad-begin-idle`、`cancel`、`cancel-full`、`max-duration`、`edge`、`reentrant`、`start-cancel`、`start-write`、`start-write-reload`、`user-sequence` 和 `numeric-edge`。任何模式失败都应先解释并修复，不能通过放宽全局空结果率掩盖生命周期错误。
