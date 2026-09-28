@@ -1,0 +1,42 @@
+{
+  "batch_id": "20260928-asr-harmony-032723",
+  "published": false,
+  "source_commit": "74e94a27cc90f033d3f8e5aa18ac0b3b9518e352",
+  "remote_index_uri": "cos-amphion-delivery:amphion-runtime/archive-index/20260928-asr-harmony-032723.json",
+  "removed": [
+    {
+      "artifact": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.18/11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884/Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "size_bytes": 1750219342,
+      "sha256": "11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:27:08.251519+00:00",
+        "local_copies_verified": 2
+      }
+    },
+    {
+      "artifact": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip.sha256",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.18/11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884/companions/Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip.sha256",
+      "size_bytes": 116,
+      "sha256": "62429fa435f61ba56238e6faad49f08fd6a37024c37180c6a15aad42a18c5a41",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:27:15.215933+00:00",
+        "local_copies_verified": 2
+      }
+    },
+    {
+      "artifact": "complete-candidate-report.json",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.18/11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884/companions/complete-candidate-report.json",
+      "size_bytes": 955,
+      "sha256": "53616cdfca1dfa9f87f33529a3224c4eeacbed8f9f2dc2dca6c2abdb9c819a58",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:27:23.597550+00:00",
+        "local_copies_verified": 2
+      }
+    }
+  ],
+  "retained": "Independent build logs, diagnostic evidence and source files"
+}
