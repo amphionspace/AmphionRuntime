@@ -320,6 +320,46 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           }}
         """)
 
+    def test_police_trace_records_keep_owners_through_rewrite_trim_and_insertions(self):
+        trace_module = ROOT / 'asr/harmony/sdk-police/src/main/ets/com/amphion/police/PoliceTextTrace.ts'
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          import {{ PoliceTextTrace, PoliceTextEdit, replaceMatches }} from {trace_module.as_uri()!r};
+          const raw='先讨论方案这这个我理解然后继续嗯';
+          const source=' 先讨论方案，这这个我理解，然后继续，嗯？ ';
+          // The same step shapes the police pipeline uses: a global rewrite, a trim,
+          // a sentence-final replacement and an appended full stop.
+          const trace=new PoliceTextTrace(source);
+          let text=source;
+          const step=(next,edits)=>{{trace.step(text,next,edits);text=next;}};
+          let edits=[];step(replaceMatches(text,/这这/g,edits,()=>'浙J'),edits);
+          const trimmed=text.trim();step(trimmed,[new PoliceTextEdit(0,1,''),new PoliceTextEdit(text.length-1,text.length,'')]);
+          step(text.slice(0,-1)+'。',[new PoliceTextEdit(text.length-1,text.length,'。')]);
+          step(text+'。',[new PoliceTextEdit(text.length,text.length,'。')]);
+          assert.equal(text,'先讨论方案，浙J个我理解，然后继续，嗯。。');
+          assert(trace.matches(text));
+          const presentation=trace.provenance();
+          assert(presentation!==undefined);
+          const turn=(beginTime,endTime,speakerId)=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          const s=new State();
+          s.addUtterance({{rawText:raw,text:source,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>i*100),
+            beginTime:0,endTime:raw.length*100}});
+          const direct=s.sentenceUtterances();
+          const t=new State();
+          t.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>i*100),
+            beginTime:0,endTime:raw.length*100,presentation}});
+          t.applySpeakerTurns([turn(0,500,'S1'),turn(500,1100,'S2'),turn(1100,1500,'S1'),turn(1500,1600,'S2')]);
+          const before=t.allTurns(),out=t.sentenceUtterances();
+          assert.equal(out.map(x=>x.text).join(''),text);assert.equal(out.map(x=>x.rawText).join(''),raw);
+          const owners=out.flatMap(u=>u.speakerTextSpans.flatMap(p=>[...u.text.slice(p.textBegin,p.textEnd)].map(()=>p.speakerId)));
+          assert.deepEqual(owners,[...Array(6).fill('S1'),...Array(7).fill('S2'),...Array(5).fill('S1'),...Array(3).fill('S2')],
+            'unchanged clauses keep token owners; the rewritten record and appended stops stay with their neighbours');
+          for(const u of out)assert.equal(u.speakerTextSpans.map(p=>u.text.slice(p.textBegin,p.textEnd)).join(''),u.text);
+          assert.deepEqual(t.allTurns(),before);
+          assert.ok(direct.length>0);
+        """)
+
     def test_repeated_deleted_text_cannot_supply_an_ambiguous_punctuation_cut(self):
         run_node(f"""
           import assert from 'node:assert/strict';

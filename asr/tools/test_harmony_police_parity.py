@@ -140,6 +140,7 @@ def main() -> None:
         source.mkdir()
         for name in ("PoliceAssets", "PlateV2", "PoliceTermsV2", "PoliceStationV2"):
             shutil.copyfile(SOURCE / f"{name}.ets", source / f"{name}.ts")
+        shutil.copyfile(SOURCE / "PoliceTextTrace.ts", source / "PoliceTextTrace.ts")
         write_mocks(work)
         write_runner(work)
         sources = [str(path.relative_to(work)) for path in sorted(source.glob("*.ts"))]

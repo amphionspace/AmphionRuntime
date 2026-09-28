@@ -1,5 +1,16 @@
 import { common } from '@kit.AbilityKit';
 import { PoliceAssetPair, PoliceAssets } from './PoliceAssets';
+import { PoliceTextEdit, PoliceTextTrace, replaceLiteral, replaceMatches } from './PoliceTextTrace';
+
+class StationRewrite {
+  pattern: RegExp;
+  value: string;
+
+  constructor(pattern: RegExp, value: string) {
+    this.pattern = pattern;
+    this.value = value;
+  }
+}
 
 class StationReadingMap {
   private subs: Map<string, Set<string>> = new Map<string, Set<string>>();
@@ -42,6 +53,21 @@ class RawStationSpan {
 }
 
 export class PoliceStationV2 {
+  private static readonly ADMIN_PUNCT: StationRewrite[] = [
+    new StationRewrite(/([市区县])、/g, '$1'),
+    new StationRewrite(/派出所，/g, '派出所'),
+    new StationRewrite(/，派出所/g, '派出所'),
+    new StationRewrite(/(汇总|统计|导出|整理)，/g, '$1')
+  ];
+  private static readonly POLISH: StationRewrite[] = [
+    new StationRewrite(/麻烦和一下/g, '麻烦核一下'),
+    new StationRewrite(/麻烦和/g, '麻烦核'),
+    new StationRewrite(/接警数据，按(派警|日期|天分)/g, '接警数据按$1'),
+    new StationRewrite(/接警情况，/g, '接警情况'),
+    new StationRewrite(/接警多少[？?]$/g, '接警多少起。'),
+    new StationRewrite(/接警多[。]?$/g, '接警多少起。'),
+    new StationRewrite(/接警数[。]?$/g, '接警数据。')
+  ];
   private static readonly MAX_EDITS: number = 2;
   private static readonly COMMAND_PREFIXES: string[] = [
     '麻烦汇总一下', '帮忙汇总一下', '麻烦统计一下', '帮忙统计一下',
@@ -73,22 +99,27 @@ export class PoliceStationV2 {
     this.readingMap = new StationReadingMap(pairs);
   }
 
-  normalize(text: string): string {
+  normalize(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0 || this.isDecodeCollapse(text)) return text;
-    let corrected = this.normalizeAdminPunct(this.applyGlobalPhrases(text));
+    let corrected = this.normalizeAdminPunct(this.applyGlobalPhrases(text, trace), trace);
     const span = this.locateSpan(corrected);
-    if (span === undefined) return this.polish(corrected);
+    if (span === undefined) return this.polish(corrected, trace);
 
     let normalized = this.normalizeSpan(span.raw, corrected);
     normalized = this.normalizeAdminPunct(normalized);
+    const located = corrected;
     corrected = corrected.substring(0, span.start) + normalized + corrected.substring(span.end);
-    return this.polish(corrected);
+    trace?.step(located, corrected, [new PoliceTextEdit(span.start, span.end, normalized)]);
+    return this.polish(corrected, trace);
   }
 
-  private applyGlobalPhrases(text: string): string {
+  private applyGlobalPhrases(text: string, trace?: PoliceTextTrace): string {
     let output = text;
     for (let i = 0; i < this.globalPairs.length; i++) {
-      output = output.split(this.globalPairs[i].from).join(this.globalPairs[i].to);
+      const edits: PoliceTextEdit[] = [];
+      const next = replaceLiteral(output, this.globalPairs[i].from, this.globalPairs[i].to, edits);
+      trace?.step(output, next, edits);
+      output = next;
     }
     return output;
   }
@@ -109,12 +140,23 @@ export class PoliceStationV2 {
     return false;
   }
 
-  private normalizeAdminPunct(text: string): string {
-    return text
-      .replace(/([市区县])、/g, '$1')
-      .replace(/派出所，/g, '派出所')
-      .replace(/，派出所/g, '派出所')
-      .replace(/(汇总|统计|导出|整理)，/g, '$1');
+  private normalizeAdminPunct(text: string, trace?: PoliceTextTrace): string {
+    return PoliceStationV2.rewriteAll(text, PoliceStationV2.ADMIN_PUNCT, trace);
+  }
+
+  /** Sequential global rewrites; a '$1' value keeps the first group. */
+  private static rewriteAll(text: string, rewrites: StationRewrite[], trace?: PoliceTextTrace): string {
+    let output = text;
+    for (let i = 0; i < rewrites.length; i++) {
+      const rewrite = rewrites[i];
+      const edits: PoliceTextEdit[] = [];
+      const next = replaceMatches(output, rewrite.pattern, edits,
+        (_matched: string, groups: string[], _offset: number): string =>
+          rewrite.value === '$1' ? groups[0] : rewrite.value.split('$1').join(groups.length > 0 ? groups[0] : ''));
+      trace?.step(output, next, edits);
+      output = next;
+    }
+    return output;
   }
 
   private findLongestIn(text: string): string | undefined {
@@ -252,19 +294,27 @@ export class PoliceStationV2 {
     return previous[name.length] <= PoliceStationV2.MAX_EDITS ? previous[name.length] : -1;
   }
 
-  private polish(text: string): string {
+  private polish(text: string, trace?: PoliceTextTrace): string {
     let output = text.trim();
+    if (trace !== undefined && output !== text) {
+      let lead = 0;
+      while (lead < text.length && text.charAt(lead).trim().length === 0) lead++;
+      const edits: PoliceTextEdit[] = [];
+      if (lead > 0) edits.push(new PoliceTextEdit(0, lead, ''));
+      if (lead + output.length < text.length) edits.push(new PoliceTextEdit(lead + output.length, text.length, ''));
+      trace.step(text, output, edits);
+    }
     if (output.length === 0) return output;
-    output = output
-      .replace(/麻烦和一下/g, '麻烦核一下')
-      .replace(/麻烦和/g, '麻烦核')
-      .replace(/接警数据，按(派警|日期|天分)/g, '接警数据按$1')
-      .replace(/接警情况，/g, '接警情况')
-      .replace(/接警多少[？?]$/g, '接警多少起。')
-      .replace(/接警多[。]?$/g, '接警多少起。')
-      .replace(/接警数[。]?$/g, '接警数据。');
-    if (output.endsWith('？') || output.endsWith('?')) output = output.substring(0, output.length - 1) + '。';
-    if (!output.endsWith('。')) output += '。';
+    output = PoliceStationV2.rewriteAll(output, PoliceStationV2.POLISH, trace);
+    if (output.endsWith('？') || output.endsWith('?')) {
+      const replaced = output.substring(0, output.length - 1) + '。';
+      trace?.step(output, replaced, [new PoliceTextEdit(output.length - 1, output.length, '。')]);
+      output = replaced;
+    }
+    if (!output.endsWith('。')) {
+      trace?.step(output, output + '。', [new PoliceTextEdit(output.length, output.length, '。')]);
+      output += '。';
+    }
     return output;
   }
 }
