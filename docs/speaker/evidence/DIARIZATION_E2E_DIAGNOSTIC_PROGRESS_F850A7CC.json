@@ -1,0 +1,430 @@
+{
+  "schemaVersion": 1,
+  "scope": "diagnostic progress, not a release acceptance package",
+  "releaseStatus": "BLOCKED",
+  "runtimeBinding": {
+    "commit": "f850a7cc6ca6f64612a9f10bb5b99173fc4e4446",
+    "sourceFingerprint": "c3f09b1fdb7390202afade0bde344437195f93deb976d72f410d6ba83c388cfd",
+    "device": "7GK0226326015655",
+    "systemVersion": "OpenHarmony-6.1.1.120",
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "asr/harmony/sdk/build/default/outputs/default/amphion_asr.har",
+        "sha256": "795cc4b684e302e2288bf07d87e8f911ac1cf4cbdb6b2e76f189ca5a471d4bac",
+        "size_bytes": 7683688
+      },
+      "amphion_asr_demo.hap": {
+        "path": "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap",
+        "sha256": "d34a9123f65012a0e55706714bb09bee354d792c8e00b70f2a8bf1cfc396e6a3",
+        "size_bytes": 436843931
+      },
+      "amphion_dingqiao.har": {
+        "path": "asr/harmony/sdk-dingqiao/build/default/outputs/default/amphion_dingqiao.har",
+        "sha256": "8d043f606069e2ddede6191d60954b105271b4bba41b70c7338992feda6a4c85",
+        "size_bytes": 93073782
+      },
+      "amphion_police.har": {
+        "path": "asr/harmony/sdk-police/build/default/outputs/default/amphion_police.har",
+        "sha256": "c07f8b200406863cbea092d8a647998b0b916b930a21643549e7a50fd2b73dcd",
+        "size_bytes": 30205122
+      },
+      "sherpa_onnx.har": {
+        "path": "third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har",
+        "sha256": "2eb291b8b601b4ad682882afbbf77fdc3bc49993d45dddf6c966ce78beff284d",
+        "size_bytes": 7180136
+      }
+    }
+  },
+  "inputManifest": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/evaluation-manifest.json",
+    "sha256": "7aa6e422a0cc56e33fa4888662f21211f903b9185fe17ce4a4c712d272c06a34"
+  },
+  "assessment": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/current-assessment.json",
+    "sha256": "0ab4d30014872bac9b768da987ea150f65df0f6bab3be5af4a3986623bd1fa02"
+  },
+  "captures": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/current-captures.json",
+    "sha256": "f100c411b3c65aea548dcb5dab5328cd5b446b1387b6e005145916ddf3f8c8b0"
+  },
+  "results": {
+    "four-speaker-124s": {
+      "inputSha256": "c381622174402fd0f7a6d61466e8b736c9ba09419d482e22a4b5d182cb7eb178",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-124s/device/20260928-001840-diarization-windows-18a907a7/report.json",
+        "sha256": "f429d9c7d7b1779c1f7676507703344980bb1f65d23fcedac79b2265ad5702f4"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-124s/diagnostics/unpacked/asr-diagnostics-20260928-002057/run-1790525925747/events.full.ndjson",
+        "sha256": "a8e863f852093fed84f1cd9c0032bf63a13d7df8b0241fca50334642cfc42adb"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-124s/device/20260928-001840-diarization-windows-18a907a7/payload/corpus.json",
+        "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a"
+      },
+      "sdkStatus": "PASS",
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE",
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS",
+        "offline": "INCONCLUSIVE"
+      },
+      "speakerCount": 4,
+      "diarizationRtf": 0.5490692434410337,
+      "memory": {
+        "status": "PASS",
+        "sample_count": 100,
+        "observation_seconds": 131.83,
+        "warmup_samples_excluded": 20,
+        "head_rss_mb": 605.115,
+        "tail_rss_mb": 635.951,
+        "rss_growth_mb": 30.836,
+        "rss_slope_mb_per_minute": -24.653,
+        "rss_third_medians_mb": [
+          613.984,
+          623.379,
+          636.145
+        ],
+        "peak_rss_mb": 650.836,
+        "peak_hwm_mb": 656.25,
+        "head_vm_data_mb": 3165.395,
+        "tail_vm_data_mb": 3190.27,
+        "vm_data_growth_mb": 24.875,
+        "peak_swap_mb": 82.887,
+        "head_threads": 71.0,
+        "tail_threads": 71.0,
+        "thread_growth": 0.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "queue": {
+        "samples": 58,
+        "maxPending": 0,
+        "maxInFlight": 1,
+        "maxAudioDelayMs": 1900
+      },
+      "commits": [
+        {
+          "sequence": 13067,
+          "beginTime": 0,
+          "endTime": 116680,
+          "registryAfter": 4
+        },
+        {
+          "sequence": 13069,
+          "beginTime": 116680,
+          "endTime": 123800,
+          "registryAfter": 4
+        }
+      ]
+    },
+    "four-speaker-short": {
+      "inputSha256": "f13ad95b225a88c64161ff9a01770d07718f547c97445b7b6bb61ae146f739e7",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-short/device/20260928-002104-paced-16472535/report.json",
+        "sha256": "770d32ab89181130f48436a891b9f295b427ab206ec4f8bd50b512bd55ce4282"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-short/diagnostics/unpacked/asr-diagnostics-20260928-002137/run-1790526069930/events.full.ndjson",
+        "sha256": "9b912cae595ffb62125e0a352c2b3de3f5f2908fc5cf05b5a5cfe169316eb9b7"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors-v2/four-speaker-short/device/20260928-002104-paced-16472535/payload/corpus.json",
+        "sha256": "b6d86e3ce477a3caa018dfffb9bae739432d4707f92e2762dbc82050485320e2"
+      },
+      "sdkStatus": "FAIL",
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "FAIL",
+        "lifecycle": "PASS",
+        "offline": "INCONCLUSIVE"
+      },
+      "speakerCount": 4,
+      "diarizationRtf": 0.3736269391215526,
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 22,
+        "observation_seconds": 27.504,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 438.389,
+        "tail_rss_mb": 555.859,
+        "rss_growth_mb": 117.471,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          440.672,
+          550.881,
+          555.859
+        ],
+        "peak_rss_mb": 560.004,
+        "peak_hwm_mb": 570.066,
+        "head_vm_data_mb": 2769.832,
+        "tail_vm_data_mb": 3078.645,
+        "vm_data_growth_mb": 308.812,
+        "peak_swap_mb": 89.043,
+        "head_threads": 53.0,
+        "tail_threads": 47.0,
+        "thread_growth": -6.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "queue": {
+        "samples": 6,
+        "maxPending": 0,
+        "maxInFlight": 1,
+        "maxAudioDelayMs": 1620
+      },
+      "commits": [
+        {
+          "sequence": 2054,
+          "beginTime": 0,
+          "endTime": 19580,
+          "registryAfter": 4
+        }
+      ]
+    },
+    "aishell4-4": {
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-run/20260928-000848-diarization-windows-f10018d5/report.json",
+        "sha256": "0df67f1c3203c34fb5c0dbe52e03e020f15eb30396cfffb672d13e234f85547d"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-capture/unpacked/asr-diagnostics-20260928-001228/run-1790525333589/events.full.ndjson",
+        "sha256": "fe2fcbb17e37f556b1b6a6fe58567f98c06e1982d37ea8817bf59c575f5d7c9d"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-run/20260928-000848-diarization-windows-f10018d5/payload/corpus.json",
+        "sha256": "d5222434e7b8baec08135be692a3c50b917ce4fe33024d72d94c68367e6f2be7"
+      },
+      "sdkStatus": "PASS",
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE",
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS",
+        "offline": "INCONCLUSIVE"
+      },
+      "speakerCount": 2,
+      "diarizationRtf": 0.5498753932499999,
+      "memory": {
+        "status": "PASS",
+        "sample_count": 141,
+        "observation_seconds": 188.026,
+        "warmup_samples_excluded": 28,
+        "head_rss_mb": 611.27,
+        "tail_rss_mb": 636.941,
+        "rss_growth_mb": 25.672,
+        "rss_slope_mb_per_minute": -6.236,
+        "rss_third_medians_mb": [
+          612.896,
+          632.855,
+          635.682
+        ],
+        "peak_rss_mb": 645.805,
+        "peak_hwm_mb": 656.152,
+        "head_vm_data_mb": 3208.863,
+        "tail_vm_data_mb": 3237.395,
+        "vm_data_growth_mb": 28.531,
+        "peak_swap_mb": 89.215,
+        "head_threads": 71,
+        "tail_threads": 71,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "queue": {
+        "samples": 86,
+        "maxPending": 0,
+        "maxInFlight": 1,
+        "maxAudioDelayMs": 1800
+      },
+      "commits": [
+        {
+          "sequence": 13214,
+          "beginTime": 0,
+          "endTime": 119720,
+          "registryAfter": 1
+        },
+        {
+          "sequence": 18963,
+          "beginTime": 119720,
+          "endTime": 180000,
+          "registryAfter": 2
+        }
+      ],
+      "metrics": {
+        "durationSeconds": 180.0,
+        "frameMs": 10,
+        "referenceSpeakerCount": 4,
+        "systemSpeakerCount": 2,
+        "speakerCountError": -2,
+        "speakerMapping": {
+          "0": "005-M",
+          "1": "004-M"
+        },
+        "der": 0.427774,
+        "missedSpeechSeconds": 61.59,
+        "falseAlarmSeconds": 1.27,
+        "speakerConfusionSeconds": 16.83,
+        "referenceSpeakerSeconds": 186.29,
+        "classicDer250msNoOverlap": 0.253615,
+        "singleSpeakerAttributionAccuracy": 0.715025,
+        "macroSpeakerRecall": 0.299913,
+        "minoritySpeakerRecall": 0.0,
+        "perSpeakerRecall": {
+          "002-F": 0.0,
+          "003-F": 0.0,
+          "004-M": 0.421465,
+          "005-M": 0.778187
+        },
+        "referenceOverlapSeconds": 20.03,
+        "detectedOverlapSeconds": 20.75,
+        "overlapDetectionRecall": 0.645532,
+        "overlapDetectionPrecision": 0.623133,
+        "secondaryEvidenceSeconds": 4.45,
+        "secondaryEvidenceRecall": 0.045432,
+        "identifiedSecondarySeconds": 0.84,
+        "identifiedSecondaryRecall": 0.008487,
+        "unknownTurnSeconds": 29.85,
+        "identityStability": {
+          "scope": "single-reference speech outside boundary collar; single named SDK index",
+          "collarSeconds": 0.25,
+          "perReferenceLabelSeconds": {
+            "002-F": {
+              "unknown": 1.87,
+              "0": 5.14
+            },
+            "003-F": {
+              "0": 8.85
+            },
+            "004-M": {
+              "1": 10.48,
+              "missing": 0.05,
+              "0": 1.55,
+              "unknown": 4.46
+            },
+            "005-M": {
+              "0": 83.49,
+              "missing": 6.58,
+              "unknown": 3.39
+            }
+          },
+          "referenceSpeakersWithMultipleSystemIds": [
+            "004-M"
+          ],
+          "sameSpeakerIdSwitchCount": 2,
+          "switches": [
+            {
+              "referenceSpeaker": "004-M",
+              "fromSpeakerIndex": 1,
+              "toSpeakerIndex": 0,
+              "previousEvidenceSeconds": 146.345,
+              "atSeconds": 155.405
+            },
+            {
+              "referenceSpeaker": "004-M",
+              "fromSpeakerIndex": 0,
+              "toSpeakerIndex": 1,
+              "previousEvidenceSeconds": 156.945,
+              "atSeconds": 156.955
+            }
+          ]
+        }
+      }
+    }
+  },
+  "hostExperiments": {
+    "sameTensorReplay": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-full-replay/replay.json",
+      "sha256": "6109ef9445cf756feec204c6c47c55166d5d48d2348aafc37573d9e2107a2582"
+    },
+    "embeddingAudit": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-full-embedding-audit.json",
+      "sha256": "75bbaa3414c4ce5a09b72f0d2a5a62b2d2ddb5dd2c626c0921fa07b010afc766"
+    },
+    "runVersusWindow": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/enrollment-granularity-fork/comparison-full-reconstruction.json",
+      "sha256": "7a23da3e0381f9183e602155f09109202f45dfefea537f363d962f3ecfc4004a"
+    },
+    "upstreamVbx": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/upstream-vbx-parity/comparison.json",
+      "sha256": "35c89ec31ad306129356be52e6026a5c58a99fddc628adf112be24a9d20628db"
+    },
+    "officialSamePcm": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/upstream-e2e-reference/comparison.json",
+      "sha256": "56566baa8f7924194397d741f46434fde643d6b2b7dd48ca3ccd75b8fb8f0649"
+    },
+    "densityFork": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/upstream-e2e-reference/density-fork/comparison.json",
+      "sha256": "3321272e28c7a5e4e1a5216f751de0771ca5c41c57fe03cf22449625b69d6e4b"
+    }
+  },
+  "nonCanonicalArtifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/short-run",
+      "reason": "19.58 s clip used two-batch window carrier; carrier mismatch, not identity regression"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/anchors",
+      "reason": "preflight rejected minutes mode without tail manifest; stale collector artifact cannot bind 124 s clip"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/aishell4-4-embedding-audit.json",
+      "reason": "bounded event journal lacks first 46 windows; superseded by full-prefix audit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/enrollment-granularity-fork/comparison.json",
+      "reason": "suffix-only reconstruction scored against full-duration reference; invalidated"
+    }
+  ],
+  "uncovered": [
+    "single/UNKNOWN and customer main-four anchors (stopped at short-anchor resource gate)",
+    "full 16 recordings and long/paced release matrix",
+    "human adjudicated real-recording identity/word boundaries",
+    "real caller rendering and offline network observation on this build",
+    "Release HAR/HAP and final delivery ZIP"
+  ],
+  "firstDivergence": {
+    "case": "aishell4-4",
+    "layer": "window sampling density into clustering",
+    "officialWindowSeconds": 10,
+    "officialHopSeconds": 1,
+    "sdkWindowSeconds": 10,
+    "sdkHopSeconds": 2,
+    "commonWindows": 86,
+    "segmentationDifferentValues": 0,
+    "fullWindowCosineMin": 0.9999999189243685,
+    "officialFullPipelineDer": 0.251006,
+    "sameCppFullHistoryDensityFork": {
+      "1s": {
+        "trainingCount": 215,
+        "ahcGroups": 36,
+        "outputSpeakers": 4,
+        "der": 0.243169
+      },
+      "2s": {
+        "trainingCount": 107,
+        "ahcGroups": 36,
+        "outputSpeakers": 2,
+        "der": 0.392506
+      }
+    },
+    "limits": [
+      "one diagnostic input; not all public corpora",
+      "same-CPP reconstruction differs from upstream reconstruction and SDK committed windows",
+      "no production hop change or performance acceptance",
+      "run-mode and identity-freeze differences remain independent follow-ups"
+    ]
+  }
+}
