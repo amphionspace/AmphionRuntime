@@ -464,6 +464,50 @@ int main() {
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
+    def test_speech_without_run_evidence_falls_back_to_channel_vector(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  // Two long voices overlap at 250..300; a short clean run on channel 2
+  // sounds like voice A, so it opens no identity and has no run vector.
+  std::vector<float> segments(589*3),embeddings(768),runs(3*256);
+  for(int f=10;f<300;++f)segments[f*3]=1;
+  for(int f=250;f<500;++f)segments[f*3+1]=1;
+  for(int f=520;f<560;++f)segments[f*3+2]=1;
+  embeddings[0]=1.;embeddings[256+1]=1.;embeddings[512]=1.;
+  runs[0]=1.;runs[256+1]=1.;
+  std::vector<int32_t> ranges={0,0,10,250,0,1,300,500,0,2,520,560};
+  auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
+  assert(result.centroids.size()==2 && result.shortRunTrainingCount==0);
+  const int a=result.frame_hard[20*3],b=result.frame_hard[400*3+1];
+  assert(a>=0 && b>=0 && a!=b);
+  // Overlap frames keep their channel identity instead of staying anonymous.
+  for(int f=250;f<300;++f)assert(result.frame_hard[f*3]==a && result.frame_hard[f*3+1]==b);
+  // The unadmitted short run is named from its channel's full-window vector.
+  for(int f=520;f<560;++f)assert(result.frame_hard[f*3+2]==a);
+  // Window identities used by the public registry still come from run evidence only.
+  assert(result.hard==std::vector<int>({a,b,-2}));
+  auto turns=community::Reconstruct(segments,result.hard,{0},0,4,result.frame_hard);
+  for(const auto& turn:turns)assert(turn.speaker>=0);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'fallback.cpp'
+            binary = Path(directory) / 'fallback'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
     def test_missing_enrollment_keeps_unknown_speech_and_overlap(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
@@ -587,7 +631,9 @@ int main(int argc,char**) {
         # Three repeated eligible runs establish three acoustic groups.  The
         # first short run is the only clean evidence for a fourth group and is
         # admitted through the masked full-window vector.  A later unrelated
-        # short run would create a fifth group and must remain unknown.  The
+        # short run would create a fifth group and must not open an identity;
+        # like the official pipeline, its speech falls back to the nearest
+        # existing identity without becoming window evidence. The
         # PLDA supports these distinct groups. No voice data or expected
         # speaker count is supplied to the clusterer.
         program = r'''
@@ -616,7 +662,7 @@ int main() {
   assert(result.centroids.size()==4);
   assert(result.frame_hard[20*3]>=0);
   assert(result.frame_hard[20*3+3*589]>=0);
-  assert(result.frame_hard[20*3+6*589]==-2);
+  assert(result.hard[6]==-2 && result.frame_hard[20*3+6*589]>=0);
 }
 '''
         with tempfile.TemporaryDirectory() as directory:
@@ -674,7 +720,7 @@ int main() {
     assert(after.ahc==before.ahc && after.vbx.q==before.vbx.q);
     assert(after.centroids==before.centroids);
     assert(std::equal(before.frame_hard.begin(),before.frame_hard.end(),after.frame_hard.begin()));
-    for(int w=2;w<windows;++w)assert(after.frame_hard[(w*589+20)*3]==-2);
+    for(int w=2;w<windows;++w)assert(after.hard[w*3]==-2 && after.frame_hard[(w*589+20)*3]>=0);
     assert(community::fittedRows==fitWork);
   }
 }
@@ -731,7 +777,9 @@ int main() {
   for(int n:{1,2}) {
     auto mixed=Run(n,true);
     assert(mixed.centroids.size()==1 && "overlap vector must not manufacture a short identity");
-    for(int f=0;f<n;++f)assert(mixed.frame_hard[(589+f)*3]==-2);
+    // Its speech falls back to the existing identity but is not window evidence.
+    assert(mixed.hard[3]==-2);
+    for(int f=0;f<n;++f)assert(mixed.frame_hard[(589+f)*3]==mixed.frame_hard[0]);
   }
   for(int n:{1,2,3,80})for(bool overlap:{false,true}) {
     if(overlap&&n<=2)continue;
