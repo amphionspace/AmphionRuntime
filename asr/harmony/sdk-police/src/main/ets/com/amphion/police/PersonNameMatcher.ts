@@ -1,3 +1,5 @@
+import { PoliceTextEdit, PoliceTextTrace } from './PoliceTextTrace';
+
 export interface PersonSpan {
   start: number;
   end: number;
@@ -56,7 +58,7 @@ export class PersonNameMatcher {
       b.value.length - a.value.length);
   }
 
-  normalize(text: string, personSpans: PersonSpan[]): string {
+  normalize(text: string, personSpans: PersonSpan[], trace?: PoliceTextTrace): string {
     if (text.length === 0 || this.candidates.length === 0) return text;
     const replacements: Replacement[] = [];
     for (let i = 0; i < this.candidates.length; i++) {
@@ -75,11 +77,14 @@ export class PersonNameMatcher {
     }
     replacements.sort((a: Replacement, b: Replacement): number => b.start - a.start);
     let output = text;
+    const edits: PoliceTextEdit[] = [];
     for (let i = 0; i < replacements.length; i++) {
       const replacement = replacements[i];
+      edits.unshift(new PoliceTextEdit(replacement.start, replacement.end, replacement.value));
       output = output.substring(0, replacement.start) + replacement.value +
         output.substring(replacement.end);
     }
+    trace?.step(text, output, edits);
     return output;
   }
 

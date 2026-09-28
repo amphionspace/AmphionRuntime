@@ -152,6 +152,8 @@ interface TranscriptPresentationAlignment {
 // Maps an alignment against a postprocessor's input onto its published text.
 // An unchanged record maps character for character; a rewritten record has no
 // internal offsets, so boundaries inside it are dropped and it stays indivisible.
+// Text inserted at a boundary stays with the preceding unit, like inserted
+// punctuation; a boundary that would leave an empty unit is dropped.
 function presentedAlignment(alignment: TranscriptPresentationAlignment,
   presentation: TranscriptTextPresentation, text: string): TranscriptPresentationAlignment | undefined {
   const spans = presentation.spans;
@@ -172,13 +174,17 @@ function presentedAlignment(alignment: TranscriptPresentationAlignment,
   for (let index = 1; index < last; index++) {
     const offset = alignment.textOffsets[index];
     while (spans[record].sourceEnd < offset) record++;
-    const span = spans[record];
     let mapped = -1;
-    if (offset === span.sourceBegin) mapped = span.textBegin;
-    else if (offset === span.sourceEnd) mapped = span.textEnd;
-    else if (presentation.sourceText.slice(span.sourceBegin, span.sourceEnd) ===
-      text.slice(span.textBegin, span.textEnd)) mapped = span.textBegin + offset - span.sourceBegin;
-    if (mapped < 0) continue;
+    if (spans[record].sourceEnd === offset) {
+      let end = record;
+      while (end + 1 < spans.length && spans[end + 1].sourceBegin === offset &&
+        spans[end + 1].sourceEnd === offset) end++;
+      mapped = spans[end].textEnd;
+    } else if (presentation.sourceText.slice(spans[record].sourceBegin, spans[record].sourceEnd) ===
+      text.slice(spans[record].textBegin, spans[record].textEnd)) {
+      mapped = spans[record].textBegin + offset - spans[record].sourceBegin;
+    }
+    if (mapped <= textOffsets[textOffsets.length - 1] || mapped >= text.length) continue;
     sourceOffsets.push(alignment.sourceOffsets[index]);
     textOffsets.push(mapped);
   }

@@ -114,7 +114,7 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
             import assert from 'node:assert/strict';
             import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
             let calls = 0;
-            const enhance = (raw) => {{ calls += 1; return `${{raw}}-增强`; }};
+            const enhance = (raw) => {{ calls += 1; return {{ text: `${{raw}}-增强` }}; }};
             const callbacks = [];
             const listener = {{
               onResult: (sessionId, payload) => callbacks.push(
@@ -154,31 +154,29 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         self.assertIn("import { PoliceFinalSession } from './PoliceEnhancementPolicy';", engine)
         self.assertIn("finalSession.dispatch(", engine)
 
-    def test_harmony_rewritten_final_reports_clause_provenance_only_when_exact(self) -> None:
+    def test_harmony_final_session_forwards_enhancer_provenance_for_its_own_input(self) -> None:
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';
             import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
-            const plate = (text) => text.replace(/这这/g, '浙J');
             const source = '先讨论方案，这这个我理解，然后继续。';
-            const session = new PoliceFinalSession(true, plate);
-            const final = plate(source);
-            const provenance = session.provenance(source, final);
-            assert.equal(provenance.sourceText, source);
-            assert.deepEqual(provenance.spans.map((s) => [source.slice(s.sourceBegin, s.sourceEnd),
-              final.slice(s.textBegin, s.textEnd)]),
-              [['先讨论方案，', '先讨论方案，'], ['这这个我理解，', '浙J个我理解，'], ['然后继续。', '然后继续。']]);
-            // One clause is one record; no extra enhancement run is needed.
-            let calls = 0;
-            const counted = new PoliceFinalSession(true, (text) => {{ calls += 1; return plate(text); }});
-            assert.deepEqual(counted.provenance('这这个。', '浙J个。').spans,
-              [{{ sourceBegin: 0, sourceEnd: 4, textBegin: 0, textEnd: 4 }}]);
-            assert.equal(calls, 0);
-            // A rule spanning a clause boundary cannot be rebuilt clause by clause.
-            const joined = (text) => text.replace('方案，这', '方案这');
-            assert.equal(new PoliceFinalSession(true, joined).provenance(source, joined(source)), undefined);
-            assert.equal(session.provenance(source, source), undefined);
-            assert.equal(new PoliceFinalSession(false, plate).provenance(source, final), undefined);
+            const spans = [{{ sourceBegin: 0, sourceEnd: 6, textBegin: 0, textEnd: 6 }},
+              {{ sourceBegin: 6, sourceEnd: 8, textBegin: 6, textEnd: 8 }},
+              {{ sourceBegin: 8, sourceEnd: 18, textBegin: 8, textEnd: 18 }}];
+            const rewrite = (text) => text.replace(/这这/g, '浙J');
+            const run = (enabled, enhance, raw = source) => {{
+              const payload = {{ result: '', isLast: false }};
+              let forwarded = 'not called';
+              new PoliceFinalSession(enabled, enhance).dispatch(payload, raw, (p) => {{ forwarded = p; }}, () => {{}});
+              return [payload.result, forwarded];
+            }};
+            const provenance = {{ sourceText: source, spans }};
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t), provenance }})), [rewrite(source), provenance]);
+            // Unchanged text, disabled enhancement, missing records, or records of another input carry nothing.
+            assert.deepEqual(run(true, (t) => ({{ text: t, provenance }})), [source, undefined]);
+            assert.deepEqual(run(false, (t) => ({{ text: rewrite(t), provenance }})), [source, undefined]);
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t) }})), [rewrite(source), undefined]);
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t), provenance }}), '这这个。'), ['浙J个。', undefined]);
             """
         )
         subprocess.run(

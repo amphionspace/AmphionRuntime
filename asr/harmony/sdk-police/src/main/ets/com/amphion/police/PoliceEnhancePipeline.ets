@@ -4,6 +4,7 @@ import { PlateV2 } from './PlateV2';
 import { PoliceStationV2 } from './PoliceStationV2';
 import { PoliceTermsV2 } from './PoliceTermsV2';
 import { PersonNameNormalizer } from './PersonNameNormalizer';
+import { PoliceTextProvenance, PoliceTextTrace } from './PoliceTextTrace';
 
 export class PoliceEnhanceResult {
   text: string = '';
@@ -11,6 +12,8 @@ export class PoliceEnhanceResult {
   stationChanged: boolean = false;
   termsChanged: boolean = false;
   personNameChanged: boolean = false;
+  // Input-to-output records when the text changed and every step was traced.
+  provenance?: PoliceTextProvenance;
 }
 
 export class PoliceEnhanceOptions {
@@ -59,30 +62,31 @@ export class PoliceEnhancePipeline {
 
   enhance(asrFinalText: string): PoliceEnhanceResult {
     const result = new PoliceEnhanceResult();
+    const trace = new PoliceTextTrace(asrFinalText);
     let text = asrFinalText;
     if (this.options.termsNormalizeEnabled) {
-      const normalized = this.terms.normalize(text);
+      const normalized = this.terms.normalize(text, trace);
       result.termsChanged = normalized !== text;
       text = normalized;
     }
     if (this.options.plateNormalizeEnabled) {
-      const normalized = this.plate.normalize(text);
+      const normalized = this.plate.normalize(text, trace);
       result.plateChanged = normalized !== text;
       text = normalized;
     }
     if (this.options.stationNormalizeEnabled) {
-      const normalized = this.station.normalize(text);
+      const normalized = this.station.normalize(text, trace);
       result.stationChanged = normalized !== text;
       text = normalized;
     }
     if (this.options.termsNormalizeEnabled) {
-      const polished = this.terms.polish(text);
+      const polished = this.terms.polish(text, trace);
       result.termsChanged = result.termsChanged || polished !== text;
       text = polished;
     }
     if (this.personNames !== undefined) {
       try {
-        const normalized = this.personNames.normalize(text);
+        const normalized = this.personNames.normalize(text, trace);
         result.personNameChanged = normalized !== text;
         if (result.personNameChanged) {
           hilog.info(0x0000, 'AmphionPersonName',
@@ -95,6 +99,8 @@ export class PoliceEnhancePipeline {
       }
     }
     result.text = text;
+    // A skipped (failed) step leaves the trace behind the text: no provenance.
+    if (trace.matches(text)) result.provenance = trace.provenance();
     return result;
   }
 
