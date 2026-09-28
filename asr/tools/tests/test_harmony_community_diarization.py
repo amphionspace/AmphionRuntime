@@ -437,6 +437,62 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.equal(published.length,1,'reentrant or duplicate finish must not republish');
         """)
 
+    def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = f"""
+          import assert from 'node:assert/strict';
+          import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          let nextDiarizationJobId=1,closeCount=0,holdFirst=false,releaseFirst;
+          class DiarizationPcmSpool {{
+            pcm=new Uint8Array(62*32000);end=0;
+            append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
+            read(offset,count){{assert.ok(offset+count<=this.end);return this.pcm.slice(offset,offset+count).buffer;}}
+            endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
+          }}
+          class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
+          class CommunityDiarizationInference {{
+            calls=0;async load(){{}}close(){{closeCount++;}}
+            async process(samples){{
+              if(this.calls++===0&&holdFirst)await new Promise(r=>releaseFirst=r);
+              return {{segments:new Float32Array([samples[0],samples.at(-1)]),embeddings:new Float32Array(0)}};
+            }}
+          }}
+          const fs={{accessSync:()=>true,rmdirSync(){{}}}};
+        """
+        body="""
+          async function run(durationMs,chunkBytes,delayed) {
+            holdFirst=delayed;releaseFirst=undefined;const rows=[],errors=[];
+            let done;const drained=new Promise(r=>done=r);
+            const c=new SpeakerDiarizationLocalClient({},'',{
+              onWindow:w=>rows.push([w.windowStartSample,w.realEndSample,w.finalWindow,...w.result.segments]),
+              onDrained:()=>done(),onDegraded:(_reason,message)=>errors.push(message)});
+            const pcm=new Int16Array(durationMs*16);for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
+            const bytes=new Uint8Array(pcm.buffer);
+            for(let offset=0;offset<bytes.length;offset+=chunkBytes){
+              c.append(bytes.slice(offset,offset+chunkBytes).buffer);
+              await new Promise(r=>setImmediate(r));
+            }
+            c.finish();await new Promise(r=>setImmediate(r));if(delayed)releaseFirst();await drained;
+            assert.deepEqual(errors,[]);c.cancel();await new Promise(r=>setImmediate(r));
+            // Upstream has one complete 10 s window per second. An incomplete
+            // tail is padded once; an exact last window must not be duplicated.
+            const expected=Array.from({length:52},(_,i)=>[i*16000,(i+10)*16000,false,(i+1)/32768,(i+10)/32768]);
+            if(durationMs===61500)expected.push([52*16000,61500*16,true,53/32768,0]);
+            assert.deepEqual(rows,expected,'executor must not silently decimate the model evidence');
+            return rows;
+          }
+          assert.deepEqual(await run(61000,640,false),await run(61000,61000*32,true));
+          assert.deepEqual(await run(61500,640,false),await run(61500,61500*32,true));
+          assert.equal(closeCount,4);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'cadence.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
     def test_client_retains_native_lease_until_delayed_cluster_is_quiescent(self):
         source=(DIARIZATION/'SpeakerDiarizationLocalClient.ets').read_text()
         source=source[source.index('export class SpeakerDiarizationStorageError'):]

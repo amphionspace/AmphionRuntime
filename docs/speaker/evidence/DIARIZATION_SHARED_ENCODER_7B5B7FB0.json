@@ -1,0 +1,1983 @@
+{
+  "status": "DIAGNOSTIC_CANDIDATE_NOT_RELEASE_ACCEPTED",
+  "runtimeCommit": "7b5b7fb03758c5907a83d2eb91dd68b0d55f2cf5",
+  "baselineCommit": "83fa0e415e8835f345fefe610a18bc3b819aacc1",
+  "binding": {
+    "commit": "7b5b7fb03758c5907a83d2eb91dd68b0d55f2cf5",
+    "sourceFingerprint": "e8da2aa4656f19f8c78e91b102f002fdd970c80cf119c1d7f8655b3a47ac41da",
+    "device": "7GK0226326015655",
+    "systemVersion": "OpenHarmony-6.1.1.120",
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-artifacts/amphion_asr.har",
+        "sha256": "5510843d0da6e3d77c1ffae0ff5dd9ddfbb4416e84771438a7ebeed085cba3e7",
+        "size_bytes": 7683811
+      },
+      "amphion_asr_demo.hap": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-artifacts/amphion_asr_demo.hap",
+        "sha256": "e2f3fd8a541ef3b62dad51e378181133dec3e31652595510a79f1fe0174ff41b",
+        "size_bytes": 436854499
+      },
+      "amphion_dingqiao.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-artifacts/amphion_dingqiao.har",
+        "sha256": "331bdd3356478bdcaad1560bc1e062130dc32e6f893389134bf6b2d802b2c769",
+        "size_bytes": 93076049
+      },
+      "amphion_police.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-artifacts/amphion_police.har",
+        "sha256": "094d76cae90d920e1c9165c112072e11f1ed35166bf7cb9fdf4828d71767b733",
+        "size_bytes": 30205136
+      },
+      "sherpa_onnx.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-artifacts/sherpa_onnx.har",
+        "sha256": "8581bfa720035e359d9083aa90deff360d9657679df9d1ccebddd49a72c32ff8",
+        "size_bytes": 7180115
+      }
+    }
+  },
+  "bindingIssues": [],
+  "scope": "single-window encoder reuse, unchanged 10 s / 2 s scheduling; public density fork is host-only",
+  "hostGraphEquivalence": {
+    "status": "PASS",
+    "scope": "real PCM with production C++ Fbank compiled on host, stored Mate80 segmentation and run masks; CPU graph equivalence only",
+    "ortVersion": "1.22.0",
+    "inputIndexSha256": "aa7d5de2a5f7c849a5278eb6592170cd103a0322db96977d8f65628f5550f85b",
+    "graphs": {
+      "community-wespeaker-masked.fp32.onnx": "bc3912904210f19c7a249a2fca8cfc587b82b4142b73231570839e9dd9041375",
+      "encoder.onnx": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f",
+      "pool.onnx": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094"
+    },
+    "windows": 14,
+    "maskComparisons": 32,
+    "results": [
+      {
+        "stem": "aishell4-4-000",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999998807907104,
+        "timingMs": {
+          "fullRepeated": 782.4591821990907,
+          "encoderOnce": 382.4987127445638,
+          "poolingAllMasks": 2.906863112002611
+        }
+      },
+      {
+        "stem": "aishell4-4-009",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-2",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 1550.7687930949032,
+          "encoderOnce": 381.17397390305996,
+          "poolingAllMasks": 5.491015966981649
+        }
+      },
+      {
+        "stem": "aishell4-4-043",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 384.9521870724857,
+          "encoderOnce": 381.3648270443082,
+          "poolingAllMasks": 1.3740439899265766
+        }
+      },
+      {
+        "stem": "aishell4-4-063",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-2",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 765.4378530569375,
+          "encoderOnce": 384.04656993225217,
+          "poolingAllMasks": 2.6594973169267178
+        }
+      },
+      {
+        "stem": "aishell4-4-085",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 768.0168263614178,
+          "encoderOnce": 382.400831207633,
+          "poolingAllMasks": 2.5306381285190582
+        }
+      },
+      {
+        "stem": "four-speaker-124s-000",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-4",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999998807907104,
+        "timingMs": {
+          "fullRepeated": 1147.6527112536132,
+          "encoderOnce": 381.3797952607274,
+          "poolingAllMasks": 3.677962813526392
+        }
+      },
+      {
+        "stem": "four-speaker-124s-029",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999999403953552,
+        "timingMs": {
+          "fullRepeated": 381.1387070454657,
+          "encoderOnce": 381.41280179843307,
+          "poolingAllMasks": 1.3896329328417778
+        }
+      },
+      {
+        "stem": "four-speaker-124s-036",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-2",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999999403953552,
+        "timingMs": {
+          "fullRepeated": 1527.895200997591,
+          "encoderOnce": 380.00829005613923,
+          "poolingAllMasks": 4.268269054591656
+        }
+      },
+      {
+        "stem": "four-speaker-124s-050",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-3",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999998807907104,
+        "timingMs": {
+          "fullRepeated": 763.6992428451777,
+          "encoderOnce": 380.7084462605417,
+          "poolingAllMasks": 2.556496299803257
+        }
+      },
+      {
+        "stem": "four-speaker-124s-057",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 383.14132299274206,
+          "encoderOnce": 380.83314523100853,
+          "poolingAllMasks": 1.6210111789405346
+        }
+      },
+      {
+        "stem": "four-speaker-short-000",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0000001192092896,
+        "timingMs": {
+          "fullRepeated": 766.5702402591705,
+          "encoderOnce": 380.53027261048555,
+          "poolingAllMasks": 2.9857149347662926
+        }
+      },
+      {
+        "stem": "four-speaker-short-002",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999999403953552,
+        "timingMs": {
+          "fullRepeated": 1148.6664391122758,
+          "encoderOnce": 383.50472040474415,
+          "poolingAllMasks": 4.26544900983572
+        }
+      },
+      {
+        "stem": "four-speaker-short-003",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 0.9999998807907104,
+        "timingMs": {
+          "fullRepeated": 770.4014489427209,
+          "encoderOnce": 381.85834093019366,
+          "poolingAllMasks": 3.028301987797022
+        }
+      },
+      {
+        "stem": "four-speaker-short-005",
+        "encodedBytes": 1280000,
+        "comparisons": [
+          {
+            "mask": "full",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-0",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          },
+          {
+            "mask": "run-1",
+            "equal": true,
+            "maxAbsDifference": 0.0
+          }
+        ],
+        "hostVsDeviceCosineMin": 1.0,
+        "timingMs": {
+          "fullRepeated": 1150.2894298173487,
+          "encoderOnce": 382.8584994189441,
+          "poolingAllMasks": 4.2810882441699505
+        }
+      }
+    ]
+  },
+  "comparisons": {
+    "four-speaker-short": {
+      "inputSha256": "f13ad95b225a88c64161ff9a01770d07718f547c97445b7b6bb61ae146f739e7",
+      "status": "PASS",
+      "differences": [],
+      "tensorEquality": {
+        "realEndSample": {
+          "compared": 6,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "segmentations": {
+          "compared": 6,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "embeddings": {
+          "compared": 6,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runRanges": {
+          "compared": 6,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runEmbeddings": {
+          "compared": 6,
+          "different": 0,
+          "firstWindowSample": null
+        }
+      },
+      "stageEquality": {
+        "DIARIZATION_COMMUNITY_COMMIT": {
+          "baselineCount": 1,
+          "candidateCount": 1,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_COMMUNITY_PREVIEW": {
+          "baselineCount": 1,
+          "candidateCount": 1,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_PUBLIC_RESULT": {
+          "baselineCount": 1,
+          "candidateCount": 1,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_ASR_ALIGNMENT": {
+          "baselineCount": 4,
+          "candidateCount": 4,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        }
+      },
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 791.210157,
+          "candidateMs": 680.6717189999999,
+          "changeFraction": -0.13970806241811184
+        },
+        "featureMs": {
+          "baselineMs": 136.3675,
+          "candidateMs": 133.715626,
+          "changeFraction": -0.01944652501512467
+        },
+        "embeddingMs": {
+          "baselineMs": 2472.899688,
+          "candidateMs": 2488.2759370000003,
+          "changeFraction": 0.006217902438427014
+        }
+      },
+      "scope": "same PCM, tensors and public payloads; latency/memory and truth assessed separately"
+    },
+    "four-speaker-124s": {
+      "inputSha256": "c381622174402fd0f7a6d61466e8b736c9ba09419d482e22a4b5d182cb7eb178",
+      "status": "PASS",
+      "differences": [],
+      "tensorEquality": {
+        "realEndSample": {
+          "compared": 58,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "segmentations": {
+          "compared": 58,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "embeddings": {
+          "compared": 58,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runRanges": {
+          "compared": 58,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runEmbeddings": {
+          "compared": 58,
+          "different": 0,
+          "firstWindowSample": null
+        }
+      },
+      "stageEquality": {
+        "DIARIZATION_COMMUNITY_COMMIT": {
+          "baselineCount": 2,
+          "candidateCount": 2,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_COMMUNITY_PREVIEW": {
+          "baselineCount": 12,
+          "candidateCount": 12,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_PUBLIC_RESULT": {
+          "baselineCount": 2,
+          "candidateCount": 2,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_ASR_ALIGNMENT": {
+          "baselineCount": 23,
+          "candidateCount": 23,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        }
+      },
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 7189.194213000003,
+          "candidateMs": 7120.225464,
+          "changeFraction": -0.00959339071342502
+        },
+        "featureMs": {
+          "baselineMs": 1313.442036,
+          "candidateMs": 1328.8259389999998,
+          "changeFraction": 0.011712662286072817
+        },
+        "embeddingMs": {
+          "baselineMs": 41920.684219,
+          "candidateMs": 23484.721097999995,
+          "changeFraction": -0.43978201845866216
+        }
+      },
+      "scope": "same PCM, tensors and public payloads; latency/memory and truth assessed separately"
+    },
+    "aishell4-4": {
+      "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+      "status": "PASS",
+      "differences": [],
+      "tensorEquality": {
+        "realEndSample": {
+          "compared": 86,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "segmentations": {
+          "compared": 86,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "embeddings": {
+          "compared": 86,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runRanges": {
+          "compared": 86,
+          "different": 0,
+          "firstWindowSample": null
+        },
+        "runEmbeddings": {
+          "compared": 86,
+          "different": 0,
+          "firstWindowSample": null
+        }
+      },
+      "stageEquality": {
+        "DIARIZATION_COMMUNITY_COMMIT": {
+          "baselineCount": 2,
+          "candidateCount": 2,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_COMMUNITY_PREVIEW": {
+          "baselineCount": 16,
+          "candidateCount": 16,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_PUBLIC_RESULT": {
+          "baselineCount": 2,
+          "candidateCount": 2,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        },
+        "DIARIZATION_ASR_ALIGNMENT": {
+          "baselineCount": 25,
+          "candidateCount": 25,
+          "equal": true,
+          "firstDifferentIndex": null,
+          "firstDifferentFields": []
+        }
+      },
+      "nativeTimes": {
+        "segmentationMs": {
+          "baselineMs": 10549.518435000002,
+          "candidateMs": 10940.243597000004,
+          "changeFraction": 0.037037250980452185
+        },
+        "featureMs": {
+          "baselineMs": 1945.4131259999997,
+          "candidateMs": 1944.057346,
+          "changeFraction": -0.0006969110991799088
+        },
+        "embeddingMs": {
+          "baselineMs": 73359.43313199999,
+          "candidateMs": 36158.532192000006,
+          "changeFraction": -0.5071045310977552
+        }
+      },
+      "scope": "same PCM, tensors and public payloads; latency/memory and truth assessed separately"
+    }
+  },
+  "resources": {
+    "four-speaker-short": {
+      "baseline": {
+        "rtf": 0.17801212180796733,
+        "finishToCompleteMs": -1.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 660,
+        "memory": {
+          "status": "FAIL",
+          "sample_count": 21,
+          "observation_seconds": 25.618,
+          "warmup_samples_excluded": 4,
+          "head_rss_mb": 436.418,
+          "tail_rss_mb": 559.586,
+          "rss_growth_mb": 123.168,
+          "rss_slope_mb_per_minute": null,
+          "rss_third_medians_mb": [
+            438.137,
+            547.953,
+            559.586
+          ],
+          "peak_rss_mb": 559.586,
+          "peak_hwm_mb": 569.133,
+          "head_vm_data_mb": 2750.801,
+          "tail_vm_data_mb": 3107.613,
+          "vm_data_growth_mb": 356.812,
+          "peak_swap_mb": 90.441,
+          "head_threads": 52.0,
+          "tail_threads": 46.0,
+          "thread_growth": -6.0,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "INCONCLUSIVE",
+          "memory": "FAIL",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "INCONCLUSIVE",
+              "queueSamples": 6,
+              "maxAudioDelayMs": 660
+            }
+          ],
+          "memoryObservation": {
+            "status": "FAIL",
+            "sample_count": 21,
+            "observation_seconds": 25.618,
+            "warmup_samples_excluded": 4,
+            "head_rss_mb": 436.418,
+            "tail_rss_mb": 559.586,
+            "rss_growth_mb": 123.168,
+            "rss_slope_mb_per_minute": null,
+            "rss_third_medians_mb": [
+              438.137,
+              547.953,
+              559.586
+            ],
+            "peak_rss_mb": 559.586,
+            "peak_hwm_mb": 569.133,
+            "head_vm_data_mb": 2750.801,
+            "tail_vm_data_mb": 3107.613,
+            "vm_data_growth_mb": 356.812,
+            "peak_swap_mb": 90.441,
+            "head_threads": 52.0,
+            "tail_threads": 46.0,
+            "thread_growth": -6.0,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      },
+      "candidate": {
+        "rtf": 0.1744976139938713,
+        "finishToCompleteMs": -1.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 640,
+        "memory": {
+          "status": "FAIL",
+          "sample_count": 22,
+          "observation_seconds": 26.338,
+          "warmup_samples_excluded": 4,
+          "head_rss_mb": 439.986,
+          "tail_rss_mb": 561.473,
+          "rss_growth_mb": 121.486,
+          "rss_slope_mb_per_minute": null,
+          "rss_third_medians_mb": [
+            442.236,
+            555.15,
+            561.473
+          ],
+          "peak_rss_mb": 565.246,
+          "peak_hwm_mb": 572.41,
+          "head_vm_data_mb": 2750.801,
+          "tail_vm_data_mb": 3107.613,
+          "vm_data_growth_mb": 356.812,
+          "peak_swap_mb": 89.309,
+          "head_threads": 52.0,
+          "tail_threads": 46.0,
+          "thread_growth": -6.0,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "INCONCLUSIVE",
+          "memory": "FAIL",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "INCONCLUSIVE",
+              "queueSamples": 6,
+              "maxAudioDelayMs": 640
+            }
+          ],
+          "memoryObservation": {
+            "status": "FAIL",
+            "sample_count": 22,
+            "observation_seconds": 26.338,
+            "warmup_samples_excluded": 4,
+            "head_rss_mb": 439.986,
+            "tail_rss_mb": 561.473,
+            "rss_growth_mb": 121.486,
+            "rss_slope_mb_per_minute": null,
+            "rss_third_medians_mb": [
+              442.236,
+              555.15,
+              561.473
+            ],
+            "peak_rss_mb": 565.246,
+            "peak_hwm_mb": 572.41,
+            "head_vm_data_mb": 2750.801,
+            "tail_vm_data_mb": 3107.613,
+            "vm_data_growth_mb": 356.812,
+            "peak_swap_mb": 89.309,
+            "head_threads": 52.0,
+            "tail_threads": 46.0,
+            "thread_growth": -6.0,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      }
+    },
+    "four-speaker-124s": {
+      "baseline": {
+        "rtf": 0.4184759326978998,
+        "finishToCompleteMs": 1066.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 1540,
+        "memory": {
+          "status": "PASS",
+          "sample_count": 101,
+          "observation_seconds": 131.108,
+          "warmup_samples_excluded": 20,
+          "head_rss_mb": 611.387,
+          "tail_rss_mb": 645.777,
+          "rss_growth_mb": 34.391,
+          "rss_slope_mb_per_minute": -17.0,
+          "rss_third_medians_mb": [
+            617.348,
+            629.059,
+            649.297
+          ],
+          "peak_rss_mb": 665.375,
+          "peak_hwm_mb": 671.066,
+          "head_vm_data_mb": 3187.676,
+          "tail_vm_data_mb": 3212.426,
+          "vm_data_growth_mb": 24.75,
+          "peak_swap_mb": 90.098,
+          "head_threads": 72,
+          "tail_threads": 71,
+          "thread_growth": -1,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "PASS",
+          "memory": "INCONCLUSIVE",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "PASS",
+              "queueSamples": 58,
+              "maxAudioDelayMs": 1540
+            }
+          ],
+          "memoryObservation": {
+            "status": "PASS",
+            "sample_count": 101,
+            "observation_seconds": 131.108,
+            "warmup_samples_excluded": 20,
+            "head_rss_mb": 611.387,
+            "tail_rss_mb": 645.777,
+            "rss_growth_mb": 34.391,
+            "rss_slope_mb_per_minute": -17.0,
+            "rss_third_medians_mb": [
+              617.348,
+              629.059,
+              649.297
+            ],
+            "peak_rss_mb": 665.375,
+            "peak_hwm_mb": 671.066,
+            "head_vm_data_mb": 3187.676,
+            "tail_vm_data_mb": 3212.426,
+            "vm_data_growth_mb": 24.75,
+            "peak_swap_mb": 90.098,
+            "head_threads": 72,
+            "tail_threads": 71,
+            "thread_growth": -1,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      },
+      "candidate": {
+        "rtf": 0.2659674676978998,
+        "finishToCompleteMs": 1194.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 940,
+        "memory": {
+          "status": "PASS",
+          "sample_count": 103,
+          "observation_seconds": 131.73,
+          "warmup_samples_excluded": 20,
+          "head_rss_mb": 608.992,
+          "tail_rss_mb": 638.598,
+          "rss_growth_mb": 29.605,
+          "rss_slope_mb_per_minute": -14.757,
+          "rss_third_medians_mb": [
+            613.822,
+            628.965,
+            642.09
+          ],
+          "peak_rss_mb": 650.879,
+          "peak_hwm_mb": 660.867,
+          "head_vm_data_mb": 3192.895,
+          "tail_vm_data_mb": 3216.926,
+          "vm_data_growth_mb": 24.031,
+          "peak_swap_mb": 90.293,
+          "head_threads": 71,
+          "tail_threads": 72,
+          "thread_growth": 1,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "PASS",
+          "memory": "INCONCLUSIVE",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "PASS",
+              "queueSamples": 58,
+              "maxAudioDelayMs": 940
+            }
+          ],
+          "memoryObservation": {
+            "status": "PASS",
+            "sample_count": 103,
+            "observation_seconds": 131.73,
+            "warmup_samples_excluded": 20,
+            "head_rss_mb": 608.992,
+            "tail_rss_mb": 638.598,
+            "rss_growth_mb": 29.605,
+            "rss_slope_mb_per_minute": -14.757,
+            "rss_third_medians_mb": [
+              613.822,
+              628.965,
+              642.09
+            ],
+            "peak_rss_mb": 650.879,
+            "peak_hwm_mb": 660.867,
+            "head_vm_data_mb": 3192.895,
+            "tail_vm_data_mb": 3216.926,
+            "vm_data_growth_mb": 24.031,
+            "peak_swap_mb": 90.293,
+            "head_threads": 71,
+            "tail_threads": 72,
+            "thread_growth": 1,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      }
+    },
+    "aishell4-4": {
+      "baseline": {
+        "rtf": 0.48895758162777786,
+        "finishToCompleteMs": 1578.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 1920,
+        "memory": {
+          "status": "PASS",
+          "sample_count": 142,
+          "observation_seconds": 187.587,
+          "warmup_samples_excluded": 28,
+          "head_rss_mb": 614.539,
+          "tail_rss_mb": 641.664,
+          "rss_growth_mb": 27.125,
+          "rss_slope_mb_per_minute": -8.109,
+          "rss_third_medians_mb": [
+            616.77,
+            629.514,
+            638.822
+          ],
+          "peak_rss_mb": 656.172,
+          "peak_hwm_mb": 665.484,
+          "head_vm_data_mb": 3210.676,
+          "tail_vm_data_mb": 3258.926,
+          "vm_data_growth_mb": 48.25,
+          "peak_swap_mb": 89.043,
+          "head_threads": 72,
+          "tail_threads": 72,
+          "thread_growth": 0,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "PASS",
+          "memory": "INCONCLUSIVE",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "PASS",
+              "queueSamples": 86,
+              "maxAudioDelayMs": 1920
+            }
+          ],
+          "memoryObservation": {
+            "status": "PASS",
+            "sample_count": 142,
+            "observation_seconds": 187.587,
+            "warmup_samples_excluded": 28,
+            "head_rss_mb": 614.539,
+            "tail_rss_mb": 641.664,
+            "rss_growth_mb": 27.125,
+            "rss_slope_mb_per_minute": -8.109,
+            "rss_third_medians_mb": [
+              616.77,
+              629.514,
+              638.822
+            ],
+            "peak_rss_mb": 656.172,
+            "peak_hwm_mb": 665.484,
+            "head_vm_data_mb": 3210.676,
+            "tail_vm_data_mb": 3258.926,
+            "vm_data_growth_mb": 48.25,
+            "peak_swap_mb": 89.043,
+            "head_threads": 72,
+            "tail_threads": 72,
+            "thread_growth": 0,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      },
+      "candidate": {
+        "rtf": 0.2847601840833333,
+        "finishToCompleteMs": 1143.0,
+        "maxPending": 0,
+        "maxAudioDelayMs": 820,
+        "memory": {
+          "status": "PASS",
+          "sample_count": 146,
+          "observation_seconds": 186.988,
+          "warmup_samples_excluded": 29,
+          "head_rss_mb": 619.119,
+          "tail_rss_mb": 642.273,
+          "rss_growth_mb": 23.154,
+          "rss_slope_mb_per_minute": -1.129,
+          "rss_third_medians_mb": [
+            621.414,
+            637.422,
+            642.09
+          ],
+          "peak_rss_mb": 656.367,
+          "peak_hwm_mb": 660.609,
+          "head_vm_data_mb": 3189.52,
+          "tail_vm_data_mb": 3216.707,
+          "vm_data_growth_mb": 27.188,
+          "peak_swap_mb": 90.094,
+          "head_threads": 71.0,
+          "tail_threads": 71.0,
+          "thread_growth": 0.0,
+          "max_rss_growth_mb": 64.0,
+          "max_thread_growth": 2
+        },
+        "streams": {
+          "status": "PASS",
+          "observed_cycles": 1,
+          "nonzero_cycles": 0,
+          "max_live_streams": 0
+        },
+        "lifecycle": {
+          "status": "PASS",
+          "completed_sessions": 1,
+          "failures": []
+        },
+        "runtimeEvidence": {
+          "realtime": "INCONCLUSIVE",
+          "memory": "INCONCLUSIVE",
+          "sessions": [
+            {
+              "session": "session-1",
+              "status": "INCONCLUSIVE",
+              "queueSamples": 86,
+              "maxAudioDelayMs": 820
+            }
+          ],
+          "memoryObservation": {
+            "status": "PASS",
+            "sample_count": 146,
+            "observation_seconds": 186.988,
+            "warmup_samples_excluded": 29,
+            "head_rss_mb": 619.119,
+            "tail_rss_mb": 642.273,
+            "rss_growth_mb": 23.154,
+            "rss_slope_mb_per_minute": -1.129,
+            "rss_third_medians_mb": [
+              621.414,
+              637.422,
+              642.09
+            ],
+            "peak_rss_mb": 656.367,
+            "peak_hwm_mb": 660.609,
+            "head_vm_data_mb": 3189.52,
+            "tail_vm_data_mb": 3216.707,
+            "vm_data_growth_mb": 27.188,
+            "peak_swap_mb": 90.094,
+            "head_threads": 71.0,
+            "tail_threads": 71.0,
+            "thread_growth": 0.0,
+            "max_rss_growth_mb": 64.0,
+            "max_thread_growth": 2
+          }
+        }
+      }
+    }
+  },
+  "tests": {
+    "nativeIdentityBuildIdentity": 59,
+    "android": {
+      "sdk": {
+        "tests": 61,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "sdk-dingqiao": {
+        "tests": 129,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      }
+    },
+    "harmonyZH_ENBuildInstall": "PASS",
+    "androidNativeArm64": "PASS",
+    "graphExport": {
+      "source": {
+        "file": "community-wespeaker-masked.fp32.onnx",
+        "sizeBytes": 26553489,
+        "sha256": "bc3912904210f19c7a249a2fca8cfc587b82b4142b73231570839e9dd9041375"
+      },
+      "graphs": [
+        {
+          "file": "community-wespeaker-encoder.fp32.onnx",
+          "sizeBytes": 21301300,
+          "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f",
+          "derivedFrom": "community-wespeaker-masked.fp32.onnx"
+        },
+        {
+          "file": "community-wespeaker-pool.fp32.onnx",
+          "sizeBytes": 5264664,
+          "sha256": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094",
+          "derivedFrom": "community-wespeaker-masked.fp32.onnx"
+        }
+      ],
+      "onnxVersion": "1.19.1",
+      "splitPoint": "/resnet/pool/Reshape_output_0",
+      "manifestSha256": "489a766e443e887f7cb5adc158cc88d7890c6ee13f4e2dbd1716a95ad38deaba"
+    },
+    "modelPackaging": {
+      "status": "PASS",
+      "commit": "7b5b7fb03758c5907a83d2eb91dd68b0d55f2cf5",
+      "hapSha256": "e2f3fd8a541ef3b62dad51e378181133dec3e31652595510a79f1fe0174ff41b",
+      "originalGraphAbsent": true,
+      "assets": [
+        {
+          "member": "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+          "sizeBytes": 21301300,
+          "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f"
+        },
+        {
+          "member": "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
+          "sizeBytes": 5264664,
+          "sha256": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094"
+        },
+        {
+          "member": "resources/rawfile/amphion-dingqiao/community-feature.f32",
+          "sizeBytes": 83840,
+          "sha256": "379fcc7bc891b5172cb5dd84899cc96124e7d191c76fbb68a8342b0ddffcdc33"
+        },
+        {
+          "member": "resources/rawfile/amphion-dingqiao/community-plda.f64",
+          "sizeBytes": 398352,
+          "sha256": "b6e0f558d31272e1ed2f00a7c26aa4142602fbabf4cdf97ff251d1c8ab24f50c"
+        }
+      ]
+    }
+  },
+  "publicMetrics": {
+    "durationSeconds": 180.0,
+    "frameMs": 10,
+    "referenceSpeakerCount": 4,
+    "systemSpeakerCount": 2,
+    "speakerCountError": -2,
+    "speakerMapping": {
+      "0": "005-M",
+      "1": "004-M"
+    },
+    "der": 0.427774,
+    "missedSpeechSeconds": 61.59,
+    "falseAlarmSeconds": 1.27,
+    "speakerConfusionSeconds": 16.83,
+    "referenceSpeakerSeconds": 186.29,
+    "classicDer250msNoOverlap": 0.253615,
+    "singleSpeakerAttributionAccuracy": 0.715025,
+    "macroSpeakerRecall": 0.299913,
+    "minoritySpeakerRecall": 0.0,
+    "perSpeakerRecall": {
+      "002-F": 0.0,
+      "003-F": 0.0,
+      "004-M": 0.421465,
+      "005-M": 0.778187
+    },
+    "referenceOverlapSeconds": 20.03,
+    "detectedOverlapSeconds": 20.75,
+    "overlapDetectionRecall": 0.645532,
+    "overlapDetectionPrecision": 0.623133,
+    "secondaryEvidenceSeconds": 4.45,
+    "secondaryEvidenceRecall": 0.045432,
+    "identifiedSecondarySeconds": 0.84,
+    "identifiedSecondaryRecall": 0.008487,
+    "unknownTurnSeconds": 29.85,
+    "identityStability": {
+      "scope": "single-reference speech outside boundary collar; single named SDK index",
+      "collarSeconds": 0.25,
+      "perReferenceLabelSeconds": {
+        "002-F": {
+          "unknown": 1.87,
+          "0": 5.14
+        },
+        "003-F": {
+          "0": 8.85
+        },
+        "004-M": {
+          "1": 10.48,
+          "missing": 0.05,
+          "0": 1.55,
+          "unknown": 4.46
+        },
+        "005-M": {
+          "0": 83.49,
+          "missing": 6.58,
+          "unknown": 3.39
+        }
+      },
+      "referenceSpeakersWithMultipleSystemIds": [
+        "004-M"
+      ],
+      "sameSpeakerIdSwitchCount": 2,
+      "switches": [
+        {
+          "referenceSpeaker": "004-M",
+          "fromSpeakerIndex": 1,
+          "toSpeakerIndex": 0,
+          "previousEvidenceSeconds": 146.345,
+          "atSeconds": 155.405
+        },
+        {
+          "referenceSpeaker": "004-M",
+          "fromSpeakerIndex": 0,
+          "toSpeakerIndex": 1,
+          "previousEvidenceSeconds": 156.945,
+          "atSeconds": 156.955
+        }
+      ]
+    }
+  },
+  "publicGates": {
+    "identityAccuracy": "INCONCLUSIVE",
+    "readability": "INCONCLUSIVE",
+    "identityStability": "INCONCLUSIVE",
+    "honesty": "INCONCLUSIVE",
+    "realtime": "INCONCLUSIVE",
+    "memory": "INCONCLUSIVE",
+    "lifecycle": "PASS",
+    "offline": "INCONCLUSIVE"
+  },
+  "densityRunFork": {
+    "scope": "host full-history run path; no SDK frozen/public identity claim",
+    "runtimeSourceCommit": "7b5b7fb0",
+    "inputSha256": "ca8dabf80f0471bb5967557f8f05669e30ca893880f34eb4df83bc77165cfbd2",
+    "manifestSha256": "aca9c6a23c6e3ccd2b8a2e758759c5120a86caa302c4e059d2b1c00b43cceed7",
+    "results": {
+      "1": {
+        "speakerCount": 4,
+        "metrics": {
+          "durationSeconds": 180,
+          "frameMs": 10,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 4,
+          "speakerCountError": 0,
+          "speakerMapping": {
+            "0": "004-M",
+            "1": "002-F",
+            "2": "003-F",
+            "3": "005-M"
+          },
+          "der": 0.337753,
+          "missedSpeechSeconds": 59.34,
+          "falseAlarmSeconds": 1.51,
+          "speakerConfusionSeconds": 2.07,
+          "referenceSpeakerSeconds": 186.29,
+          "classicDer250msNoOverlap": 0.131893,
+          "singleSpeakerAttributionAccuracy": 0.829673,
+          "macroSpeakerRecall": 0.577595,
+          "minoritySpeakerRecall": 0.222909,
+          "perSpeakerRecall": {
+            "002-F": 0.222909,
+            "003-F": 0.846154,
+            "004-M": 0.456718,
+            "005-M": 0.784598
+          },
+          "referenceOverlapSeconds": 20.03,
+          "detectedOverlapSeconds": 0.0,
+          "overlapDetectionRecall": 0.0,
+          "overlapDetectionPrecision": 0.0,
+          "secondaryEvidenceSeconds": 0.0,
+          "secondaryEvidenceRecall": 0.0,
+          "identifiedSecondarySeconds": 0.0,
+          "identifiedSecondaryRecall": 0.0,
+          "unknownTurnSeconds": 32.12,
+          "identityStability": {
+            "scope": "single-reference speech outside boundary collar; single named SDK index",
+            "collarSeconds": 0.25,
+            "perReferenceLabelSeconds": {
+              "002-F": {
+                "unknown": 1.8,
+                "missing": 0.07,
+                "1": 5.14
+              },
+              "003-F": {
+                "2": 8.77,
+                "missing": 0.08
+              },
+              "004-M": {
+                "0": 11.38,
+                "3": 1.55,
+                "unknown": 3.61
+              },
+              "005-M": {
+                "3": 84.0,
+                "missing": 6.57,
+                "unknown": 2.89
+              }
+            },
+            "referenceSpeakersWithMultipleSystemIds": [
+              "004-M"
+            ],
+            "sameSpeakerIdSwitchCount": 2,
+            "switches": [
+              {
+                "referenceSpeaker": "004-M",
+                "fromSpeakerIndex": 0,
+                "toSpeakerIndex": 3,
+                "previousEvidenceSeconds": 146.395,
+                "atSeconds": 155.405
+              },
+              {
+                "referenceSpeaker": "004-M",
+                "fromSpeakerIndex": 3,
+                "toSpeakerIndex": 0,
+                "previousEvidenceSeconds": 156.945,
+                "atSeconds": 156.955
+              }
+            ]
+          }
+        },
+        "raw": {
+          "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/step-1-raw.json",
+          "sha256": "762b32ac2b10b3a9848433fc295a4fe529bf4f1bc32c1af365fe514e3d898917"
+        },
+        "snapshot": {
+          "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/step-1.bin",
+          "sha256": "b0872da87639c143f4f74e0af1e86134edb70d319a52ae3585b129e6e66d560f"
+        }
+      },
+      "2": {
+        "speakerCount": 2,
+        "metrics": {
+          "durationSeconds": 180,
+          "frameMs": 10,
+          "referenceSpeakerCount": 4,
+          "systemSpeakerCount": 2,
+          "speakerCountError": -2,
+          "speakerMapping": {
+            "0": "004-M",
+            "1": "005-M"
+          },
+          "der": 0.428311,
+          "missedSpeechSeconds": 61.59,
+          "falseAlarmSeconds": 1.37,
+          "speakerConfusionSeconds": 16.83,
+          "referenceSpeakerSeconds": 186.29,
+          "classicDer250msNoOverlap": 0.253615,
+          "singleSpeakerAttributionAccuracy": 0.715025,
+          "macroSpeakerRecall": 0.299913,
+          "minoritySpeakerRecall": 0.0,
+          "perSpeakerRecall": {
+            "002-F": 0.0,
+            "003-F": 0.0,
+            "004-M": 0.421465,
+            "005-M": 0.778187
+          },
+          "referenceOverlapSeconds": 20.03,
+          "detectedOverlapSeconds": 0.0,
+          "overlapDetectionRecall": 0.0,
+          "overlapDetectionPrecision": 0.0,
+          "secondaryEvidenceSeconds": 0.0,
+          "secondaryEvidenceRecall": 0.0,
+          "identifiedSecondarySeconds": 0.0,
+          "identifiedSecondaryRecall": 0.0,
+          "unknownTurnSeconds": 33.5,
+          "identityStability": {
+            "scope": "single-reference speech outside boundary collar; single named SDK index",
+            "collarSeconds": 0.25,
+            "perReferenceLabelSeconds": {
+              "002-F": {
+                "unknown": 1.87,
+                "1": 5.14
+              },
+              "003-F": {
+                "1": 8.85
+              },
+              "004-M": {
+                "0": 10.48,
+                "missing": 0.05,
+                "1": 1.55,
+                "unknown": 4.46
+              },
+              "005-M": {
+                "1": 83.49,
+                "missing": 6.58,
+                "unknown": 3.39
+              }
+            },
+            "referenceSpeakersWithMultipleSystemIds": [
+              "004-M"
+            ],
+            "sameSpeakerIdSwitchCount": 2,
+            "switches": [
+              {
+                "referenceSpeaker": "004-M",
+                "fromSpeakerIndex": 0,
+                "toSpeakerIndex": 1,
+                "previousEvidenceSeconds": 146.345,
+                "atSeconds": 155.405
+              },
+              {
+                "referenceSpeaker": "004-M",
+                "fromSpeakerIndex": 1,
+                "toSpeakerIndex": 0,
+                "previousEvidenceSeconds": 156.945,
+                "atSeconds": 156.955
+              }
+            ]
+          }
+        },
+        "raw": {
+          "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/step-2-raw.json",
+          "sha256": "cfac48a3ced17a9c4de20853f4de3c5c6eb6d66d9868bc480663791e93055064"
+        },
+        "snapshot": {
+          "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/step-2.bin",
+          "sha256": "75805f476cfa076b97ba5b369cd3d4a563d164448efc4e75226f49a8de9598c1"
+        }
+      }
+    },
+    "summary": {
+      "scope": "current run-path host full-history diagnostic only",
+      "elapsedSeconds": 69.77144841803238,
+      "results": {
+        "1": {
+          "speakerCount": 4,
+          "usedKMeans": false,
+          "shortRunTrainingCount": 0,
+          "windows": 171,
+          "runs": 663,
+          "training": 233,
+          "ahcGroups": 46
+        },
+        "2": {
+          "speakerCount": 2,
+          "usedKMeans": false,
+          "shortRunTrainingCount": 0,
+          "windows": 86,
+          "runs": 335,
+          "training": 117,
+          "ahcGroups": 42
+        }
+      }
+    }
+  },
+  "wholeWindowControl": {
+    "scope": "host same dense tensors, whole-window vs current run policy",
+    "wholeWindow": {
+      "durationSeconds": 180,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 4,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "002-F",
+        "1": "004-M",
+        "2": "005-M",
+        "3": "003-F"
+      },
+      "der": 0.243169,
+      "missedSpeechSeconds": 20.43,
+      "falseAlarmSeconds": 9.78,
+      "speakerConfusionSeconds": 15.09,
+      "referenceSpeakerSeconds": 186.29,
+      "classicDer250msNoOverlap": 0.170189,
+      "singleSpeakerAttributionAccuracy": 0.850658,
+      "macroSpeakerRecall": 0.786169,
+      "minoritySpeakerRecall": 0.515451,
+      "perSpeakerRecall": {
+        "002-F": 0.515451,
+        "003-F": 0.873504,
+        "004-M": 0.917352,
+        "005-M": 0.838368
+      },
+      "referenceOverlapSeconds": 20.03,
+      "detectedOverlapSeconds": 0.0,
+      "overlapDetectionRecall": 0.0,
+      "overlapDetectionPrecision": 0.0,
+      "secondaryEvidenceSeconds": 0.0,
+      "secondaryEvidenceRecall": 0.0,
+      "identifiedSecondarySeconds": 0.0,
+      "identifiedSecondaryRecall": 0.0,
+      "unknownTurnSeconds": 0.0,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "0": 6.94,
+            "missing": 0.07
+          },
+          "003-F": {
+            "3": 8.77,
+            "missing": 0.08
+          },
+          "004-M": {
+            "1": 14.49,
+            "multiple": 1.63,
+            "2": 0.4,
+            "0": 0.02
+          },
+          "005-M": {
+            "2": 74.3,
+            "3": 5.75,
+            "multiple": 4.16,
+            "missing": 6.57,
+            "0": 1.8,
+            "1": 0.88
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "004-M",
+          "005-M"
+        ],
+        "sameSpeakerIdSwitchCount": 31,
+        "switches": [
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 9.585,
+            "atSeconds": 10.605
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 10.825,
+            "atSeconds": 12.845
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 20.715,
+            "atSeconds": 21.025
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 21.065,
+            "atSeconds": 21.075
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 21.085,
+            "atSeconds": 21.095
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 21.155,
+            "atSeconds": 21.165
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 21.235,
+            "atSeconds": 21.245
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 21.285,
+            "atSeconds": 21.295
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 21.335,
+            "atSeconds": 21.345
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 21.405,
+            "atSeconds": 21.415
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 23.075,
+            "atSeconds": 23.085
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 68.875,
+            "atSeconds": 69.245
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 69.975,
+            "atSeconds": 69.985
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 70.685,
+            "atSeconds": 70.695
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 70.965,
+            "atSeconds": 70.975
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 71.275,
+            "atSeconds": 71.285
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 71.285,
+            "atSeconds": 74.545
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 76.035,
+            "atSeconds": 76.045
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 76.385,
+            "atSeconds": 76.395
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 76.525,
+            "atSeconds": 76.855
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 91.805,
+            "atSeconds": 98.305
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 98.825,
+            "atSeconds": 100.995
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 158.165,
+            "atSeconds": 158.175
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 158.175,
+            "atSeconds": 158.185
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 158.195,
+            "atSeconds": 158.205
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 158.585,
+            "atSeconds": 162.645
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 1,
+            "previousEvidenceSeconds": 169.805,
+            "atSeconds": 169.815
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 1,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 170.685,
+            "atSeconds": 170.695
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 175.665,
+            "atSeconds": 176.345
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 2,
+            "previousEvidenceSeconds": 178.195,
+            "atSeconds": 178.205
+          },
+          {
+            "referenceSpeaker": "005-M",
+            "fromSpeakerIndex": 2,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 178.315,
+            "atSeconds": 178.325
+          }
+        ]
+      }
+    },
+    "runPolicy": {
+      "durationSeconds": 180,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 4,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "004-M",
+        "1": "002-F",
+        "2": "003-F",
+        "3": "005-M"
+      },
+      "der": 0.337753,
+      "missedSpeechSeconds": 59.34,
+      "falseAlarmSeconds": 1.51,
+      "speakerConfusionSeconds": 2.07,
+      "referenceSpeakerSeconds": 186.29,
+      "classicDer250msNoOverlap": 0.131893,
+      "singleSpeakerAttributionAccuracy": 0.829673,
+      "macroSpeakerRecall": 0.577595,
+      "minoritySpeakerRecall": 0.222909,
+      "perSpeakerRecall": {
+        "002-F": 0.222909,
+        "003-F": 0.846154,
+        "004-M": 0.456718,
+        "005-M": 0.784598
+      },
+      "referenceOverlapSeconds": 20.03,
+      "detectedOverlapSeconds": 0.0,
+      "overlapDetectionRecall": 0.0,
+      "overlapDetectionPrecision": 0.0,
+      "secondaryEvidenceSeconds": 0.0,
+      "secondaryEvidenceRecall": 0.0,
+      "identifiedSecondarySeconds": 0.0,
+      "identifiedSecondaryRecall": 0.0,
+      "unknownTurnSeconds": 32.12,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 1.8,
+            "missing": 0.07,
+            "1": 5.14
+          },
+          "003-F": {
+            "2": 8.77,
+            "missing": 0.08
+          },
+          "004-M": {
+            "0": 11.38,
+            "3": 1.55,
+            "unknown": 3.61
+          },
+          "005-M": {
+            "3": 84.0,
+            "missing": 6.57,
+            "unknown": 2.89
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "004-M"
+        ],
+        "sameSpeakerIdSwitchCount": 2,
+        "switches": [
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 146.395,
+            "atSeconds": 155.405
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 156.945,
+            "atSeconds": 156.955
+          }
+        ]
+      }
+    },
+    "snapshot": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/whole-window-control/snapshot.bin",
+      "sha256": "9225a4068db3872cb94bf71ea42b42b3c99b0c9860778e087e16889e514eacce"
+    },
+    "raw": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/whole-window-control/raw.json",
+      "sha256": "9dc7445312a5157aa2b1febad78030b5faf5be751fd836864305a47904b42b75"
+    },
+    "sourceClusterHeaderSha256": "562a0b5b751ff8efedcd9135ab32991d6f9275ac5ff3bcbb709f14d051549fb0"
+  },
+  "regressions": [],
+  "existingFailures": [
+    "four-speaker-short:memory:FAIL"
+  ],
+  "openIssues": [
+    "known two-speaker collapse and zero minority recall remain unchanged in SDK",
+    "short RSS gate FAIL; long memory INCONCLUSIVE",
+    "public queue medians 600 to 610 ms: strict realtime INCONCLUSIVE, pending maximum zero",
+    "four anchors/full16/long sessions and complete release lifecycle matrix not passed",
+    "caller display and human identity adjudication incomplete",
+    "Qwen auxiliary annotation not invoked without identified compatible credential",
+    "Android run-evidence bridge still not connected; compilation is not platform identity parity",
+    "offline network observation and final delivery freeze pending"
+  ],
+  "files": {
+    "experiment.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/experiment.json",
+      "sha256": "c1540db305eca24486578e015e94915bffab4c150e1c17074e27ec1888e5cdef",
+      "sizeBytes": 1468
+    },
+    "build-identity.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/build-identity.json",
+      "sha256": "60d584aa0bf0f6caa03ee3a257c34d9a94f99d75200ece2c06512f48b82232bd",
+      "sizeBytes": 3523
+    },
+    "archived-candidate-captures.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/archived-candidate-captures.json",
+      "sha256": "49dea13655e6cfca4a0a14e08424640cf250d83691ece81fb91947454edc7f40",
+      "sizeBytes": 4960
+    },
+    "candidate-assessment.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/candidate-assessment.json",
+      "sha256": "09a80745b51f463f3c20d63e3517a74d6c0914e2872a063ffb094e730fbad380",
+      "sizeBytes": 53776
+    },
+    "paired-gate-comparison.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/paired-gate-comparison.json",
+      "sha256": "45d715d0a71c844fc4f73396fd88fea9d915de77120fe2d8cfab165dc12373dd",
+      "sizeBytes": 12789
+    },
+    "resources.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/resources.json",
+      "sha256": "48bc5917f6b573149937bfd2d237b4142099e78ec13bb3549ece04a7a8a7a43e",
+      "sizeBytes": 13745
+    },
+    "unit-tests.log": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/unit-tests.log",
+      "sha256": "a379286f0191f6419bb5cb98931579a45406ee6fa2d7ee83a5c4e2f810c9f129",
+      "sizeBytes": 23916
+    },
+    "android-tests-build.log": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/android-tests-build.log",
+      "sha256": "8faaf7a11d290ae89586ae261691180117004b48af4fe31bd4fb4a622ee75cc3",
+      "sizeBytes": 5255
+    },
+    "model-packaging-check.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/model-packaging-check.json",
+      "sha256": "cd814b9eaf3a706359fba051f8a707a248689a0905f792d9f5c618742c84a87e",
+      "sizeBytes": 1035
+    },
+    "run-density-fork/experiment.json": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/experiment.json",
+      "sha256": "f81428d116ecb2c4d8c3bd027525969957ac44800a7cf0200a13a17953d7103b",
+      "sizeBytes": 630
+    },
+    "run-density-fork/run.py": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/run.py",
+      "sha256": "39ff227770d09969626a8104748450857dafa4f34890936093e5dfb0996ac59b",
+      "sizeBytes": 3546
+    },
+    "run-density-fork/run-tensors.npz": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/run-tensors.npz",
+      "sha256": "d1228d31747e4f718c68dc5b6d889f817e2aa1626c34e3c913649ad518b9008b",
+      "sizeBytes": 558879
+    },
+    "run-density-fork/run_policy_fork.py": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/run_policy_fork.py",
+      "sha256": "24341b6258e2c61bcc4a29c11e6eb2e8aea283fb5465f00ae2a068216d6b4655",
+      "sizeBytes": 2293
+    },
+    "run-density-fork/fbank.cpp": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/fbank.cpp",
+      "sha256": "f2a8e3ad67da1358ea5876acb3ec2aaf8d29d9dda4afa940b96e96ecff9e32c7",
+      "sizeBytes": 531
+    },
+    "run-density-fork/community_fbank.h": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/community_fbank.h",
+      "sha256": "926116f36ed738139e744d9376060843347be805cd48b0f10695bdaa13133743",
+      "sizeBytes": 2574
+    },
+    "run-density-fork/community_cluster.h": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/community_cluster.h",
+      "sha256": "562a0b5b751ff8efedcd9135ab32991d6f9275ac5ff3bcbb709f14d051549fb0",
+      "sizeBytes": 21797
+    },
+    "run-density-fork/community_kmeans.h": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/community_kmeans.h",
+      "sha256": "e78a8c77bce6e5ae95c31331cd052396a4d58370671cdf4be75078ce3786ac7d",
+      "sizeBytes": 4254
+    },
+    "run-density-fork/replay.cpp": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/shared-encoder-20260928/run-density-fork/replay.cpp",
+      "sha256": "5f9a9024397bf07872894a8b892ac6e1b95f15ae3997a1319059dda117b34bae",
+      "sizeBytes": 2855
+    }
+  }
+}

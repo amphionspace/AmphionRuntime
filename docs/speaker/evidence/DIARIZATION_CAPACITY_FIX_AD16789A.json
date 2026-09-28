@@ -1,0 +1,516 @@
+{
+  "schemaVersion": 1,
+  "releaseStatus": "BLOCKED",
+  "runtimeCommit": "ad16789a61edfea82ace0fcfba3b7e642b7cc49a",
+  "baselineRuntimeCommit": "f485c26d0456c619f9a9d831c88b33b93acc93f5",
+  "scope": "Capacity overflow root fix; four device anchors and one host public-slice difference check. Not full public/real-recording or final release acceptance.",
+  "binding": {
+    "commit": "ad16789a61edfea82ace0fcfba3b7e642b7cc49a",
+    "sourceFingerprint": "1bcc14eaa06c98afee9e28df681120cf4d3e6e357061d28e309dd04c9fcc5495",
+    "device": "7GK0226326015655",
+    "systemVersion": "OpenHarmony-6.1.1.120",
+    "artifacts": {
+      "amphion_asr.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-artifacts/amphion_asr.har",
+        "sha256": "ffe72391b0b8503ea64dfd35a97855395407ad7dbed310e9738c607414098a2d",
+        "size_bytes": 7687544
+      },
+      "amphion_asr_demo.hap": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-artifacts/amphion_asr_demo.hap",
+        "sha256": "56abf67bc3ac729f393e1bc8fff02979255db9e205370994a90c6c55e5148344",
+        "size_bytes": 436863273
+      },
+      "amphion_dingqiao.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-artifacts/amphion_dingqiao.har",
+        "sha256": "921ba1b1ea6785cd84734894c457defbbb38b4837d2dc2d49afff2cd163a64c4",
+        "size_bytes": 93076276
+      },
+      "amphion_police.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-artifacts/amphion_police.har",
+        "sha256": "f799d78b8e5270a857cefc0381bd9c4db39c0083f01f05d6fba21e7a617c210a",
+        "size_bytes": 30205096
+      },
+      "sherpa_onnx.har": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-artifacts/sherpa_onnx.har",
+        "sha256": "f366cd1316a1f18e61a5b49333bc702c3dbe28a39aa892b5e558eaef78636a41",
+        "size_bytes": 7180097
+      }
+    }
+  },
+  "cases": {
+    "customer-main-four": {
+      "inputSha256": "3c263893ebed15454918ee670840f0ba47c218d5e08a4f5f5ffe6e4399ce681b",
+      "bindingSha256": "ab4ffa83760505379b3794e82aac5dfbf4675151344c87f45f2e03846477c8ae",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device/20260928-035251-diarization-windows-60bb5f01/report.json",
+        "sha256": "b516dae4d82773b5a9e4fdb1fc9de60d90d56b6640e68e1d4b216f313629f602"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/diagnostics/unpacked/asr-diagnostics-20260928-035620/run-1790538774908/events.full.ndjson",
+        "sha256": "610c29c475bd63e6359441507cc54ef88f108c00a56a3cf13e686902e4f531b5"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device/20260928-035251-diarization-windows-60bb5f01/payload/corpus.json",
+        "sha256": "f43020dfcb4581df9a0a8c44f4203bbc9951b930411159d242dfdf1e2e526b7a"
+      },
+      "review": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/review.json",
+        "sha256": "0f845df1d3978b7fc9fc841df631d4f616c524752320589626e6fb952129a1ae"
+      }
+    },
+    "four-speaker-short": {
+      "inputSha256": "f13ad95b225a88c64161ff9a01770d07718f547c97445b7b6bb61ae146f739e7",
+      "bindingSha256": "ab4ffa83760505379b3794e82aac5dfbf4675151344c87f45f2e03846477c8ae",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device/20260928-035724-paced-225f5e7d/report.json",
+        "sha256": "1259e2ae4cd772ef2a312f9814a340fff75c1120e7b1f061f19756207efc5041"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/diagnostics/unpacked/asr-diagnostics-20260928-035817/run-1790539048336/events.full.ndjson",
+        "sha256": "2ae5025bd3266e27e9627111f742ec2a14af418ce082b65c9a761e0a442948fe"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device/20260928-035724-paced-225f5e7d/payload/corpus.json",
+        "sha256": "b6d86e3ce477a3caa018dfffb9bae739432d4707f92e2762dbc82050485320e2"
+      }
+    },
+    "four-speaker-124s": {
+      "inputSha256": "c381622174402fd0f7a6d61466e8b736c9ba09419d482e22a4b5d182cb7eb178",
+      "bindingSha256": "ab4ffa83760505379b3794e82aac5dfbf4675151344c87f45f2e03846477c8ae",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device/20260928-035843-diarization-windows-e6389377/report.json",
+        "sha256": "73a3c0e85cf0962ad04412d65617d3a0b46ca2e85da0e6c4d98271713546e795"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/diagnostics/unpacked/asr-diagnostics-20260928-040112/run-1790539127865/events.full.ndjson",
+        "sha256": "f66fe737a450a8622bcbe8e42f405ffaacc536338be6f1a1b86ca22c6c6d5657"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device/20260928-035843-diarization-windows-e6389377/payload/corpus.json",
+        "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a"
+      }
+    },
+    "single-speaker-unknown": {
+      "inputSha256": "f3dd598f8fffd76b8877f59809432d98b5d2ab72c5c22badadb26e9923ad186a",
+      "bindingSha256": "ab4ffa83760505379b3794e82aac5dfbf4675151344c87f45f2e03846477c8ae",
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device/20260928-040158-paced-80f8cf78/report.json",
+        "sha256": "0aae5d3896fc8a171ddaedddbf04b9569c00bcbd34a68756b2ab4d3b96b99203"
+      },
+      "events": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/diagnostics/unpacked/asr-diagnostics-20260928-040313/run-1790539321491/events.full.ndjson",
+        "sha256": "682f824eaae4a29baf9a89a84ae33ba98769a593929ef3b75bc5ab1064bff70d"
+      },
+      "corpus": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device/20260928-040158-paced-80f8cf78/payload/corpus.json",
+        "sha256": "84b8d17dde2d547712f4e31825ab9273fd2b6c54fe5827a56deab16daf1df725"
+      }
+    }
+  },
+  "deviceSummary": {
+    "customer-main-four": {
+      "sdkStatus": "PASS",
+      "overallCarrierStatus": "PASS",
+      "rtf": "0.5541282936911487",
+      "finishToCompleteMs": "1625",
+      "speakerCount": "4",
+      "rssGrowthMiB": 25.363,
+      "rssPeakMiB": 667.969,
+      "strictRealtime": "PASS",
+      "strictMemory": "INCONCLUSIVE",
+      "queue": [
+        {
+          "session": "session-1",
+          "status": "PASS",
+          "queueSamples": 151,
+          "maxAudioDelayMs": 860
+        }
+      ],
+      "allAcousticTensorsAndAsrEqual": true,
+      "runRmsExactFromPcm": true,
+      "phoneMatchesStoredState": true,
+      "publicResultsUnchanged": false
+    },
+    "four-speaker-short": {
+      "sdkStatus": "PASS",
+      "overallCarrierStatus": "FAIL",
+      "rtf": "0.3142853917262513",
+      "finishToCompleteMs": "-1",
+      "speakerCount": "4",
+      "rssGrowthMiB": 129.248,
+      "rssPeakMiB": 581.309,
+      "strictRealtime": "INCONCLUSIVE",
+      "strictMemory": "FAIL",
+      "queue": [
+        {
+          "session": "session-1",
+          "status": "INCONCLUSIVE",
+          "queueSamples": 11,
+          "maxAudioDelayMs": 720
+        }
+      ],
+      "allAcousticTensorsAndAsrEqual": true,
+      "runRmsExactFromPcm": true,
+      "phoneMatchesStoredState": true,
+      "publicResultsUnchanged": true
+    },
+    "four-speaker-124s": {
+      "sdkStatus": "PASS",
+      "overallCarrierStatus": "PASS",
+      "rtf": "0.5566791460823912",
+      "finishToCompleteMs": "1297",
+      "speakerCount": "4",
+      "rssGrowthMiB": 23.625,
+      "rssPeakMiB": 665.102,
+      "strictRealtime": "INCONCLUSIVE",
+      "strictMemory": "INCONCLUSIVE",
+      "queue": [
+        {
+          "session": "session-1",
+          "status": "INCONCLUSIVE",
+          "queueSamples": 115,
+          "maxAudioDelayMs": 980
+        }
+      ],
+      "allAcousticTensorsAndAsrEqual": true,
+      "runRmsExactFromPcm": true,
+      "phoneMatchesStoredState": true,
+      "publicResultsUnchanged": true
+    },
+    "single-speaker-unknown": {
+      "sdkStatus": "PASS",
+      "overallCarrierStatus": "PASS",
+      "rtf": "0.4663819074864074",
+      "finishToCompleteMs": "-1",
+      "speakerCount": "1",
+      "rssGrowthMiB": 22.053,
+      "rssPeakMiB": 601.047,
+      "strictRealtime": "INCONCLUSIVE",
+      "strictMemory": "INCONCLUSIVE",
+      "queue": [
+        {
+          "session": "session-1",
+          "status": "INCONCLUSIVE",
+          "queueSamples": 39,
+          "maxAudioDelayMs": 720
+        }
+      ],
+      "allAcousticTensorsAndAsrEqual": true,
+      "runRmsExactFromPcm": true,
+      "phoneMatchesStoredState": true,
+      "publicResultsUnchanged": true
+    }
+  },
+  "pairedGateSummary": {
+    "status": "FAIL",
+    "regressions": [],
+    "existingFailures": [
+      "four-speaker-short:memory:FAIL",
+      "customer-main-four:identityAccuracy:FAIL"
+    ],
+    "unattributedFailures": [],
+    "releaseStatus": "FAIL"
+  },
+  "checks": {
+    "harmonyNativeAndStateTests": 54,
+    "androidRelatedUnitTests": 48,
+    "androidArm64NativeCompile": "PASS",
+    "harmonyDiagnosticsBuildSignatureIdentity": "PASS",
+    "deviceAcousticWindowsCompared": 316,
+    "deviceRunRmsCompared": 1039,
+    "rawAcousticTensorsAndAsr": "EXACT",
+    "runRmsComparedWithExactInputPcm": "EXACT",
+    "remainingResourceDifferenceAttribution": "INCONCLUSIVE"
+  },
+  "manifest": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/evaluation-manifest.json",
+    "sha256": "7aa6e422a0cc56e33fa4888662f21211f903b9185fe17ce4a4c712d272c06a34"
+  },
+  "evidence": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/experiment.json",
+      "sha256": "387078af147763631e8fed3367959b1533643c842c036c89c1151359b3ffad3b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/capacity-red.log",
+      "sha256": "9c7cf088ef57ad883ea45a162da640e5a854d3f28432eaf9b2d79b11d836cb89"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/native-capacity.log",
+      "sha256": "c326a0ab02b461d506a2afd6d3fa00d65a14286f764d47a33be3dbd3b8b11855"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/relevant-tests.log",
+      "sha256": "50da33dde6abd466800f5c7aa8a0011535455945bbeedcd3decd3ae03f89600c"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-check.log",
+      "sha256": "7e20b9e3e6fcfb68d3aebfac0211430bdfe1e93b8b3c85472612660da850a754"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/build.log",
+      "sha256": "9efd2f7c086e6c1379e707a6f3a7aa28ccf5c7e90c2f156e4130ec0fdb1c41de"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/build-identity.json",
+      "sha256": "a1b209870b6a0ed7d977919f04d0ea883503e08f2eaad7cfc2f9c08cca359fbc"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/archived-build-identity.json",
+      "sha256": "2a8b3a32b6fa96c42d257e994d22a8f49fa3e4d0b2f1fc50cdc69f162f330d90"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-captures.json",
+      "sha256": "e797798399f2a6a8a8ea61d5b6637420e0c9b2d5e626f58d75b758199981dc15"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/candidate-assessment.json",
+      "sha256": "8864ad720e99e66e823401b2b157f330ca07ab1329fdfc9c8eab47a208df2e2a"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/paired-assessment.json",
+      "sha256": "e88502866307d07ade1d319907fbd60447114c8e0c30bbad10fca7f07f78f029"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/device-summary.json",
+      "sha256": "c2f5767b73dfed8edf24459562ece55a3bd296731ebb3a6a8cb0cf3a8707d157"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/replay-inputs.json",
+      "sha256": "70dd835112dc12e8d147386283746d80e8d0abc01fc406d9219505698d282b92"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/replay-comparison.json",
+      "sha256": "72ed560f1a56d59a300c0669918574e10f4887701903abda4942776a1236f5de"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/prepare_replay.py",
+      "sha256": "15a71d0591339cee2890df05630149cd0171b7822968b947d4f622449569f6cf"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/compare_replays.py",
+      "sha256": "324486035b481641dbbb204c276bf0e42e83ee65eebf589e5e99f532645d4f3e"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/capture_device.py",
+      "sha256": "86aa6e4c3b7950127e585f18dcad589166a8b53faf24cf9bde162f85fce2dc4b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/compare_device.py",
+      "sha256": "59534dec563490b2c97dc7c6b8174f922b47aefdd57c40ca327c8439874393f2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/finish_evidence.py",
+      "sha256": "684340a912d55aaed01e207f0c0732c6f87122e8651bc9aed559e6d7e8390c5d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/replay",
+      "sha256": "b26d3a8407414bf417f9d2781b2c14647d7d374b2e7904eacc47b865af83cab6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/review.json",
+      "sha256": "0f845df1d3978b7fc9fc841df631d4f616c524752320589626e6fb952129a1ae"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/caller-comparison.json",
+      "sha256": "08e725f4bac36fa17d2a607fcfc0c1d8253afcff58b50e651e5c9d3b1cedaeb6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device-caller/result.json",
+      "sha256": "ab997d2b901cfbba0b32db97ebb871680eabb5da4329123305bcbccc809988e1"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device-caller/provenance.json",
+      "sha256": "8095eba1d4123f5e0d267a80527b402e5384e6ab7c214f51b0e28f2d298ccfa2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/expected-customer-capacity-state.json",
+      "sha256": "83ad3766873196e0322933e02d99c368eaf5faae3088bc1075d6326fe874ebc8"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/resource-failure-note.json",
+      "sha256": "c6f38c365e149ed85e7fcb80fd195adf44c02593578027f64e96198df831f66e"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four-windows.json",
+      "sha256": "bc40bec2b72dd7dce8f82188ea8a9d76f981c3639889ce23d34812fff1055e1c"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/result.json",
+      "sha256": "520121b1f238f90e755e349fded8d4e2a5c7ec1fa9ff904a8af195fc9fb2be3d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/provenance.json",
+      "sha256": "6d5064b5ae5d3eefd2ec25d93a4f1b33291a91b5fd1226f35e6adf6eeb2e0dcb"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device-comparison.json",
+      "sha256": "cade4e07d8eaa0dbff94935646dd309b25648d5fc7f9eb733a757cf60b4207ad"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device-payload.json",
+      "sha256": "89413960b15a8baa7c0d40fa81097122642816ad54ce63ce3f2fc034f2e6af8d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device/20260928-035251-diarization-windows-60bb5f01/memory.csv",
+      "sha256": "2f3944cf664909de615f73e9624d081244db46242619f2971e9a2aca88e5d009"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/device/20260928-035251-diarization-windows-60bb5f01/hilog.txt",
+      "sha256": "f7768a61d5032f05c398eb93dc82576d6a632d04533bc3dc2d1cc33ab38af6f7"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/customer-main-four/diagnostics/asr-diagnostics-20260928-035620.zip",
+      "sha256": "8cc90ebd5d9005a24c79e1a01ba25933e4a1d8e21f555da939d40fa41bc1c158"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short-windows.json",
+      "sha256": "08a4c22d3f2bd31986f43eae110cb380b408cec8c44d8ac66930d870d8906a6d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/result.json",
+      "sha256": "619e5e691da3bc4eaffecf93466af9dd36cac8eadbdd2f0f096f48c73c3dc7db"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/provenance.json",
+      "sha256": "f4aa13f52f588ec8d51085c049af3a525f81d0b70031da7a5785bf1b14595c12"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device-comparison.json",
+      "sha256": "4985c80d597faac05d24b5c1c0b113a1261bfc82229478a39268dbe91f783d3b"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device-payload.json",
+      "sha256": "b8d72d1b97c68549919f1d43a9ca67dc2537fdc0665296af457a78427b6f84ff"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device/20260928-035724-paced-225f5e7d/memory.csv",
+      "sha256": "45b80e36fa7ca44191be7cc4ca2a3609332c8edf410607c9f095bf11893bf93e"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/device/20260928-035724-paced-225f5e7d/hilog.txt",
+      "sha256": "5acebbbd4216acbdd3d61878aa5abf40986c6e37ab26091ad434fa1eb4a7f184"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-short/diagnostics/asr-diagnostics-20260928-035817.zip",
+      "sha256": "01eac3032f759a32394e5e657b617098420bcff49e7ccd8e2d5537b94ccb0ea0"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s-windows.json",
+      "sha256": "82b13de0f2c14d9ec0965cbb8d91a511800fa9b826e00658cddb4b3e828d12dd"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/result.json",
+      "sha256": "543761a09b275ab30e9b04902a5e8cc9e4b1d28ab8cbeda2a1d49e8ca92ed388"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/provenance.json",
+      "sha256": "7a214ec72d655d74bcb25732cd5f387f30bd3d52024f5187a5302647fa2c5c4f"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device-comparison.json",
+      "sha256": "b63cb40e06b6ed12f44d329f76904cf6cd0cb52e7ff5b17c57b95daf2a00efb2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device-payload.json",
+      "sha256": "a454912d56a8ea2cc006e5ef42f3c43638d257b7c7c64981aa215372d5546423"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device/20260928-035843-diarization-windows-e6389377/memory.csv",
+      "sha256": "b8fe96a0c73b405c6ae3790c61235d2ab09401da12d3b0c583d169b785b94776"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/device/20260928-035843-diarization-windows-e6389377/hilog.txt",
+      "sha256": "fe61907f2c8276c7bfd5e19be2b10da0e9ba929c969962d47a603553176e73b0"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/four-speaker-124s/diagnostics/asr-diagnostics-20260928-040112.zip",
+      "sha256": "14474eec27e100678b2c48c7c516bb3bd4edd32e017dd4529ea50ea376a30027"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown-windows.json",
+      "sha256": "97ca18a362b65ed8bee74c532eb6d7989c4df96616e0a53b4d06cab9cd38f0a4"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/result.json",
+      "sha256": "7dfe8cf4f87505e58d8e9f3931b0c2c38ee14258e3f201eaa24abc3a9349c5cd"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/provenance.json",
+      "sha256": "ace79a958a816c46d04700cae3ff1c015365e83707845e815b4102d332570bdb"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device-comparison.json",
+      "sha256": "1c86cd92cc4a9a902def08b2c8ec479b691f2996629a82923d804e1bad850c60"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device-payload.json",
+      "sha256": "91b047fc762a081cccd5123f1cb3809a049306fef3a19e359594be65187da4a6"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device/20260928-040158-paced-80f8cf78/memory.csv",
+      "sha256": "0ec6b0a5e43fdeb618317437c9266caf585e0af1aca6fba235078aa185de5453"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/device/20260928-040158-paced-80f8cf78/hilog.txt",
+      "sha256": "ff78267a1a3c6bbc4bf999fc320224029e734c47aa0b5360ac0dde14f8ee0bcd"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/single-speaker-unknown/diagnostics/asr-diagnostics-20260928-040313.zip",
+      "sha256": "cb04ea2aa839f5812eb2888e34334ba5f31a659e620f09e2d363a4b1d27560e9"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/aishell4-4/result.json",
+      "sha256": "1b64938daca7a938961c3c7b7b8e4aeda232702939b1927e9906a8e29b84b5e5"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/aishell4-4/provenance.json",
+      "sha256": "ce25ee9091ee934363e20d6828cf649f408c12245b75b654174d6346fca7bc1c"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.CommunityLocalClientTest.xml",
+      "sha256": "d0674c2d689b29f6a4a2a19a8634b5a4e74afeede48a35358af467eded534120"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.CommunityDiarizationTest.xml",
+      "sha256": "eb7f62073e60a6dab42561f4d27c216a3f92d7f03782756b61151bb2dc6dc645"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.DiarizationWindowFinalizationTest.xml",
+      "sha256": "86a4752bfaf5336211c6f19971deef4b1dac46e728133349969e4cfa76e1271d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.DiarizationQueryTest.xml",
+      "sha256": "f161b314efc462177395056449fc113d9731203fb0371cb5a8cf802efa4cdb57"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationInferenceTest.xml",
+      "sha256": "6af268a5edc47e327fb70f7d0e9fc1860b24182da843fb9850c11e8e54b3781d"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.SpeakerDiarizationAlgorithmsTest.xml",
+      "sha256": "056cecfe2445f890c8b902a173687b45f3ce15cd4e0906ad7e8ba1dac7cd90bf"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.DiarizationSentenceOutputTest.xml",
+      "sha256": "711fa600cbd103c1cdf92287e64f71117d4e73fa6db4a038b12bb6ba17de6488"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.CommunityHarmonyParityTest.xml",
+      "sha256": "5473a8a18baa137c682627db6ccbadeb23d4d9e87e7fc1c2fc428fcbbe56c1b2"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/capacity-fix-20260928/android-test-results/TEST-com.amphion.dingqiao.diarization.CommunitySessionTest.xml",
+      "sha256": "c3cbd6b5d6d95647313967491adc90fb17749d4d0c670999b37086246d9bb0ff"
+    }
+  ],
+  "privacy": "No PCM, embeddings, keys or transcripts embedded here. Detailed evidence remains in private local artifacts.",
+  "uncovered": [
+    "five other public clips on this runtime",
+    "full16 and long meeting matrix",
+    "complete cancel/reentrant/offline release matrix",
+    "Release/Debug final package",
+    "full human identity/readability adjudication",
+    "Android run-level capacity path"
+  ]
+}

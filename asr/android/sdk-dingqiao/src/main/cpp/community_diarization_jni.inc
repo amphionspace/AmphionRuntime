@@ -37,9 +37,9 @@ jfloatArray AndroidArray(JNIEnv* env, const std::vector<float>& values) {
 }
 #define COMMUNITY_JNI(name) Java_com_amphion_dingqiao_diarization_CommunityDiarizationInference_##name
 extern "C" JNIEXPORT jlong JNICALL COMMUNITY_JNI(nativeLoad)(JNIEnv* env, jobject,
-    jstring segmentation, jstring embedding, jstring feature, jstring plda) {
+    jstring segmentation, jstring encoder, jstring pooling, jstring feature, jstring plda) {
   try {
-    auto model = std::make_shared<Model>(AndroidAsset(env, segmentation), AndroidAsset(env, embedding),
+    auto model = std::make_shared<Model>(AndroidAsset(env, segmentation), AndroidAsset(env, encoder), AndroidAsset(env, pooling),
       AndroidAsset(env, feature), AndroidAsset(env, plda));
     std::lock_guard<std::mutex> lock(android_model_mutex);
     const auto handle = android_next_handle++;
@@ -65,8 +65,11 @@ extern "C" JNIEXPORT jstring JNICALL COMMUNITY_JNI(nativeCluster)(JNIEnv* env, j
     if (!starts) throw std::runtime_error("Community window positions missing");
     std::vector<double> positions(env->GetArrayLength(starts));
     env->GetDoubleArrayRegion(starts, 0, positions.size(), positions.data());
+    // Android currently submits whole-window evidence. Keep the native legacy
+    // path explicit until the Kotlin window/cluster bridge carries run arrays;
+    // full-window vectors are not interchangeable with per-run vectors.
     auto result = AndroidModel(handle)->Cluster(AndroidFloats(env, segments),
-      AndroidFloats(env, embeddings), max_speakers, positions, begin_sample);
+      AndroidFloats(env, embeddings), {}, {}, max_speakers, positions, begin_sample);
     return env->NewStringUTF(result.c_str());
   } catch (const std::exception& error) { AndroidError(env, error); return nullptr; }
 }

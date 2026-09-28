@@ -88,6 +88,118 @@ int main() {
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_encoder_features_and_run_vectors_belong_to_one_window(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source = (CPP / 'community_diarization.cpp').read_text()
+        body = source[source.index('    std::array<int64_t, 3> feature_shape'):
+                      source.index('    result.embedding_ms = Milliseconds(start);')]
+        # Execute production run extraction with a mask-independent model stub.
+        # The pinned ONNX graph pools each mask channel independently as well.
+        program = r'''
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cmath>
+#include <cstdint>
+#include <limits>
+#include <stdexcept>
+#include <vector>
+namespace Ort {
+struct RunOptions { RunOptions(std::nullptr_t) {} };
+struct Value {
+  std::vector<float> values;
+  template<class T> static Value CreateTensor(int,T* data,size_t n,const int64_t*,size_t) {
+    return {std::vector<float>(data,data+n)};
+  }
+  struct Info { size_t count;size_t GetElementCount() const {return count;} };
+  Info GetTensorTypeAndShapeInfo() const {return {values.size()};}
+  template<class T> const T* GetTensorData() const {return values.data();}
+  template<class T> T* GetTensorMutableData() {return values.data();}
+};
+}
+float MaskValue(const std::vector<float>& mask,int channel,float pcm) {
+  float value=pcm;
+  for(int f=0;f<589;++f)value+=mask[channel*589+f]*(f+1);
+  return value;
+}
+static int encoderCalls=0;
+struct Encoder {
+  int calls=0;bool encoderOnly=false;
+  std::vector<Ort::Value> Run(Ort::RunOptions,const char** names,Ort::Value* inputs,size_t,const char**,size_t) {
+    ++calls;Ort::Value out;
+    if(std::string(names[0])=="fbank")++encoderCalls;
+    if(encoderOnly) {out.values.assign(2560*125,inputs[0].values[0]);return {out};}
+    out.values.resize(768);
+    for(int c=0;c<3;++c)std::fill_n(out.values.begin()+c*256,256,
+      MaskValue(inputs[1].values,c,inputs[0].values[0]));
+    return {out};
+  }
+} embedding_, encoder_{0,true}, pooling_;
+struct Window {std::vector<float> embeddings,run_embeddings,run_ranges,run_rms;};
+Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float level,bool varied=false) {
+  Window result;
+  std::vector<float> features{level},pcm(160000,level);int memory=0;
+  if(varied){
+    std::fill(pcm.begin(),pcm.end(),100.f); // Loud unowned context must be ignored.
+    std::fill(pcm.begin()+496,pcm.begin()+496+130*270,.125f);
+    std::fill(pcm.begin()+496+131*270,pcm.begin()+496+261*270,.5f);
+  }
+  struct Clock { static int now() {return 0;} };int start=0;
+''' + body + r'''
+  return result;
+}
+void On(std::vector<float>& m,int channel,int b,int e) {
+  std::fill(m.begin()+channel*589+b,m.begin()+channel*589+e,1.f);
+}
+int main() {
+  std::vector<float> masks(1767);On(masks,0,0,180);On(masks,1,200,340);
+  auto same=ProcessRuns(masks,masks,3);
+  assert(same.run_ranges==std::vector<float>({0,0,0,180,0,1,200,340}));
+  assert(same.run_embeddings.size()==512);
+  assert(same.run_rms==std::vector<float>({3,3}));
+  for(int i=0;i<256;++i) {
+    assert(same.run_embeddings[i]==same.embeddings[i]);
+    assert(same.run_embeddings[256+i]==same.embeddings[256+i]);
+  }
+  assert(encoderCalls==1 && "one encoder per window");
+  auto next=ProcessRuns(masks,masks,7);
+  assert(next.run_embeddings[0]==same.run_embeddings[0]+4 && "never reuse another window PCM");
+  assert(next.run_rms==std::vector<float>({7,7}));
+  std::vector<float> mixed(1767);On(mixed,0,0,130);On(mixed,0,131,261);
+  auto split=ProcessRuns(mixed,mixed,3);
+  assert(encoderCalls==3 && "disconnected runs share only this window encoder");
+  assert(split.run_ranges==std::vector<float>({0,0,0,130,0,0,131,261}));
+  std::vector<float> left(1767),right(1767);On(left,0,0,130);On(right,0,131,261);
+  assert(split.run_embeddings[0]==MaskValue(left,0,3));
+  assert(split.run_embeddings[256]==MaskValue(right,0,3));
+  assert(split.run_embeddings[0]!=split.embeddings[0]);
+  std::vector<float> tail(1767);On(tail,0,0,150);On(tail,0,300,320);
+  auto withShortTail=ProcessRuns(tail,tail,3);
+  std::vector<float> mainRun(1767);On(mainRun,0,0,150);
+  assert(encoderCalls==4);
+  assert(withShortTail.run_embeddings[0]==MaskValue(mainRun,0,3));
+  assert(withShortTail.run_embeddings[0]!=withShortTail.embeddings[0]);
+  assert(withShortTail.run_embeddings[256]==0);
+  std::vector<float> shortMask(1767);On(shortMask,0,0,80);
+  auto shortRun=ProcessRuns(shortMask,shortMask,3);
+  assert(encoderCalls==5 && shortRun.run_embeddings==std::vector<float>(256,0));
+  auto overlap=ProcessRuns(masks,std::vector<float>(1767),3);
+  assert(encoderCalls==6 && overlap.run_embeddings.size()==512);
+  for(float v:overlap.run_embeddings)assert(std::isnan(v));
+  assert(overlap.run_rms==std::vector<float>({0,0}));
+  auto levels=ProcessRuns(mixed,mixed,3,true);
+  assert(levels.run_rms==std::vector<float>({.125f,.5f}));
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            cpp = Path(directory) / 'run-mask.cpp'
+            binary = Path(directory) / 'run-mask'
+            cpp.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', str(cpp), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_native_input_copy_uses_real_view_bounds(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
@@ -476,16 +588,15 @@ int main(int argc,char**) {
         # first short run is the only clean evidence for a fourth group and is
         # admitted through the masked full-window vector.  A later unrelated
         # short run would create a fifth group and must remain unknown.  The
-        # deliberately high synthetic PLDA variance makes VBx collapse these
-        # four groups, exercising the guarded AHC fallback without any voice
-        # data or an expected speaker count.
+        # PLDA supports these distinct groups. No voice data or expected
+        # speaker count is supplied to the clusterer.
         program = r'''
 #include "community_cluster.h"
 #include <cassert>
 int main() {
   community::Plda p;
   p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
-  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
   p.transform=community::Matrix(128,community::Vec(128));
   for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
   constexpr int windows=3;
@@ -502,7 +613,6 @@ int main() {
   run(2,0,0,68,4);
   auto result=community::Cluster(segments,embeddings,windows,p,4,runEmbeddings,ranges);
   assert(result.shortRunTrainingCount==1);
-  assert(result.usedAhcFallback);
   assert(result.centroids.size()==4);
   assert(result.frame_hard[20*3]>=0);
   assert(result.frame_hard[20*3+3*589]>=0);
@@ -512,6 +622,174 @@ int main() {
         with tempfile.TemporaryDirectory() as directory:
             source=Path(directory)/'short-enrollment.cpp'
             binary=Path(directory)/'short-enrollment'
+            source.write_text(program)
+            subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
+            subprocess.run([str(binary)],check=True)
+
+    def test_saturated_short_tail_does_not_repeat_training(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Count fitted rows in an isolated header, not wall-clock time. Extending
+        # a saturated input with evidence that cannot be admitted must preserve
+        # identities without repeating the same training for every short tail.
+        header = (CPP / 'community_cluster.h').read_text()
+        entry = 'inline std::vector<int> Ahc(const Matrix& x) {'
+        self.assertEqual(header.count(entry), 1)
+        instrumented = header.replace(entry, 'inline size_t fittedRows=0;\n' + entry +
+                                      '\n  fittedRows+=x.size();')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  for(bool initiallyFull:{false,true}) {
+    std::vector<float> segments(2*589*3),embeddings(2*3*256),runs;
+    std::vector<int32_t> ranges;
+    auto add=[&](int w,int ch,int begin,int end,int axis) {
+      for(int f=begin;f<end;++f)segments[(w*589+f)*3+ch]=1;
+      embeddings[(w*3+ch)*256+axis]=1;
+      runs.resize(runs.size()+256);
+      if(end-begin>=118)runs[runs.size()-256+axis]=1;
+      ranges.insert(ranges.end(),{w,ch,begin,end});
+    };
+    add(0,0,0,130,0);add(0,1,150,280,1);add(0,2,300,430,2);
+    add(1,0,0,initiallyFull?130:68,3);
+    add(1,1,150,280,1);add(1,2,300,430,2);
+    community::fittedRows=0;
+    auto before=community::Cluster(segments,embeddings,2,p,4,runs,ranges);
+    const auto fitWork=community::fittedRows;
+    assert(before.centroids.size()==4);
+    assert(before.shortRunTrainingCount==(initiallyFull?0:1));
+    constexpr int windows=34;
+    segments.resize(windows*589*3);embeddings.resize(windows*3*256);
+    for(int w=2;w<windows;++w)add(w,0,0,68,w+2);
+    community::fittedRows=0;
+    auto after=community::Cluster(segments,embeddings,windows,p,4,runs,ranges);
+    assert(after.trainingRunIndices==before.trainingRunIndices);
+    assert(after.ahc==before.ahc && after.vbx.q==before.vbx.q);
+    assert(after.centroids==before.centroids);
+    assert(std::equal(before.frame_hard.begin(),before.frame_hard.end(),after.frame_hard.begin()));
+    for(int w=2;w<windows;++w)assert(after.frame_hard[(w*589+20)*3]==-2);
+    assert(community::fittedRows==fitWork);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            local = Path(directory)
+            (local / 'community_cluster.h').write_text(instrumented)
+            source = local / 'saturated-tail.cpp'
+            binary = local / 'saturated-tail'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(local),
+                            '-I', str(CPP), str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
+    def test_short_enrollment_owns_the_full_embedding_mask(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Process pools the original channel mask when clean coverage is only
+        # one or two frames. A unique clean run does not then own the vector
+        # if this channel also contains overlap. Pure short evidence must
+        # remain eligible; this is not a minimum-duration rule.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+community::Plda Plda() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  return p;
+}
+community::ClusterResult Run(int cleanFrames,bool overlap) {
+  std::vector<float> seg(2*589*3),full(2*3*256),runs(2*256,0.f);
+  std::vector<int32_t> ranges{0,0,0,150,1,0,0,cleanFrames};
+  for(int f=0;f<150;++f)seg[f*3]=1.f;
+  for(int f=0;f<cleanFrames;++f)seg[(589+f)*3]=1.f;
+  if(overlap) {
+    for(int f=cleanFrames;f<cleanFrames+22;++f){
+      seg[(589+f)*3]=1.f;seg[(589+f)*3+1]=1.f;
+    }
+    if(cleanFrames<=2){
+      ranges.insert(ranges.end(),{1,0,cleanFrames,cleanFrames+22});
+      runs.insert(runs.end(),256,NAN);
+    }
+    ranges.insert(ranges.end(),{1,1,cleanFrames,cleanFrames+22});
+    runs.insert(runs.end(),256,NAN);
+  }
+  full[0]=1.f;full[3*256+1]=1.f;runs[0]=1.f;
+  return community::Cluster(seg,full,2,Plda(),4,runs,ranges);
+}
+int main() {
+  for(int n:{1,2}) {
+    auto mixed=Run(n,true);
+    assert(mixed.centroids.size()==1 && "overlap vector must not manufacture a short identity");
+    for(int f=0;f<n;++f)assert(mixed.frame_hard[(589+f)*3]==-2);
+  }
+  for(int n:{1,2,3,80})for(bool overlap:{false,true}) {
+    if(overlap&&n<=2)continue;
+    auto clean=Run(n,overlap);
+    assert(clean.centroids.size()==2 && "owned short speaker evidence must survive");
+    int label=clean.frame_hard[589*3];assert(label>=0&&label!=clean.frame_hard[0]);
+    for(int f=0;f<n;++f)assert(clean.frame_hard[(589+f)*3]==label);
+    if(overlap)for(int f=n;f<n+22;++f)assert(clean.frame_hard[(589+f)*3+1]==-2);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'short-mask.cpp';binary=Path(directory)/'short-mask'
+            source.write_text(program)
+            subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
+            subprocess.run([str(binary)],check=True)
+
+    def test_short_admission_does_not_split_long_runs_merged_by_vbx(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # The long runs have two AHC groups but one VBx identity. A new short
+        # candidate must not resurrect the discarded long-run group. This is
+        # the state fork seen in the confirmed single-speaker recording.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  constexpr int windows=6;
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runEmbeddings;
+  std::vector<int32_t> ranges;
+  for(int w=0;w<windows;++w){
+    const int axis=w<4?0:w-3, end=w==5?68:200;
+    for(int f=0;f<end;++f)segments[(w*589+f)*3]=1;
+    embeddings[w*3*256+axis]=1;
+    runEmbeddings.resize(runEmbeddings.size()+256);
+    runEmbeddings[runEmbeddings.size()-256+axis]=1;
+    ranges.insert(ranges.end(),{w,0,0,end});
+  }
+  auto withoutShort=embeddings;
+  std::fill(withoutShort.begin()+5*768,withoutShort.end(),
+            std::numeric_limits<float>::quiet_NaN());
+  auto before=community::Cluster(segments,withoutShort,windows,p,4,runEmbeddings,ranges);
+  assert(before.centroids.size()==1);
+  auto after=community::Cluster(segments,embeddings,windows,p,4,runEmbeddings,ranges);
+  assert(after.shortRunTrainingCount==1);
+  assert(after.centroids.size()==1);
+  for(int w=0;w<5;++w)
+    assert(after.frame_hard[(w*589+20)*3]==after.frame_hard[20*3]);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source=Path(directory)/'short-merge.cpp';binary=Path(directory)/'short-merge'
             source.write_text(program)
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
@@ -556,6 +834,68 @@ int main() {
             source.write_text(program)
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
+    def test_run_capacity_keeps_distinct_foreground_and_anonymous_background(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <set>
+int main() {
+  community::Plda p;
+  p.mean1.resize(256);p.mean2.resize(128);p.mu.resize(128);p.phi.resize(128,1.);
+  p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1;p.transform[i][i]=1;}
+  constexpr int n=48;
+  std::vector<float> segments(n*589*3),embeddings(n*768),runs(n*256),rms(n);
+  std::vector<int32_t> ranges;
+  for(int w=0;w<n;++w){
+    for(int f=0;f<589;++f)segments[(w*589+f)*3]=1;
+    embeddings[w*768+w%6]=runs[w*256+w%6]=1.;
+    ranges.insert(ranges.end(),{w,0,0,589});
+    rms[w]=w%6<4?(.7f+.1f*(w%6)):.1f;
+  }
+  auto result=community::Cluster(segments,embeddings,n,p,4,runs,ranges,rms);
+  std::set<int> foreground;
+  for(int w=0;w<n;++w){
+    int label=result.hard[w*3];
+    if(w%6<4){assert(label>=0);foreground.insert(label);assert(label==result.hard[(w%6)*3]);}
+    else assert(label==-2 && "capacity must not turn background into a foreground speaker");
+    for(int f=0;f<589;++f)assert(result.frame_hard[(w*589+f)*3]==label);
+  }
+  assert(foreground.size()==4 && !result.usedKMeans);
+  auto scaled=rms;for(auto& value:scaled)value*=.01f;
+  auto quiet=community::Cluster(segments,embeddings,n,p,4,runs,ranges,scaled);
+  assert(quiet.hard==result.hard && quiet.frame_hard==result.frame_hard);
+  // A tighter caller capacity can leave more voices unknown but never merge
+  // them. Selection does not manufacture additional groups to fill the cap.
+  auto limited=community::Cluster(segments,embeddings,n,p,2,runs,ranges,rms);
+  assert(limited.centroids.size()==2 && !limited.usedKMeans);
+  for(int w=0;w<n;++w)assert((limited.hard[w*3]>=0)==(w%6==2||w%6==3));
+  // Quiet speakers remain enrolled while all identities fit. A session-level
+  // RMS gate here would erase a valid minority speaker in public recordings.
+  constexpr int count=4;
+  segments.resize(count*589*3);embeddings.resize(count*768);runs.resize(count*256);
+  ranges.resize(count*4);rms.resize(count);rms[0]=.001f;
+  auto original=community::Cluster(segments,embeddings,count,p,4,runs,ranges);
+  auto within=community::Cluster(segments,embeddings,count,p,4,runs,ranges,rms);
+  assert(within.hard==original.hard && within.frame_hard==original.frame_hard);
+  assert(within.centroids==original.centroids && within.capacityRms.empty());
+  // Level snapshots must belong to exactly these runs, not another window.
+  bool rejected=false;rms.pop_back();
+  try {community::Cluster(segments,embeddings,count,p,4,runs,ranges,rms);}
+  catch(const std::runtime_error&){rejected=true;}assert(rejected);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'capacity.cpp'
+            binary = Path(directory) / 'capacity'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
     def test_speaker_cap_uses_unconstrained_kmeans_and_keeps_active_channels(self):

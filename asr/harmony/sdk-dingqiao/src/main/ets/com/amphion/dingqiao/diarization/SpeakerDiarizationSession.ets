@@ -264,6 +264,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       // per-run evidence fields. Keep their snapshots readable as empty run
       // evidence while native production windows always provide the arrays.
       fields['runRanges'] = (window.result.runRanges ?? new Float32Array(0)).slice();
+      fields['runEmbeddings'] = (window.result.runEmbeddings ?? new Float32Array(0)).slice();
+      fields['runRms'] = (window.result.runRms ?? new Float32Array(0)).slice();
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
@@ -367,7 +369,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const starts = new Float64Array(available.map(window => window.windowStartSample));
       const startedMs = Date.now();
       const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
-        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges);
+        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges, evidence.runRms);
       const clusterElapsedMs = Date.now() - startedMs;
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
@@ -411,6 +413,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['clusterCentroids'] = clustered.centroids;
         fields['trainingPosteriors'] = clustered.posteriors;
         fields['usedKMeansCap'] = clustered.usedKMeans;
+        fields['capacityRms'] = clustered.capacityRms;
+        fields['retainedClusters'] = clustered.retainedClusters;
         fields['activityVotes'] = identity.votes;
         fields['publishedActivity'] = publishedActivity;
         fields['visibleClusters'] = visibleClusters;

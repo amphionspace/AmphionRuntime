@@ -33,18 +33,20 @@ int main(int argc, char** argv) {
     for(int i=0;i<128;++i)p.transform.push_back(Read<double>(model,128));
     p.phi=Read<double>(model,128);
     auto header=Read<uint32_t>(input,4);
-    if(header[0]!=0x43525031 || header[1]<1 || header[1]>10000 || header[2]>100000 || header[3]<1 || header[3]>4)
+    if((header[0]!=0x43525031&&header[0]!=0x43525032) || header[1]<1 || header[1]>10000 || header[2]>100000 || header[3]<1 || header[3]>4)
       throw std::runtime_error("invalid replay header");
     int n=header[1], r=header[2], cap=header[3];
     auto begin=Read<double>(input,1)[0];auto starts=Read<double>(input,n);
     auto seg=Read<float>(input,n*589*3), emb=Read<float>(input,n*768);
     auto runs=Read<float>(input,r*256);auto ranges=Read<int32_t>(input,r*4);
-    auto c=community::Cluster(seg,emb,n,p,cap,runs,ranges);
+    auto levels=header[0]==0x43525032?Read<float>(input,r):std::vector<float>{};
+    auto c=community::Cluster(seg,emb,n,p,cap,runs,ranges,levels);
     auto turns=community::Reconstruct(seg,c.hard,starts,begin,cap,c.frame_hard);
     std::cout << std::setprecision(17) << "{\"speakerCount\":" << c.centroids.size();
     Values("trainingIndices",c.trainingIndices);Values("trainingRunIndices",c.trainingRunIndices);
     Values("ahc",c.ahc);Values("priors",c.vbx.priors);Values("objectives",c.vbx.objectives);
     Values("hard",c.hard);Values("frameHard",c.frame_hard);
+    Values("capacityRms",c.capacityRms);Values("retainedClusters",c.retainedClusters);
     std::cout<<",\"usedAhcFallback\":"<<(c.usedAhcFallback?"true":"false")
              <<",\"usedKMeans\":"<<(c.usedKMeans?"true":"false")
              <<",\"shortRunTrainingCount\":"<<c.shortRunTrainingCount<<",\"turns\":[";

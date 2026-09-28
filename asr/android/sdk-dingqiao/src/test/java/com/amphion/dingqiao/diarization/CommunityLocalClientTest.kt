@@ -40,7 +40,8 @@ class CommunityLocalClientTest {
                 assertTrue(entered.await(3,TimeUnit.SECONDS));release.countDown()
                 assertTrue(drained.await(5,TimeUnit.SECONDS))
                 assertTrue(errors.toString(),errors.isEmpty())
-                assertEquals(27,results.size)
+                assertEquals(52,results.size)
+                assertEquals((0L..51L).map { it*16000 },results.map { it.first })
                 results.forEach { (sample,value) -> assertEquals((sample/16000+1)/32768f,value,0f) }
                 client.cancel { closed.countDown() }
                 assertTrue(closed.await(3,TimeUnit.SECONDS))
