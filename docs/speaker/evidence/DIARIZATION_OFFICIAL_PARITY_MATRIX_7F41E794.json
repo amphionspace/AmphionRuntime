@@ -1,0 +1,229 @@
+{
+  "status": "HOST_DIAGNOSTIC_NOT_SDK_ACCEPTANCE",
+  "baseCommit": "7f41e794675b92baae2a0c0e74a8c2a56744ef0c",
+  "officialPipeline": {
+    "revision": "3533c8cf8e369892e6b79ff1bf80f7b0286a54ee",
+    "maxSpeakers": 4,
+    "oracleCount": null,
+    "cpuThreads": 2,
+    "host": "amphion-42",
+    "remoteDirectory": "/home/ubuntu/workspace/audiollm-go-speaker-clustering/.local-test-runs/runtime-e2e-20260928/official-parity-matrix",
+    "pipelineSourceSha256": [
+      "cbb358abedef5042fcc71bb970b12a2936a16686be4bda15691a224f172656fd"
+    ],
+    "aishell4_4Reused": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/upstream-e2e-reference/original-community/aishell4-4-result.json"
+  },
+  "runPolicyBaseline": {
+    "snapshots": "/Users/boxp/.cache/amphion-runtime/diagnostics/boundary-public-matrix-20260928",
+    "byteParityReproduced": true,
+    "nativeSourcesMatchBaseCommit": [
+      "community_cluster.h",
+      "community_diarization.cpp",
+      "community_fbank.h",
+      "community_kmeans.h"
+    ]
+  },
+  "scorerSha256": "b3a56d72eb05165ac7bc17c35f414a7981a66d3f1e6b827b0ab680024f36dd0b",
+  "referenceSpeakerSeconds": 1106.78,
+  "weighted": {
+    "official": {
+      "der": 0.146117,
+      "missed": 80.89,
+      "falseAlarm": 36.64,
+      "confusion": 44.19
+    },
+    "wholeWindow": {
+      "der": 0.145557,
+      "missed": 81.6,
+      "falseAlarm": 36.64,
+      "confusion": 42.86
+    },
+    "runPolicy": {
+      "der": 0.274354,
+      "missed": 276.29,
+      "falseAlarm": 16.65,
+      "confusion": 10.71
+    }
+  },
+  "speakerClassification": {
+    "aishell4-2": {
+      "001-M": "noMaterialGap",
+      "005-M": "noMaterialGap"
+    },
+    "aishell4-3": {
+      "001-M": "noMaterialGap",
+      "005-F": "modelLimit",
+      "006-F": "noMaterialGap"
+    },
+    "aishell4-4": {
+      "002-F": "runPolicyLoss",
+      "003-F": "noMaterialGap",
+      "004-M": "runPolicyLoss",
+      "005-M": "noMaterialGap"
+    },
+    "alimeeting2": {
+      "N_SPK8027": "runPolicyLoss",
+      "N_SPK8028": "runPolicyLoss"
+    },
+    "alimeeting3": {
+      "N_SPK8051": "noMaterialGap",
+      "N_SPK8052": "noMaterialGap",
+      "N_SPK8053": "noMaterialGap"
+    },
+    "alimeeting4": {
+      "N_SPK8005": "noMaterialGap",
+      "N_SPK8006": "noMaterialGap",
+      "N_SPK8007": "runPolicyLoss",
+      "N_SPK8008": "runPolicyLoss"
+    }
+  },
+  "classificationRule": "modelLimit: official recall<0.10; runPolicyLoss: official-run>=0.20 and wholeWindow-run>=0.20; otherPipelineDivergence: official-run>=0.20 only",
+  "coverageLoss": {
+    "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/boundary-public-matrix-20260928/coverage-loss.json",
+    "sha256": "0a1ef653b54d3cb221c77268a94aa8d9be06e52157a86ebe2ed8d87038fd0694",
+    "bytes": 4916
+  },
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/experiment.json",
+      "sha256": "ab945e887bbb521e8080d45f42b5133bd9d894a3a8bf253fe2b5e1e4f50ce17c",
+      "bytes": 1370
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/prepare.py",
+      "sha256": "6c177b0a5271c36faa2896ea26cfeec016cd767106a593b9bfdb231142839341",
+      "bytes": 3130
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/run_original_community.py",
+      "sha256": "792cd854c8a8484a376b262135cd6e71a51a2ff65ba119e7616d526fa710c974",
+      "bytes": 2880
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/inputs/cases.json",
+      "sha256": "6cd34ca53546785b17c6ffd94f99ad91fcb2dd1a15ed37196471a1334edc6da0",
+      "bytes": 1174
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/run.log",
+      "sha256": "7d3608cf64d417c1f2b8a60e1c2107dd64b6d82fd304d0ec3115d798666b0e66",
+      "bytes": 3479
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/run-failed-wrong-venv.log",
+      "sha256": "c653d2e4e91f7d26b21f18292299d4e10a43039c96bfbd3b29152c3087a3a171",
+      "bytes": 300
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/timeline.mts",
+      "sha256": "cc4b72136771e01633871b23d9b26402a54943550ff39ed526e22fe0be8e52ca",
+      "bytes": 763
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole_window.py",
+      "sha256": "9439d27840c1548276c6f63994a42c0291104ff4285e19d8dea39b8f3d51cc49",
+      "bytes": 4464
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/score_official.py",
+      "sha256": "cfe881ab28a3d7520cab0ab5f3281ba40d7e148109d364a578b800d7b70c97b9",
+      "bytes": 4757
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/summary.json",
+      "sha256": "371f95e813a83e522f6abd57f984ec0fa25e65ed028f7f78b286e09d28814298",
+      "bytes": 5064
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/three-column-matrix.json",
+      "sha256": "21421283d139184e126a23db38549e47910d612a467045a67442efd2c9241727",
+      "bytes": 14824
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/original-community/aishell4-2-result.json",
+      "sha256": "1d9c0880510199c5dd917a6e525b14e74ce0d58b589ac7295faf5e695d8c90b4",
+      "bytes": 4527
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/original-community/aishell4-3-result.json",
+      "sha256": "6ab0d398000c175f720cec9b54795a23139fded7edb493328356c0d69d84bc8c",
+      "bytes": 4116
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/original-community/alimeeting2-result.json",
+      "sha256": "7f5ecd141e86d00cc010bdf423d627af7037150e9664f1946169cec2b3f2e77d",
+      "bytes": 6394
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/original-community/alimeeting3-result.json",
+      "sha256": "9a6a59f2839b56e7abff1b81314e40d3b91c57560c297a53d18cee048f602386",
+      "bytes": 5113
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/original-community/alimeeting4-result.json",
+      "sha256": "0a96fbae0e7fa839e05ecd9bfd1ff2b84eb70f3507ea514ca7f4e26905c74e58",
+      "bytes": 7855
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-2/metrics.json",
+      "sha256": "4f040f2fee99ca212de6f6119809e275f523ccf51ba958020825c38bffded460",
+      "bytes": 5111
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-3/metrics.json",
+      "sha256": "54d57faeb47a9c30ba1dbc32f15eb79babab3c0e529c84735e54add8954725ba",
+      "bytes": 4005
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-4/metrics.json",
+      "sha256": "2cee162ff5b56b94d508f60a881358edd2da810793b297afafdd4722b83d105b",
+      "bytes": 10671
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting2/metrics.json",
+      "sha256": "79690884a045b8336071599a394e1c90d7ebb4ba97ad97ce488073d98246498a",
+      "bytes": 3361
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting3/metrics.json",
+      "sha256": "9efbcabedbf0902216643a15dcc13a39b44001c56f3584d4866ec2ffc6a714a9",
+      "bytes": 7736
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting4/metrics.json",
+      "sha256": "e22fb310fec5b869911fea9a8ac79ae9a76ee72a8a567a172c86b87526bd6f03",
+      "bytes": 6900
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-2/official-metrics.json",
+      "sha256": "2379c1b3152750c6b460dfa0a52b0a2b29cd7c4a86347a2fc915e69da3f742af",
+      "bytes": 2704
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-3/official-metrics.json",
+      "sha256": "8c7242f6cd6eb61ee8c8e92e6e9ed8222596a7f20230c3b4620c4c98925d9b2c",
+      "bytes": 1600
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/aishell4-4/official-metrics.json",
+      "sha256": "e4d8d7d8dfd0d6c30359657b0923eb31f0b000d214b41759f24a78da3540b3d6",
+      "bytes": 7076
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting2/official-metrics.json",
+      "sha256": "7f341defcbb1b0b34389555581df49e35220bd6ed8bf190d59d6672d6e80bdd8",
+      "bytes": 1307
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting3/official-metrics.json",
+      "sha256": "95dd78ffd2d9d7909de3bb2f8f167252783c6fa38d3a1f7413cfe4309893cc33",
+      "bytes": 3815
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/alimeeting4/official-metrics.json",
+      "sha256": "3cc5ccfa7e7bbe0da7d1fb0fb8a48ae781935d7c421d061601765f62297548f8",
+      "bytes": 3106
+    }
+  ],
+  "excluded": "raw PCM, official intermediates (.npz) and tensors stay in the private cache; not committed"
+}
