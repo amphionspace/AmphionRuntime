@@ -6,6 +6,7 @@
 
 ## 必须保留的测试门禁
 
+- Harmony HAR 必须用 OpenHarmony 6.1 / API 23 的 `es2abc` 检查实际交付内容，不能只用当前 CLT 编译仓库。客户在 0.3.18 遇到的 `CommunitySpeakerIdentity.ts:102:39 Type expected` 源于 `< unique.length` 的旧编译器解析问题；Node 单测和 API 26 编译均不能发现它。`verify_harmony_api23_compiler.py` 必须先复现旧语法失败及改名后通过，再逐一编译 HAR 内全部非声明 `.ts`，记录编译器、HAR、源文件 SHA-256 和失败信息。缺少编译器、使用无法复现原问题的新编译器、无实现文件或任一文件失败均阻断组包，不得记为 skip/PASS。此检查不等于客户 Windows DevEco 完整工程验收。
 - 状态机单测：纯静音达到 `vadBegin` 只超时一次；边界帧中语音优先；ASR text/token 永久解除计时；低噪声、短脉冲和被静音隔开的变幅脉冲不误判；稳态高能非语音最多获得一次确认窗并最终超时；语音型变化信号不受调用方分帧影响；旧活动只能触发 probe，不能直接永久解除计时。同一 PCM 以单个大块或多个小块写入必须得到相同决定，deadline 之后的样本不得回看并改变 deadline 处的结果。
 - 标准真机 session：记录调用 `finish` 前的 `isLast` 数量，要求为 0；结束后要求总数为 1。
 - `max-duration`：达到上限后恰好一次 last/complete，迟到音频帧不产生额外回调，随后可以启动新 session。

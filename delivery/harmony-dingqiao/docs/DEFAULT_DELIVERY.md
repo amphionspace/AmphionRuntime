@@ -39,6 +39,7 @@ Amphion-Harmony-ASR-Complete-<version>.zip.sha256
 完整顺序、冻结、状态登记、归档和 PR 收尾统一见[双端交付流程](../../ASR_DELIVERY_WORKFLOW.md)。此处仅列 Harmony 平台输入：
 
 1. 用 `pack_dingqiao_harmony_customer_delivery.sh` 和 `pack_diagnostics_sdk.sh` 准备子包，构建身份须绑定四个组件 HAR 和 HAP。
+   普通 SDK 组包必须设置 `HARMONY_API23_ES2ABC`，指向独立 OpenHarmony 6.1 / API 23 的 `es2abc`；不得使用当前 CLT 编译器替代。组包自动检查实际 HAR 的全部 TypeScript 实现，并把 `docs/API23_COMPILER_COMPATIBILITY.json` 纳入校验清单。工具缺失或检查失败即停止。已有冻结包只补外置同 HAR 哈希的报告，不为新增验收入口重压 ZIP。
 2. 准备 `ACCEPTANCE-SUMMARY.md` 和 `acceptance-manifest.json`；完整包默认要求 Diagnostics 的 `speaker-vad-turn`、`customer-ptt` 报告与构建身份匹配。摘要是组包前证据，不是尚未执行的最终 ZIP 验收。
 3. 运行 `delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh <packages-output-root>`。输入通过 `RELEASE_SDK_ZIP`、`DIAGNOSTICS_SDK_ZIP`、`ACCEPTANCE_SUMMARY`、`ACCEPTANCE_MANIFEST` 指定；版本和日期使用 `AMPHION_RUNTIME_VERSION`、`AMPHION_BUILD_DATE`。
 

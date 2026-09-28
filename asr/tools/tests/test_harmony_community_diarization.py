@@ -1,4 +1,5 @@
 """Community input geometry and irreversible SDK publication boundaries."""
+import os
 import subprocess
 import tempfile
 import unittest
@@ -52,6 +53,20 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get("HARMONY_ES2ABC"),
+                         "set HARMONY_ES2ABC to the target SDK compiler (API 23 for compatibility)")
+    def test_identity_source_compiles_with_target_sdk(self):
+        # Node strips TS types but cannot detect an older es2abc parser failure.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "identity.abc"
+            result = subprocess.run(
+                [os.environ["HARMONY_ES2ABC"], "--module", "--extension", "ts",
+                 "--output", str(output), str(DIARIZATION / "CommunitySpeakerIdentity.ts")],
+                capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(output.is_file(), "es2abc must produce bytecode")
+
     def test_public_commit_keeps_the_original_inputs_needed_by_later_clustering(self):
         run_community_session("""
           const s=session();s.totalSamples=14000*16;
