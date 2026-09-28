@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "batch_id": "20260928-asr-android-033249",
-  "remote_index_uri": "cos-amphion-delivery:amphion-runtime/archive-index/20260928-asr-android-033249.json",
+  "batch_id": "20260928-harmony-0319",
+  "remote_index_uri": "cos-amphion-delivery:amphion-runtime/archive-index/20260928-harmony-0319.json",
   "archives": [
     {
       "product": "asr",
@@ -116,6 +116,103 @@
           "verification": {
             "method": "full-download-sha256",
             "verified_at": "2026-09-28T03:32:49.939048+00:00",
+            "local_copies_verified": 2
+          }
+        }
+      ]
+    },
+    {
+      "product": "asr",
+      "platform": "harmony",
+      "version": "0.3.19",
+      "source_commit": "3a97e69270550b48ae11a298b1d37137f7e3cb3f",
+      "published": false,
+      "identity_record": "delivery/candidate-reports/harmony-0.3.19-20260928/harmony.json",
+      "archive_basis": "unpublished",
+      "artifact": "Amphion-Harmony-ASR-Complete-0.3.19.zip",
+      "size_bytes": 1744243593,
+      "sha256": "2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/Amphion-Harmony-ASR-Complete-0.3.19.zip",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T07:24:45.025950+00:00",
+        "local_copies_verified": 2
+      },
+      "companions": [
+        {
+          "artifact": "harmony.json",
+          "size_bytes": 2051,
+          "sha256": "334e77d5415fe8d0cfb6156b032be979bba2255b08aff218cbad26ccfe7416c4",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/harmony.json",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:24:48.101102+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "Amphion-Harmony-ASR-Complete-0.3.19.zip.sha256",
+          "size_bytes": 106,
+          "sha256": "e361baed5df90d504c7483f258c0e202244b737be7217237a0be080b9cc44686",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/Amphion-Harmony-ASR-Complete-0.3.19.zip.sha256",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:24:51.315776+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "Amphion-Harmony-ASR-0.3.19-Verification.md",
+          "size_bytes": 4837,
+          "sha256": "4d9a6076033c0585787f0fc61f88bf892ad2d99895fd3dc08f9a90300781acbe",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/Amphion-Harmony-ASR-0.3.19-Verification.md",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:24:54.709185+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "Amphion-Harmony-ASR-0.3.19-Delivery-Email.md",
+          "size_bytes": 1008,
+          "sha256": "7b25d368f4a7f9912e6038fc7a29aff3b3749d87300fab7553edaa6e8b608fd5",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/Amphion-Harmony-ASR-0.3.19-Delivery-Email.md",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:24:57.894412+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "Amphion-Harmony-ASR-0.3.19-Identity.json",
+          "size_bytes": 2051,
+          "sha256": "334e77d5415fe8d0cfb6156b032be979bba2255b08aff218cbad26ccfe7416c4",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/Amphion-Harmony-ASR-0.3.19-Identity.json",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:25:00.843956+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "api23-public-har.json",
+          "size_bytes": 12070,
+          "sha256": "219ee4b53a51bc264dbddd701a660b7769736e2a9c578b6b87bb6e752cc0f2da",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/api23-public-har.json",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:25:04.054382+00:00",
+            "local_copies_verified": 2
+          }
+        },
+        {
+          "artifact": "api23-acceptance-gate.json",
+          "size_bytes": 13770,
+          "sha256": "b9611cba6e21415f99b00dda7cd975c78e46637d24b3545589ecbab325172994",
+          "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.19/2e9e205ff551e20344cc5c478c2d0ce17fabce60ac7baf50ca19494e9c0f5b61/companions/api23-acceptance-gate.json",
+          "verification": {
+            "method": "full-download-sha256",
+            "verified_at": "2026-09-28T07:25:07.306814+00:00",
             "local_copies_verified": 2
           }
         }

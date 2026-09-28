@@ -24,8 +24,8 @@ SPEC.loader.exec_module(MODULE)
 FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
-FIXTURE_VERSION = "0.3.18"
-FIXTURE_RELEASE_DATE = "2026-09-18"
+FIXTURE_VERSION = "0.3.19"
+FIXTURE_RELEASE_DATE = "2026-09-28"
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
 )
@@ -66,7 +66,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "docs/CHANGELOG.md").write_text(
             "# ASR SDK 更新日志\n\n"
-            "## HarmonyOS ASR SDK 0.3.18\n\n"
+            "## HarmonyOS ASR SDK 0.3.19\n\n"
             "- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。\n\n"
             "## 源码提交明细\n",
             encoding="utf-8",
@@ -194,6 +194,17 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         }
         provenance_path = root / "docs/BUILD_PROVENANCE.json"
         provenance_path.write_text(json.dumps(provenance), encoding="utf-8")
+        with tarfile.open(har_path, "r:gz") as archive:
+            compiler_files = [
+                {"path": member.name, "sha256": hashlib.sha256(archive.extractfile(member).read()).hexdigest(),
+                 "returncode": 0, "abc_generated": True, "diagnostic": ""}
+                for member in archive.getmembers()
+                if member.name.endswith(".ts") and not member.name.endswith(".d.ts")
+            ]
+        (root / "docs/API23_COMPILER_COMPATIBILITY.json").write_text(json.dumps({
+            "schema_version": 1, "gate": "harmony-api23-compiler", "status": "PASS",
+            "har_sha256": MODULE.sha256(har_path), "compiler_sha256": "a" * 64, "files": compiler_files,
+        }))
         self._write_checksums(root)
 
     @staticmethod
@@ -230,6 +241,20 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             root = Path(directory)
             self._write_fixture(root)
             MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
+    def test_rejects_failed_or_unbound_compiler_reports_even_with_valid_checksums(self) -> None:
+        for change in ({"status": "FAIL"}, {"har_sha256": "0" * 64}, {"files": []},
+                       {"files": [{"returncode": 1, "abc_generated": False}]}):
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                self._write_fixture(root)
+                path = root / "docs/API23_COMPILER_COMPATIBILITY.json"
+                report = json.loads(path.read_text())
+                report.update(change)
+                path.write_text(json.dumps(report))
+                self._write_checksums(root)
+                with self.assertRaisesRegex(MODULE.DeliveryValidationError, "API 23 compiler report"):
+                    MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
 
     def test_accepts_valid_zip_above_former_size_limit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
