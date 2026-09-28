@@ -24,7 +24,7 @@ AmphionRuntime/tts/android/
 
 - Dingqiao v3 源码编译说明：[docs/BUILD_FROM_SOURCE.md](docs/BUILD_FROM_SOURCE.md)
 - Dingqiao v3 批测说明：[docs/BATCH_TESTING.md](docs/BATCH_TESTING.md)
-- 从源码构建 SDK：[docs/DELIVERY.md](docs/DELIVERY.md)
+- 交付清单与验收：[docs/DELIVERY.md](docs/DELIVERY.md)
 - 宿主 App 接入 AAR：[docs/INTEGRATION.md](docs/INTEGRATION.md)
 - 公开接口说明：[docs/API.md](docs/API.md)
 - 伪代码与调用顺序：[docs/PSEUDOCODE.md](docs/PSEUDOCODE.md)

@@ -6,8 +6,8 @@ Harmony 与 Android 的鼎桥适配层按窗口发布 `onSpeakerDiarizationResul
 ## 窗口与定稿
 
 - 默认目标为 120 秒音频时间；到目标后等待第一个已有 ASR final 边界，不新增 ASR endpoint。
-- 推理仍使用 10 秒窗口、2.5 秒 hop、1.5 秒右上下文。定稿等待覆盖该句末的固定推理窗口：
-  `ceil((endpointMs + 1500) / 2500) * 2500`。ASR 或推理先完成不改变证据范围。
+- 推理使用 10 秒窗口、1 秒步长、1.5 秒右上下文。首个完整窗口结束于第 10 秒，之后每秒推进；结束时不足一个窗口的尾部补零。定稿需等待覆盖句末及右上下文的推理证据，ASR 或推理先完成不改变证据范围。
+- 推理窗口、约 10 秒的临时角色更新和 120 秒的目标定稿窗口含义不同；调用方应分别处理临时修订和最终批次。
 - 120 秒是控制身份修订等待和待处理数据量的工程默认值，尚不代表在所有语料上测得的最优精度。
   无句末、ASR 或推理积压时可能超过该值；不得丢帧或强制结束识别来维持时间上限。
 - 只聚类本批的证据；保留整场已确认身份及其中心向量。不同已确认身份禁止合并，历史编号不重排。
@@ -22,8 +22,8 @@ Harmony 与 Android 的鼎桥适配层按窗口发布 `onSpeakerDiarizationResul
 `onSpeakerDiarizationResult` 发布批次后，同一原句不得再次被 update 或另一个批次改写。
 
 `windowIndex` 从 0 连续递增；`windowBeginTime/windowEndTime` 使用会话音频时间。
-`sourceUtteranceId` 指向原始 ASR 句子，可将原句替换为该批的安全分句。
-ITN 导致字符与 token 不对应时保留完整原句，不猜测切分文本。
+`sourceUtteranceId` 指向原始 ASR 句子；定稿 `utterances` 每项完整保留一条原句，不按 token 角色拆词分句。
+同句包含多位角色或未解决的未知时，以不确定身份呈现；精确声学区间以 `speakerTurns` 为准。
 
 中间批次 `isSessionFinal=false`，不影响识别生命周期。正常结束保持唯一
 `onResult(isLast=true)` → 尾批 `isSessionFinal=true` → 唯一 `onComplete`。

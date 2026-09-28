@@ -34,13 +34,13 @@ Amphion-Harmony-ASR-Complete-<version>.zip.sha256
 
 正式 SDK、Debug/Diagnostics SDK、已签名 Diagnostics Demo 和独立 Demo 源码为默认四类交付内容。源码只依赖包内公开 HAR；不包含客户授权、签名配置或私钥。单独提供 Demo 源码 ZIP、普通 Demo HAP 可作为补充，不替代以上内容。
 
-## 生成与冻结
+## 平台组包入口
 
-1. 确定上一交付版本及其源码提交，逐项核对至本次构建提交的 PR。更新受控 CHANGELOG 和升级说明，特别检查回调语义变化；不要把旧版本已有能力重复列为新增。
-2. 冻结代码、版本、授权、签名及组包规则，构建 Release 和 Diagnostics，使用现有 build identity 门禁绑定四个组件 HAR、HAP 和源码。复用对应二进制的有效真机证据。
-3. 用 `pack_dingqiao_harmony_customer_delivery.sh` 和 `pack_diagnostics_sdk.sh` 准备子包；生成 `ACCEPTANCE-SUMMARY.md` 和 `acceptance-manifest.json`。完整包默认要求 Diagnostics 的 `speaker-vad-turn`、`customer-ptt` 报告与其构建身份匹配。
-4. 运行 `delivery/pack_complete_asr_delivery.sh [output-root]`。非默认输入通过 `RELEASE_SDK_ZIP`、`DIAGNOSTICS_SDK_ZIP`、`ACCEPTANCE_SUMMARY`、`ACCEPTANCE_MANIFEST` 指定；版本和日期使用现有 `AMPHION_RUNTIME_VERSION`、`AMPHION_BUILD_DATE`。包内摘要属于组包前证据，不能写成尚未执行的 ZIP 验收。
-5. 完成 ZIP 解包验收后，以[邮件模板](customer/DELIVERY_EMAIL_TEMPLATE.md)生成独立邮件草稿。模板不是可直接发送的版本结论；替换占位内容并根据实际 PR、交付输入和报告填写，不自动发送。
+完整顺序、冻结、状态登记、归档和 PR 收尾统一见[双端交付流程](../../ASR_DELIVERY_WORKFLOW.md)。此处仅列 Harmony 平台输入：
+
+1. 用 `pack_dingqiao_harmony_customer_delivery.sh` 和 `pack_diagnostics_sdk.sh` 准备子包，构建身份须绑定四个组件 HAR 和 HAP。
+2. 准备 `ACCEPTANCE-SUMMARY.md` 和 `acceptance-manifest.json`；完整包默认要求 Diagnostics 的 `speaker-vad-turn`、`customer-ptt` 报告与构建身份匹配。摘要是组包前证据，不是尚未执行的最终 ZIP 验收。
+3. 运行 `delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh <packages-output-root>`。输入通过 `RELEASE_SDK_ZIP`、`DIAGNOSTICS_SDK_ZIP`、`ACCEPTANCE_SUMMARY`、`ACCEPTANCE_MANIFEST` 指定；版本和日期使用 `AMPHION_RUNTIME_VERSION`、`AMPHION_BUILD_DATE`。
 
 ## 最终 ZIP 验收
 
@@ -51,12 +51,5 @@ Amphion-Harmony-ASR-Complete-<version>.zip.sha256
 - 归档根报告、逐轮回调、内存、hilog、输入映射及哈希，脱敏且不提交 PCM、授权或签名材料。首轮未覆盖前置条件仍保留原始 FAIL，解释原因，不覆写为 PASS；产品失败不能改称未覆盖条件。
 - 最终 ZIP 专属报告、邮件放在 ZIP 外，绑定其 SHA-256，避免把报告回填 ZIP 后改变已验收输入。更改任何 ZIP 内容须生成新的身份记录并判断相关验证是否失效；仅邮件/外置说明变化不重跑真机。
 
-合入遵守仓库 PR 门禁：当前 HEAD 检查通过，拉取全部 review threads 并处理有效问题。二进制未改变的模板、文档和组包调整使用小型组包测试验证，复用已冻结二进制证据，不重新生成大型交付包。
 
-## 本地暂存与交付后归档
-
-每次交付按[对象存储归档规范](../../PUBLISHED_ARTIFACT_ARCHIVE.md)使用唯一暂存目录：
-`~/.cache/amphion-runtime/delivery-staging/asr/harmony/<version>/<source-commit>/`。
-打包脚本显式指定 `packages/` 为输出目录，最终外置报告放 `acceptance/`，解包验收放 `scratch/`。
-已发布完整包及必要外置附件上传公司交付桶，逐项回下载校验 SHA-256，并将精确对象位置记入项目归档索引。
-交付完成且归档可恢复后清理本地包与未修改的解包副本，不在仓库或个人交付目录长期保留历史版本。
+验收报告、邮件和归档操作按[双端交付流程](../../ASR_DELIVERY_WORKFLOW.md)执行。

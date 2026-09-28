@@ -13,7 +13,7 @@ tts/android/sdk/build/outputs/aar/sdk-release.aar
 TN（文本归一化）源码、规则和测试已直接纳入本仓库，普通克隆即可获取：
 
 ```bash
-git clone <AmphionRuntime-url>
+git clone '<AmphionRuntime-url>'
 cd AmphionRuntime
 ```
 

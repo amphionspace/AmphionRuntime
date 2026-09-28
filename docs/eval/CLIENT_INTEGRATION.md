@@ -1,6 +1,6 @@
 # Amphion Eval Collector 客户端接入指南
 
-本文档面向 app 工程师（Android / iOS），说明如何把单条录音上传到本服务。协议契约见 [../server_spec.md](../server_spec.md)，本文档不重复 NORMATIVE 内容，只覆盖"我怎么用"。
+本文档面向 app 工程师（Android / iOS），说明如何把单条录音上传到本服务。协议契约见 [SERVER_SPEC.md](SERVER_SPEC.md)，本文档不重复 NORMATIVE 内容，只覆盖"我怎么用"。
 
 > Android 评测客户端的参考实现已经独立成 `:samples:internal-eval` 模块（applicationId `com.amphion.asr.sample.eval`），与对外 demo `:samples:public-demo` 物理隔离。本文档示例代码与仓库内位置请参照 §4 末尾。
 
@@ -328,7 +328,7 @@ retry 队列必须本地持久化（SQLite / Realm / Room）。仅放内存的�
 
 ```bash
 BASE=https://testdata.amphion.top
-TOKEN=<your bearer token>
+TOKEN='<your bearer token>'
 
 # 1) 健康检查
 curl -sf $BASE/v1/health

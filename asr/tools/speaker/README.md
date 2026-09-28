@@ -93,7 +93,7 @@ python asr/tools/speaker/01_enroll_target.py \
 
 ```bash
 python asr/tools/speaker/02_ts_asr_offline.py \
-  --asr-model-dir <已经验证过的流式 zipformer modelDir> \
+  --asr-model-dir '<已经验证过的流式 zipformer modelDir>' \
   --speaker-model asr/tools/speaker/models/3dspeaker_speech_eres2net_base_sv_zh-cn_3dspeaker_16k.onnx \
   --silero-vad-model asr/tools/speaker/models/silero_vad.onnx \
   --target-embedding asr/tools/speaker/data/target_embedding.npy \
@@ -118,7 +118,7 @@ python asr/tools/speaker/02_ts_asr_offline.py \
 
 ```bash
 python asr/tools/speaker/04_check_zipformer_drc.py \
-  --asr-model-dir <你的流式 zipformer modelDir> \
+  --asr-model-dir '<你的流式 zipformer modelDir>' \
   --out asr/tools/speaker/results/zipformer_drc_check.json
 ```
 
@@ -167,7 +167,7 @@ python asr/tools/speaker/04_eval_summary.py \
   --out-md   asr/tools/speaker/results/eval_full_summary.md
 ```
 
-输出（参考 [results/eval_full_summary.md](results/eval_full_summary.md)）：
+输出（参考 results/eval_full_summary.md（历史生成产物，未入库；原相对路径 `results/eval_full_summary.md`））：
 
 - 总体 baseline CER/WER（zh / en 分开） vs 方案 A 各阈值（@0.25/@0.40/@0.55）的 CER/WER + FAR/FRR
 - verify_score 在 positive / negative 上的分布（min/p10/p50/p90/max/mean）
@@ -443,7 +443,9 @@ dev 阈值，FAR/FRR 为 `4%/11%`、`8%/21%`、`20%/22%`。因此 8 kHz 带宽�
 但即使人数与两源分离任务匹配，该 checkpoint 仍比单纯带宽对照更差，不能把负结果只归因于
 “输入只有一个人”。
 
-## 决策门（参考 [plan](../../.cursor/plans/ts-asr_feasibility_on_sherpa-onnx_75e72f53.plan.md) 第 5 节）
+## 调研期决策门
+
+以下保留早期实验阈值及决策，不作为当前 SDK 发布门禁。后续方向见[阶段决策记录](../../../docs/speaker/VOICEPRINT_NEXT_STEP_MAP_20260804.md)，当前产品契约见[公共契约](../../../docs/engineering/ASR_CONTRACTS.md)。
 
 跑完 03 + 05 后按以下结论分支：
 
@@ -456,7 +458,7 @@ dev 阈值，FAR/FRR 为 `4%/11%`、`8%/21%`、`20%/22%`。因此 8 kHz 带宽�
 
 ## 已知与未知（执行期跟踪）
 
-ts_hw_test 6555 条 cuts 全量跑完，实测结果如下（完整 markdown 报告 [results/eval_full_summary.md](results/eval_full_summary.md)，原始 jsonl [results/eval_full.jsonl](results/eval_full.jsonl)）：
+ts_hw_test 6555 条 cuts 全量跑完，实测结果如下（完整 markdown 报告 results/eval_full_summary.md（历史生成产物，未入库；原相对路径 `results/eval_full_summary.md`），原始 jsonl results/eval_full.jsonl（历史生成产物，未入库；原相对路径 `results/eval_full.jsonl`））：
 
 | 已知未知 | 实测 | 来源 | 决策 |
 | --- | --- | --- | --- |

@@ -123,7 +123,7 @@
 ## 6. 复现实验
 
 ```bash
-export AIDATATANG_SPEAKER_VAD_DIR=<aidatatang_test_spk_balanced_500目录>
+export AIDATATANG_SPEAKER_VAD_DIR='<aidatatang_test_spk_balanced_500目录>'
 python3 asr/tools/speaker/06_eval_speaker_vad_aidatatang.py \
   --dataset-dir "$AIDATATANG_SPEAKER_VAD_DIR" \
   --speaker-model shared/models/asr/dingqiao/eres2net.onnx \

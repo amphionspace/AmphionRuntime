@@ -31,6 +31,7 @@ jobs:
           python3 tools/test_check_repository_layout.py -v
           python3 tools/test_check_repository_observability.py -v
           python3 tools/test_check_repository_versions.py -v
+          python3 tools/delivery/test_archive_delivery.py -v
           python3 tools/test_public_demo_boundary.py -v
           python3 tools/test_ci_dashboard_workflow.py -v
           python3 tools/ci/test_secure_extract_tar.py -v

@@ -53,7 +53,7 @@
   不能把 15.3 MB 当作运行时内存。
 
 通过 artifact：
-[`20260804-160039-separator-bench-598f17b0/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-160039-separator-bench-598f17b0/report.json)。
+`20260804-160039-separator-bench-598f17b0/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-160039-separator-bench-598f17b0/report.json`）。
 首次 20 次同步调用触发 6 秒看门狗并被杀的失败 artifact
 `20260804-155758-separator-bench-98165589` 与随后输出回收问题 artifact
 `20260804-155938-separator-bench-fe2c7a55` 均单独保留，没有覆盖。

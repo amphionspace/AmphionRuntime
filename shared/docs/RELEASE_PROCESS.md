@@ -1,4 +1,6 @@
-## ASR 模型 / SDK 发布与灰度流程
+# ASR 模型及通用发布参考
+
+鼎桥 Android/Harmony 离线完整交付以[双端交付流程](../../delivery/ASR_DELIVERY_WORKFLOW.md)为准。本文保留模型、服务端及其他平台的通用发布参考，示意流程不表示仓库已配置所有发布渠道。
 
 本文档覆盖：
 
@@ -49,7 +51,7 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 2. `02_quantize_int8.md` INT8 量化
 3. `03_verify_onnx.sh` 在 Linux cxx-api 上跑通验证集
 4. `MODEL_LAYOUT.md` 中的 manifest.json 生成脚本
-5. 算法同学按上游 [scripts/benchmark/](../../scripts/benchmark/) 出 WER / CER 报告（标准 LibriSpeech / 公司内部测试集），未劣化才能发；下游不另跑 WER
+5. 算法同学按上游训练/评测仓库的基准流程出 WER / CER 报告（标准 LibriSpeech / 公司内部测试集），未劣化才能发；下游不另跑 WER
 6. SDK / 服务端只在 [shared/regression-set/](../regression-set/) 上跑端到端烟测（验证 PCM → 文本流程不挂、热词分支生效）
 
 ### 2.2 灰度发布
@@ -74,12 +76,14 @@ SDK 版本号语义遵守 [semver.org](https://semver.org/lang/zh-CN/)：
 
 ## 3. SDK 发版流程
 
-### 3.1 标准发版
+### 3.1 通用发布路径
+
+Android 当前工作流没有启用公司 Maven 自动发布；iOS、服务端和通知步骤按对应项目的实际配置执行，不能把下列路径当作全部已自动接通。
 
 ```
 PR -> code review -> CI green ->
 打 tag v<MAJOR>.<MINOR>.<PATCH> ->
-[ci/android.yml](../../ci/android.yml) 自动产出 AAR + 上传到内部 Maven ->
+[Android workflow](../../.github/workflows/android.yml) 产出 AAR 和本地 Maven 仓库快照（作为 Actions artifact 保存） ->
 [ios/build_xcframework.sh](../../asr/ios/build_xcframework.sh) 产出 xcframework + 挂 GitHub Releases ->
 server [Dockerfile](../../asr/server/deploy/Dockerfile) build + push 到内部 Registry ->
 邮件通知所有业务方 + 更新 [INTEGRATION.md](../../asr/android/docs/INTEGRATION.md) CHANGELOG
@@ -103,16 +107,18 @@ server [Dockerfile](../../asr/server/deploy/Dockerfile) build + push 到内部 R
 
 ## 4. 月度联合工程回归
 
-WER / CER 评估由上游 [scripts/benchmark/](../../scripts/benchmark/) 出报告，下游不重复跑。每月最后一个工作日由值班同学触发 [shared/docs/dashboard/runner.py](dashboard/runner.py)：
+WER / CER 评估由上游训练/评测仓库的基准流程出报告，下游不重复跑。每月最后一个工作日由值班同学触发 [shared/docs/dashboard/runner.py](dashboard/runner.py)：
 
 - 三端 SDK 在 [shared/regression-set/](../regression-set/) 上跑端到端烟测，采集 启动延迟 p50 / p95
 - 服务端跑 [bench_concurrent.py](../../asr/server/bench/bench_concurrent.py) 输出 RTF / 并发上限 / 内存 / first-partial 延迟
 - Bugly / Crashlytics / Sentry 拉上月端 crash 率
 - 拼接上游 WER 报告 URL（不重新跑 WER），写入 monthly 报告顶部
-- 与上月环比，工程指标劣化 ≥ 0.5% 自动 ticket
+- 与上月环比，工程指标劣化 ≥ 0.5% 时由负责人复核并决定是否建工单；当前脚本不自动建单或回滚
 - 报告归档到 [shared/docs/dashboard/trends/reports/](dashboard/trends/reports/)
 
-## 5. 兼容性矩阵
+## 5. 兼容性矩阵示例
+
+以下为版本范围的格式示例，不是当前 0.x 鼎桥 SDK 的支持声明。实际兼容性以对应发布的模型 manifest、平台配置和验收记录为准。
 
 | 模型 model_type | min_sdk_version | max_sdk_version | 端 |
 | --- | --- | --- | --- |
@@ -123,8 +129,6 @@ WER / CER 评估由上游 [scripts/benchmark/](../../scripts/benchmark/) 出报�
 
 矩阵更新规则：每次 SDK MINOR 升级时增加新 model_type 行；MAJOR 升级时把 max_sdk_version 上拉。
 
-## 6. 联系
+## 6. 负责人
 
-- 技术决策：voice-tech-leads@amphion.example
-- 事故响应：voice-oncall@amphion.example（7×24）
-- 通知频道：#voice-asr-release
+发布和事故处理使用项目实际指定的负责人及通知渠道；本文不提供示例邮箱作为可用联系方式。发送通知须有该次任务授权。

@@ -1,55 +1,21 @@
-# Android SDK 交付邮件模板
+# 交付邮件入口及可选内容
 
-各位好：
+ASR 邮件统一使用[双端交付模板](../delivery/harmony-dingqiao/docs/customer/DELIVERY_EMAIL_TEMPLATE.md)，逐项核对上一实际交付至本次构建的 PR 和调用方变化。不要将上一版本已有能力重复列为本次新增。
 
-随信交付本次离线语音 Android SDK 更新包，请查收附件。本次共三个 zip：
+仅当本批包含 TTS 或独立授权包时，向该邮件追加以下内容；不固定附件数量。
 
-1. ASR SDK 集成包：`<ASR_ZIP>`
-2. TTS SDK 集成包：`<TTS_ZIP>`
-3. License 授权包：`<LICENSE_ZIP>`
+## TTS 可选内容
 
-## 本次更新
+- 交付文件：`<实际文件名与 SHA-256>`。
+- 相较上一交付的改进：`<已核实的变化、对应数据与比较条件>`。
+- 接入变化：`<是否需要替换外置模型/前端资源，调用顺序或参数是否变化>`。
+- 验证：`<绑定本次产物的设备、范围及结果>`。
+- 接入入口：包内 `docs/INTEGRATION.md`、`docs/API.md`。
 
-TTS 更新：
+## 授权可选内容
 
-- `<TTS_CHANGE_1>`
-- `<TTS_CHANGE_2>`
-- `<TTS_CHANGE_3>`
+- 授权文件：`<本次实际文件名>`；授权能力：`<features>`。
+- 有效期与维护期：`<以本次授权声明为准>`。
+- 设备、应用标识与证书限制：`<按实际 claims 和目标 SDK 校验行为填写>`。
 
-ASR 更新：
-
-- `<ASR_CHANGE_1>`
-- `<ASR_CHANGE_2>`
-- `<ASR_CHANGE_3>`
-
-License 更新：
-
-- 本次正式 license 仅限制授权设备、授权能力和使用期限。
-- 不限制应用包名 / applicationId；包名仅作为记录字段。
-- 有效期：`<EXPIRES_AT>`。
-- 授权能力：`<FEATURES>`。
-
-## ASR 测试数据
-
-| 域 | 命中率 |
-| --- | --- |
-| 派出所名称 | `<RATE>` |
-| 车牌号 | `<RATE>` |
-| 警务术语 | `<RATE>` |
-
-## 验证结论
-
-- ASR SDK：`<ASR_VERIFICATION_RESULT>`
-- TTS SDK：`<TTS_VERIFICATION_RESULT>`
-- License：`<LICENSE_VERIFICATION_RESULT>`
-- 设备端回归：`<DEVICE_TEST_RESULT>`
-
-## 复现说明
-
-请以 zip 内文档为准完成集成和验证：
-
-- ASR：`docs/DINGQIAO_INTEGRATION.md`、`docs/语音识别SDK接口.md`
-- TTS：`docs/INTEGRATION.md`、`docs/API.md`
-- License：`README.txt`、`checksum.txt`
-
-如需核对文件完整性，请参考随包或邮件中的 `MANIFEST.md` / SHA-256。
+ASR 与 TTS 的应用标识校验存在差异，不能统一写成“不限制包名”。规则见[授权工具说明](../tools/license/README.md)。发送前删除未交付项和未填写占位符。

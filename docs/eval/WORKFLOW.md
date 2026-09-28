@@ -211,7 +211,7 @@ sherpa-onnx-offline \
 
 ```bash
 # 删除某 tester 某 sentence 的全部 attempt
-rm -rf /var/lib/amphion-eval/<tester_id>/<sentence_id>/
+rm -rf /var/lib/amphion-eval/'<tester_id>'/'<sentence_id>'/
 
 # 不要直接删 audio.wav 留 meta.json；要删整目录
 ```
