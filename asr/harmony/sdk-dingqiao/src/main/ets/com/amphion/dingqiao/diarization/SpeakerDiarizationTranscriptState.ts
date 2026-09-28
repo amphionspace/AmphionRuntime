@@ -7,6 +7,7 @@ export interface DiarizationTranscriptInput {
   endTime: number;
   audioEndTime?: number;
   textNormalization?: TranscriptTextNormalization;
+  presentation?: TranscriptTextPresentation;
 }
 
 export interface TranscriptNormalizationSpan {
@@ -18,6 +19,13 @@ export interface TranscriptNormalizationSpan {
 
 export interface TranscriptTextNormalization {
   text: string;
+  spans: TranscriptNormalizationSpan[];
+}
+
+// Records from a later postprocessor that rewrites the final text without an
+// internal offset map: spans map clauses of sourceText (its input) to `text`.
+export interface TranscriptTextPresentation {
+  sourceText: string;
   spans: TranscriptNormalizationSpan[];
 }
 
@@ -93,6 +101,10 @@ function visibleSecondaryIds(ids: string[], primary: string): string[] {
     id !== primary && all.indexOf(id) === index);
 }
 
+function isAsciiAt(text: string, index: number): boolean {
+  return index >= 0 && index < text.length && text.charCodeAt(index) < 0x80;
+}
+
 // Exact alignment handles inserted punctuation/spacing. Lexical rewrites
 // require provenance from the postprocessor; edit distance is not provenance.
 function tokenTextBoundaries(tokens: string[], text: string): number[] | undefined {
@@ -109,9 +121,12 @@ function tokenTextBoundaries(tokens: string[], text: string): number[] | undefin
       const matches = cursor < text.length && text[cursor] === token[character];
       // Punctuation can replace a word separator. Keep its timestamp boundary
       // without treating the following lexical character as that separator.
-      // A sliced clause can also start with the replaced separator.
+      // A sliced clause can also start with the replaced separator. sherpa's
+      // CT punctuation rejoins words with a space only between two ASCII
+      // characters, so it drops every other separator; joined ASCII words stay unaligned.
       const replacedSpace = !matches && ' \t\r\n'.indexOf(token[character]) >= 0 &&
-        (cursor === 0 || /[,.!?，。！？、;；:：]/.test(text.slice(beforeInserted, cursor)));
+        (cursor === 0 || /[,.!?，。！？、;；:：]/.test(text.slice(beforeInserted, cursor)) ||
+          !(isAsciiAt(text, cursor - 1) && isAsciiAt(text, cursor)));
       if (!matches && !replacedSpace) return undefined;
       // Keep inserted sentence punctuation with the preceding token.
       if (index > 0 && character === 0) boundaries.push(cursor);
@@ -132,6 +147,44 @@ interface TranscriptCut {
 interface TranscriptPresentationAlignment {
   sourceOffsets: number[];
   textOffsets: number[];
+}
+
+// Maps an alignment against a postprocessor's input onto its published text.
+// An unchanged record maps character for character; a rewritten record has no
+// internal offsets, so boundaries inside it are dropped and it stays indivisible.
+function presentedAlignment(alignment: TranscriptPresentationAlignment,
+  presentation: TranscriptTextPresentation, text: string): TranscriptPresentationAlignment | undefined {
+  const spans = presentation.spans;
+  let sourceEnd = 0;
+  let textEnd = 0;
+  for (const span of spans) {
+    if (![span.sourceBegin, span.sourceEnd, span.textBegin, span.textEnd].every(value => Number.isInteger(value)) ||
+      span.sourceBegin !== sourceEnd || span.textBegin !== textEnd ||
+      span.sourceEnd < span.sourceBegin || span.textEnd < span.textBegin) return undefined;
+    sourceEnd = span.sourceEnd;
+    textEnd = span.textEnd;
+  }
+  if (spans.length === 0 || sourceEnd !== presentation.sourceText.length || textEnd !== text.length) return undefined;
+  const sourceOffsets = [0];
+  const textOffsets = [0];
+  let record = 0;
+  const last = alignment.textOffsets.length - 1;
+  for (let index = 1; index < last; index++) {
+    const offset = alignment.textOffsets[index];
+    while (spans[record].sourceEnd < offset) record++;
+    const span = spans[record];
+    let mapped = -1;
+    if (offset === span.sourceBegin) mapped = span.textBegin;
+    else if (offset === span.sourceEnd) mapped = span.textEnd;
+    else if (presentation.sourceText.slice(span.sourceBegin, span.sourceEnd) ===
+      text.slice(span.textBegin, span.textEnd)) mapped = span.textBegin + offset - span.sourceBegin;
+    if (mapped < 0) continue;
+    sourceOffsets.push(alignment.sourceOffsets[index]);
+    textOffsets.push(mapped);
+  }
+  sourceOffsets.push(alignment.sourceOffsets[last]);
+  textOffsets.push(text.length);
+  return { sourceOffsets, textOffsets };
 }
 
 interface TimedTranscriptTokens {
@@ -208,6 +261,10 @@ export class SpeakerDiarizationTranscriptState {
       textNormalization: input.textNormalization === undefined ? undefined : {
         text: input.textNormalization.text,
         spans: input.textNormalization.spans.map(span => ({ ...span })),
+      },
+      presentation: input.presentation === undefined ? undefined : {
+        sourceText: input.presentation.sourceText,
+        spans: input.presentation.spans.map(span => ({ ...span })),
       },
       revision: 0,
       speakerId: assignment.speakerId,
@@ -343,9 +400,16 @@ export class SpeakerDiarizationTranscriptState {
   }
 
   private presentationAlignment(utterance: StoredUtterance): TranscriptPresentationAlignment | undefined {
+    const direct = this.alignmentTo(utterance, utterance.text);
+    if (direct !== undefined || utterance.presentation === undefined) return direct;
+    const source = this.alignmentTo(utterance, utterance.presentation.sourceText);
+    return source === undefined ? undefined : presentedAlignment(source, utterance.presentation, utterance.text);
+  }
+
+  private alignmentTo(utterance: StoredUtterance, text: string): TranscriptPresentationAlignment | undefined {
     if (utterance.tokens.length === 0 || utterance.tokens.length !== utterance.tokenTimesMs.length ||
       utterance.tokens.join('') !== utterance.rawText) return undefined;
-    const exact = tokenTextBoundaries(utterance.tokens, utterance.text);
+    const exact = tokenTextBoundaries(utterance.tokens, text);
     if (exact !== undefined) {
       const sourceOffsets = [0];
       for (const token of utterance.tokens) sourceOffsets.push(sourceOffsets[sourceOffsets.length - 1] + token.length);
@@ -370,7 +434,7 @@ export class SpeakerDiarizationTranscriptState {
     }
     if (sourceOffsets[sourceOffsets.length - 1] !== utterance.rawText.length ||
       textEnd !== normalization.text.length) return undefined;
-    const textOffsets = tokenTextBoundaries(pieces, utterance.text);
+    const textOffsets = tokenTextBoundaries(pieces, text);
     return textOffsets === undefined ? undefined : { sourceOffsets, textOffsets };
   }
 

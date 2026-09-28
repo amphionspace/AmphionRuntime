@@ -154,6 +154,39 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         self.assertIn("import { PoliceFinalSession } from './PoliceEnhancementPolicy';", engine)
         self.assertIn("finalSession.dispatch(", engine)
 
+    def test_harmony_rewritten_final_reports_clause_provenance_only_when_exact(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
+            const plate = (text) => text.replace(/这这/g, '浙J');
+            const source = '先讨论方案，这这个我理解，然后继续。';
+            const session = new PoliceFinalSession(true, plate);
+            const final = plate(source);
+            const provenance = session.provenance(source, final);
+            assert.equal(provenance.sourceText, source);
+            assert.deepEqual(provenance.spans.map((s) => [source.slice(s.sourceBegin, s.sourceEnd),
+              final.slice(s.textBegin, s.textEnd)]),
+              [['先讨论方案，', '先讨论方案，'], ['这这个我理解，', '浙J个我理解，'], ['然后继续。', '然后继续。']]);
+            // One clause is one record; no extra enhancement run is needed.
+            let calls = 0;
+            const counted = new PoliceFinalSession(true, (text) => {{ calls += 1; return plate(text); }});
+            assert.deepEqual(counted.provenance('这这个。', '浙J个。').spans,
+              [{{ sourceBegin: 0, sourceEnd: 4, textBegin: 0, textEnd: 4 }}]);
+            assert.equal(calls, 0);
+            // A rule spanning a clause boundary cannot be rebuilt clause by clause.
+            const joined = (text) => text.replace('方案，这', '方案这');
+            assert.equal(new PoliceFinalSession(true, joined).provenance(source, joined(source)), undefined);
+            assert.equal(session.provenance(source, source), undefined);
+            assert.equal(new PoliceFinalSession(false, plate).provenance(source, final), undefined);
+            """
+        )
+        subprocess.run(
+            ["node", "--experimental-strip-types", "--input-type=module", "-e", script],
+            check=True,
+            cwd=REPO_ROOT,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

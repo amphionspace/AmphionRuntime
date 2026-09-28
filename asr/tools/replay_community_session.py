@@ -84,7 +84,7 @@ for(const e of input.events){
  case 'DIARIZATION_ASR_PROCESSED':s.asrAudioProcessed(f.audioEndSample);break;
  case 'DIARIZATION_ASR_ENDPOINT':s.asrFinalDelivered({audioEndSample:f.audioEndSample,isLast:false});break;
  case 'DIARIZATION_ASR_ALIGNMENT':s.observeAsrFinal({result:f.text,beginTime:f.beginTime,endTime:f.endTime,isLast:f.isLast},
-  {rawText:f.rawText,textNormalization:f.textNormalization,tokens:f.tokens,timestamps:f.tokenTimesMs.map(t=>t/1000),audioEndSample:f.audioEndSample,isLast:f.isLast});break;
+  {rawText:f.rawText,textNormalization:f.textNormalization,tokens:f.tokens,timestamps:f.tokenTimesMs.map(t=>t/1000),audioEndSample:f.audioEndSample,isLast:f.isLast},f.presentation);break;
  case 'DIARIZATION_COMMUNITY_WINDOW':
   if(input.windows){while(next<input.windows.length&&input.windows[next].realEndSample<=f.realEndSample){s.onWindow(window(input.windows[next++]));await settle()}}
   else s.onWindow(window(f));break;
