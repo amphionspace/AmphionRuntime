@@ -24,7 +24,7 @@ SPEC.loader.exec_module(MODULE)
 FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
-FIXTURE_VERSION = "0.3.17"
+FIXTURE_VERSION = "0.3.18"
 FIXTURE_RELEASE_DATE = "2026-09-18"
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
@@ -66,7 +66,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "docs/CHANGELOG.md").write_text(
             "# ASR SDK 更新日志\n\n"
-            "## HarmonyOS ASR SDK 0.3.17\n\n"
+            "## HarmonyOS ASR SDK 0.3.18\n\n"
             "- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。\n\n"
             "## 源码提交明细\n",
             encoding="utf-8",
@@ -230,6 +230,21 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             root = Path(directory)
             self._write_fixture(root)
             MODULE.validate_delivery(root, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
+
+    def test_accepts_valid_zip_above_former_size_limit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "sdk"
+            root.mkdir()
+            self._write_fixture(root)
+            package = Path(directory) / "large.zip"
+            # Sparse prefix exercises a large valid ZIP without allocating 321 MiB.
+            with package.open("wb") as output:
+                output.truncate(321 * 1024 * 1024)
+            with zipfile.ZipFile(package, "a") as archive:
+                for path in root.rglob("*"):
+                    if path.is_file():
+                        archive.write(path, path.relative_to(root.parent))
+            MODULE.validate_delivery_path(package, FIXTURE_VERSION, FIXTURE_MODEL_MD5)
 
     def test_rejects_missing_agc_native_library(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
