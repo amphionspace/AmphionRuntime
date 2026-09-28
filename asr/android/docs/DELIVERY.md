@@ -342,9 +342,9 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 ```bash
 python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
-  --device-id-file <设备SN清单> --customer "<客户名>" --license-id <编号> \
-  --expires <yyyy-MM-dd 或留空=永久> --install-tier <档位> \
-  --features <逗号分隔> --cert-sha256 <证书SHA256或留空> \
+  --device-id-file '<设备SN清单>' --customer "<客户名>" --license-id '<编号>' \
+  --expires '<yyyy-MM-dd 或留空=永久>' --install-tier '<档位>' \
+  --features '<逗号分隔>' --cert-sha256 '<证书SHA256或留空>' \
   --out amphion-license.lic
 ```
 

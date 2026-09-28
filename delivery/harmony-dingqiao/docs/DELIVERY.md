@@ -39,20 +39,20 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh
 ```bash
 # 构建、签名、校验并安装当前 HAP
 HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
-  delivery/harmony-dingqiao/delivery/build_install_smoke.sh --device <HDC_TARGET>
+  delivery/harmony-dingqiao/delivery/build_install_smoke.sh --device '<HDC_TARGET>'
 
 # 10 次独立进程冷加载；产物不进客户包
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --skip-build --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+  --skip-build --device '<HDC_TARGET>' --warmup-runs 2 --iterations 10
 
 # 真实 WAV 生命周期与首轮音频回归
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --skip-build-install --device '<HDC_TARGET>' --data-dir '<WAV_DIR>' \
   --mode burst --cycles 48 --files 24
 
 # vadBegin 专项：真实起音必须优先于 10 秒首段静音阈值
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --skip-build-install --device '<HDC_TARGET>' --data-dir '<WAV_DIR>' \
   --mode vad-begin --cycles 3 --files 3
 ```
 

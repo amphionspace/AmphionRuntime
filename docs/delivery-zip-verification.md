@@ -29,7 +29,7 @@
 脚本：
 
 ```bash
-tools/delivery/verify_delivery_zip_e2e.sh <delivery.zip>
+tools/delivery/verify_delivery_zip_e2e.sh '<delivery.zip>'
 ```
 
 常用环境变量：

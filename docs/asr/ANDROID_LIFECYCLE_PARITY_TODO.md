@@ -1,5 +1,7 @@
 # Android ASR lifecycle parity status
 
+> Historical alignment record (July 2026), not an open TODO list or the current release matrix. Current requirements: [ASR contracts](../engineering/ASR_CONTRACTS.md) and [validation](../engineering/ASR_VALIDATION.md).
+
 Reviewed against the Harmony lifecycle fixes on 2026-07-18. The code-level parity work below is now
 implemented on Android; Android device stress remains a release gate and is not implied by unit-test
 completion.

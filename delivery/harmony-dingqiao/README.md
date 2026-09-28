@@ -77,7 +77,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+  --device '<HDC_TARGET>' --warmup-runs 2 --iterations 10
 ```
 
 当前 `zhen` 配置、真机基线、comparison identity 规则和已拒绝方案见

@@ -2,7 +2,7 @@
 
 AmphionRuntime 是 Amphion 端侧与服务端语音运行时仓库。仓库按能力纵切组织，当前覆盖 ASR、TTS、鼎桥客户交付工程，以及 ASR WebSocket 服务。底层推理引擎基于 [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)。
 
-本仓库严格遵循"不修改 sherpa-onnx 任何源码"的原则：sherpa-onnx 通过 git submodule 引用上游 pinned tag（首期 v1.13.1），如需调整其行为，请向上游提交 PR 后再 bump submodule。
+sherpa-onnx 通过 git submodule 固定上游提交。项目补丁保存在 [third_party/patches/sherpa-amphion](third_party/patches/sherpa-amphion/README.md)，由 `asr/tools/prepare_sherpa_source.sh` 应用到隔离的构建源码目录；不得把仅存在于本机的提交写入 submodule 指针。适合上游的改动仍应回馈上游。
 
 ## 仓库布局
 
@@ -11,7 +11,7 @@ amphion-runtime/
 ├── README.md                    # 本文件
 ├── LICENSE                      # 完整 Apache 2.0 正文
 ├── NOTICE                       # 第三方依赖声明（含 sherpa-onnx 引用关系）
-├── .gitmodules                  # third_party/sherpa-onnx -> v1.13.1
+├── .gitmodules                  # third_party/sherpa-onnx 上游地址
 │
 ├── asr/                         # ASR 能力纵切
 │   ├── android/                 # Android ASR SDK（AAR + Sample + police/dingqiao）
@@ -34,7 +34,7 @@ amphion-runtime/
 │   └── harmony-dingqiao/        # 鼎桥 HarmonyOS ASR+TTS 客户交付聚合层
 │
 ├── third_party/
-│   └── sherpa-onnx/             # git submodule，detached @ v1.13.1，禁止本地修改
+│   └── sherpa-onnx/             # git submodule，固定上游提交；项目补丁另存
 │
 ├── shared/
 │   ├── api-spec/                # 错误码、manifest schema 等三端共享契约
@@ -77,7 +77,7 @@ amphion-runtime/
 
 ```bash
 # 一定要带 --recurse-submodules，否则 third_party/sherpa-onnx/ 是空的
-git clone --recurse-submodules <内部 git url>/amphion-runtime.git
+git clone --recurse-submodules '<内部 git url>'/amphion-runtime.git
 cd amphion-runtime
 
 # 已有仓库忘了 --recurse-submodules：
@@ -99,9 +99,9 @@ git submodule update --init --recursive
 
 ## 与 sherpa-onnx 的关系
 
-- 上游源码：`third_party/sherpa-onnx/`，submodule 指针 detached 在 v1.13.1
-- 公司侧绝对不在 submodule 内提交修改，所有补丁走上游
-- Android / iOS 编译脚本会进入 `third_party/sherpa-onnx/` 调用上游 `build-android-*.sh` 和 `build-ios.sh`
+- 上游源码：`third_party/sherpa-onnx/`；精确版本以当前 Git gitlink 为准。
+- Android / Harmony 需要的项目补丁由 `prepare_sherpa_source.sh` 生成隔离源码；补丁清单、校验和升级步骤见[补丁说明](third_party/patches/sherpa-amphion/README.md)。
+- 各平台使用对应构建脚本；升级上游时须核对补丁是否仍需保留及能否应用。
 - Server 端通过 `-DSHERPA_ONNX_DIR=<path-to-install>` 链接 sherpa-onnx 的 cxx-api 头文件与库
 - Android Kotlin 桥接层：`asr/android/sdk/src/main/java/com/k2fsa/sherpa/onnx/*.kt` 是从上游 `android/SherpaOnnxAar/` 复制过来（保留上游 license header），由 [asr/tools/07_sync_kotlin_from_upstream.sh](asr/tools/07_sync_kotlin_from_upstream.sh) 与 submodule 保持一致
 

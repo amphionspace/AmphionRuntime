@@ -11,7 +11,7 @@
 
 本方案目标是在不依赖公网、不要求设备访问我方服务器的前提下，实现可离线验证、可限制设备范围、可支持后装与升级的授权机制。
 
-交付前鼎桥需提供的信息清单见 [`../../docs/dingqiao-offline-license.md`](../../docs/dingqiao-offline-license.md)。
+交付前鼎桥需提供的信息清单见 [`../../../docs/dingqiao-offline-license.md`](../../../docs/dingqiao-offline-license.md)。
 
 ## 2. 关键约束
 
@@ -25,7 +25,7 @@
 工程约定：
 
 - 由我方私钥签发 License，SDK 内置公钥本地验签。
-- 客户 App 标识仅作记录，不作为授权限制；正式设备白名单 license 默认不绑定签名证书。
+- 不绑定应用的共用授权将 `applicationId` / `bundleName` claims 留空，应用标识只记签发登记；Android TTS 仍会校验非空应用标识。证书绑定须在本批申请中明确。
 - 授权绑定设备 SN 白名单，但 License 文件中不直接存储明文设备 SN。
 - 小版本升级尽量复用原授权，大版本或维护期外升级重新签发授权。
 
@@ -61,7 +61,7 @@ License 文件采用 UTF-8 JSON 信封格式。签名覆盖授权声明原始字
 | --- | --- | --- |
 | customer | 客户名称 | 例如 Dingqiao |
 | licenseId | 授权编号 | 用于交付、续期、排障追踪 |
-| bundleName | HarmonyOS 应用 bundleName | 仅作记录，不作为授权限制 |
+| bundleName | 兼容应用标识 | 不绑定应用时留空；业务标识放在签发登记 |
 | signingCertDigest | 客户应用签名证书指纹 | 可选；正式设备白名单 license 默认为空 |
 | deviceIdHashAlg | 设备 SN 哈希算法 | 建议 SHA-256 |
 | deviceIdSaltId | 哈希盐编号 | 用于区分客户或授权批次 |
