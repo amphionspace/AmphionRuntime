@@ -29,6 +29,8 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("onStart", upgrade)
 
         version_files = {
+            "asr/harmony/oh-package.json5": '"version": "0.3.18"',
+            "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5": '"version": "0.3.18"',
             "asr/harmony/sdk/oh-package.json5": '"version": "0.3.18"',
             "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.18"',
             "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.18"',
