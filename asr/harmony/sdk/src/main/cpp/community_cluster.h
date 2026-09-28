@@ -374,25 +374,49 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       for(int c=0;c<k;++c)if(std::isfinite(values[c]))runScores[r][c]=values[c];
     }
     result.frame_hard.assign(windows*frames*local,-2);
-    for(int w=0;w<windows;++w)for(int f=0;f<frames;++f){
-      std::vector<std::vector<double>> options(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
-      std::vector<bool> candidate(local,false);
-      for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]){
-        const int run=runFor[(w*frames+f)*local+ch];
-        if(run>=0){if(eligible[run]){options[ch]=runScores[run];candidate[ch]=std::any_of(options[ch].begin(),options[ch].end(),[](double v){return std::isfinite(v);});}}
-        else if(!hasRun[w*local+ch]){options[ch]=scores[w*local+ch];candidate[ch]=std::any_of(options[ch].begin(),options[ch].end(),[](double v){return std::isfinite(v);});}
-      }
+    std::vector<int> evidenceHard(windows*frames*local,-2);
+    auto finite=[](const std::vector<double>& values){return std::any_of(values.begin(),values.end(),[](double v){return std::isfinite(v);});};
+    auto assign=[&](const std::vector<std::vector<double>>& options,const std::vector<bool>& candidate,int initialUsed){
       std::vector<int> current(local,-2),best(local,-2);double bestScore=-std::numeric_limits<double>::infinity();
       std::function<void(int,int,double)> visit=[&](int row,int used,double score){
         if(row==local){if(score>bestScore){bestScore=score;best=current;}return;}
         if(!candidate[row]){current[row]=-2;visit(row+1,used,score);return;}
         bool assigned=false;for(int c=0;c<k;++c)if(!(used&(1<<c))&&std::isfinite(options[row][c])){assigned=true;current[row]=c;visit(row+1,used|(1<<c),score+options[row][c]);}
         current[row]=-2;if(!assigned)visit(row+1,used,score);
-      };visit(0,0,0.);
-      for(int ch=0;ch<local;++ch)if(candidate[ch])result.frame_hard[(w*frames+f)*local+ch]=best[ch];
+      };visit(0,initialUsed,0.);
+      return best;
+    };
+    for(int w=0;w<windows;++w)for(int f=0;f<frames;++f){
+      std::vector<std::vector<double>> options(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
+      std::vector<bool> candidate(local,false);
+      for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]){
+        const int run=runFor[(w*frames+f)*local+ch];
+        if(run>=0){if(eligible[run]){options[ch]=runScores[run];candidate[ch]=finite(options[ch]);}}
+        else if(!hasRun[w*local+ch]){options[ch]=scores[w*local+ch];candidate[ch]=finite(options[ch]);}
+      }
+      const auto best=assign(options,candidate,0);
+      int used=0;
+      for(int ch=0;ch<local;++ch)if(candidate[ch]){
+        evidenceHard[(w*frames+f)*local+ch]=result.frame_hard[(w*frames+f)*local+ch]=best[ch];
+        if(best[ch]>=0)used|=1<<best[ch];
+      }
+      // Speech without assignable run evidence (overlap, short or unadmitted
+      // runs) falls back to its channel's full-window vector against the same
+      // centroids. It only takes identities still free at this frame, so run
+      // evidence is never displaced; overflow voices score -inf and stay anonymous.
+      std::vector<std::vector<double>> fallback(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
+      std::vector<bool> fallbackCandidate(local,false);bool anyFallback=false;
+      for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]&&!candidate[ch]){
+        fallback[ch]=scores[w*local+ch];fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
+      }
+      if(anyFallback){
+        const auto extra=assign(fallback,fallbackCandidate,used);
+        for(int ch=0;ch<local;++ch)if(fallbackCandidate[ch])result.frame_hard[(w*frames+f)*local+ch]=extra[ch];
+      }
     }
+    // Window identities (and the public registry) keep using run evidence only.
     result.hard.assign(windows*local,-2);
-    for(int w=0;w<windows;++w)for(int ch=0;ch<local;++ch){std::vector<int> votes(k);for(int f=0;f<frames;++f){int label=result.frame_hard[(w*frames+f)*local+ch];if(label>=0)votes[label]++;}int best=0;for(int c=1;c<k;++c)if(votes[c]>votes[best])best=c;if(votes[best]>0)result.hard[w*local+ch]=best;}
+    for(int w=0;w<windows;++w)for(int ch=0;ch<local;++ch){std::vector<int> votes(k);for(int f=0;f<frames;++f){int label=evidenceHard[(w*frames+f)*local+ch];if(label>=0)votes[label]++;}int best=0;for(int c=1;c<k;++c)if(votes[c]>votes[best])best=c;if(votes[best]>0)result.hard[w*local+ch]=best;}
     return result;
   }
   if(result.usedKMeans) {
