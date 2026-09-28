@@ -1,0 +1,322 @@
+{
+  "status": "SAME_DEVICE_EVENTS_BASE_VS_FALLBACK",
+  "base": "7f41e794675b92baae2a0c0e74a8c2a56744ef0c",
+  "candidate": "a83405217ffa7a47a06ade3c44341bd493e1f712",
+  "publicTotals": {
+    "baseline": {
+      "missed": 276.35,
+      "falseAlarm": 16.43,
+      "confusion": 10.69,
+      "unknownTurnSeconds": 133.92,
+      "switches": 15,
+      "der": 0.274192
+    },
+    "fork": {
+      "missed": 80.95,
+      "falseAlarm": 37.03,
+      "confusion": 32.25,
+      "unknownTurnSeconds": 0.0,
+      "switches": 27,
+      "der": 0.135736
+    }
+  },
+  "phoneParityPublic": [
+    "aishell4-2",
+    "aishell4-3",
+    "aishell4-4",
+    "alimeeting2",
+    "alimeeting3",
+    "alimeeting4"
+  ],
+  "visibleUnknownRate": {
+    "aishell4-2": {
+      "baseline": 0.0204,
+      "fork": 0.0076
+    },
+    "aishell4-3": {
+      "baseline": 0.092,
+      "fork": 0.0267
+    },
+    "aishell4-4": {
+      "baseline": 0.2091,
+      "fork": 0.0065
+    },
+    "alimeeting2": {
+      "baseline": 0.1888,
+      "fork": 0.0272
+    },
+    "alimeeting3": {
+      "baseline": 0.4205,
+      "fork": 0.389
+    },
+    "alimeeting4": {
+      "baseline": 0.9817,
+      "fork": 0.9688
+    },
+    "four-speaker-short": {
+      "baseline": 0.0,
+      "fork": 0.0
+    },
+    "four-speaker-124s": {
+      "baseline": 0.1071,
+      "fork": 0.0357
+    },
+    "customer-main-four": {
+      "baseline": 0.5545,
+      "fork": 0.4059
+    },
+    "single-speaker-unknown": {
+      "baseline": 0.578,
+      "fork": 0.0
+    }
+  },
+  "noSpanChars": {
+    "aishell4-2": 0,
+    "aishell4-3": 14,
+    "aishell4-4": 0,
+    "alimeeting2": 0,
+    "alimeeting3": 276,
+    "alimeeting4": 898,
+    "four-speaker-short": 0,
+    "four-speaker-124s": 0,
+    "customer-main-four": 18,
+    "single-speaker-unknown": 0
+  },
+  "files": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/report.json",
+      "sha256": "731e1656800740269b7502db189bac6075d12a9b5a70e08e298bedf4ad7b24a7",
+      "bytes": 9541
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/visible-text.json",
+      "sha256": "f41afee521535f006a5f9fc2c83a9adc2c3de16ed68a0393b9ee9dd3c871cc96",
+      "bytes": 5887
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/compare_base.py",
+      "sha256": "78425dbaef63708bd60a71f55ade17400e528f3fa80b8113d71f65e23f37fdb4",
+      "bytes": 5019
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/visible_text.py",
+      "sha256": "95b3a4c1b5121321ecdeabb15a6847cac885598f5260d01b28213e8349664e5b",
+      "bytes": 2213
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/replay-baseline",
+      "sha256": "2b1b9abde2c1ba48c65a6deaeeda629f2af850b8c38d725481f5816f44dbaa5d",
+      "bytes": 124384
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/replay-fork",
+      "sha256": "b45b96c52856d066ddb6988e2d989bf0792a55f0c9eca10858f7a84221e03b53",
+      "bytes": 125688
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/build.sha256",
+      "sha256": "2d8d7e5a3659fafa8fb87bcd306e3134ed50adc0ded5b994341fef62b27cb059",
+      "bytes": 690
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-2-baseline/result.json",
+      "sha256": "4d1551e8aa36ad678e07b208aa8a8bd40a3aa120247328f95365bd8e4180be57",
+      "bytes": 31246745
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-2-fork/result.json",
+      "sha256": "e5aa444cd62672bb41dc1ba7271aaf7db8268860562747d6cd17d736b166e6ca",
+      "bytes": 31153949
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-3-baseline/result.json",
+      "sha256": "8979478f4d52d3a6ebdedf48f96e86ce75ec2b7de2be5271e3d0e9dc08c4b172",
+      "bytes": 40764489
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-3-fork/result.json",
+      "sha256": "2cc45aea0c76d92b1bb2c1cd3b153464ecd879af1e52f877c435ccfa17ee9e3d",
+      "bytes": 40679894
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-4-baseline/result.json",
+      "sha256": "9591a2c52cbfc5c2ec55b6af6989deae94fadd61ed0ef2192bb23d88eb6af0cd",
+      "bytes": 38050447
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-4-fork/result.json",
+      "sha256": "c674fef6359c16e1f88e3f31d224ad3b23a9100e934640d2ca48194e8341f914",
+      "bytes": 37797460
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting2-baseline/result.json",
+      "sha256": "ffa2057acb5322e49367aecf203d2f999cea18759b23381424c92cad901cc86b",
+      "bytes": 41216755
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting2-fork/result.json",
+      "sha256": "627ad065c91bd0a5e8a671931b5213f633a8aa59f47552a8cc18d83b76d96a5c",
+      "bytes": 40799549
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting3-baseline/result.json",
+      "sha256": "ca14995908beb4709c049a92acd8ebfa3a1d26f4b15f75812a66585662d0dfa1",
+      "bytes": 23396498
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting3-fork/result.json",
+      "sha256": "8ca854f07bd82fa98c253f1281ba6c7b9abf5950bc8d9458449f676d9ddf9f54",
+      "bytes": 23301219
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting4-baseline/result.json",
+      "sha256": "f77bec4d6a5894f1dee820081c858c45edef5e62b2d19615465d46ee0a7ae336",
+      "bytes": 12486010
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting4-fork/result.json",
+      "sha256": "ff076db16a57d0910b564b31a1e0a00e9f0b3e0eabb3c7dd9db2b111d9f92920",
+      "bytes": 12334350
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/customer-main-four-baseline/result.json",
+      "sha256": "cc4fa1f2dff6a1db98002f87f6d2a1755c00ea02dc7df961d7d4d8c422aa75e8",
+      "bytes": 33107629
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/customer-main-four-fork/result.json",
+      "sha256": "4ed258fd92038d9954ed39a810620d939c10a0c727bebaa92138ac35b5fe7e07",
+      "bytes": 33029339
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-124s-baseline/result.json",
+      "sha256": "c8067cc7c1f582250f73d509347dc4cc6deb72d0a13ab04e8f0fd80786538ba0",
+      "bytes": 22332996
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-124s-fork/result.json",
+      "sha256": "2115e117975788380cc14196f4a166661642d932bb6f92f0394800bfc5993abb",
+      "bytes": 22258536
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-short-baseline/result.json",
+      "sha256": "93517fe7553f4d442be348018ee8b5073df30ebf660b0aa6fae180175d539b48",
+      "bytes": 321198
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-short-fork/result.json",
+      "sha256": "ce8b43cfe991acf13472cdca35cd28e8c756007b9aa11b5283e5c19b28f03fc0",
+      "bytes": 320746
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/single-speaker-unknown-baseline/result.json",
+      "sha256": "78549414b641bee973ccf9b4b1916b6c2a877fb04649f5edd80f97789841e8f7",
+      "bytes": 2617577
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/single-speaker-unknown-fork/result.json",
+      "sha256": "2ea68ec9b88a3e6f5a3caae76ef6275f8bd31bf805ddb2fbe9203e6635e77a70",
+      "bytes": 2602637
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-2-baseline/provenance.json",
+      "sha256": "5d02a0a2be74e6065a23c6eea35e66ec165f9591734d3aa299bf451218d7f1dd",
+      "bytes": 2425
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-2-fork/provenance.json",
+      "sha256": "a024d7df7c3ed6a9f0c7ebd470211aeb331408bb20a4db6489a5d67929ef985d",
+      "bytes": 2417
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-3-baseline/provenance.json",
+      "sha256": "ed4a5424d275ad3f8f7a8a6f4f874b2dd19ff78d13fc4c724b42b63dd501391a",
+      "bytes": 2425
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-3-fork/provenance.json",
+      "sha256": "7dacd5523654d83dc3d48203f7cab6e2854489ab2b3bed81d8212522695327eb",
+      "bytes": 2417
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-4-baseline/provenance.json",
+      "sha256": "c3690693b69f52c183f3110197817501da1fc9e76f9f4029affe891e59d7fe71",
+      "bytes": 2425
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/aishell4-4-fork/provenance.json",
+      "sha256": "9799de377926f0c9c4b4928a76377e4c14c58a2fd8cd8420b5b40a2ed52c2eb6",
+      "bytes": 2417
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting2-baseline/provenance.json",
+      "sha256": "ec047d94106576b68b9e89949eee19f98519771a5ea6075c4fc26f766d0df249",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting2-fork/provenance.json",
+      "sha256": "5c7e8e853f539356dd2e9e54a272e37f72bcd51b3c166abe4e8d7f7c808bd05b",
+      "bytes": 2419
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting3-baseline/provenance.json",
+      "sha256": "373477bbdef2b587c720e21bfd1a3f36262807560813c516fd0e58c9b2b40e30",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting3-fork/provenance.json",
+      "sha256": "cf4ac5644eedcbc688dd2f7b2c877526af1b9b5383bc4d721ecf11087a4b7f1d",
+      "bytes": 2419
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting4-baseline/provenance.json",
+      "sha256": "910a1378fc4658dc7b6bfec1ed442d730ab534d516a45811acf354502873470f",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/alimeeting4-fork/provenance.json",
+      "sha256": "cd3e13257b32a5185b9bf9ad4d27ae187ca56cbcaff6b3da8f57f96db0728091",
+      "bytes": 2419
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/customer-main-four-baseline/provenance.json",
+      "sha256": "6fb44bbf6a63001f839eede13e3012788caa41f07e889c72ebc94b65f8719447",
+      "bytes": 2442
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/customer-main-four-fork/provenance.json",
+      "sha256": "61800876d88b4c4b482b80fc3e5b6b428496e3c57c6f7f7939e42bfefbe77474",
+      "bytes": 2434
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-124s-baseline/provenance.json",
+      "sha256": "d7a017644e8a2a402274a617acd4e198a0f278f83985497f7e4ad6c8d847e5ae",
+      "bytes": 2440
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-124s-fork/provenance.json",
+      "sha256": "5ece2423288ec8bb696553f761644a41bc6c91486ce38c4a3fbb985a747cd14a",
+      "bytes": 2432
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-short-baseline/provenance.json",
+      "sha256": "85fd6d7ce56dc76473755326d9f3b8d35abbff3e53054484067c24c1952edf17",
+      "bytes": 2442
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/four-speaker-short-fork/provenance.json",
+      "sha256": "bbc6729ed1b3f64a004b5d5dda92fc445a97708ebd6832bda30938c15db8c88b",
+      "bytes": 2434
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/single-speaker-unknown-baseline/provenance.json",
+      "sha256": "d1b6a06dc4fbad3779a7d1179bceda438e7ef9421fac9c4cd4bdde04dd722af9",
+      "bytes": 2450
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/base-compare/single-speaker-unknown-fork/provenance.json",
+      "sha256": "b69e5f18f8d93ff89477a03a15ba0de432acd57a194e575c9f44c94d46b6fa9c",
+      "bytes": 2442
+    }
+  ]
+}
