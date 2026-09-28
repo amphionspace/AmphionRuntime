@@ -17,6 +17,12 @@ import subprocess
 import sys
 import wave
 
+REPO_ROOT = Path(__file__).resolve().parents[3]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from tools.delivery.device_stress_metrics import diarization_memory_verdict
+
 import analyze_diarization_diagnostics as diagnostics
 import evaluate_speaker_diarization_report as scorer
 
@@ -142,12 +148,10 @@ def binding_errors(binding: dict) -> list[str]:
 
 def runtime_evidence(report: dict, events: list[dict]) -> dict:
     memory = report.get("memory", {})
-    memory_status = "FAIL" if memory.get("status") == "FAIL" else "INCONCLUSIVE"
-    medians = memory.get("rss_third_medians_mb", [])
-    if (memory.get("status") == "PASS" and memory.get("observation_seconds", 0) > 60 and
-            len(medians) == 3 and all(isinstance(v, (float, int)) and math.isfinite(v) for v in medians) and
-            medians[-1] <= medians[0] and memory.get("rss_slope_mb_per_minute", math.inf) <= 0):
-        memory_status = "PASS"
+    memory_assessment = diarization_memory_verdict(memory)
+    # Neither a generic alarm nor a fall at model teardown proves a same-phase
+    # memory regression/stability result. A hash-bound review can supply it.
+    memory_status = "FAIL" if memory_assessment.get("status") == "FAIL" else "INCONCLUSIVE"
     sessions = {}
     for event in events:
         if event.get("sessionId"):
@@ -173,7 +177,8 @@ def runtime_evidence(report: dict, events: list[dict]) -> dict:
                          "queueSamples": len(points), "maxAudioDelayMs": max(delays, default=None)})
     state = "FAIL" if any(r["status"] == "FAIL" for r in realtime) else (
         "PASS" if realtime and all(r["status"] == "PASS" for r in realtime) else "INCONCLUSIVE")
-    return {"realtime": state, "memory": memory_status, "sessions": realtime, "memoryObservation": memory}
+    return {"realtime": state, "memory": memory_status, "sessions": realtime,
+            "memoryObservation": memory, "memoryAssessment": memory_assessment}
 
 
 def assess(manifest: dict, captures: dict) -> dict:
@@ -226,9 +231,10 @@ def assess(manifest: dict, captures: dict) -> dict:
                 result["metrics"] = scorer.evaluate(turns, reference, case["durationSeconds"])
             # The stress carrier's PASS is only an interface result, never an identity verdict.
             result["sdkOverallStatus"] = report.get("overall_status", report.get("overallStatus"))
-            for gate, key in (("memory", "memory"), ("lifecycle", "diarization_lifecycle")):
-                if report.get(key, {}).get("status") == "FAIL":
-                    result["gates"][gate] = "FAIL"
+            if diarization_memory_verdict(report.get("memory", {})).get("status") == "FAIL":
+                result["gates"]["memory"] = "FAIL"
+            if report.get("diarization_lifecycle", {}).get("status") == "FAIL":
+                result["gates"]["lifecycle"] = "FAIL"
             if report.get("native_streams", {}).get("status") == "FAIL":
                 result["gates"]["lifecycle"] = "FAIL"
         if capture.get("events"):

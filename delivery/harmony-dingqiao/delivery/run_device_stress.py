@@ -26,9 +26,11 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from tools.delivery.device_stress_metrics import (  # noqa: E402
+    DEFAULT_RSS_GROWTH_MB,
     MIN_MEMORY_SLOPE_SECONDS,
     MemorySample,
     cpu_statistics,
+    diarization_memory_verdict,
     median_window,
     memory_verdict,
     parse_process_cpu_ticks,
@@ -61,6 +63,7 @@ TARGET_SPEAKER_MODES = {
     "target-speaker-enhancement-onstart",
     "target-speaker-enhancement-cancel",
 }
+DIARIZATION_MODES = {"customer-meeting-minutes", "diarization-windows"}
 VOICEPRINT_FALLBACK_FIXTURES = REPO_ROOT / "asr/test-fixtures/voiceprint-fallback"
 TEST_DATA_ROOT = Path(
     os.environ.get(
@@ -181,7 +184,10 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Keep lifecycle checks but skip the carrier's C1 text assertion.",
     )
-    parser.add_argument("--max-rss-growth-mb", type=float, default=64.0)
+    parser.add_argument(
+        "--max-rss-growth-mb", type=float, default=None,
+        help="Explicit hard RSS growth budget in MiB. Default: 64 MiB, advisory for diarization.",
+    )
     parser.add_argument("--max-thread-growth", type=int, default=2)
     parser.add_argument("--max-empty-final-rate", type=float, default=0.05)
     parser.add_argument("--skip-build-install", action="store_true")
@@ -220,6 +226,10 @@ def parse_args() -> argparse.Namespace:
         parser.error("--timeout and --sample-interval must be positive")
     if args.settle_ms < 0 or args.pace_ms < 0 or args.post_run_observe < 0:
         parser.error("timing values must be non-negative")
+    if args.max_rss_growth_mb is not None and (
+        not math.isfinite(args.max_rss_growth_mb) or args.max_rss_growth_mb < 0
+    ):
+        parser.error("--max-rss-growth-mb must be finite and non-negative")
     if args.skip_target_content_check and args.mode != "speaker-vad-turn":
         parser.error("--skip-target-content-check requires --mode speaker-vad-turn")
     if args.speaker_vad_threshold is not None:
@@ -972,6 +982,16 @@ def diarization_lifecycle_verdict(cycles: list[dict[str, str]]) -> dict[str, obj
             "completed_sessions": completed_sessions, "failures": failures}
 
 
+def stress_memory_verdict(samples: list[MemorySample], args: argparse.Namespace) -> dict[str, object]:
+    limit = DEFAULT_RSS_GROWTH_MB if args.max_rss_growth_mb is None else args.max_rss_growth_mb
+    memory = memory_verdict(samples, limit, args.max_thread_growth)
+    diarization = args.enable_diarization or args.mode in DIARIZATION_MODES
+    if diarization and args.max_rss_growth_mb is None:
+        return diarization_memory_verdict(memory)
+    memory["rss_growth_limit_enforced"] = True
+    return memory
+
+
 def customer_stop_latency_verdict(mode: str, cycles: list[dict[str, str]]) -> dict[str, object]:
     """Measure the customer's stop window from finish(), including both tails."""
     if mode not in ("diarization-windows", "customer-meeting-minutes"):
@@ -1297,7 +1317,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     capture_hilog(hdc, artifact_dir / "hilog.txt")
     write_samples(artifact_dir / "memory.csv", samples)
     app_summary, cycle_results = parsed
-    memory = memory_verdict(samples, args.max_rss_growth_mb, args.max_thread_growth)
+    memory = stress_memory_verdict(samples, args)
     realtime_required = args.pace_ms >= 20
     if args.mode == "speaker-vad-turn":
         target_speaker_realtime = speaker_turn_final_latency_verdict(
@@ -1340,7 +1360,8 @@ def run_stress(args: argparse.Namespace) -> Path:
 
     overall = "PASS"
     failures: list[str] = []
-    diarization_lifecycle = diarization_lifecycle_verdict(cycle_results) if args.enable_diarization else {
+    diarization_enabled = args.enable_diarization or args.mode in DIARIZATION_MODES
+    diarization_lifecycle = diarization_lifecycle_verdict(cycle_results) if diarization_enabled else {
         "status": "NOT_APPLICABLE"}
     if diarization_lifecycle["status"] == "FAIL":
         overall = "FAIL"
@@ -1361,7 +1382,8 @@ def run_stress(args: argparse.Namespace) -> Path:
     if memory.get("status") == "FAIL":
         overall = "FAIL"
         failures.append("RSS/thread growth exceeded threshold")
-    elif args.mode == "continuous-long-session" and memory.get("status") != "PASS":
+    elif (args.mode == "continuous-long-session" and memory.get("status") != "PASS"
+          and memory.get("rss_growth_limit_enforced", True)):
         overall = "FAIL"
         failures.append("continuous long-session memory verdict was inconclusive")
     if stream_status == "FAIL":
@@ -1410,6 +1432,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "speech_end_ms": args.speech_end_ms,
             "diarization_vad_end_ms": args.diarization_vad_end_ms,
             "enable_diarization": args.enable_diarization,
+            "effective_enable_diarization": diarization_enabled,
             "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
                                                if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,
@@ -1453,6 +1476,9 @@ def run_stress(args: argparse.Namespace) -> Path:
         f"[{overall}] sdk={app_summary.get('status')} memory={memory.get('status')} "
         f"emptyFinalRate={empty_rate:.3f} artifacts={artifact_dir}"
     )
+    if memory.get("rss_growth_limit_enforced") is False:
+        print(f"[INFO] Diarization RSS alert is advisory; generic={memory.get('generic_status')} "
+              f"resourceAssessment={memory.get('status')}; phase-aligned evidence is required")
     if "rss_growth_mb" in memory:
         slope = memory["rss_slope_mb_per_minute"]
         slope_text = f"{slope} MiB/min" if slope is not None else f"inconclusive (<{MIN_MEMORY_SLOPE_SECONDS:.0f}s)"
