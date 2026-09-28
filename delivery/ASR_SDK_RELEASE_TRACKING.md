@@ -6,7 +6,9 @@
 不接受外置文件，防止台账登记到中间目录或同名旧包。记录的是产物真正使用的 source commit，
 不是随后登记台账的 metadata commit，避免 Git commit 自引用问题。
 
-## 标准流程
+## 台账操作
+
+完整执行顺序见[双端交付流程](ASR_DELIVERY_WORKFLOW.md)。本节只定义子包身份、证据与台账的绑定；完整外层包还需独立发布记录。
 
 1. 在干净分支完成版本更新、测试和源码提交，记该 commit 为 `SOURCE_COMMIT`。
 2. 从 `SOURCE_COMMIT` 运行平台正式组包脚本。脚本自动读取台账，并在包内生成

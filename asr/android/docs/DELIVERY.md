@@ -2,6 +2,8 @@
 
 适用 SDK 版本：0.3.9
 
+本文描述核心 `:sdk` AAR 的构建与交付边界。鼎桥双端交付使用[统一流程](../../../delivery/ASR_DELIVERY_WORKFLOW.md)和[Android 完整包规范](../../../delivery/android-dingqiao/DEFAULT_DELIVERY.md)，不可用下方核心 AAR 清单替代完整包。
+
 > 本文是「我们怎么把 SDK 交付给业务方」的内部 SOP。业务方只需要看 [INTEGRATION.md](INTEGRATION.md) 和 [PRIVACY.md](PRIVACY.md)。
 
 ## 1. 交付物清单

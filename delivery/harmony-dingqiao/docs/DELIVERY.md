@@ -1,4 +1,6 @@
-# HarmonyOS 交付 SOP
+# HarmonyOS 构建与子包操作参考
+
+鼎桥 ASR 的执行顺序以[双端交付流程](../../ASR_DELIVERY_WORKFLOW.md)为准，完整包结构以[默认交付规范](DEFAULT_DELIVERY.md)为准。本文保留平台构建和 ASR+TTS 子包操作，不作为另一份完整发布流程。
 
 ## 工程结构
 
