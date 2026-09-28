@@ -16,3 +16,7 @@
 3. 保存最外层 ZIP SHA-256、构建身份和外置未验收报告。没有最终包真机、断网观测和角色精度证据时不得发布。
 
 合入验收及资源决定见 [PR #235 验收](../docs/speaker/DIARIZATION_PR235_MERGE_ACCEPTANCE_20260928.md)。当前未向客户发送消息或上传正式发布物。
+
+## 已定位的组包缺陷
+
+Android Release AAR 首次已构建成功，但旧 AAR/APK 校验器仍强制要求运行时不再调用的 campplus.onnx，导致候选组包失败。当前运行时使用 ensureCommunityInstalled，构建清单已包含 encoder、pool、feature 与 PLDA。校验同步为这四项 Community 输入，并保护每项缺失或截断时必须拒绝；保留 eres2net、segmentation、LAC 检查。这是组包契约修复，不是角色身份精度修复。旧尝试日志留在 22e1dc72 对应暂存目录，新候选重新绑定修复后的提交。
