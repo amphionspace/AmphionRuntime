@@ -1,0 +1,989 @@
+{
+  "status": "DEVICE_CAPTURED_PHONE_MATCHES_HOST",
+  "binding": {
+    "commit": "a83405217ffa7a47a06ade3c44341bd493e1f712",
+    "sourceFingerprint": "09fd2e57ae83a6a65e7a33f0dcd75a2d65693c38ccbee040440d06126b174970",
+    "device": "7GK0226326015655",
+    "systemVersion": "OpenHarmony-6.1.1.120"
+  },
+  "artifacts": {
+    "amphion_asr_demo.hap": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_asr_demo.hap",
+      "sha256": "bb311c941b391716af5fa6e1c0689de28d12f732187249fcb03c77c4f6b0d1bc"
+    },
+    "amphion_asr.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_asr.har",
+      "sha256": "74e8f7805184ec8c3f25bf465f03ef9c07409a59137d3a30db3067d6abf4ac11"
+    },
+    "amphion_dingqiao.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_dingqiao.har",
+      "sha256": "5bcd1c413717caa96458cbd0ad909593d21b203ee3197375a43e7d8cf5c139d1"
+    },
+    "amphion_police.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_police.har",
+      "sha256": "7bfa9dff88e7ac497b4599c6facb54539646065da6f7baf34955912fc69b108c"
+    },
+    "sherpa_onnx.har": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/sherpa_onnx.har",
+      "sha256": "6b1f91046f4bdc520058860499464a27119ed394bcd29fb3fddcb0882f370809"
+    }
+  },
+  "installUpdateTime": "\"updateTime\": 1790578829534,",
+  "bindingIssues": [],
+  "cases": {
+    "aishell4-2": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.084454,
+      "confusion": 1.23,
+      "unknown": 0.0,
+      "switches": 5,
+      "phoneMatchesHostFork": true,
+      "publicResults": 3,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "aishell4-3": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.111842,
+      "confusion": 6.68,
+      "unknown": 0.0,
+      "switches": 1,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "aishell4-4": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.193515,
+      "confusion": 5.88,
+      "unknown": 0.0,
+      "switches": 6,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "alimeeting2": {
+      "gates": {
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.086665,
+      "confusion": 0.1,
+      "unknown": 0.0,
+      "switches": 0,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "alimeeting3": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.134557,
+      "confusion": 4.64,
+      "unknown": 0.0,
+      "switches": 10,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "alimeeting4": {
+      "gates": {
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": 0.18222,
+      "confusion": 13.72,
+      "unknown": 0.0,
+      "switches": 5,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "four-speaker-124s": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": null,
+      "confusion": null,
+      "unknown": null,
+      "switches": null,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "four-speaker-short": {
+      "gates": {
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": null,
+      "confusion": null,
+      "unknown": null,
+      "switches": null,
+      "phoneMatchesHostFork": true,
+      "publicResults": 1,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "single-speaker-unknown": {
+      "gates": {
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": null,
+      "confusion": null,
+      "unknown": null,
+      "switches": null,
+      "phoneMatchesHostFork": true,
+      "publicResults": 1,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    },
+    "customer-main-four": {
+      "gates": {
+        "realtime": "PASS",
+        "memory": "INCONCLUSIVE",
+        "lifecycle": "PASS"
+      },
+      "der": null,
+      "confusion": null,
+      "unknown": null,
+      "switches": null,
+      "phoneMatchesHostFork": true,
+      "publicResults": 2,
+      "reportStatus": "PASS",
+      "streams": "PASS",
+      "lifecycle": "PASS",
+      "concurrentInstall": false
+    }
+  },
+  "files": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/evaluation-manifest.json",
+      "sha256": "c1b06a724c583f51ba6cf2c151c189d20e2cfc1b1c49fb11fac116df41da63d5",
+      "bytes": 24673
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/captures.json",
+      "sha256": "4d622ce9d90b2d52d36ae96674dca3a3aad4b44f52e4b3f23df601269c2afe25",
+      "bytes": 13194
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/assessment.json",
+      "sha256": "740071b0e4a340fd7286ec91515445feb79f3bdb5e688613cda8936b0c0760b0",
+      "bytes": 152274
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/device-check.json",
+      "sha256": "fed6600de6a74415ef4e26c00193e5f6a8cb1df177e1546bbd3964c836700895",
+      "bytes": 4223
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/device-check-anchors-only.json",
+      "sha256": "a2441697db1c33852de2f332cd4e7984821985502fe9d6b9b1f985cb6b101264",
+      "bytes": 1738
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/build-identity.json",
+      "sha256": "717d28a69f5fe6ea3bd503382cd6af97a719813b81858657f2d81f3dc81f9198",
+      "bytes": 3523
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/reinstall.log",
+      "sha256": "2aa7c0dd029da381a494063b3fdb2cfa9fc3be0577981a27459663f30fd19d70",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3.log",
+      "sha256": "f7584b9333f253764cd9e14db1d7799622cc514c0a8c11493dbc332f19e0c025",
+      "bytes": 984
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3.log",
+      "sha256": "5023972100e665d0829516d341a2cc6bb2665ce6a92028d567647292c80795dc",
+      "bytes": 1340
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device_check.py",
+      "sha256": "7c3db85d84d41bb4c3328f0e7710b9154bd29f6ddb8e5df3af57fa6efe46cb4c",
+      "bytes": 4904
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/unpack.py",
+      "sha256": "4d03602187a150c1390efd1034fdc840b783f714daf8d610c3313f4c560039e3",
+      "bytes": 924
+    }
+  ],
+  "canonicalRuns": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/run-summary.json",
+      "sha256": "19f717adf3f143315d046327e68d1fc4ba4a6b194eae2f455b12bbf625822330",
+      "bytes": 1162
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/run.json",
+      "sha256": "54369593c060ab263a904f664f0fab4a4753c8a80b3f0f065038c7774119d4d1",
+      "bytes": 199
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/console.log",
+      "sha256": "0ef278e6609ec879a206c7dde73234df0ccee33235b7960ffe9c569bf4fcc57f",
+      "bytes": 459
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/collection.log",
+      "sha256": "11f464f67be65ef949a8f64b37d0447a96b6960e6841c421c400284ce511a36a",
+      "bytes": 352
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/device/20260928-151755-diarization-windows-e58bb062/report.json",
+      "sha256": "6e5c7281f7797e0a72fd265b4a9e897144bf25cb7980611228ba2eaa8c2c9078",
+      "bytes": 156245
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/device/20260928-151755-diarization-windows-e58bb062/hilog.txt",
+      "sha256": "c9083366d9146a50430b718ef00e75ef619f6609ab672cfacf4d8e8f5ccd3286",
+      "bytes": 1110650
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/device/20260928-151755-diarization-windows-e58bb062/memory.csv",
+      "sha256": "faabde30de7b48f394df41a4b249166308f53c6f502cc7cafacaa3b5811e88e2",
+      "bytes": 8628
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/device/20260928-151755-diarization-windows-e58bb062/payload/corpus.json",
+      "sha256": "f43020dfcb4581df9a0a8c44f4203bbc9951b930411159d242dfdf1e2e526b7a",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/diagnostics/asr-diagnostics-20260928-152046.zip",
+      "sha256": "42a01737ab413cb3301c954d98517229138095a2b088e2f2cc765443de12fe2c",
+      "bytes": 8415250
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/diagnostics/unpacked/asr-diagnostics-20260928-152046/asr-diagnostics-20260928-152046/run-1790579879334/events.full.ndjson",
+      "sha256": "ba1051e75420a6346cb06233b25d192ff4be1df20c76d27abc73e51d8a4547d7",
+      "bytes": 17966918
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/host-replay/result.json",
+      "sha256": "c05e6243a02daa6b94b4ea83e819605cb77683f159b192a4f7e709b3c203928d",
+      "bytes": 33029341
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/customer-main-four/host-replay/provenance.json",
+      "sha256": "185ed6dedafa2a66713a60eb25bd716e89a29b576a2a7b00a9c18568725b2e52",
+      "bytes": 2445
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/run.json",
+      "sha256": "7fb8d42a4028b7c3972a72f649ff985f91f926b1177f0485825f327095c44a22",
+      "bytes": 198
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/console.log",
+      "sha256": "21a3d3a8a0fd75203ea9d9d04de6965184b0683176cf19d73394ba5b00eb5495",
+      "bytes": 457
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/collection.log",
+      "sha256": "84a3cc858d19a672dd036e0074538958cff62cbd7e91e54ae0657606b310e2d5",
+      "bytes": 350
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/device/20260928-151403-diarization-windows-75954b03/report.json",
+      "sha256": "5122c2330ca63a0744f39bb4d77ecc3068b7ff50acb398b56131421f5e31c9d9",
+      "bytes": 129914
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/device/20260928-151403-diarization-windows-75954b03/hilog.txt",
+      "sha256": "fb226b408c94da6014e7265020939b37baccc4dadf6aade607e470d438fdcce8",
+      "bytes": 1102349
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/device/20260928-151403-diarization-windows-75954b03/memory.csv",
+      "sha256": "016103dae2b99899103c7314109235da14ad18febaf8973209c58f66a293dd25",
+      "bytes": 6780
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/device/20260928-151403-diarization-windows-75954b03/payload/corpus.json",
+      "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/diagnostics/asr-diagnostics-20260928-151617.zip",
+      "sha256": "6a9afa75f71259f6a186a3d8d5cb5546a9ee7774e7e2484143e9a76bed9f2c93",
+      "bytes": 7586766
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/diagnostics/unpacked/asr-diagnostics-20260928-151617/asr-diagnostics-20260928-151617/run-1790579646864/events.full.ndjson",
+      "sha256": "66cdbf5b935f70fd29326d16ebcc23908633ba39acc76baf8f826998000b2006",
+      "bytes": 13361119
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/host-replay/result.json",
+      "sha256": "2cf7dbd018a33cf292f3265d894f24e1582c0b041ada81394cb87a4f91421417",
+      "bytes": 22258536
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-124s/host-replay/provenance.json",
+      "sha256": "31ef2aad5344799564487b8a98c3758e5832cb4911c15f703a77c6fb349336cd",
+      "bytes": 2443
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/run.json",
+      "sha256": "09b2b68d43a15658b19b15a9c87c6ed5393dc909cd4ea6c71e2144995962c075",
+      "bytes": 185
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/console.log",
+      "sha256": "e1307013fbb59c85337aa97e12b7eccf57a62e32976718a460777b5a25c1723e",
+      "bytes": 435
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/collection.log",
+      "sha256": "a1f5c65435c07a7dd41bf2e3aedc83e520bd935868c71d8e1f5c755c7afa614c",
+      "bytes": 352
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/device/20260928-151621-paced-72bbffb7/report.json",
+      "sha256": "b777d4597f5fbd448d36b3ca502662b4d70e6f6e2a4b5e6c54908e59643932ca",
+      "bytes": 23899
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/device/20260928-151621-paced-72bbffb7/hilog.txt",
+      "sha256": "ff0a51db974cf12f13f0ae54431c8f95155abc4651e65aab3dd12b91334d3f80",
+      "bytes": 980080
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/device/20260928-151621-paced-72bbffb7/memory.csv",
+      "sha256": "ddd37f2ec2bd80390c260520af642a7e7a140bcdaf3fad3d6a5df11dfd3e0899",
+      "bytes": 1505
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/device/20260928-151621-paced-72bbffb7/payload/corpus.json",
+      "sha256": "b6d86e3ce477a3caa018dfffb9bae739432d4707f92e2762dbc82050485320e2",
+      "bytes": 357
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/diagnostics/asr-diagnostics-20260928-151651.zip",
+      "sha256": "0fde7dfaf4328dad1aaf10de2e054c20110ac1e74fe9e0cdc4bd520a48fff3e6",
+      "bytes": 969818
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/diagnostics/unpacked/asr-diagnostics-20260928-151651/asr-diagnostics-20260928-151651/run-1790579785381/events.full.ndjson",
+      "sha256": "1f57e21d7303d5c71f430e972bfc0338c9581827c609cb26fd12497ebf5b1e6f",
+      "bytes": 1106910
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/host-replay/result.json",
+      "sha256": "ce8b43cfe991acf13472cdca35cd28e8c756007b9aa11b5283e5c19b28f03fc0",
+      "bytes": 320746
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/four-speaker-short/host-replay/provenance.json",
+      "sha256": "f21b62768a6fa2a33b60ad0801355452b146cc10ff0921c1deb5b613b7ed4484",
+      "bytes": 2445
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/run.json",
+      "sha256": "b8d6cf320a558a87d3a8a15a863c9c7c5050568aa940b53ad2da14229b967e86",
+      "bytes": 189
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/console.log",
+      "sha256": "4a538fdf80c166971d7980694a22097cfa874fdb56b99b9808fd9d6ea13deeb7",
+      "bytes": 440
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/collection.log",
+      "sha256": "d0bfb166a59404dfe9580d4e698fed92081f19442ac05a13ee8775049bb9e57a",
+      "bytes": 360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/device/20260928-151654-paced-26a54601/report.json",
+      "sha256": "f48867592fdd1e19f3a304503fdceb17f004feafc1c751aaa8f22f2a555771e2",
+      "bytes": 46402
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/device/20260928-151654-paced-26a54601/hilog.txt",
+      "sha256": "936eed08f96e8ff31eb3b9112c2fdb45a71bcf1d0f591e9d6c8c6449a93f1292",
+      "bytes": 1069667
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/device/20260928-151654-paced-26a54601/memory.csv",
+      "sha256": "65ac8a41a9c612e42a0a8b5a187d51d1ede3c41a6b7d11b0ee54835c4f49a434",
+      "bytes": 2928
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/device/20260928-151654-paced-26a54601/payload/corpus.json",
+      "sha256": "84b8d17dde2d547712f4e31825ab9273fd2b6c54fe5827a56deab16daf1df725",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/diagnostics/asr-diagnostics-20260928-151752.zip",
+      "sha256": "c2580a40cf4301feb9929ca8cc771054502178280fbde0767e59650b647f9114",
+      "bytes": 2398220
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/diagnostics/unpacked/asr-diagnostics-20260928-151752/asr-diagnostics-20260928-151752/run-1790579817494/events.full.ndjson",
+      "sha256": "6a7e99b0c7371d04a979f7f127e060e763ee77871ff791c2c79f6e10ec82d506",
+      "bytes": 3243025
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/host-replay/result.json",
+      "sha256": "34736d6fd45b7ac483558787629db373a6d8d3e605ac791b8c565c9f86187b16",
+      "bytes": 2602637
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-3/single-speaker-unknown/host-replay/provenance.json",
+      "sha256": "a5d6829125e55ac663b83cf16983d8472be49cdeb22e49684f35bcbe23aa475a",
+      "bytes": 2453
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/run-summary.json",
+      "sha256": "f2c7f49f5fcee2bd406a4c6a7bfb015d8a4db42ba83155ac82c6f3859aa6952f",
+      "bytes": 1598
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/run.json",
+      "sha256": "241ff6417c71be7ddab9b6c7e5df8f154f1ca8dead18394c4905995cd1cd6c64",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/console.log",
+      "sha256": "b748d2da9b3ca73a5e033d50530f8ae24cc3d92da1e98764bf62ba23bc6fc6f6",
+      "bytes": 450
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/collection.log",
+      "sha256": "7a1fb3eea9c1b2dcb2b805f2cf8bb212cc853a2e56f2063965aaf0d58c01688d",
+      "bytes": 334
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/device/20260928-152051-diarization-windows-ccd261ba/report.json",
+      "sha256": "6e883680be666d5d524f8776dd6e4d60e2809b28a8b8012ca1dce7b29ecbaddd",
+      "bytes": 108054
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/device/20260928-152051-diarization-windows-ccd261ba/hilog.txt",
+      "sha256": "a90eb62badf026062723080b86eccffa17fe5896f065988d57a38ecb8c4dfb6d",
+      "bytes": 1106424
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/device/20260928-152051-diarization-windows-ccd261ba/memory.csv",
+      "sha256": "649ac3729df12d92c3dd42dd0bf95f80bd0e676d7b430677e0e2564bb050f706",
+      "bytes": 9683
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/device/20260928-152051-diarization-windows-ccd261ba/payload/corpus.json",
+      "sha256": "3d354867e69a079129b59fc4abdc15464d2896022fda8e4bae715c0bb3eb7af5",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/diagnostics/asr-diagnostics-20260928-152402.zip",
+      "sha256": "574da7b0c761a3ba106d4417dd3be6cb053e75465b8db1b67ea05c73e3570f3f",
+      "bytes": 9083097
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/diagnostics/unpacked/asr-diagnostics-20260928-152402/asr-diagnostics-20260928-152402/run-1790580055165/events.full.ndjson",
+      "sha256": "e6c0930dec861384ca4fc5a70cb1ed192f989f5c1ecba38a1d289e606c6cf9a4",
+      "bytes": 18998114
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/host-replay/result.json",
+      "sha256": "cd0da405d48d74d1de42c0d34cd4255b6c8dcc7d69e327b546aa18f200bea3f7",
+      "bytes": 31153948
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-2/host-replay/provenance.json",
+      "sha256": "fa54446f801631a6eee5e25151315d4ad9e25f0ebcff81fd8fa6ba0195dae99d",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/run.json",
+      "sha256": "d0d5907f78767519353f7452ef3deedc5850e135b0bef66a7448f51e5b56982f",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/console.log",
+      "sha256": "a578cae40910103e072aaf3fbe2d3a914a8848e8fe0e8f9b29a9b7a07c09bf79",
+      "bytes": 449
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/collection.log",
+      "sha256": "2b4f0d3e9c6696dfd08f8e5b4c5fb9a3befbc78734d6dcb508fa786b176e7416",
+      "bytes": 334
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/device/20260928-152409-diarization-windows-87053cb3/report.json",
+      "sha256": "7207a394b84a62f66a98379e2d898a2e29de7b33f305a17a1bba012573f72586",
+      "bytes": 109556
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/device/20260928-152409-diarization-windows-87053cb3/hilog.txt",
+      "sha256": "fd61f21e5c192ce4ed3d703c87a92fcde86bddc167e31297aa3d24ed5e02bc03",
+      "bytes": 1105876
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/device/20260928-152409-diarization-windows-87053cb3/memory.csv",
+      "sha256": "3f9340add3daa2a4a1a122a81a0beb164ccd27ea56e58ecbf1929f24c90ed2dc",
+      "bytes": 9678
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/device/20260928-152409-diarization-windows-87053cb3/payload/corpus.json",
+      "sha256": "b5fde04154220b923324f10493e79527ad1ecb8146c958cb5b0d1915ea5c76bd",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/diagnostics/asr-diagnostics-20260928-152719.zip",
+      "sha256": "bc34945fac1b058e598e9bf9aad8c6152d780eeae8891aa69609ca1cf9690004",
+      "bytes": 8780849
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/diagnostics/unpacked/asr-diagnostics-20260928-152719/asr-diagnostics-20260928-152719/run-1790580252557/events.full.ndjson",
+      "sha256": "f7f65cdca2fa00e83a7b487db7cacd4e69d893f21b1d6b7086645490937aeab1",
+      "bytes": 20681024
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/host-replay/result.json",
+      "sha256": "cc07757e893074eb45462758b45b29c1eae1ba612f2d10abdb3bec3848b6a021",
+      "bytes": 40679893
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-3/host-replay/provenance.json",
+      "sha256": "96126b092febcea3fe1fdcdad56f513b894252baee4ab0d1fa28f945bea015ca",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/run.json",
+      "sha256": "b6e2c09cdf3f896cf4861daa4527321bff6543e191d23e42d2f79576e70fdb79",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/console.log",
+      "sha256": "3d4c72bcb3b0eec2bb7fb5f01ad8c28e402e4822d51c9066a05c4a25f0d2bdc0",
+      "bytes": 450
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/collection.log",
+      "sha256": "675e54bb01d8e1eaa7dacc70960fe4423b47b76f70fe11d5354fc3b313ef231b",
+      "bytes": 334
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/device/20260928-152727-diarization-windows-0733be36/report.json",
+      "sha256": "b7de1f67ca6a526b96eba13d87f301a9b9a39abcb7b6d801124748797e1800cf",
+      "bytes": 184950
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/device/20260928-152727-diarization-windows-0733be36/hilog.txt",
+      "sha256": "cd9a3ecef1286df304ce359bdd093e299f854eea3c7f9dbc0b879d0b21d7e72a",
+      "bytes": 1103507
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/device/20260928-152727-diarization-windows-0733be36/memory.csv",
+      "sha256": "d1dd21bc436c138dbe3f87fc4b7d5e801656a3075247e78b34833ff55ac5611c",
+      "bytes": 9393
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/device/20260928-152727-diarization-windows-0733be36/payload/corpus.json",
+      "sha256": "d5222434e7b8baec08135be692a3c50b917ce4fe33024d72d94c68367e6f2be7",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/diagnostics/asr-diagnostics-20260928-153039.zip",
+      "sha256": "fe5dc8c3f64851f797113ab4150d308dc2bb29a3c835a5c32b6d401e078492ba",
+      "bytes": 9659136
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/diagnostics/unpacked/asr-diagnostics-20260928-153039/asr-diagnostics-20260928-153039/run-1790580450947/events.full.ndjson",
+      "sha256": "8fb54711576f6e92a612f71b7ec422c7c3866012f5fbf2f966ce8de11a78c445",
+      "bytes": 21318450
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/host-replay/result.json",
+      "sha256": "ca0ec1077015c596f6e7e726c832df26a5725fa36bcb04cce92176971f48c5a8",
+      "bytes": 37797461
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/aishell4-4/host-replay/provenance.json",
+      "sha256": "1d47f2d78a3bad20ca01a51e144c37f0cb706e42096fcd6de2de84eef0d7242b",
+      "bytes": 2427
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/run.json",
+      "sha256": "5eb97957d84e32c91a2ea832332491ab3edefd3fc37ab937de6224f856934137",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/console.log",
+      "sha256": "cc85510e27a3d6f59fc01b3da1cd6688a2b611d75f32eb02a613f7756f08651f",
+      "bytes": 451
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/collection.log",
+      "sha256": "5f1bd3b1c9e8cc35f63c15c8535715378fb61ba63440931c5448150cd77757d6",
+      "bytes": 336
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/device/20260928-153047-diarization-windows-6ea2a339/report.json",
+      "sha256": "52a14d594ae9e0ebba81d3d77e2a42d703d966622c91f4a5aaf680578c48cf1f",
+      "bytes": 215291
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/device/20260928-153047-diarization-windows-6ea2a339/hilog.txt",
+      "sha256": "8434633920bca910715741824022964f189b1f4437956462c1125365dcc39648",
+      "bytes": 1123043
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/device/20260928-153047-diarization-windows-6ea2a339/memory.csv",
+      "sha256": "0b4ef1f953471a978c65f7b8b3993124cbe5900be45fa1cae3835b3273837dea",
+      "bytes": 9533
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/device/20260928-153047-diarization-windows-6ea2a339/payload/corpus.json",
+      "sha256": "4cca1a9a041e34efd3ab0e534de87df08065897f894575e29c3f64cde7a335cd",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/diagnostics/asr-diagnostics-20260928-153359.zip",
+      "sha256": "98f01f4c297b2d9ae4a797d8a92539f9f2a3ba61cbe93bbb1da131239cb47bd2",
+      "bytes": 8995621
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/diagnostics/unpacked/asr-diagnostics-20260928-153359/asr-diagnostics-20260928-153359/run-1790580652057/events.full.ndjson",
+      "sha256": "5f350dade0391a00fc1f9d5831fd87fdae005627412ab30858e7407827c8099b",
+      "bytes": 21345984
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/host-replay/result.json",
+      "sha256": "3cb2150937b887b3e91caf1eea918c8e22e7d9b65a506ec9fcb2e0cdb0d2956d",
+      "bytes": 40799551
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting2/host-replay/provenance.json",
+      "sha256": "26df7b8e0a5a8465279ab10befdeb90100913e3e452e83e9b5e917ce54a59f66",
+      "bytes": 2429
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/run.json",
+      "sha256": "5713a03a9e5da2725998077cb3993e9e6ddb47e32a803df5e117b8b55c37951a",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/console.log",
+      "sha256": "53a1ba6542f1daf2783e0d16f1b6489d8dc7af3633dd6157beaaf5df69533e2c",
+      "bytes": 451
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/collection.log",
+      "sha256": "9fc168d807362674eb0f67e73997caa98b4f35fbaf36999c911d73c19942609c",
+      "bytes": 336
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/device/20260928-153408-diarization-windows-bef408b3/report.json",
+      "sha256": "5158fb5468269b54f3d67ad5cf8c5704661cf692b254249224f073f3a639b63b",
+      "bytes": 143132
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/device/20260928-153408-diarization-windows-bef408b3/hilog.txt",
+      "sha256": "b3baa9cb60b2c9b6bdf1b3a12a2be3a04386db63b356ce8dd99b16660b780bd7",
+      "bytes": 1107342
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/device/20260928-153408-diarization-windows-bef408b3/memory.csv",
+      "sha256": "08a6491763f6ce188d420f9c686e87bf709647826c7f04a58e6f0a8cb317d180",
+      "bytes": 9599
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/device/20260928-153408-diarization-windows-bef408b3/payload/corpus.json",
+      "sha256": "c9dacb1d8b7f2b393fcee5b7d33b25cd1a13c3be2f80080ee9fdc83514f12381",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/diagnostics/asr-diagnostics-20260928-153720.zip",
+      "sha256": "3bf2f86742d878a849e4a5bcd3219cee1ed4c9a6df0db5456968213bb1fc7fce",
+      "bytes": 8499355
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/diagnostics/unpacked/asr-diagnostics-20260928-153720/asr-diagnostics-20260928-153720/run-1790580852242/events.full.ndjson",
+      "sha256": "404aa8d60bff037ed7ed49903710e81b3543f00e90dede5b359141440789a66f",
+      "bytes": 17716553
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/host-replay/result.json",
+      "sha256": "1ef4badcde574d86a135ce9bdec1a938d852fc782877c5e4143c529086f56d7f",
+      "bytes": 23301218
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting3/host-replay/provenance.json",
+      "sha256": "c286ae1a31749bb35203ce7ab62214bbea1a4d48093b226a3c93ba8ebdb9391d",
+      "bytes": 2429
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/run.json",
+      "sha256": "a59f2f2b38f955a0b3d6199404469135ff5f58d886e7e3a050e1badab9424c6f",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/console.log",
+      "sha256": "d93c816f2883d053856c7aba96e23e5e5923f843fe1bcbf9a208246d5cbde956",
+      "bytes": 450
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/collection.log",
+      "sha256": "ebb05dbeb7a977cdf545e13736181a585f7606d3a68f6c42bd2272a1eb73aa52",
+      "bytes": 336
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/device/20260928-153728-diarization-windows-2c1e42f3/report.json",
+      "sha256": "b6ef962972f02b192bbf797db341ef228062590403cce72b2a0dfd9e102e4436",
+      "bytes": 160429
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/device/20260928-153728-diarization-windows-2c1e42f3/hilog.txt",
+      "sha256": "37b3c1114768225b5b86433ebd646c67d0e474be7181afc5a950e9a7efa5dd60",
+      "bytes": 1120456
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/device/20260928-153728-diarization-windows-2c1e42f3/memory.csv",
+      "sha256": "b6e8dd329a02c3fd65dc9e1b195659e50171c7a0ef6f39419051020f8e537ac9",
+      "bytes": 9686
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/device/20260928-153728-diarization-windows-2c1e42f3/payload/corpus.json",
+      "sha256": "82fd73a8e5d9070d69ab97d71f33a6f3e6c92b10de3e42e5c39b02c14dd8c8a0",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/diagnostics/asr-diagnostics-20260928-154038.zip",
+      "sha256": "db51cf0fa50b577b2fff8a07d80aad15d0173fdb61b21a42bffa6dce89cd4729",
+      "bytes": 9779794
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/diagnostics/unpacked/asr-diagnostics-20260928-154038/asr-diagnostics-20260928-154038/run-1790581051731/events.full.ndjson",
+      "sha256": "c722514b2e2fa283fc9b1572ff96c43585934ac2dbf959dda4b342ba579bc30a",
+      "bytes": 15227663
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/host-replay/result.json",
+      "sha256": "65dd459d3211433a0f772186ad4a397d9d29b4464c69cfc58cb89a33ebdec2bc",
+      "bytes": 12334350
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-3/alimeeting4/host-replay/provenance.json",
+      "sha256": "6c2aaaafdcef4771d28e845d60ccc59a8c54afbc9d8065b9bb51f589d59e6405",
+      "bytes": 2429
+    }
+  ],
+  "nonCanonical": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/console.log",
+      "sha256": "6d03ebb47712f2b4171468a7a67b951b013096a70e964adc8a1c800b7217ffd4",
+      "bytes": 208,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/device/20260928-143208-diarization-windows-3583c464/hilog.txt",
+      "sha256": "6a618382cec664d26d36fc925e244a73f7329f1e533623b1e0e5ff556a2c2817",
+      "bytes": 1073916,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/device/20260928-143208-diarization-windows-3583c464/inventory.json",
+      "sha256": "088baca88b44850adf70b419e05104a23c198d39f2cb6123c5f31faa7b9fa81a",
+      "bytes": 202,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/device/20260928-143208-diarization-windows-3583c464/payload/corpus.json",
+      "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a",
+      "bytes": 358,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/device/20260928-143208-diarization-windows-3583c464/payload/manifest.txt",
+      "sha256": "a226104468a15826ecb68ff5c9b3e9b2725396f80aafc78c971ffbdb45931c11",
+      "bytes": 109,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/run.json",
+      "sha256": "9d3ef9cc90da07a62fb57860414b3ad47b85fbb485cc58a691d91bdb047b5b44",
+      "bytes": 201,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/run-summary.json",
+      "sha256": "3917e8a8835fc0161d02e65c57b3b2f19957dde4ecdb3f8361bc3323fd063d62",
+      "bytes": 501,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/console.log",
+      "sha256": "3072b6e955e26ba9dbcbe28cc880731f792b640f9d078631fd200f5dc00def98",
+      "bytes": 208,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/device/20260928-143414-diarization-windows-81620228/hilog.txt",
+      "sha256": "4210bf16aa66baf22ea4d71db03f53fa2cfdff71260c3d2d2a00ed709a3e5883",
+      "bytes": 1196401,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/device/20260928-143414-diarization-windows-81620228/inventory.json",
+      "sha256": "9bd07dcad462524f18ce27bad543836e26b20cabec5c5a5352e420157d06c595",
+      "bytes": 202,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/device/20260928-143414-diarization-windows-81620228/payload/corpus.json",
+      "sha256": "3d354867e69a079129b59fc4abdc15464d2896022fda8e4bae715c0bb3eb7af5",
+      "bytes": 358,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/device/20260928-143414-diarization-windows-81620228/payload/manifest.txt",
+      "sha256": "8f43956d4932d226d5ea1438cffd0a526d6b7ed1650106e4f3ec0e515589b8c4",
+      "bytes": 109,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/run.json",
+      "sha256": "0cbf0e47e776e97888d1102bdda990d38336b3f8b21cd11f2752edb381b9a30f",
+      "bytes": 194,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/run-summary.json",
+      "sha256": "0dda5bfd194c4236a03379de3eec772e8c5fe5d1bf8b08c93dff52d12162c037",
+      "bytes": 494,
+      "reason": "killed by concurrent UpgradeApp install from another session"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/four-speaker-124s/console.log",
+      "sha256": "35345573c641811d23670505300f99af4cc72624d68efe7a77a502dbbcdcb249",
+      "bytes": 157,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/four-speaker-124s/device/20260928-150113-diarization-windows-f13af1db/inventory.json",
+      "sha256": "088baca88b44850adf70b419e05104a23c198d39f2cb6123c5f31faa7b9fa81a",
+      "bytes": 202,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/four-speaker-124s/device/20260928-150113-diarization-windows-f13af1db/payload/corpus.json",
+      "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a",
+      "bytes": 358,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/four-speaker-124s/device/20260928-150113-diarization-windows-f13af1db/payload/manifest.txt",
+      "sha256": "64a5f41ae6ff4d00ece3896cc4d2c600b2d6a54f069c6c16b2e860c718b4f5e0",
+      "bytes": 109,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/four-speaker-124s/run.json",
+      "sha256": "9d3ef9cc90da07a62fb57860414b3ad47b85fbb485cc58a691d91bdb047b5b44",
+      "bytes": 201,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors-2/run-summary.json",
+      "sha256": "3917e8a8835fc0161d02e65c57b3b2f19957dde4ecdb3f8361bc3323fd063d62",
+      "bytes": 501,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/aishell4-2/console.log",
+      "sha256": "3f8261f3e36b4afa8f89814a384f79696a300e356a9f883d66d6a1230b5885bf",
+      "bytes": 157,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/aishell4-2/device/20260928-150115-diarization-windows-26d38c39/inventory.json",
+      "sha256": "9bd07dcad462524f18ce27bad543836e26b20cabec5c5a5352e420157d06c595",
+      "bytes": 202,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/aishell4-2/device/20260928-150115-diarization-windows-26d38c39/payload/corpus.json",
+      "sha256": "3d354867e69a079129b59fc4abdc15464d2896022fda8e4bae715c0bb3eb7af5",
+      "bytes": 358,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/aishell4-2/device/20260928-150115-diarization-windows-26d38c39/payload/manifest.txt",
+      "sha256": "70866fc4ece14d53c95e82d562156ef0d226a5a5a8ba5aadfe0a8d2cbed87771",
+      "bytes": 109,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/aishell4-2/run.json",
+      "sha256": "0cbf0e47e776e97888d1102bdda990d38336b3f8b21cd11f2752edb381b9a30f",
+      "bytes": 194,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public-2/run-summary.json",
+      "sha256": "0dda5bfd194c4236a03379de3eec772e8c5fe5d1bf8b08c93dff52d12162c037",
+      "bytes": 494,
+      "reason": "carrier refused: build identity stale after HEAD advanced to a docs commit"
+    }
+  ],
+  "notCovered": [
+    "memory trend (INCONCLUSIVE on all inputs)",
+    "full 16 recordings",
+    "long meeting",
+    "Android device and Gradle tests",
+    "release matrix and caller UI screenshots"
+  ]
+}

@@ -1,8 +1,8 @@
 # UNKNOWN 回退：用有限误认换更少 UNKNOWN（2026-09-28）
 
-**结论：按用户决定，采用"没有 run 证据的语音回退到通道整窗声纹"。** 在 6 段公开片和 6 场从未参与设计的 AISHELL-4 会议（共 36 分钟）上，UNKNOWN 由 182.6 秒降至 2.1 秒，严格 DER 由 21.10% 降至 12.47%。合计误认 74.9 秒、同人换号 62 次，均低于官方 Community-1 的 93.5 秒、101 次，但高于当前 SDK 的 37.5 秒、36 次。有 2 段误认超过官方，逐段列于下文，**不宣称逐段达标**。
+**结论：按用户决定，采用"没有 run 证据的语音回退到通道整窗声纹"。** 在 6 段公开片和 6 场从未参与设计的 AISHELL-4 会议（共 36 分钟）上，UNKNOWN 由 182.6 秒降至 2.1 秒，严格 DER 由 21.10% 降至 12.47%。合计误认 74.9 秒、同人换号 62 次，均低于官方 Community-1 的 93.5 秒、101 次，但高于当前 SDK 的 37.5 秒、36 次。有 3 段误认超过官方，逐段列于下文，**不宣称逐段达标**。
 
-这是主机验证加鸿蒙构建的结果。改动已编译进 ZH_EN 诊断 HAP 并安装到 Mate80，但真机测试被本机另一会话的并发装包打断，**真机结果尚未取得**。角色分离整体仍为 BLOCKED。
+Mate80 真机上，4 个锚点和 6 段公开片的公开结果与主机生产 Session 重放逐项一致，生命周期和 native stream 全部通过。公开 6 段真机严格 DER 为 13.57%，误认 32.25 秒、换号 27 次，官方为 14.61%、44.19 秒、56 次。角色分离整体仍为 BLOCKED：内存趋势仍 INCONCLUSIVE，完整 16 段、长会议、Android 与最终发布门禁未执行。
 
 ## 用户决定与边界
 
@@ -90,18 +90,30 @@
 - Android JNI 共用源码用 NDK 26.3 按 arm64、C++17、`-fexceptions -frtti` 编译通过。没有运行 Android Gradle 单测，也没有做 Android 真机验证。
 - ZH_EN 诊断 HAP 构建、签名、安装通过。构建身份绑定 `a8340521`，source fingerprint 为 `09fd2e57…`，5 个产物的哈希已存档。
 
-## 真机：未完成
+## 真机结果
 
-四人 124 s 锚点和 AISHELL-4 2 人片在播放到约 120 秒时被系统以 `Kill Reason: UpgradeApp` 终止。同一时刻，本机另一会话正在从 `delivery-staging/asr/harmony/0.3.19` 构建，并向同一台 Mate80 安装 Demo。进程退出码为 0，没有崩溃信号，失败与本次改动无关，这两次运行作为 non-canonical 保留。
+Mate80 `7GK0226326015655`，`OpenHarmony-6.1.1.120`，ZH_EN 诊断 HAP，构建身份绑定 `a8340521`（source fingerprint `09fd2e57…`），20 ms 实时节奏，`maxSpeakers=4`。每次运行后核对安装时间，并检查 hilog 中没有 `UpgradeApp`。
 
-设备空闲后，需要在同一 HAP 上重跑 4 个锚点和 6 段公开片，核对以下三点：
+| 输入 | 严格 DER | 误认（秒） | 换号 | UNKNOWN（秒） | 手机 = 主机重放 | 生命周期 / stream | 实时性 |
+| --- | ---: | ---: | ---: | ---: | --- | --- | --- |
+| AISHELL-4 2 人 | 8.45% | 1.23 | 5 | 0 | 是 | PASS / PASS | PASS |
+| AISHELL-4 3 人 | 11.18% | 6.68 | 1 | 0 | 是 | PASS / PASS | PASS |
+| AISHELL-4 4 人 | 19.35% | 5.88 | 6 | 0 | 是 | PASS / PASS | PASS |
+| AliMeeting 2 人 | 8.67% | 0.10 | 0 | 0 | 是 | PASS / PASS | INCONCLUSIVE |
+| AliMeeting 3 人 | 13.46% | 4.64 | 10 | 0 | 是 | PASS / PASS | PASS |
+| AliMeeting 4 人 | 18.22% | 13.72 | 5 | 0 | 是 | PASS / PASS | INCONCLUSIVE |
+| **公开 6 段合计** | **13.57%** | **32.25** | **27** | 0 | — | — | — |
+| 四人 124 s | — | — | — | — | 是 | PASS / PASS | PASS |
+| 四人 20 s | — | — | — | — | 是 | PASS / PASS | INCONCLUSIVE |
+| 单人 47.8 s | — | — | — | — | 是 | PASS / PASS | INCONCLUSIVE |
+| 客户四主讲人 | — | — | — | — | 是 | PASS / PASS | PASS |
 
-1. 设备公开结果与主机生产 Session 重放逐项一致；
-2. 生命周期、native stream 和实时性门禁；
-3. 真机严格 DER。
-
-在此之前不能宣称真机验收通过。
+- **手机与主机一致。** 10 个输入的公开结果都与主机用回退版二进制重放生产 Session 的结果逐项一致。上文锚点表的人数、UNKNOWN 和可见段落数，因此同样适用于真机。
+- **真机与主机的差异。** 真机数字是 SDK 已提交窗口的结果，与主机整段历史略有不同，例如 AISHELL-4 4 人片换号在主机上为 8 次、真机为 6 次。公开合计与主机的 13.56%、32.57 秒、29 次基本一致。
+- **两段实时性为 INCONCLUSIVE。** 原因是尾段延迟中位数高于首段；排队从未超限，最大音频延迟分别为 0.96 秒和 2.88 秒。两段短锚点不足 60 秒，按现有规则只能判 INCONCLUSIVE。这些输入此前没有 1 秒 hop 下的真机基线，因此无法判断是否属于回退。
+- **内存。** 10 个输入的内存门禁全部为 INCONCLUSIVE，与此前各轮相同，阈值没有放宽。
+- **两次作废的真机运行。** 第一次，四人 124 s 锚点和 AISHELL-4 2 人片播放到约 120 秒时，被系统以 `Kill Reason: UpgradeApp` 终止：本机另一会话正从 `delivery-staging/asr/harmony/0.3.19` 向同一台设备装包，进程退出码为 0，没有崩溃信号。第二次，载体因 HEAD 已前进到文档提交，判定构建身份过期，拒绝运行。两次都作为 non-canonical 保留；有效结果来自在构建提交 `a8340521` 上、重装同一 HAP 之后的运行。
 
 ## 证据
 
-[证据索引](evidence/DIARIZATION_UNKNOWN_FALLBACK_A8340521.json)记录冻结判据、候选源码与二进制、12 个输入的快照与官方输出、门禁报告、锚点回放、构建身份、产物哈希及失败的真机现场。本地目录为 `~/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/`，远端官方输出位于 `amphion-42` 的 `runtime-e2e-20260928/hybrid-holdout/`。PCM、张量和转写不提交 Git。
+[主机证据索引](evidence/DIARIZATION_UNKNOWN_FALLBACK_A8340521.json)记录冻结判据、候选源码与二进制、12 个输入的快照与官方输出、门禁报告、锚点回放、构建身份与产物哈希。[真机证据索引](evidence/DIARIZATION_UNKNOWN_FALLBACK_DEVICE_A8340521.json)记录 10 个输入的 report、完整 events、corpus、设备与主机一致性核对、评估结果及两次作废的运行。本地目录为 `~/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/`，远端官方输出位于 `amphion-42` 的 `runtime-e2e-20260928/hybrid-holdout/`。PCM、张量和转写不提交 Git。
