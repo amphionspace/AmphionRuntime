@@ -113,7 +113,7 @@ WER / CER 评估由上游训练/评测仓库的基准流程出报告，下游不
 - 服务端跑 [bench_concurrent.py](../../asr/server/bench/bench_concurrent.py) 输出 RTF / 并发上限 / 内存 / first-partial 延迟
 - Bugly / Crashlytics / Sentry 拉上月端 crash 率
 - 拼接上游 WER 报告 URL（不重新跑 WER），写入 monthly 报告顶部
-- 与上月环比，工程指标劣化 ≥ 0.5% 自动 ticket
+- 与上月环比，工程指标劣化 ≥ 0.5% 时由负责人复核并决定是否建工单；当前脚本不自动建单或回滚
 - 报告归档到 [shared/docs/dashboard/trends/reports/](dashboard/trends/reports/)
 
 ## 5. 兼容性矩阵示例
