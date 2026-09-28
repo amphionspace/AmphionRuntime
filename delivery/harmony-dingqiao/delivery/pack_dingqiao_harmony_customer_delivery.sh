@@ -21,6 +21,9 @@ Options:
   --sdk-only  Package only the zh-en ASR HAR and public customer documents.
   --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
+
+Required environment:
+  HARMONY_API23_ES2ABC  OpenHarmony 6.1 / API 23 compiler for HAR compatibility acceptance.
 EOF
 }
 
@@ -45,6 +48,10 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
 fi
 
 BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
+if [[ -z "${HARMONY_API23_ES2ABC:-}" || ! -x "$HARMONY_API23_ES2ABC" ]]; then
+  echo "[ERROR] set HARMONY_API23_ES2ABC to the executable OpenHarmony 6.1 / API 23 es2abc" >&2
+  exit 1
+fi
 python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
 BUILD_SOURCE_COMMIT="$(python3 - "$BUILD_IDENTITY" <<'PY'
 import json
@@ -97,6 +104,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
   delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/delivery/verify_harmony_api23_compiler.py
   delivery/asr-sdk-release-history.json
   tools/delivery/asr_release_tracker.py
   delivery/harmony-dingqiao/docs/customer/LICENSE.md
@@ -547,6 +555,13 @@ PY
 
 python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
   "$OUT_ROOT/docs" "$OUT_ROOT/har/amphion_dingqiao.har"
+
+# Keep failed compiler evidence outside OUT_ROOT, which the cleanup trap removes.
+COMPILER_REPORT_DIR="$(mktemp -d "${FINAL_OUT_ROOT}.api23-compiler.XXXXXX")"
+python3 "$SCRIPT_DIR/verify_harmony_api23_compiler.py" \
+  --har "$OUT_ROOT/har/amphion_dingqiao.har" --es2abc "$HARMONY_API23_ES2ABC" \
+  --report "$COMPILER_REPORT_DIR/report.json"
+cp "$COMPILER_REPORT_DIR/report.json" "$OUT_ROOT/docs/API23_COMPILER_COMPATIBILITY.json"
 
 (
   cd "$OUT_ROOT"

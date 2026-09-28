@@ -72,6 +72,7 @@ REQUIRED_FILES = {
     "docs/third-party/Apache-2.0.txt",
     "docs/third-party/WebRTC-BSD-3-Clause.txt",
     "docs/BUILD_PROVENANCE.json",
+    "docs/API23_COMPILER_COMPATIBILITY.json",
     "docs/checksum.txt",
 }
 CHECKSUM_RE = re.compile(r"^([0-9a-f]{64})  \./(.+)$")
@@ -648,6 +649,26 @@ def validate_delivery(
     _validate_provenance(
         root, expected_version, har_evidence, verified_build_identity
     )
+    try:
+        compiler_report = json.loads(
+            (root / "docs/API23_COMPILER_COMPATIBILITY.json").read_text(encoding="utf-8")
+        )
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise DeliveryValidationError("invalid API 23 compiler report") from error
+    if not isinstance(compiler_report, dict) or (
+        compiler_report.get("schema_version") != 1
+        or compiler_report.get("gate") != "harmony-api23-compiler"
+        or compiler_report.get("status") != "PASS"
+        or compiler_report.get("har_sha256") != sha256(root / "har/amphion_dingqiao.har")
+        or re.fullmatch(r"[0-9a-f]{64}", str(compiler_report.get("compiler_sha256", ""))) is None
+    ):
+        raise DeliveryValidationError("API 23 compiler report must be PASS for the delivered HAR")
+    files = compiler_report.get("files")
+    if not isinstance(files, list) or not files or any(
+        not isinstance(item, dict) or item.get("returncode") != 0
+        or item.get("abc_generated") is not True for item in files
+    ):
+        raise DeliveryValidationError("API 23 compiler report contains missing or failed file results")
     _validate_documents(root, expected_version)
 
 
