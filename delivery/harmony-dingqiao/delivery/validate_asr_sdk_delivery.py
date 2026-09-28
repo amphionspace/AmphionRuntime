@@ -16,7 +16,6 @@ import zipfile
 
 
 MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
-MAX_SDK_ONLY_ZIP_BYTES = 320 * 1024 * 1024
 RUNTIME_IDENTITY_SOURCE_PATH = (
     Path(__file__).resolve().parents[3]
     / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
@@ -665,10 +664,6 @@ def validate_delivery_path(
         return
     if not path.is_file() or path.suffix.lower() != ".zip":
         raise DeliveryValidationError(f"delivery must be a directory or final ZIP: {path}")
-    if path.stat().st_size > MAX_SDK_ONLY_ZIP_BYTES:
-        raise DeliveryValidationError(
-            f"SDK-only ZIP exceeds {MAX_SDK_ONLY_ZIP_BYTES} bytes: {path.stat().st_size}"
-        )
     try:
         archive = zipfile.ZipFile(path)
     except (OSError, zipfile.BadZipFile) as error:
