@@ -3,6 +3,7 @@ import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizat
 import { ResultAudioTimeline } from 'amphion_asr';
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
+import { PoliceEnhanceResult, PoliceTextSpan as PoliceEnhanceSpan } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
 import deviceInfo from '@ohos.deviceInfo';
@@ -27,6 +28,7 @@ import {
   TargetSpeakerEnhancementPipeline
 } from './TargetSpeakerEnhancementStream';
 import { PoliceFinalSession } from './PoliceEnhancementPolicy';
+import { PoliceFinalText, PoliceTextProvenance, PoliceTextSpan } from './PoliceEnhancementPolicy';
 import { hasVoiceprintCapability } from './VoiceprintCapability';
 import { VoiceprintStore } from './VoiceprintStore';
 import {
@@ -191,6 +193,21 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
     const result = this.bestResult(); result.isSessionFinal = true;
     this.observer.onFinished(result);
   }
+}
+
+function policeFinalTextOf(result: PoliceEnhanceResult): PoliceFinalText {
+  const provenance = result.provenance;
+  if (provenance === undefined) return { text: result.text };
+  return {
+    text: result.text,
+    provenance: {
+      sourceText: provenance.sourceText,
+      spans: provenance.spans.map((span: PoliceEnhanceSpan): PoliceTextSpan => ({
+        sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+        textBegin: span.textBegin, textEnd: span.textEnd,
+      })),
+    },
+  };
 }
 
 function fileDurationMs(path: string): number {
@@ -487,7 +504,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.partialEnabled = this.partialRequested;
       this.policeFinalSession = new PoliceFinalSession(
         strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
-        (rawText: string): string => this.enhancePipeline.enhance(rawText).text
+        (rawText: string): PoliceFinalText => policeFinalTextOf(this.enhancePipeline.enhance(rawText))
       );
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
@@ -848,14 +865,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     finalSession.dispatch(
       payload,
       result.text,
-      (): void => {
+      (provenance?: PoliceTextProvenance): void => {
         this.diagnosticResult(sessionId, payload);
         const diarization = this.speakerDiarizationSession;
         if (diarization === undefined) {
           this.listener?.onResult?.(sessionId, payload);
           return;
         }
-        diarization.observeAsrFinal(payload, result);
+        diarization.observeAsrFinal(payload, result, provenance);
         if (payload.isLast) {
           this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
         } else {

@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { PoliceAssetPair, PoliceAssets } from './PoliceAssets';
+import { PoliceTextEdit, PoliceTextTrace, replaceLiteral, replaceMatches } from './PoliceTextTrace';
 
 class TermMatch {
   term: string;
@@ -46,25 +47,28 @@ class TermsHomophones {
     this.pairs = pairs;
   }
 
-  apply(text: string): string {
+  apply(text: string, trace?: PoliceTextTrace): string {
     let output = text;
     for (let i = 0; i < this.pairs.length; i++) {
       const pair = this.pairs[i];
       if (pair.from === pair.to) continue;
+      const edits: PoliceTextEdit[] = [];
+      const current = output;
       if (pair.from === '出警人员') {
         // 催促出发和登记出警人员姓名均保留「出警」，不能强制改成现场处置含义。
-        output = output.replace(/出警人员/g, (value: string, offset: number): string =>
-          output.substring(0, offset).endsWith('催促') ||
-          output.substring(offset + value.length).startsWith('姓名') ? value : pair.to);
+        output = replaceMatches(current, /出警人员/g, edits, (value: string, groups: string[], offset: number): string =>
+          current.substring(0, offset).endsWith('催促') ||
+          current.substring(offset + value.length).startsWith('姓名') ? value : pair.to);
       } else {
         output = pair.to.startsWith(pair.from) ?
-          this.replaceExtending(output, pair.from, pair.to) : output.split(pair.from).join(pair.to);
+          this.replaceExtending(current, pair.from, pair.to, edits) : replaceLiteral(current, pair.from, pair.to, edits);
       }
+      trace?.step(current, output, edits);
     }
     return output;
   }
 
-  private replaceExtending(text: string, from: string, to: string): string {
+  private replaceExtending(text: string, from: string, to: string, edits: PoliceTextEdit[]): string {
     let output = '';
     let cursor = 0;
     while (cursor <= text.length) {
@@ -76,6 +80,7 @@ class TermsHomophones {
         cursor = index + to.length;
       } else {
         output += to;
+        edits.push(new PoliceTextEdit(index, index + from.length, to));
         cursor = index + from.length;
       }
     }
@@ -100,7 +105,7 @@ class TermsExactHomophones {
     }
   }
 
-  applyWholeUtterance(text: string): string {
+  applyWholeUtterance(text: string, trace?: PoliceTextTrace): string {
     let start = 0;
     while (start < text.length && TermsExactHomophones.isWhitespace(text.charAt(start))) start++;
     if (start >= text.length) return text;
@@ -116,7 +121,9 @@ class TermsExactHomophones {
 
     const target = this.mappings.get(text.substring(start, end));
     if (target === undefined) return text;
-    return text.substring(0, start) + target + text.substring(end);
+    const output = text.substring(0, start) + target + text.substring(end);
+    trace?.step(text, output, [new PoliceTextEdit(start, end, target)]);
+    return output;
   }
 
   private static isWhitespace(value: string): boolean {
@@ -146,8 +153,9 @@ class RadioDigits {
       RadioDigits.WEAK.has(value) || RadioDigits.MISHEAR.has(value);
   }
 
-  static normalize(text: string): string {
+  static normalize(text: string, trace?: PoliceTextTrace): string {
     let output = '';
+    const edits: PoliceTextEdit[] = [];
     let i = 0;
     while (i < text.length) {
       if (!RadioDigits.isConvertible(text.charAt(i))) {
@@ -156,9 +164,13 @@ class RadioDigits {
       }
       let end = i;
       while (end < text.length && RadioDigits.isConvertible(text.charAt(end))) end++;
-      output += RadioDigits.convertSegment(text.substring(i, end));
+      const segment = text.substring(i, end);
+      const converted = RadioDigits.convertSegment(segment);
+      if (converted !== segment) edits.push(new PoliceTextEdit(i, end, converted));
+      output += converted;
       i = end;
     }
+    trace?.step(text, output, edits);
     return output;
   }
 
@@ -197,9 +209,10 @@ class DengluGuard {
     '作', '演', '舰', '艇', '部', '战', '岛', '滩', '沿', '海', '月'
   ]);
 
-  static apply(text: string): string {
+  static apply(text: string, trace?: PoliceTextTrace): string {
     if (text.indexOf(DengluGuard.VARIANT) < 0) return text;
     let output = '';
+    const edits: PoliceTextEdit[] = [];
     let i = 0;
     while (i <= text.length) {
       const idx = text.indexOf(DengluGuard.VARIANT, i);
@@ -219,9 +232,11 @@ class DengluGuard {
           break;
         }
       }
+      if (!collide && hasCtx) edits.push(new PoliceTextEdit(idx, end, '登录'));
       output += (!collide && hasCtx) ? '登录' : DengluGuard.VARIANT;
       i = end;
     }
+    trace?.step(text, output, edits);
     return output;
   }
 }
@@ -274,17 +289,17 @@ class PoliceShortTermGuard {
     '女性接触颈', '女性接触景', '女性接触警', '女性接触井'
   ];
 
-  static apply(text: string): string {
+  static apply(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0) return text;
 
     let whole = PoliceShortTermGuard.replaceWholeUtterance(
-      text, PoliceShortTermGuard.ZHIXIN_JIECHUJING_VARIANTS, '指信接处警');
+      text, PoliceShortTermGuard.ZHIXIN_JIECHUJING_VARIANTS, '指信接处警', trace);
     if (whole !== undefined) return whole;
     whole = PoliceShortTermGuard.replaceWholeUtterance(
-      text, PoliceShortTermGuard.JUCHUAN_VARIANTS, '拘传');
+      text, PoliceShortTermGuard.JUCHUAN_VARIANTS, '拘传', trace);
     if (whole !== undefined) return whole;
     whole = PoliceShortTermGuard.replaceWholeUtterance(
-      text, PoliceShortTermGuard.JIECHUJING_VARIANTS, '接处警');
+      text, PoliceShortTermGuard.JIECHUJING_VARIANTS, '接处警', trace);
     if (whole !== undefined) return whole;
 
     let output = PoliceShortTermGuard.replaceWithAnchors(
@@ -292,20 +307,23 @@ class PoliceShortTermGuard {
       PoliceShortTermGuard.JUCHUAN_VARIANTS,
       '拘传',
       PoliceShortTermGuard.JUCHUAN_BEFORE,
-      PoliceShortTermGuard.JUCHUAN_AFTER);
+      PoliceShortTermGuard.JUCHUAN_AFTER,
+      trace);
     output = PoliceShortTermGuard.replaceWithAnchors(
       output,
       PoliceShortTermGuard.JIECHUJING_VARIANTS,
       '接处警',
       PoliceShortTermGuard.JIECHUJING_BEFORE,
-      PoliceShortTermGuard.JIECHUJING_AFTER);
+      PoliceShortTermGuard.JIECHUJING_AFTER,
+      trace);
     return output;
   }
 
   private static replaceWholeUtterance(
     text: string,
     variants: string[],
-    target: string
+    target: string,
+    trace?: PoliceTextTrace
   ): string | undefined {
     let start = 0;
     while (start < text.length && PoliceShortTermGuard.isWhitespace(text.charAt(start))) start++;
@@ -322,7 +340,9 @@ class PoliceShortTermGuard {
 
     const core = text.substring(start, end);
     if (variants.indexOf(core) < 0) return undefined;
-    return text.substring(0, start) + target + text.substring(end);
+    const output = text.substring(0, start) + target + text.substring(end);
+    trace?.step(text, output, [new PoliceTextEdit(start, end, target)]);
+    return output;
   }
 
   private static replaceWithAnchors(
@@ -330,11 +350,16 @@ class PoliceShortTermGuard {
     variants: string[],
     target: string,
     beforeAnchors: string[],
-    afterAnchors: string[]
+    afterAnchors: string[],
+    trace?: PoliceTextTrace
   ): string {
     let output = text;
     for (let v = 0; v < variants.length; v++) {
       const variant = variants[v];
+      const passInput = output;
+      const edits: PoliceTextEdit[] = [];
+      // Replacements move left to right; shift maps them back to passInput.
+      let shift = 0;
       let from = 0;
       while (from < output.length) {
         const index = output.indexOf(variant, from);
@@ -346,11 +371,14 @@ class PoliceShortTermGuard {
           PoliceShortTermGuard.startsWithAny(after, afterAnchors);
         if (accepted) {
           output = output.substring(0, index) + target + output.substring(end);
+          edits.push(new PoliceTextEdit(index - shift, end - shift, target));
+          shift += target.length - variant.length;
           from = index + target.length;
         } else {
           from = end;
         }
       }
+      trace?.step(passInput, output, edits);
     }
     return output;
   }
@@ -389,13 +417,14 @@ class EJingbaoGuard {
     new EJingbaoVariant('义警保', ['安', '护', '险', '障', '卫', '洁', '持', '密'])
   ];
 
-  static apply(text: string): string {
+  static apply(text: string, trace?: PoliceTextTrace): string {
     if (text.length < 3) return text;
     let out = text;
     for (let v = 0; v < EJingbaoGuard.VARIANTS.length; v++) {
       const item = EJingbaoGuard.VARIANTS[v];
       if (out.indexOf(item.variant) < 0) continue;
       let result = '';
+      const edits: PoliceTextEdit[] = [];
       let from = 0;
       while (from <= out.length) {
         const index = out.indexOf(item.variant, from);
@@ -425,9 +454,11 @@ class EJingbaoGuard {
             break;
           }
         }
+        if (!collide && (hasAfterCtx || hasOpenVerb)) edits.push(new PoliceTextEdit(index, end, EJingbaoGuard.TARGET));
         result += (!collide && (hasAfterCtx || hasOpenVerb)) ? EJingbaoGuard.TARGET : item.variant;
         from = end;
       }
+      trace?.step(out, result, edits);
       out = result;
     }
     return out;
@@ -463,7 +494,7 @@ class QingZhiXingGuard {
     new QzxVariant('停止航', ['班', '行', '道', '向', '线'])
   ];
 
-  static apply(text: string): string {
+  static apply(text: string, trace?: PoliceTextTrace): string {
     if (text.length < 3) return text;
     let out = text;
     for (let v = 0; v < QingZhiXingGuard.VARIANTS.length; v++) {
@@ -471,6 +502,7 @@ class QingZhiXingGuard {
       const variant = item.variant;
       if (out.indexOf(variant) < 0) continue;
       let sb = '';
+      const edits: PoliceTextEdit[] = [];
       let i = 0;
       while (i <= out.length) {
         const idx = out.indexOf(variant, i);
@@ -500,9 +532,11 @@ class QingZhiXingGuard {
             break;
           }
         }
+        if (!collide && (hasAfterCtx || hasOpenVerb)) edits.push(new PoliceTextEdit(idx, end, QingZhiXingGuard.TARGET));
         sb += (!collide && (hasAfterCtx || hasOpenVerb)) ? QingZhiXingGuard.TARGET : variant;
         i = end;
       }
+      trace?.step(out, sb, edits);
       out = sb;
     }
     return out;
@@ -553,56 +587,58 @@ export class PoliceTermsV2 {
     this.readingMap = new TermReadingMap(pairs);
   }
 
-  normalize(text: string): string {
+  normalize(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0) return text;
     // 顺序对齐 Android：整句误识 → 同音映射 → 短词护栏 → e警保/情指行/登录护栏 → 保守模糊层 → 电台音标数字。
-    const exactCorrected = this.exactHomophones.applyWholeUtterance(text);
+    const exactCorrected = this.exactHomophones.applyWholeUtterance(text, trace);
     const exactMatched = exactCorrected !== text;
-    const global = this.homophones.apply(exactCorrected);
-    const shortGuarded = PoliceShortTermGuard.apply(global);
-    const appNameGuarded = EJingbaoGuard.apply(shortGuarded);
-    const guarded = DengluGuard.apply(QingZhiXingGuard.apply(appNameGuarded));
+    const global = this.homophones.apply(exactCorrected, trace);
+    const shortGuarded = PoliceShortTermGuard.apply(global, trace);
+    const appNameGuarded = EJingbaoGuard.apply(shortGuarded, trace);
+    const guarded = DengluGuard.apply(QingZhiXingGuard.apply(appNameGuarded, trace), trace);
     const corrected = RadioDigits.normalize(
-      exactMatched ? guarded : this.fuzzyCorrect(guarded));
-    return this.polish(corrected);
+      exactMatched ? guarded : this.fuzzyCorrect(guarded, trace), trace);
+    return this.polish(corrected, trace);
   }
 
   /** 管线末段润色；与 Android PoliceTermsNormalizerV2.polish 保持同序。 */
-  polish(text: string): string {
+  polish(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0) return text;
-    const formatted = this.normalizeArrivalScenePrefix(this.formatVoiceCommands(text));
-    return this.homophones.apply(formatted);
+    const formatted = this.normalizeArrivalScenePrefix(this.formatVoiceCommands(text, trace), trace);
+    return this.homophones.apply(formatted, trace);
   }
 
-  private normalizeArrivalScenePrefix(text: string): string {
-    return text.replace(
-      PoliceTermsV2.ARRIVAL_SCENE_PREFIX,
-      (_match: string, boundary: string): string => `${boundary}我已到达现场`
-    );
+  private normalizeArrivalScenePrefix(text: string, trace?: PoliceTextTrace): string {
+    const edits: PoliceTextEdit[] = [];
+    const output = replaceMatches(text, PoliceTermsV2.ARRIVAL_SCENE_PREFIX, edits,
+      (_match: string, groups: string[], _offset: number): string => `${groups[0]}我已到达现场`);
+    trace?.step(text, output, edits);
+    return output;
   }
 
-  private formatVoiceCommands(text: string): string {
-    let output = text;
-    output = output.replace(
-      PoliceTermsV2.ID_DIGIT_SPACES,
-      (_match: string, prefix: string, digits: string): string =>
-        `${prefix}：${digits.split(' ').join('')}`
-    );
-    output = output.replace(
-      PoliceTermsV2.PLATE_CMD_COMPACT,
-      (_match: string, prefix: string, province: string, city: string,
-        serial: string, digits: string): string =>
-        `${prefix}：${province}${city} ${serial}${digits}`
-    );
-    return this.normalizeWeComNames(output);
+  private formatVoiceCommands(text: string, trace?: PoliceTextTrace): string {
+    const idEdits: PoliceTextEdit[] = [];
+    const ids = replaceMatches(text, PoliceTermsV2.ID_DIGIT_SPACES, idEdits,
+      (_match: string, groups: string[], _offset: number): string =>
+        `${groups[0]}：${groups[1].split(' ').join('')}`);
+    trace?.step(text, ids, idEdits);
+    const plateEdits: PoliceTextEdit[] = [];
+    const plates = replaceMatches(ids, PoliceTermsV2.PLATE_CMD_COMPACT, plateEdits,
+      (_match: string, groups: string[], _offset: number): string =>
+        `${groups[0]}：${groups[1]}${groups[2]} ${groups[3]}${groups[4]}`);
+    trace?.step(ids, plates, plateEdits);
+    return this.normalizeWeComNames(plates, trace);
   }
 
-  private normalizeWeComNames(text: string): string {
-    let output = text.replace(PoliceTermsV2.WECOM_AFTER_YONG, '用WeCom向');
-    output = output.replace(
-      PoliceTermsV2.WECOM_BEFORE_CALL,
-      (_match: string, _name: string, suffix: string): string => `WeCom${suffix}`
-    );
+  private normalizeWeComNames(text: string, trace?: PoliceTextTrace): string {
+    const afterEdits: PoliceTextEdit[] = [];
+    const after = replaceMatches(text, PoliceTermsV2.WECOM_AFTER_YONG, afterEdits,
+      (_match: string, _groups: string[], _offset: number): string => '用WeCom向');
+    trace?.step(text, after, afterEdits);
+    const beforeEdits: PoliceTextEdit[] = [];
+    const output = replaceMatches(after, PoliceTermsV2.WECOM_BEFORE_CALL, beforeEdits,
+      (_match: string, groups: string[], _offset: number): string => `WeCom${groups[1]}`);
+    trace?.step(after, output, beforeEdits);
     return output;
   }
 
@@ -610,9 +646,10 @@ export class PoliceTermsV2 {
     return length >= 7 ? 2 : 1;
   }
 
-  private fuzzyCorrect(text: string): string {
+  private fuzzyCorrect(text: string, trace?: PoliceTextTrace): string {
     const protectedShortTerms: string[] = ['已签警单', '已签警情', '签警单', '签警情'];
     let output = '';
+    const edits: PoliceTextEdit[] = [];
     let i = 0;
     while (i < text.length) {
       let protectedTerm = '';
@@ -631,10 +668,14 @@ export class PoliceTermsV2 {
       if (match === undefined) {
         output += text.charAt(i++);
       } else {
+        if (match.term !== text.substring(i, i + match.consumed)) {
+          edits.push(new PoliceTextEdit(i, i + match.consumed, match.term));
+        }
         output += match.term;
         i += match.consumed;
       }
     }
+    trace?.step(text, output, edits);
     return output;
   }
 

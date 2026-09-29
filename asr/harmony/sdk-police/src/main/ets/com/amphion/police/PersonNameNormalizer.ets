@@ -3,6 +3,7 @@ import { fileIo as fs } from '@kit.CoreFileKit';
 import { LacPersonNer, PersonEntitySpan } from 'amphion_asr';
 import { PersonNameMatcher, PersonSpan } from './PersonNameMatcher';
 import { PoliceAssets } from './PoliceAssets';
+import { PoliceTextTrace } from './PoliceTextTrace';
 
 const LAC_RAW_ROOT: string = 'amphion-police/lac/v1';
 const LAC_FILES: string[] = [
@@ -43,14 +44,14 @@ export class PersonNameNormalizer {
     );
   }
 
-  normalize(text: string): string {
+  normalize(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0) return text;
     const nativeSpans: PersonEntitySpan[] = this.ner.findPersonSpans(text);
     const spans: PersonSpan[] = [];
     for (let i = 0; i < nativeSpans.length; i++) {
       spans.push({ start: nativeSpans[i].start, end: nativeSpans[i].end });
     }
-    return this.matcher.normalize(text, spans);
+    return this.matcher.normalize(text, spans, trace);
   }
 
   close(): void { this.ner.close(); }

@@ -1,5 +1,6 @@
 import { common } from '@kit.AbilityKit';
 import { PoliceAssetPair, PoliceAssets } from './PoliceAssets';
+import { PoliceTextEdit, PoliceTextTrace, replaceMatches } from './PoliceTextTrace';
 
 class ProvinceSpec {
   char: string;
@@ -226,7 +227,7 @@ class PlateExactResiduals {
     }
   }
 
-  applyWholeUtterance(text: string): string {
+  applyWholeUtterance(text: string, trace?: PoliceTextTrace): string {
     let start = 0;
     while (start < text.length && text.charAt(start).trim().length === 0) start++;
     if (start >= text.length) return text;
@@ -241,7 +242,19 @@ class PlateExactResiduals {
 
     const target = this.mappings.get(text.substring(start, end));
     if (target === undefined) return text;
-    return text.substring(0, start) + target + text.substring(end);
+    const output = text.substring(0, start) + target + text.substring(end);
+    trace?.step(text, output, [new PoliceTextEdit(start, end, target)]);
+    return output;
+  }
+}
+
+class PlateRewrite {
+  pattern: RegExp;
+  value: string;
+
+  constructor(pattern: RegExp, value: string) {
+    this.pattern = pattern;
+    this.value = value;
   }
 }
 
@@ -268,6 +281,26 @@ class DeduplicatedChars {
 }
 
 export class PlateV2 {
+  // Applied in order after the cp5500 residual patterns.
+  private static readonly STRUCTURAL_REWRITES: PlateRewrite[] = [
+    new PlateRewrite(/沪19374/g, '沪F19374'),
+    new PlateRewrite(/建易60538/g, '晋E60538'),
+    new PlateRewrite(/净K/g, '晋K'), new PlateRewrite(/进这/g, '晋J'), new PlateRewrite(/建寨/g, '晋J'),
+    new PlateRewrite(/建债/g, '晋J'), new PlateRewrite(/近债/g, '晋J'), new PlateRewrite(/这这/g, '浙J'),
+    new PlateRewrite(/(?<![A-HJ-NP-Z])京(?=49372)/g, '京R'),
+    new PlateRewrite(/(经|金)债\s*95376/g, '京J95376'), new PlateRewrite(/京寨\s*95376/g, '京J95376'),
+    new PlateRewrite(/GC\s*84915|冀C84915|及418\s*4915/g, '吉C84915'),
+    new PlateRewrite(/GF\s*19374|冀F19374/g, '吉F19374'),
+    new PlateRewrite(/GH\s*28491|G\s*H\s*28491|冀H28491/g, '吉H28491'),
+    new PlateRewrite(/GJ\s*63745|G\s*J\s*63745|冀J63745/g, '吉J63745'),
+    new PlateRewrite(/GK\s*41258|G\s*K\s*41258|冀K41258/g, '吉K41258'),
+    new PlateRewrite(/G\s*G\s*75826|G智75826|冀G75826/g, '吉G75826'),
+    new PlateRewrite(/及G\s*63745/g, '吉J63745'), new PlateRewrite(/及G\s*75826/g, '吉G75826'),
+    new PlateRewrite(/G智75826/g, '吉G75826'), new PlateRewrite(/及质疑7586/g, '吉G75826'),
+    new PlateRewrite(/及G\s*7586(?=车辆)/g, '吉G75826'),
+    new PlateRewrite(/请帮忙查询G\s*63745/g, '请帮忙查询吉J63745'),
+    new PlateRewrite(/晚安92080/g, '皖N92080'), new PlateRewrite(/云R\s*293\s*627/g, '云R93627')
+  ];
   private static readonly MAX_COMBOS: number = 256;
   private static readonly MAX_BODY_CHARS: number = 9;
   private static readonly MAX_RISKY_UNANCHORED: number = 1;
@@ -309,11 +342,11 @@ export class PlateV2 {
     ];
   }
 
-  normalize(text: string): string {
+  normalize(text: string, trace?: PoliceTextTrace): string {
     if (text.length === 0) return text;
-    const exact = this.exactResiduals.applyWholeUtterance(text);
+    const exact = this.exactResiduals.applyWholeUtterance(text, trace);
     if (exact !== text) return exact;
-    const input = this.preprocessStructuralMishears(text);
+    const input = this.preprocessStructuralMishears(text, trace);
     const spans: PlateSpanV2[] = [];
     let i = 0;
     while (i < input.length) {
@@ -331,46 +364,45 @@ export class PlateV2 {
     if (this.contextProvinces.length > 0) this.appendContextProvinceSpans(input, spans);
     spans.sort((a: PlateSpanV2, b: PlateSpanV2): number => b.start - a.start);
     let output = input;
+    const edits: PoliceTextEdit[] = [];
     for (let s = 0; s < spans.length; s++) {
+      if (spans[s].normalized !== input.substring(spans[s].start, spans[s].end)) {
+        edits.unshift(new PoliceTextEdit(spans[s].start, spans[s].end, spans[s].normalized));
+      }
       output = output.substring(0, spans[s].start) + spans[s].normalized + output.substring(spans[s].end);
+    }
+    trace?.step(input, output, edits);
+    return output;
+  }
+
+  private preprocessStructuralMishears(text: string, trace?: PoliceTextTrace): string {
+    let output = this.rewriteCp5500JiRResiduals(text, trace);
+    for (let i = 0; i < PlateV2.STRUCTURAL_REWRITES.length; i++) {
+      const rewrite = PlateV2.STRUCTURAL_REWRITES[i];
+      const edits: PoliceTextEdit[] = [];
+      const next = replaceMatches(output, rewrite.pattern, edits,
+        (_matched: string, _groups: string[], _offset: number): string => rewrite.value);
+      trace?.step(output, next, edits);
+      output = next;
     }
     return output;
   }
 
-  private preprocessStructuralMishears(text: string): string {
-    return this.rewriteCp5500JiRResiduals(text)
-      .replace(/沪19374/g, '沪F19374')
-      .replace(/建易60538/g, '晋E60538')
-      .replace(/净K/g, '晋K').replace(/进这/g, '晋J').replace(/建寨/g, '晋J')
-      .replace(/建债/g, '晋J').replace(/近债/g, '晋J').replace(/这这/g, '浙J')
-      .replace(/(?<![A-HJ-NP-Z])京(?=49372)/g, '京R')
-      .replace(/(经|金)债\s*95376/g, '京J95376').replace(/京寨\s*95376/g, '京J95376')
-      .replace(/GC\s*84915|冀C84915|及418\s*4915/g, '吉C84915')
-      .replace(/GF\s*19374|冀F19374/g, '吉F19374')
-      .replace(/GH\s*28491|G\s*H\s*28491|冀H28491/g, '吉H28491')
-      .replace(/GJ\s*63745|G\s*J\s*63745|冀J63745/g, '吉J63745')
-      .replace(/GK\s*41258|G\s*K\s*41258|冀K41258/g, '吉K41258')
-      .replace(/G\s*G\s*75826|G智75826|冀G75826/g, '吉G75826')
-      .replace(/及G\s*63745/g, '吉J63745').replace(/及G\s*75826/g, '吉G75826')
-      .replace(/G智75826/g, '吉G75826').replace(/及质疑7586/g, '吉G75826')
-      .replace(/及G\s*7586(?=车辆)/g, '吉G75826')
-      .replace(/请帮忙查询G\s*63745/g, '请帮忙查询吉J63745')
-      .replace(/晚安92080/g, '皖N92080').replace(/云R\s*293\s*627/g, '云R93627');
-  }
-
-  private rewriteCp5500JiRResiduals(text: string): string {
+  private rewriteCp5500JiRResiduals(text: string, trace?: PoliceTextTrace): string {
     let output = text;
     for (let i = 0; i < this.cp5500JiRPatterns.length; i++) {
-      output = output.replace(
-        this.cp5500JiRPatterns[i],
-        (matched: string, serialWithGaps: string, offset: number): string => {
+      const current = output;
+      const edits: PoliceTextEdit[] = [];
+      output = replaceMatches(current, this.cp5500JiRPatterns[i], edits,
+        (matched: string, groups: string[], offset: number): string => {
           const requirePlateNoun = i === 2;
-          if (!this.hasExplicitPlateContext(output, offset, offset + matched.length, requirePlateNoun)) return matched;
-          const serial = serialWithGaps.replace(/[^0-9]/g, '');
+          if (!this.hasExplicitPlateContext(current, offset, offset + matched.length, requirePlateNoun)) return matched;
+          const serial = groups[0].replace(/[^0-9]/g, '');
           const plate = `冀R${serial}`;
           return serial.length === 5 && this.validator.isValid(plate) ? plate : matched;
         }
       );
+      trace?.step(current, output, edits);
     }
     return output;
   }

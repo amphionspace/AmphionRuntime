@@ -114,7 +114,7 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
             import assert from 'node:assert/strict';
             import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
             let calls = 0;
-            const enhance = (raw) => {{ calls += 1; return `${{raw}}-增强`; }};
+            const enhance = (raw) => {{ calls += 1; return {{ text: `${{raw}}-增强` }}; }};
             const callbacks = [];
             const listener = {{
               onResult: (sessionId, payload) => callbacks.push(
@@ -153,6 +153,37 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         engine = HARMONY_ENGINE.read_text(encoding="utf-8")
         self.assertIn("import { PoliceFinalSession } from './PoliceEnhancementPolicy';", engine)
         self.assertIn("finalSession.dispatch(", engine)
+
+    def test_harmony_final_session_forwards_enhancer_provenance_for_its_own_input(self) -> None:
+        script = textwrap.dedent(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ PoliceFinalSession }} from {HARMONY_POLICY.as_uri()!r};
+            const source = '先讨论方案，这这个我理解，然后继续。';
+            const spans = [{{ sourceBegin: 0, sourceEnd: 6, textBegin: 0, textEnd: 6 }},
+              {{ sourceBegin: 6, sourceEnd: 8, textBegin: 6, textEnd: 8 }},
+              {{ sourceBegin: 8, sourceEnd: 18, textBegin: 8, textEnd: 18 }}];
+            const rewrite = (text) => text.replace(/这这/g, '浙J');
+            const run = (enabled, enhance, raw = source) => {{
+              const payload = {{ result: '', isLast: false }};
+              let forwarded = 'not called';
+              new PoliceFinalSession(enabled, enhance).dispatch(payload, raw, (p) => {{ forwarded = p; }}, () => {{}});
+              return [payload.result, forwarded];
+            }};
+            const provenance = {{ sourceText: source, spans }};
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t), provenance }})), [rewrite(source), provenance]);
+            // Unchanged text, disabled enhancement, missing records, or records of another input carry nothing.
+            assert.deepEqual(run(true, (t) => ({{ text: t, provenance }})), [source, undefined]);
+            assert.deepEqual(run(false, (t) => ({{ text: rewrite(t), provenance }})), [source, undefined]);
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t) }})), [rewrite(source), undefined]);
+            assert.deepEqual(run(true, (t) => ({{ text: rewrite(t), provenance }}), '这这个。'), ['浙J个。', undefined]);
+            """
+        )
+        subprocess.run(
+            ["node", "--experimental-strip-types", "--input-type=module", "-e", script],
+            check=True,
+            cwd=REPO_ROOT,
+        )
 
 
 if __name__ == "__main__":
