@@ -241,7 +241,10 @@ import zipfile
 aar_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
-    "assets/amphion-dingqiao/campplus.onnx": 26 * 1024 * 1024,
+    "assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx": 21_301_300,
+    "assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx": 5_264_664,
+    "assets/amphion-dingqiao/community-feature.f32": 83_840,
+    "assets/amphion-dingqiao/community-plda.f64": 398_352,
     "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
     "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
     "assets/lac/v1/lac_crf_transitions.npy": 1024,
@@ -371,7 +374,10 @@ import zipfile
 apk_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
-    "assets/amphion-dingqiao/campplus.onnx": 26 * 1024 * 1024,
+    "assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx": 21_301_300,
+    "assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx": 5_264_664,
+    "assets/amphion-dingqiao/community-feature.f32": 83_840,
+    "assets/amphion-dingqiao/community-plda.f64": 398_352,
     "assets/amphion-dingqiao/pyannote-segmentation-3.0.onnx": 5 * 1024 * 1024,
     "assets/lac/v1/lac_encoder.onnx": 20 * 1024 * 1024,
     "assets/lac/v1/lac_crf_transitions.npy": 1024,

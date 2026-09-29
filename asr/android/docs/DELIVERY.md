@@ -1,6 +1,8 @@
 # Amphion Android SDK 交付指南（给我们自己看）
 
-适用 SDK 版本：0.3.8
+适用 SDK 版本：0.3.9
+
+本文描述核心 `:sdk` AAR 的构建与交付边界。鼎桥双端交付使用[统一流程](../../../delivery/ASR_DELIVERY_WORKFLOW.md)和[Android 完整包规范](../../../delivery/android-dingqiao/DEFAULT_DELIVERY.md)，不可用下方核心 AAR 清单替代完整包。
 
 > 本文是「我们怎么把 SDK 交付给业务方」的内部 SOP。业务方只需要看 [INTEGRATION.md](INTEGRATION.md) 和 [PRIVACY.md](PRIVACY.md)。
 
@@ -340,9 +342,9 @@ adb shell am start -n com.amphion.asr.sample.eval/com.amphion.asr.sample.eval.La
 ```bash
 python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
-  --device-id-file <设备SN清单> --customer "<客户名>" --license-id <编号> \
-  --expires <yyyy-MM-dd 或留空=永久> --install-tier <档位> \
-  --features <逗号分隔> --cert-sha256 <证书SHA256或留空> \
+  --device-id-file '<设备SN清单>' --customer "<客户名>" --license-id '<编号>' \
+  --expires '<yyyy-MM-dd 或留空=永久>' --install-tier '<档位>' \
+  --features '<逗号分隔>' --cert-sha256 '<证书SHA256或留空>' \
   --out amphion-license.lic
 ```
 

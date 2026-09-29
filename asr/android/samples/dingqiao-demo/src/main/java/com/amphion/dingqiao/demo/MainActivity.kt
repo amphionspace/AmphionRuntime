@@ -100,9 +100,11 @@ class MainActivity : AppCompatActivity() {
         val overlap: Boolean,
         val beginTime: Int,
         val speakerParts: List<DiarizedUtterance> = emptyList(),
+        val revision: Int = 0,
     )
     private val finalizedUtteranceIds = mutableSetOf<String>()
     private var lastDiarizationWindowIndex = -1
+    private var diarizationDegradedStatus: String? = null
     private val meetingLines = linkedMapOf<String, MeetingLine>()
 
     private var engine: SpeechRecognitionEngine? = null
@@ -475,6 +477,7 @@ class MainActivity : AppCompatActivity() {
                 val previous = meetingLines[update.utteranceId] ?: return@runOnUiThread
                 meetingLines[update.utteranceId] = previous.copy(
                     speakerIndex = update.speakerIndex,
+                    revision = update.revision,
                     secondarySpeakerIndexes = update.secondarySpeakerIndexes,
                     confidence = update.confidence,
                     overlap = false, // Only the finalized acoustic overlap flag establishes overlap.
@@ -513,7 +516,8 @@ class MainActivity : AppCompatActivity() {
                     renderMeetingLines()
                 }
                 if (result.degraded) {
-                    setStatus(getString(R.string.diarization_degraded, result.degradedReason.name))
+                    diarizationDegradedStatus = getString(R.string.diarization_degraded, result.degradedReason.name)
+                    setStatus(checkNotNull(diarizationDegradedStatus))
                 }
             }
         }
@@ -549,6 +553,7 @@ class MainActivity : AppCompatActivity() {
         liveCompareText = ""
         replayCompareText = ""
         liveHasCompleted = false
+        diarizationDegradedStatus = null
         replayHasCompleted = false
         compareInfo = ""
         etCaseNote.setText("")
@@ -809,14 +814,14 @@ class MainActivity : AppCompatActivity() {
             finishActiveDebugRecord(DebugRecordStore.STATUS_COMPLETED)
             writeSdkCaptureMetadataBestEffort()
             updateCaptureUi()
-            releaseModel("SDK 已按 VAD/最长时长自动结束 · 模型已卸载")
+            releaseModel(diarizationDegradedStatus ?: "SDK 已按 VAD/最长时长自动结束 · 模型已卸载")
         } else {
             liveHasCompleted = true
             finishActiveDebugRecord(DebugRecordStore.STATUS_COMPLETED)
             writeSdkCaptureMetadataBestEffort()
             updateCaptureUi()
             releaseModel(
-                if (captureReady) "SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载"
+                diarizationDegradedStatus ?: if (captureReady) "SDK PCM 已保存 · 可试听或原样重新识别 · 模型已卸载"
                 else getString(R.string.model_released),
             )
         }
@@ -1094,7 +1099,10 @@ class MainActivity : AppCompatActivity() {
             val labelStart = finalLines.length
             val known = (listOf(line.speakerIndex) + line.secondarySpeakerIndexes +
                 line.speakerParts.map { it.speakerIndex }).filter { it >= 0 }.distinct()
+            val finalSpeaker = line.utteranceId in finalizedUtteranceIds
             val speaker = when {
+                !finalSpeaker && line.speakerIndex < 0 && line.revision == 0 && line.secondarySpeakerIndexes.isEmpty() ->
+                    getString(R.string.diarization_analyzing)
                 known.size > 1 -> getString(R.string.diarization_multiple_speakers)
                 line.speakerIndex < 0 || line.overlap -> speakerLabel(-1)
                 known.size == 1 -> speakerLabel(known.single())
@@ -1110,7 +1118,6 @@ class MainActivity : AppCompatActivity() {
             if (line.overlap) {
                 finalLines.append(" · ").append(getString(R.string.diarization_overlap))
             }
-            val finalSpeaker = line.utteranceId in finalizedUtteranceIds
             finalLines.append(getString(if (finalSpeaker) R.string.diarization_final else R.string.diarization_intermediate))
             finalLines.append("] ")
             finalLines.setSpan(

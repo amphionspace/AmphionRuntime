@@ -12,7 +12,8 @@ const sharedModelFiles = [
   'eres2net.onnx',
   'campplus.onnx',
   'campplus.LICENSE',
-  'community-wespeaker-masked.fp32.onnx',
+  'community-wespeaker-encoder.fp32.onnx',
+  'community-wespeaker-pool.fp32.onnx',
   'community-feature.f32',
   'community-plda.f64',
   'pyannote-segmentation-3.0.onnx',
@@ -28,6 +29,10 @@ export default {
 
 function syncSharedModels(): void {
   fs.mkdirSync(rawfileModelDir, { recursive: true });
+  // The previous generated graph is replaced by the two weight-preserving
+  // graphs below. Do not retain its 26 MB in an incremental HAR build.
+  const oldEmbedding = path.join(rawfileModelDir, 'community-wespeaker-masked.fp32.onnx');
+  if (fs.existsSync(oldEmbedding)) fs.unlinkSync(oldEmbedding);
   sharedModelFiles.forEach((fileName: string): void => {
     const source = path.join(sharedModelDir, fileName);
     const target = path.join(rawfileModelDir, fileName);

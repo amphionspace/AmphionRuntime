@@ -56,6 +56,19 @@ export class SpeakerDiarizationUpdate {
   confidence: number = 0;
 }
 
+export class SpeakerTextSpan {
+  /** UTF-16 offsets into the containing DiarizedUtterance's rawText and text. */
+  sourceBegin: number = 0;
+  sourceEnd: number = 0;
+  textBegin: number = 0;
+  textEnd: number = 0;
+  speakerIndex: number = -1;
+  secondarySpeakerIndexes: number[] = [];
+  confidence: number = 0;
+  overlap: boolean = false;
+  speakerInferred: boolean = false;
+}
+
 export class DiarizedUtterance {
   /** One intact original ASR final; it may contain multiple speakers. */
   sourceUtteranceId: string = '';
@@ -73,6 +86,9 @@ export class DiarizedUtterance {
   overlap: boolean = false;
   /** Includes bounded UNKNOWN backfill; confidence is 0 and speakerTurns remains unchanged. */
   speakerInferred: boolean = false;
+  /** Exact text ownership, independent of the whole-sentence summary. Empty
+   * when provenance is unavailable. Not acoustic turns or paragraph boundaries. */
+  speakerTextSpans: SpeakerTextSpan[] = [];
 }
 
 export class SpeakerTurn {

@@ -54,7 +54,7 @@ transcript 示例：
 ```bash
 adb devices -l
 
-adb -s <SERIAL> pull \
+adb -s '<SERIAL>' pull \
   /sdcard/Android/data/com.amphion.asr.sample/files/asr-debug \
   /tmp/asr-dump
 ```
@@ -63,7 +63,7 @@ adb -s <SERIAL> pull \
 
 ```bash
 adb devices -l
-adb -t <TRANSPORT_ID> pull \
+adb -t '<TRANSPORT_ID>' pull \
   /sdcard/Android/data/com.amphion.asr.sample/files/asr-debug \
   /tmp/asr-dump
 ```

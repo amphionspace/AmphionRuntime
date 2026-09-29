@@ -17,7 +17,7 @@ tts/harmony/sample/build/default/outputs/default/sample-default-unsigned.hap
 TN（文本归一化）源码、规则和测试已直接纳入本仓库，普通克隆即可获取：
 
 ```bash
-git clone <AmphionRuntime-url>
+git clone '<AmphionRuntime-url>'
 cd AmphionRuntime
 ```
 
@@ -82,7 +82,7 @@ tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loo
 HarmonyOS 构建会把模型包同步到：
 
 ```text
-tts/harmony/sdk/src/main/resources/rawfile/amphion-dingqiao/
+tts/harmony/sdk/src/main/resources/rawfile/lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
 ```
 
 运行时如果宿主没有显式传入外部模型目录，SDK 会使用 HAR 内置资源。
@@ -153,7 +153,7 @@ HAR 应包含：
 
 - `package/libs/arm64-v8a/liblitsttsnative.so`
 - ONNX Runtime 相关 native 库
-- `resources/rawfile/amphion-dingqiao/` 下的模型、前端资源和 TN 文件
+- `resources/rawfile/lits-models/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` 下的模型、前端资源和 TN 文件
 
 HAR 不应包含：
 

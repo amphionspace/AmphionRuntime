@@ -1,4 +1,5 @@
 """Community input geometry and irreversible SDK publication boundaries."""
+import os
 import subprocess
 import tempfile
 import unittest
@@ -22,7 +23,7 @@ def run_community_session(body):
       const ResultAudioTimeline={endSample:r=>r.audioEndSample};
       const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
-      class DiarizedUtterance {} class SpeakerTurn {} class SpeakerDiarizationUpdate {}
+      class DiarizedUtterance {} class SpeakerTurn {} class SpeakerTextSpan {} class SpeakerDiarizationUpdate {}
       class SpeakerDiarizationLocalClient {
         evidence=[];
         retainEvidence(w){this.evidence.push({segments:w.segments.slice(),embeddings:w.embeddings.slice()});}
@@ -52,6 +53,20 @@ def run_community_session(body):
 
 
 class HarmonyCommunityDiarizationTest(unittest.TestCase):
+    @unittest.skipUnless(os.environ.get("HARMONY_ES2ABC"),
+                         "set HARMONY_ES2ABC to the target SDK compiler (API 23 for compatibility)")
+    def test_identity_source_compiles_with_target_sdk(self):
+        # Node strips TS types but cannot detect an older es2abc parser failure.
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "identity.abc"
+            result = subprocess.run(
+                [os.environ["HARMONY_ES2ABC"], "--module", "--extension", "ts",
+                 "--output", str(output), str(DIARIZATION / "CommunitySpeakerIdentity.ts")],
+                capture_output=True, text=True, timeout=30,
+            )
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertTrue(output.is_file(), "es2abc must produce bytecode")
+
     def test_public_commit_keeps_the_original_inputs_needed_by_later_clustering(self):
         run_community_session("""
           const s=session();s.totalSamples=14000*16;
@@ -109,6 +124,18 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           }
         """)
 
+    def test_public_speaker_ids_follow_first_acoustic_appearance(self):
+        run_community_session("""
+          const s=session();s.totalSamples=16000*16;
+          for(const start of [0,2,4,6])s.onWindow(window(start));
+          s.client.cluster=async()=>({speakerCount:4,
+            hard:[3,-2,-2,1,-2,-2,2,-2,-2,0,-2,-2],
+            turns:[[6500,7500,0],[4500,5500,2],[500,1500,3],[2500,3500,1]]});
+          const out=await s.commitWindow(16000,Infinity,true,0);
+          assert.deepEqual(out.speakerTurns.map(t=>t.speakerIndex),[0,1,2,3],
+            'public IDs must follow acoustic appearance, not arbitrary native cluster labels');
+        """)
+
     def test_window_identity_uses_stable_keys_and_preview_does_not_enroll(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -123,6 +150,29 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.deepEqual(next.mapping,[1,0,2],'array movement must not change acoustic ownership');
           assert.equal(next.before,2,'temporary labels must not consume frozen identities');
           assert.equal(next.after,3);
+        """)
+
+    def test_appearance_order_does_not_renumber_frozen_or_enroll_preview_ids(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ CommunitySpeakerIdentity }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
+          const ids=new CommunitySpeakerIdentity(4);
+          const first=ids.assign(['a','b'],[1,-2,-2,0,-2,-2],2,
+            [100,0,0,100,0,0],undefined,[true,true],[2000,1000]);
+          assert.deepEqual(first.mapping,[1,0]);
+          const snapshot=JSON.stringify(first);
+          const jobs=['b','a','new-c','new-d'];
+          const hard=[0,-2,-2,1,-2,-2,2,-2,-2,3,-2,-2];
+          const activity=[100,0,0,100,0,0,80,0,0,80,0,0];
+          const preview=ids.fork().assign(jobs,hard,4,activity,undefined,
+            [true,true,true,true],[100,200,300,50]);
+          assert.deepEqual(preview.mapping,[1,0,3,2]);
+          const committed=ids.assign(jobs,hard,4,activity,undefined,
+            [true,true,true,true],[100,200,50,300]);
+          assert.equal(committed.before,2,'a preview must not reserve a public identity');
+          assert.deepEqual(committed.mapping,[1,0,2,3],
+            'later evidence cannot renumber an existing owner; new owners follow appearance');
+          assert.equal(JSON.stringify(first),snapshot,'published assignment remains frozen');
         """)
 
     def test_live_preview_arrives_before_finish_and_final_can_revoke_it(self):
@@ -401,6 +451,62 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           s.finish();s.onDrained();s.finalizeIfReady();await new Promise(r=>setImmediate(r));
           assert.equal(published.length,1,'reentrant or duplicate finish must not republish');
         """)
+
+    def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = f"""
+          import assert from 'node:assert/strict';
+          import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          let nextDiarizationJobId=1,closeCount=0,holdFirst=false,releaseFirst;
+          class DiarizationPcmSpool {{
+            pcm=new Uint8Array(62*32000);end=0;
+            append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
+            read(offset,count){{assert.ok(offset+count<=this.end);return this.pcm.slice(offset,offset+count).buffer;}}
+            endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
+          }}
+          class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
+          class CommunityDiarizationInference {{
+            calls=0;async load(){{}}close(){{closeCount++;}}
+            async process(samples){{
+              if(this.calls++===0&&holdFirst)await new Promise(r=>releaseFirst=r);
+              return {{segments:new Float32Array([samples[0],samples.at(-1)]),embeddings:new Float32Array(0)}};
+            }}
+          }}
+          const fs={{accessSync:()=>true,rmdirSync(){{}}}};
+        """
+        body="""
+          async function run(durationMs,chunkBytes,delayed) {
+            holdFirst=delayed;releaseFirst=undefined;const rows=[],errors=[];
+            let done;const drained=new Promise(r=>done=r);
+            const c=new SpeakerDiarizationLocalClient({},'',{
+              onWindow:w=>rows.push([w.windowStartSample,w.realEndSample,w.finalWindow,...w.result.segments]),
+              onDrained:()=>done(),onDegraded:(_reason,message)=>errors.push(message)});
+            const pcm=new Int16Array(durationMs*16);for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
+            const bytes=new Uint8Array(pcm.buffer);
+            for(let offset=0;offset<bytes.length;offset+=chunkBytes){
+              c.append(bytes.slice(offset,offset+chunkBytes).buffer);
+              await new Promise(r=>setImmediate(r));
+            }
+            c.finish();await new Promise(r=>setImmediate(r));if(delayed)releaseFirst();await drained;
+            assert.deepEqual(errors,[]);c.cancel();await new Promise(r=>setImmediate(r));
+            // Upstream has one complete 10 s window per second. An incomplete
+            // tail is padded once; an exact last window must not be duplicated.
+            const expected=Array.from({length:52},(_,i)=>[i*16000,(i+10)*16000,false,(i+1)/32768,(i+10)/32768]);
+            if(durationMs===61500)expected.push([52*16000,61500*16,true,53/32768,0]);
+            assert.deepEqual(rows,expected,'executor must not silently decimate the model evidence');
+            return rows;
+          }
+          assert.deepEqual(await run(61000,640,false),await run(61000,61000*32,true));
+          assert.deepEqual(await run(61500,640,false),await run(61500,61500*32,true));
+          assert.equal(closeCount,4);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'cadence.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
 
     def test_client_retains_native_lease_until_delayed_cluster_is_quiescent(self):
         source=(DIARIZATION/'SpeakerDiarizationLocalClient.ets').read_text()

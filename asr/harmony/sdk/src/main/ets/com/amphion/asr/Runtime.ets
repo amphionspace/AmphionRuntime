@@ -17,7 +17,8 @@ import {
   Vad as SherpaVad,
   VadConfig as SherpaVadConfig,
   WetextItn,
-  WetextItnConfig
+  WetextItnConfig,
+  WetextItnSpan
 } from 'sherpa_onnx';
 import { fileIo } from '@kit.CoreFileKit';
 import {
@@ -40,6 +41,7 @@ import {
   AsrErrorCode,
   AsrLanguage,
   AsrResult,
+  AsrTextNormalizationSpan,
   Cancellable,
   EndpointRules,
   LicenseEnforcement,
@@ -2058,7 +2060,15 @@ export class AsrSession {
     const postStartMs = Date.now();
     if (this.itn !== undefined && result.text.length > 0) {
       try {
-        result.text = this.itn.normalize(result.text);
+        const normalized = this.itn.normalizeWithAlignment(result.text);
+        result.textNormalization = {
+          text: normalized.text,
+          spans: normalized.spans.map((span: WetextItnSpan): AsrTextNormalizationSpan => ({
+            sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+            textBegin: span.textBegin, textEnd: span.textEnd,
+          })),
+        };
+        result.text = result.textNormalization.text;
       } catch (e) {
         if (!this.callbackGate.invoke((): void => {
           this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `ITN failed: ${e}`));
@@ -2174,6 +2184,7 @@ export class AsrSession {
       // A rejected Speaker VAD final is a lifecycle signal, not a transcription result. Redact
       // every textual/token field so direct Runtime clients cannot recover a known-uncertain tail.
       pending.result.rawText = '';
+      pending.result.textNormalization = undefined;
       pending.result.text = '';
       pending.result.tokens = [];
       pending.result.timestamps = [];

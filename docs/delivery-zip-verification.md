@@ -1,6 +1,8 @@
-# 交付包 zip-only 验证流程
+# Android 子包 ZIP 检查
 
-## 问题复述
+双端执行顺序见[交付流程](../delivery/ASR_DELIVERY_WORKFLOW.md)。本文脚本检查含 AAR/APK 的 Android ZIP，不支持 Harmony HAR/HAP，也不能递归验证双端完整外层包中的所有子包。完整包先按平台规范解包，再对对应 Android 子包执行本检查。
+
+## 验证输入
 
 客户实际接收的是最终 zip，因此交付验证必须以最终 zip 为唯一真相，不能用项目 `build/` 产物、未重新压缩的目录或手工回写 APK 代替。
 
@@ -22,12 +24,12 @@
 5. 如需要源码链路验证，脚本从 zip 解压出的源码工程运行 Gradle。
 6. 验证通过后保留 `*.verification.json` 和 `*.verification.md`，最终回复引用报告路径和 zip SHA-256。
 
-## 通用脚本
+## 脚本与配置
 
 脚本：
 
 ```bash
-tools/delivery/verify_delivery_zip_e2e.sh <delivery.zip>
+tools/delivery/verify_delivery_zip_e2e.sh '<delivery.zip>'
 ```
 
 常用环境变量：
@@ -69,6 +71,6 @@ tools/delivery/verify_delivery_zip_e2e.sh <delivery.zip>
 - 设备验证结果
 - 源码工程验证结果
 
-## 结论
+## 验证范围
 
-任何客户交付都应该把 zip-only 验证作为最终门禁；产品专用脚本只负责提供该产品的配置项，不应改变“从最终 zip 解压验证”的原则。
+脚本通过表示所配置的包内容、安装或源码检查通过，不等于 SDK 生命周期、角色精度或完整发布矩阵通过。各平台都须从最终交付 ZIP 取得验证输入；具体 SDK 验收按平台规范执行。

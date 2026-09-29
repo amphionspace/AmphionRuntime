@@ -1,6 +1,6 @@
 # 鼎桥 Android v0.2.7 历史交付记录
 
-> 历史归档：本文只用于追溯 2026-06-25 这次 v0.2.7 交付的产物、假设和验证结果，不作为当前 license 或交付规则。当前规则见 `docs/dingqiao-offline-license.md` 和 `docs/android-sdk-delivery-runbook.md`。v3.0 起正式设备白名单 license 不按 Android `applicationId` 或 HarmonyOS `bundleName` 限制宿主，包名仅作签发记录。
+> 历史归档：本文只追溯 2026-06-25 的 v0.2.7 产物、假设和验证结果，不作为当前规则。当前入口见[统一交付流程](../delivery/ASR_DELIVERY_WORKFLOW.md)和[授权工具说明](../tools/license/README.md)；应用标识是否校验须区分 ASR/TTS 与实际 claims。
 
 ## 问题复述
 
@@ -38,7 +38,7 @@
 - 正式 SDK license：历史记录字段 `applicationId=com.tdtech.tiassistant`，`features=ASR,TTS`，`device_hash_count=16`，`expiresAt=2026-08-25`。
 - 设备实测：从最终 zip 解压出的 Demo APK 普通安装后显示“引擎就绪，点击开始识别”，没有 `device SN unavailable`、`dlopen failed` 或崩溃日志。
 - 声纹模型实测：安装后不需要手动导入 `eres2net.onnx`，SDK 可自动把模型准备到工作目录。
-- 授权边界：Demo 通过不代表正式 license zip 已在正式宿主通过；当时正式 license 需要签名证书和设备 SN 匹配，并记录宿主包名。当前 v3.0 规则已改为包名仅记录、不作为授权限制。
+- 授权边界：Demo 通过不代表正式 license zip 已在正式宿主通过；当时正式 license 需要签名证书和设备 SN 匹配，并记录宿主包名。当前授权规则和平台差异见页首链接。
 
 ## 后续规则
 

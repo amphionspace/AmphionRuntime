@@ -6,7 +6,14 @@
 
 ```kotlin
 object TextToSpeechSdk {
+    fun init(context: Context, options: TtsLicenseOptions = TtsLicenseOptions())
+    fun setLicense(licensePath: String, callback: Callback<LicenseActivationResult>)
+    fun licenseStatus(): TtsLicenseStatus
+    fun getLicenseInfo(): LicenseInfo
+    fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String
+    fun deviceLicenseFingerprint(context: Context): String
     fun setWorkPath(workPath: String)
+    fun preloadFrontendAndTn()
     fun createEngine(params: CreateEngineParams): TextToSpeechEngine
     fun createEngine(params: CreateEngineParams, callback: Callback<TextToSpeechEngine>)
     fun listVoices(params: VoiceQuery): List<VoiceInfo>
@@ -18,6 +25,10 @@ object TextToSpeechSdk {
 
 - callback 版 `createEngine` / `listVoices` 为异步接口，Android 环境下回调派回主线程。
 - 同步版 `createEngine` 会加载模型，调用方负责选择线程。
+- 先准备外置资源并设置 `workPath`，再完成授权；授权成功后才调用预热或创建引擎。
+- `preloadFrontendAndTn()` 同步准备前端/TN，不加载 ONNX；调用方应在后台线程执行。
+- `init` 支持 assets 授权或 `TtsLicenseOptions.license` 全文；`setLicense` 使用可读文件路径，回调派回主线程。自定义 SN provider 应通过 `init` 设置，`setLicense` 会使用默认配置重新初始化。
+- `getLicenseInfo` 在未初始化时抛 `LICENSE_NOT_SET`，不能用返回 `status=2` 代替异常处理。
 
 ## TextToSpeechEngine
 
@@ -46,6 +57,7 @@ interface Callback<T> {
 interface SpeakListener {
     fun onStart(requestId: String, response: StartResponse)
     fun onData(requestId: String, audio: ByteArray, response: SynthesisResponse)
+    fun onPlaybackStart(requestId: String, elapsedMs: Long)
     fun onComplete(requestId: String, response: CompleteResponse)
     fun onStop(requestId: String, response: StopResponse)
     fun onError(requestId: String, errorCode: Int, errorMessage: String)
@@ -102,14 +114,15 @@ interface SpeakListener {
 | `soundChannel` | `Int?` | `null` | Android `AudioManager.STREAM_*` |
 | `queueMode` | `QueueMode` | `QUEUE` | 排队策略 |
 | `extraParams` | `Map<String, Any?>` | `emptyMap()` | 预留扩展 |
+| `streamingConfig` | `TtsStreamingConfig?` | `null` | 可选流式配置；`chunkSize`、`firstChunkSize`、`pcmQueueCapacity` 均为可空 `Int`，省略时使用 SDK 默认 |
 
 ### 回调响应
 
 | 类型 | 字段 |
 | --- | --- |
-| `StartResponse` | `audioType`, `sampleRate`, `sampleBit`, `audioChannel`, `compressRate`, `isStreaming`, `dataPath`, `modelSource`, `modelInfo`, `loadProfileInfo` |
-| `SynthesisResponse` | `sequence`, `audioType` |
-| `CompleteResponse` | `type`, `message`, `firstPacketMs`, `synthesisMs`, `audioDurationMs`, `rtf`, `profilingInfo` |
+| `StartResponse` | `audioType`, `sampleRate`, `sampleBit`, `audioChannel`, `compressRate`, `isStreaming`, `dataPath`, `modelSource`, `modelInfo`, `loadProfileInfo`, `streamingChunkSize`, `pcmQueueCapacity` |
+| `SynthesisResponse` | `sequence`, `audioType`, `isStreaming`, `chunkSource` |
+| `CompleteResponse` | `type`, `message`, `firstPacketMs`, `synthesisMs`, `audioDurationMs`, `rtf`, `profilingInfo`, `playbackStartMs` |
 | `StopResponse` | `type`, `message` |
 
 `CompleteResponse` 的性能字段只在 `type = SYNTHESIS_COMPLETE` 时有意义；未知值为 `-1` 或空字符串。`profilingInfo` 是调试文本，当前包含流式路径的 frontend、hidden encoder、decoder、vocoder、chunk 数和模型 chunk size 等分段耗时。
@@ -142,3 +155,23 @@ interface SpeakListener {
 | `INTERNAL_SERVICE_ERROR` | `1002300009` | 内部服务错误 |
 | `QUEUE_FULL` | `1002300010` | 队列已满，当前未启用该限制 |
 | `RUNTIME_EXCEPTION` | `1002300011` | 运行时异常 |
+| `LICENSE_MISSING` | `1002300012` | 授权文件缺失 |
+| `LICENSE_MALFORMED` | `1002300013` | 授权格式无效 |
+| `LICENSE_SIGNATURE_INVALID` | `1002300014` | 验签失败 |
+| `LICENSE_APP_MISMATCH` | `1002300015` | 非空应用标识与宿主不匹配 |
+| `LICENSE_CERT_MISMATCH` | `1002300016` | 证书不匹配 |
+| `LICENSE_EXPIRED` | `1002300017` | 授权过期 |
+| `LICENSE_DEVICE_MISMATCH` | `1002300018` | 设备不匹配 |
+| `LICENSE_SDK_MAJOR_MISMATCH` | `1002300019` | SDK 主版本不匹配 |
+| `LICENSE_MAINTENANCE_EXPIRED` | `1002300020` | SDK 发布日期超出维护期 |
+| `LICENSE_FEATURE_MISSING` | `1002300021` | 缺少 TTS 授权 |
+| `LICENSE_NOT_SET` | `1002300034` | 查询前尚未初始化授权 |
+
+## 授权返回与选项
+
+- `LicenseActivationResult`：`errorCode`、`errorMessage`、`remainingDays`、`authorizedFeatures`。
+- `LicenseInfo`：`status`（0 有效、1 过期、3 其他无效）、`expireTime`（毫秒）、`remainingDays`、`authorizedFeatures`。尚未初始化时直接抛异常。
+- `TtsLicenseStatus`：`state` 为 `NOT_INITIALIZED`、`DEV_UNLICENSED`、`LICENSED` 或 `INVALID`；并携带 `valid`、`errorCode`、授权编号、客户、应用/证书绑定、设备数量、期限及能力信息。仅 `LICENSED` 表示有效授权。
+- `TtsLicenseOptions`：`license` 全文优先于 `licenseAssetName`（默认 `amphion-license.lic`）；可设置 `deviceIdProvider`、兼容字段 `deviceSha256`、`expiryGraceDays`（默认 0）和 `enforcement`（默认 `ENFORCE`）。
+
+音频格式以 `onStart` 中的 `sampleRate/sampleBit/audioChannel` 为准，当前模型为 24000 Hz、16-bit、mono；不要将 `onData` 固定解释为 16 kHz。

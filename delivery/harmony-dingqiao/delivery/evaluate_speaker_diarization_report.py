@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import itertools
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -35,14 +36,20 @@ def _decode_turns(report: dict[str, Any], cycle_index: int) -> list[dict[str, An
 def _load_reference(path: Path, offset_seconds: float,
                     duration_seconds: float) -> list[tuple[float, float, str]]:
     output: list[tuple[float, float, str]] = []
+    recordings: set[str] = set()
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
         if not line.strip() or line.lstrip().startswith("#"):
             continue
         fields = line.split()
         if len(fields) < 8 or fields[0] != "SPEAKER":
             raise ValueError(f"invalid RTTM at line {line_number}")
+        recordings.add(fields[1])
+        if len(recordings) > 1:
+            raise ValueError("RTTM must describe one recording; split the corpus before scoring")
         start = float(fields[3]) - offset_seconds
         end = start + float(fields[4])
+        if not math.isfinite(start) or not math.isfinite(end) or end <= start:
+            raise ValueError(f"invalid RTTM time at line {line_number}")
         clipped_start = max(0.0, start)
         clipped_end = min(duration_seconds, end)
         if clipped_end > clipped_start:
@@ -77,6 +84,8 @@ def evaluate(turns: list[dict[str, Any]],
              reference: list[tuple[float, float, str]],
              duration_seconds: float, frame_ms: int = 10,
              collar_seconds: float = 0.25) -> dict[str, Any]:
+    if not math.isfinite(duration_seconds) or duration_seconds <= 0 or frame_ms <= 0:
+        raise ValueError("duration and frame size must be finite and positive")
     frame_seconds = frame_ms / 1000.0
     frame_count = int(duration_seconds / frame_seconds)
     reference_ids = sorted({speaker for _, _, speaker in reference})

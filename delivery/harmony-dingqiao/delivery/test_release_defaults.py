@@ -29,11 +29,13 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("onStart", upgrade)
 
         version_files = {
-            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.17"',
-            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.17"',
-            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.17"',
-            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.17"',
-            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.17'",
+            "asr/harmony/oh-package.json5": '"version": "0.3.19"',
+            "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5": '"version": "0.3.19"',
+            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.19"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.19"',
+            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.19"',
+            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.19"',
+            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.19'",
         }
         for relative, expected in version_files.items():
             with self.subTest(relative=relative):
@@ -46,18 +48,18 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("UPGRADE_0.3.17.md", pack_script)
+        self.assertIn("UPGRADE_0.3.19.md", pack_script)
         validator = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"docs/UPGRADE_0.3.17.md"', validator)
+        self.assertIn('"docs/UPGRADE_0.3.19.md"', validator)
 
     def test_usb_carrier_matches_the_current_delivery_version(self) -> None:
         # The test carrier advances with the SDK and replaces the installed HAP without removing data.
         app = json.loads((REPO_ROOT / "delivery/harmony-dingqiao/AppScope/app.json5").read_text())["app"]
-        self.assertEqual("0.3.17", app["versionName"])
-        self.assertEqual(317, app["versionCode"])
+        self.assertEqual("0.3.19", app["versionName"])
+        self.assertEqual(319, app["versionCode"])
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
@@ -186,7 +188,10 @@ class ReleaseDefaultsTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
 
         command = "delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py"
-        self.assertIn(command, agreement)
+        validation_path = "docs/engineering/ASR_VALIDATION.md"
+        self.assertIn(f"({validation_path})", agreement)
+        validation = (REPO_ROOT / validation_path).read_text(encoding="utf-8")
+        self.assertIn(command, validation)
         self.assertIn(command, device_stress)
         self.assertIn("FINISH_COMPATIBILITY_POSTMORTEM.md", device_stress)
 
