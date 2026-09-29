@@ -1,0 +1,311 @@
+From 2f396c01395b543179db8cd0e82087c28f12d284 Mon Sep 17 00:00:00 2001
+From: Boxp <boxp@BoxpdeMacBook-Air.local>
+Date: Sun, 27 Sep 2026 14:31:11 +0800
+Subject: [PATCH] feat(itn): preserve selected grammar source ranges
+
+---
+ .../SherpaOnnxHar/sherpa_onnx/Index.ets       |  2 +-
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  1 +
+ .../sherpa_onnx/src/main/cpp/wetext-itn.cc    | 15 +++-
+ .../src/main/ets/components/WetextItn.ets     | 18 +++++
+ sherpa-onnx/c-api/c-api.cc                    | 32 ++++++++
+ sherpa-onnx/c-api/c-api.h                     |  6 ++
+ .../csrc/wetext/processor/wetext_processor.cc | 81 +++++++++++++++++++
+ .../csrc/wetext/processor/wetext_processor.h  | 15 ++++
+ 8 files changed, 167 insertions(+), 3 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+index 149f2eb6..1a8a0d1f 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/Index.ets
+@@ -72,7 +72,7 @@ export { OnlinePunctuationModelConfig,
+   OnlinePunctuation,
+ } from './src/main/ets/components/OnlinePunctuation';
+ 
+-export { WetextItnConfig, WetextItn,
++export { WetextItnConfig, WetextItn, WetextItnResult, WetextItnSpan,
+ } from './src/main/ets/components/WetextItn';
+ 
+ export { SpeakerEmbeddingExtractorConfig,
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 86a58a75..101f2d0f 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -74,6 +74,7 @@ export const offlinePunctuationAddPunct: (handle: object, text: string) => strin
+ export const destroyOfflinePunctuation: (handle: object) => void;
+ export const createWetextItn: (config: object) => object;
+ export const wetextItnNormalize: (handle: object, text: string) => string;
++export const wetextItnNormalizeWithAlignment: (handle: object, text: string) => string;
+ export const destroyWetextItn: (handle: object) => void;
+ export const createOnlinePunctuation: (config: object, mgr?: object) => object;
+ export const onlinePunctuationAddPunct: (handle: object, text: string) => string;
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+index e1511968..0b002ef8 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/wetext-itn.cc
+@@ -36,8 +36,8 @@ static Napi::External<WetextItnHandle> CreateWetextItnWrapper(
+   return WrapWetextItn(env, itn);
+ }
+ 
+-static Napi::String WetextItnNormalizeWrapper(
+-    const Napi::CallbackInfo &info) {
++static Napi::String NormalizeWetextItn(
++    const Napi::CallbackInfo &info, bool alignment) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 2 || !info[0].IsExternal() || !info[1].IsString()) {
+     Napi::TypeError::New(env, "Expected WeText ITN handle and text")
+@@ -52,6 +52,7 @@ static Napi::String WetextItnNormalizeWrapper(
+   }
+   const std::string text = info[1].As<Napi::String>().Utf8Value();
+   const char *normalized =
++      alignment ? SherpaOnnxWetextItnNormalizeWithAlignment(handle->Get(), text.c_str()) :
+       SherpaOnnxWetextItnNormalize(handle->Get(), text.c_str());
+   if (normalized == nullptr) {
+     Napi::Error::New(env, "WeText ITN normalization failed")
+@@ -63,6 +64,14 @@ static Napi::String WetextItnNormalizeWrapper(
+   return result;
+ }
+ 
++static Napi::String WetextItnNormalizeWrapper(const Napi::CallbackInfo &info) {
++  return NormalizeWetextItn(info, false);
++}
++
++static Napi::String WetextItnNormalizeWithAlignmentWrapper(const Napi::CallbackInfo &info) {
++  return NormalizeWetextItn(info, true);
++}
++
+ static void DestroyWetextItnWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+   if (info.Length() != 1 || !info[0].IsExternal()) {
+@@ -79,6 +88,8 @@ void InitWetextItn(Napi::Env env, Napi::Object exports) {
+               Napi::Function::New(env, CreateWetextItnWrapper));
+   exports.Set(Napi::String::New(env, "wetextItnNormalize"),
+               Napi::Function::New(env, WetextItnNormalizeWrapper));
++  exports.Set(Napi::String::New(env, "wetextItnNormalizeWithAlignment"),
++              Napi::Function::New(env, WetextItnNormalizeWithAlignmentWrapper));
+   exports.Set(Napi::String::New(env, "destroyWetextItn"),
+               Napi::Function::New(env, DestroyWetextItnWrapper));
+ }
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
+index 55b93c88..cbb50e90 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/WetextItn.ets
+@@ -2,8 +2,21 @@ import {
+   createWetextItn,
+   destroyWetextItn,
+   wetextItnNormalize,
++  wetextItnNormalizeWithAlignment,
+ } from 'libsherpa_onnx.so';
+ 
++export interface WetextItnSpan {
++  sourceBegin: number;
++  sourceEnd: number;
++  textBegin: number;
++  textEnd: number;
++}
++
++export interface WetextItnResult {
++  text: string;
++  spans: WetextItnSpan[];
++}
++
+ export class WetextItnConfig {
+   public taggerFst: string = '';
+   public verbalizerFst: string = '';
+@@ -22,6 +35,11 @@ export class WetextItn {
+     return wetextItnNormalize(this.handle, text);
+   }
+ 
++  normalizeWithAlignment(text: string): WetextItnResult {
++    if (this.closed) return { text, spans: [] };
++    return JSON.parse(wetextItnNormalizeWithAlignment(this.handle, text)) as WetextItnResult;
++  }
++
+   close(): void {
+     if (this.closed) return;
+     destroyWetextItn(this.handle);
+diff --git a/sherpa-onnx/c-api/c-api.cc b/sherpa-onnx/c-api/c-api.cc
+index 9211f425..522b7fef 100644
+--- a/sherpa-onnx/c-api/c-api.cc
++++ b/sherpa-onnx/c-api/c-api.cc
+@@ -2858,6 +2858,38 @@ const char *SherpaOnnxWetextItnNormalize(const SherpaOnnxWetextItn *itn,
+   }
+ }
+ 
++static size_t WetextUtf16Offset(const std::string& text, size_t byte_offset) {
++  size_t result = 0;
++  for (size_t i = 0; i < byte_offset; ++i) {
++    const auto c = static_cast<unsigned char>(text[i]);
++    if ((c & 0xc0) != 0x80) result += c >= 0xf0 ? 2 : 1;
++  }
++  return result;
++}
++
++const char *SherpaOnnxWetextItnNormalizeWithAlignment(
++    const SherpaOnnxWetextItn *itn, const char *text) {
++  if (itn == nullptr || text == nullptr) return nullptr;
++  try {
++    const std::string source(text);
++    const auto normalized = itn->impl->NormalizeWithAlignment(source);
++    auto spans = nlohmann::json::array();
++    for (const auto& span : normalized.spans) {
++      spans.push_back({
++          {"sourceBegin", WetextUtf16Offset(source, span.source_begin)},
++          {"sourceEnd", WetextUtf16Offset(source, span.source_end)},
++          {"textBegin", WetextUtf16Offset(normalized.text, span.text_begin)},
++          {"textEnd", WetextUtf16Offset(normalized.text, span.text_end)}});
++    }
++    const std::string json = nlohmann::json{{"text", normalized.text}, {"spans", spans}}.dump();
++    char *result = new char[json.size() + 1];
++    std::memcpy(result, json.c_str(), json.size() + 1);
++    return result;
++  } catch (...) {
++    return nullptr;
++  }
++}
++
+ void SherpaOnnxWetextItnFreeText(const char *text) { delete[] text; }
+ 
+ struct SherpaOnnxOnlinePunctuation {
+diff --git a/sherpa-onnx/c-api/c-api.h b/sherpa-onnx/c-api/c-api.h
+index 63797a97..30d140cd 100644
+--- a/sherpa-onnx/c-api/c-api.h
++++ b/sherpa-onnx/c-api/c-api.h
+@@ -3633,6 +3633,12 @@ SHERPA_ONNX_API void SherpaOnnxDestroyWetextItn(
+ SHERPA_ONNX_API const char *SherpaOnnxWetextItnNormalize(
+     const SherpaOnnxWetextItn *itn, const char *text);
+ 
++/** JSON {text, spans:[{sourceBegin,sourceEnd,textBegin,textEnd}]}. Offsets are
++ * UTF-16 code units into the original input and normalized text, respectively.
++ * Empty spans mean provenance is unavailable. Free with WetextItnFreeText. */
++SHERPA_ONNX_API const char *SherpaOnnxWetextItnNormalizeWithAlignment(
++    const SherpaOnnxWetextItn *itn, const char *text);
++
+ SHERPA_ONNX_API void SherpaOnnxWetextItnFreeText(const char *text);
+ 
+ /**
+diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+index 5a30c77a..2bf54a1f 100644
+--- a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
++++ b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+@@ -213,4 +213,85 @@ std::string Processor::Normalize(const std::string& input) {
+   return Verbalize(Tag(input));
+ }
+ 
++NormalizedText Processor::NormalizeWithAlignment(const std::string& input) {
++  if (input.empty()) return {};
++  const std::string canonical = parse_type_ == ParseType::kZH_ITN ?
++      CanonicalizeAmbiguousDigitOne(input) : input;
++  StdVectorFst input_fst, lattice, path;
++  compiler_->operator()(canonical, &input_fst);
++  fst::Compose(input_fst, *tagger_, &lattice);
++  fst::ShortestPath(lattice, &path, 1, true);
++  std::string tagged;
++  printer_->operator()(path, &tagged);
++  NormalizedText result{Verbalize(tagged), {}};
++
++  // Keep the actual consumed source position at each emitted grammar byte.
++  // No text matching, edit distance or interpolation is used for provenance.
++  std::vector<size_t> consumed;
++  size_t source = 0;
++  std::string traced;
++  auto state = path.Start();
++  size_t visited = 0;
++  while (state != fst::kNoStateId && path.NumArcs(state) != 0) {
++    if (++visited > static_cast<size_t>(path.NumStates()) ||
++        path.NumArcs(state) != 1) return result;
++    fst::ArcIterator<StdVectorFst> arcs(path, state);
++    const auto& arc = arcs.Value();
++    if (arc.ilabel != 0) {
++      if (source >= canonical.size() || arc.ilabel !=
++          static_cast<unsigned char>(canonical[source])) return result;
++      ++source;
++    }
++    if (arc.olabel != 0) {
++      if (arc.olabel < 0 || arc.olabel > 255) return result;
++      traced.push_back(static_cast<char>(arc.olabel));
++      consumed.push_back(source);
++    }
++    state = arc.nextstate;
++  }
++  if (source != input.size() || canonical.size() != input.size() ||
++      traced != tagged) return result;
++
++  // The existing parser's records are flat, with quoted/escaped field values.
++  // Its field reorder and decimal repair stay inside each record. Preserve
++  // that record as the minimum source unit, including all merged/expanded text.
++  bool quoted = false, escaped = false, open = false;
++  size_t record_begin = 0, source_begin = 0;
++  std::string joined;
++  std::vector<NormalizedSpan> spans;
++  for (size_t i = 0; i < tagged.size(); ++i) {
++    const char c = tagged[i];
++    if (escaped) { escaped = false; continue; }
++    if (quoted && c == '\\') { escaped = true; continue; }
++    if (c == '"') { quoted = !quoted; continue; }
++    if (quoted) continue;
++    if (c == '{') {
++      if (open) return result;
++      open = true;
++    }
++    if (c != '}') continue;
++    if (!open) return result;
++    open = false;
++    const size_t source_end = consumed[i];
++    if (source_end <= source_begin ||
++        (source_end < input.size() &&
++         (static_cast<unsigned char>(input[source_end]) & 0xc0) == 0x80)) {
++      result.spans.clear();
++      return result;
++    }
++    const std::string piece = Verbalize(tagged.substr(record_begin, i + 1 - record_begin));
++    spans.push_back({source_begin, source_end, joined.size(), joined.size() + piece.size()});
++    joined += piece;
++    record_begin = i + 1;
++    source_begin = source_end;
++  }
++  // Fail closed if a grammar depends on context outside a record or consumes
++  // unaccounted trailing input. The ordinary normalized text remains unchanged.
++  if (!open && !quoted && source_begin == input.size() && joined == result.text &&
++      tagged.find_first_not_of(" \t\r\n", record_begin) == std::string::npos) {
++    result.spans = std::move(spans);
++  }
++  return result;
++}
++
+ }  // namespace wetext
+diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_processor.h b/sherpa-onnx/csrc/wetext/processor/wetext_processor.h
+index e11d307e..f4084d9a 100644
+--- a/sherpa-onnx/csrc/wetext/processor/wetext_processor.h
++++ b/sherpa-onnx/csrc/wetext/processor/wetext_processor.h
+@@ -28,12 +28,27 @@ using fst::StringCompiler;
+ using fst::StringPrinter;
+ 
+ namespace wetext {
++struct NormalizedSpan {
++  size_t source_begin;
++  size_t source_end;
++  size_t text_begin;
++  size_t text_end;
++};
++
++struct NormalizedText {
++  std::string text;
++  std::vector<NormalizedSpan> spans;
++};
++
+ class Processor {
+  public:
+   Processor(const std::string& tagger_path, const std::string& verbalizer_path);
+   std::string Tag(const std::string& input);
+   std::string Verbalize(const std::string& input);
+   std::string Normalize(const std::string& input);
++  // UTF-8 byte ranges from the selected tagger path, one grammar record per
++  // span. A replacement is indivisible; callers must retain mixed ownership.
++  NormalizedText NormalizeWithAlignment(const std::string& input);
+ 
+  private:
+   std::string ShortestPath(const StdVectorFst& lattice);
+-- 
+2.50.1 (Apple Git-155)
+

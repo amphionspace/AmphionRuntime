@@ -1,5 +1,7 @@
 # Lits Android 真流式改造计划
 
+> 历史改造计划：以下“当前”“阻塞”指当时的非流式实现，不代表当前 HEAD。当前接入见 [INTEGRATION.md](INTEGRATION.md)，构建见 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md)。源码链接保留当时行号，代码演进后需按符号定位。
+
 ## 目标
 
 让 Android SDK 支持真正的流式推理，而不是“整句合成后再切 PCM 分片”。
@@ -11,7 +13,7 @@
    - `LITS.get_mel(..., streaming=True)`
    - `CFM_Causal.forward(..., finalize, streaming=True)`
 2. 本地已经可以测训练侧流式指标：
-   - [infer/benchmark_streaming_local.py](../../training/dingqiao_lits/infer/benchmark_streaming_local.py:1)
+   - `infer/benchmark_streaming_local.py`（历史脚本，当前仓库未保留）
 
 但 Android 交付包目前仍是非流式资产，因此 SDK 侧暂时无法实现真实首包提前。
 
@@ -19,7 +21,7 @@
 
 ### 1. SDK Runtime 是整句式调用
 
-[LitsTtsOrtRuntime.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:24)
+[LitsTtsOrtRuntime.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt#L24)
 
 - acoustic ONNX 输入：`token_ids`, `token_lengths`, `speaker_id`
 - acoustic ONNX 输出：`mel`
@@ -30,7 +32,7 @@
 
 ### 2. SDK 的 `onData` 不是模型流式
 
-[TextToSpeechEngineImpl.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:206)
+[TextToSpeechEngineImpl.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt#L206)
 
 先执行：
 
@@ -64,7 +66,7 @@
 
 ### 1. 隐变量阶段和解码阶段已经拆开
 
-[train/lits/models/lits.py](../../training/dingqiao_lits/lits/models/lits.py:135)
+[train/lits/models/lits.py](../../training/dingqiao_lits/lits/models/lits.py#L135)
 
 - `get_hidden_mel(...)` 产出 `mu_y`, `y_mask`, `y_max_length`, `spks`
 - `get_mel(...)` 接收 `mu_y`, `y_mask`, `finalize`, `streaming`
@@ -73,7 +75,7 @@
 
 ### 2. `CFM_Causal` 已有 lookahead/finalize 语义
 
-[flow_matching.py](../../training/dingqiao_lits/lits/models/components/flow_matching.py:177)
+[flow_matching.py](../../training/dingqiao_lits/lits/models/components/flow_matching.py#L177)
 
 关键点：
 
@@ -85,7 +87,7 @@
 
 ### 3. Conformer/Attention 已考虑 ONNX 流式缓存形态
 
-[transformer.py](../../training/dingqiao_lits/lits/models/components/transformer.py:398)
+[transformer.py](../../training/dingqiao_lits/lits/models/components/transformer.py#L398)
 
 注释里已经明确提到：
 
@@ -157,7 +159,7 @@
 - speaker count
 - acoustic/vocoder file
 
-[LitsTtsAssetInstaller.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:37)
+[LitsTtsAssetInstaller.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt#L37)
 
 建议新增字段：
 
@@ -171,7 +173,7 @@
 
 ### 2. Asset Registry 允许新模型文件
 
-[LitsTtsAssetRegistry.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetRegistry.kt:3)
+[LitsTtsAssetRegistry.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetRegistry.kt#L3)
 
 至少要新增：
 
@@ -197,7 +199,7 @@
 
 - `synthesize(...) -> SynthesizedAudio`
 
-[PcmSynthesizer.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:13)
+[PcmSynthesizer.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt#L13)
 
 建议扩成两类：
 
@@ -236,7 +238,7 @@
 
 ### 第 2 步：对齐本地 benchmark
 
-以 [infer/benchmark_streaming_local.py](../../training/dingqiao_lits/infer/benchmark_streaming_local.py:1) 为基线，至少对比：
+以 `infer/benchmark_streaming_local.py`（历史脚本，当前仓库未保留） 为基线，至少对比：
 
 - `first_mel_ms`
 - `first_audio_ms`
@@ -262,10 +264,10 @@
 ## 下一步最值得直接动手的文件
 
 1. [tts/tools/onnx-export/export_lits_delivery_streaming_proto_onnx.py](../../tools/onnx-export/export_lits_delivery_streaming_proto_onnx.py)
-2. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt:1)
-3. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt:1)
-4. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt:1)
-5. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt](tts/android/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt:1)
+2. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsOrtRuntime.kt#L1)
+3. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/PcmSynthesizer.kt#L1)
+4. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/TextToSpeechEngineImpl.kt#L1)
+5. [LitsTtsSdk/android/AmphionRuntime/sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt](../sdk/src/main/java/com/lits/tts/sdk/internal/LitsTtsAssetInstaller.kt#L1)
 
 ## 建议的下一次改造目标
 

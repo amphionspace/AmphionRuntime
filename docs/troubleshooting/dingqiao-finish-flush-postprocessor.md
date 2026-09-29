@@ -125,7 +125,7 @@ cd asr/android
 ### 安装并运行回归测试
 
 ```bash
-DEV=<device-id>
+DEV='<device-id>'
 
 adb -s "$DEV" install -r -t samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk
 adb -s "$DEV" install -r -t samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk

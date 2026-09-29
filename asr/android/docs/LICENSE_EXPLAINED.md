@@ -135,7 +135,7 @@ python tools/license/gen_keypair.py --out-private ~/secure/amphion-license-priva
 先收集客户的设备 SN 清单；applicationId / bundleName 可作为记录字段，不作为正式授权限制。若业务要求额外绑定签名证书，再收集 release 签名证书 SHA-256。证书指纹让客户这样导出：
 
 ```bash
-keytool -list -v -keystore <客户的release.keystore> -alias <alias> | grep "SHA256:"
+keytool -list -v -keystore '<客户的release.keystore>' -alias '<alias>' | grep "SHA256:"
 ```
 
 然后签发：
@@ -143,17 +143,17 @@ keytool -list -v -keystore <客户的release.keystore> -alias <alias> | grep "SH
 ```bash
 python tools/license/issue_license.py \
   --private-key ~/secure/amphion-license-private.pem \
-  --device-id-file <设备SN清单> --customer "<客户名>" --license-id <编号> \
-  --expires <到期日或留空=永久> --install-tier <档位> \
-  --features <逗号分隔功能> --cert-sha256 <证书指纹或留空> \
+  --device-id-file '<设备SN清单>' --customer "<客户名>" --license-id '<编号>' \
+  --expires '<到期日或留空=永久>' --install-tier '<档位>' \
+  --features '<逗号分隔功能>' --cert-sha256 '<证书指纹或留空>' \
   --out amphion-license.lic
 ```
 
 签完本地自测一下，确认能过：
 
 ```bash
-python tools/license/verify_license.py --license <客户包名>.lic \
-  --private-key ~/secure/amphion-license-private.pem --device-id <白名单内SN>
+python tools/license/verify_license.py --license '<客户包名>'.lic \
+  --private-key ~/secure/amphion-license-private.pem --device-id '<白名单内SN>'
 ```
 
 ### 6.3 客户接入

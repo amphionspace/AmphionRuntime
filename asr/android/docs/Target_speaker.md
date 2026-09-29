@@ -354,7 +354,7 @@ def asr_decode_full_segment(recognizer, samples, sr):
 
 暂不建议投入的方向：升级到离线说话人分离、自训个性化检测、自训前端分离。原因是实测的重叠误识率仅 8.23%，远未触及这些重方案的启动门槛，且它们都需要 1-3 人月的训练投入。
 
-完整原始数据见 [asr/tools/speaker/results/eval_full_summary.md](../../../asr/tools/speaker/results/eval_full_summary.md)，逐条记录见同目录的 eval_full.jsonl，可用于后续优化的前后对比。
+完整原始数据见 asr/tools/speaker/results/eval_full_summary.md（历史生成产物，未入库；原相对路径 `../../../asr/tools/speaker/results/eval_full_summary.md`），逐条记录见同目录的 eval_full.jsonl，可用于后续优化的前后对比。
 
 ---
 
@@ -390,4 +390,4 @@ def asr_decode_full_segment(recognizer, samples, sr):
 | [asr/tools/speaker/ts_asr/core.py](../../../asr/tools/speaker/ts_asr/core.py) | 方案 A 核心函数（注册、打分、整段识别） |
 | [asr/tools/speaker/03_eval.py](../../../asr/tools/speaker/03_eval.py) | 评测主脚本 |
 | [asr/tools/speaker/04_eval_summary.py](../../../asr/tools/speaker/04_eval_summary.py) | 指标汇总脚本 |
-| [asr/tools/speaker/results/eval_full_summary.md](../../../asr/tools/speaker/results/eval_full_summary.md) | 全量实测结果 |
+| asr/tools/speaker/results/eval_full_summary.md（历史生成产物，未入库；原相对路径 `../../../asr/tools/speaker/results/eval_full_summary.md`） | 全量实测结果 |

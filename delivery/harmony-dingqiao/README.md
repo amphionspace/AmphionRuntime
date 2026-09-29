@@ -45,13 +45,15 @@ cd delivery/harmony-dingqiao
 
 ## 交付打包
 
+执行顺序、暂存目录、发布状态和归档统一见[双端交付流程](../ASR_DELIVERY_WORKFLOW.md)。Harmony 的固定目录及输入见[默认交付规范](docs/DEFAULT_DELIVERY.md)。
+
+先冻结并构建 Release/Diagnostics 子包，准备对应验收摘要；设好本次 `DELIVERY_STAGE` 及输入路径后执行：
+
 ```bash
-bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh
+bash delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh "${DELIVERY_STAGE:?请先设置本次暂存目录}/packages"
 ```
 
-默认交付为完整 ZIP、外置 ZIP SHA-256 文件、中文交付邮件和绑定最终 ZIP 的验收报告。目录结构、准备步骤及邮件模板见 [默认交付规范](docs/DEFAULT_DELIVERY.md)。
-
-先构建并冻结 Release/Diagnostics 产物，生成 SDK 子包及验收摘要，再运行完整组包脚本；脚本不负责启动 DevEco 构建。SDK-only 子包不替代完整交付。
+脚本不负责构建 SDK。默认交付包含完整 ZIP、外置校验、说明和最终 ZIP 验收报告，SDK-only 子包不替代完整交付。
 
 ## 真机压力测试
 
@@ -75,7 +77,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+  --device '<HDC_TARGET>' --warmup-runs 2 --iterations 10
 ```
 
 当前 `zhen` 配置、真机基线、comparison identity 规则和已拒绝方案见

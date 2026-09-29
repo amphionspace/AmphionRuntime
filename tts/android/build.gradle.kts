@@ -222,6 +222,7 @@ subprojects {
 tasks.register<Sync>("stageSdkDelivery") {
     group = "distribution"
     description = "Stage the SDK-only delivery package."
+    inputs.property("deliveryAarName", deliveryAarName)
     dependsOn(":sdk:assembleRelease", stageExternalTtsResources)
 
     into(rootProject.layout.buildDirectory.dir("delivery/$deliveryDirName"))
@@ -233,11 +234,27 @@ tasks.register<Sync>("stageSdkDelivery") {
         into("external-resources")
     }
     from(rootDir) {
-        include("README.md", "CHANGELOG.md", "LICENSE", "NOTICE", "CHECKSUMS.txt")
+        include("CHANGELOG.md", "LICENSE", "NOTICE")
     }
     from(rootDir.resolve("docs")) {
         into("docs")
-        include("API.md", "DELIVERY.md", "INTEGRATION.md", "PSEUDOCODE.md")
+        include("API.md", "DELIVERY.md", "INTEGRATION.md", "PSEUDOCODE.md", "LICENSE.md")
+    }
+    doLast {
+        destinationDir.resolve("README.md").writeText("""
+            # Android TTS SDK $sdkVersion
+
+            - 集成文件：`$deliveryAarName`。
+            - 模型与前端资源：`external-resources/tts/$modelId/$modelVersion/`。
+            - 接入步骤：[INTEGRATION](docs/INTEGRATION.md)。
+            - 公共接口：[API](docs/API.md)；调用顺序：[PSEUDOCODE](docs/PSEUDOCODE.md)。
+            - 授权：[LICENSE](docs/LICENSE.md)；交付范围：[DELIVERY](docs/DELIVERY.md)。
+            - 第三方声明：`NOTICE`。
+
+            先将 external-resources 下的 tts 目录复制到应用 workPath，再完成授权和引擎创建。
+            本目录是构建暂存输出，不包含 Demo、源码或最终验收报告。
+            本次文件的 SHA-256 和验收结论由最终交付清单提供，不复用历史校验和。
+        """.trimIndent() + "\n")
     }
 }
 

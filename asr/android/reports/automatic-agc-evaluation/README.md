@@ -82,17 +82,17 @@ current USB device:
 ```bash
 python3 asr/tools/run_automatic_agc_release_gate.py release \
   --model-dir asr/tools/demo-model/zhen \
-  --device <HDC_TARGET> \
-  --signing-config <LOCAL_SIGNING_JSON> \
-  --data-dir <RELEASE_WAV_DIRECTORY> \
-  --release-version <NEW_HARMONY_VERSION> \
-  --delivered-at <YYYY-MM-DD> \
-  --release-artifact <CUSTOMER_DELIVERY_ZIP> \
-  --delivery-har <AMPHION_DINGQIAO_HAR> \
-  --provenance <BUILD_PROVENANCE_JSON> \
-  --evaluation-artifact-root <PRESERVED_FULL_EVALUATION_DIRECTORY> \
-  --build-identity <VERIFIED_HARMONY_BUILD_IDENTITY_JSON> \
-  --evidence-output delivery/harmony-dingqiao/evidence/release-gate/<UNIQUE_ID>
+  --device '<HDC_TARGET>' \
+  --signing-config '<LOCAL_SIGNING_JSON>' \
+  --data-dir '<RELEASE_WAV_DIRECTORY>' \
+  --release-version '<NEW_HARMONY_VERSION>' \
+  --delivered-at '<YYYY-MM-DD>' \
+  --release-artifact '<CUSTOMER_DELIVERY_ZIP>' \
+  --delivery-har '<AMPHION_DINGQIAO_HAR>' \
+  --provenance '<BUILD_PROVENANCE_JSON>' \
+  --evaluation-artifact-root '<PRESERVED_FULL_EVALUATION_DIRECTORY>' \
+  --build-identity '<VERIFIED_HARMONY_BUILD_IDENTITY_JSON>' \
+  --evidence-output delivery/harmony-dingqiao/evidence/release-gate/'<UNIQUE_ID>'
 ```
 
 The release stage requires a completely clean worktree (including untracked files). It verifies the

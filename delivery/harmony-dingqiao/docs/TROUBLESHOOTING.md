@@ -63,7 +63,7 @@ manifest v1，或 HAP 内 manifest/native 与本地验收产物不同，说明�
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --skip-build --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+  --skip-build --device '<HDC_TARGET>' --warmup-runs 2 --iterations 10
 ```
 
 报告的 comparison identity 必须显示 4 threads、0 warmup samples、punctuation loaded，并与

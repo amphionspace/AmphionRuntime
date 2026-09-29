@@ -37,16 +37,16 @@ python3 -m venv .venv
   --request /受控目录/license-request.json \
   --plan /受控目录/plan.json \
   --input-dir /受控目录/sn-input \
-  --zip /受控目录/output/<deliveryId>.zip \
+  --zip /受控目录/output/'<deliveryId>'.zip \
   --operator "<验收人身份>" \
-  --out-prefix /受控目录/output/<deliveryId>.zip
+  --out-prefix /受控目录/output/'<deliveryId>'.zip
 
 .venv/bin/python license_delivery.py record \
   --repo "$(git rev-parse --show-toplevel)" \
   --plan /受控目录/plan.json \
-  --zip /受控目录/output/<deliveryId>.zip \
-  --issuance /受控目录/output/<deliveryId>.issuance.json \
-  --verification /受控目录/output/<deliveryId>.zip.verification.json \
+  --zip /受控目录/output/'<deliveryId>'.zip \
+  --issuance /受控目录/output/'<deliveryId>'.issuance.json \
+  --verification /受控目录/output/'<deliveryId>'.zip.verification.json \
   --operator "<交付人身份>" \
   --delivered-at YYYY-MM-DD
 ```
@@ -143,7 +143,7 @@ payload claims 字段：
 
 | 字段 | 含义 | 必填 |
 | --- | --- | --- |
-| applicationBindingMode | `none`/`record-only` 不限制，`allowlist` 多包白名单，`bound` 兼容单包绑定 | 是 |
+| applicationBindingMode | 新 SDK：`none`/`record-only` 不限制，`allowlist` 多包白名单，`bound` 单包绑定；旧授权缺省时保留原平台语义 | 新签发必填 |
 | applicationId | Android 宿主包名记录，也是兼容单包字段 | 否 |
 | applicationIds | Android applicationId 白名单，`allowlist` 时最多 50 个 | 否 |
 | bundleName | HarmonyOS bundleName 记录，也是兼容单包字段 | 否 |
@@ -161,6 +161,10 @@ payload claims 字段：
 | installTier | 装机量档位标识 | 否 |
 | features | 产品级授权能力列表，仅允许 ASR、TTS | 否 |
 | sdkMajor | 兼容 SDK 大版本 | 否 |
+
+新 SDK 按签名中的显式策略校验：`none` 和 `record-only` 不限制包名，`bound` 校验单包，`allowlist` 校验对应平台的多包名单。没有策略字段的旧授权保留原平台语义：ASR/Harmony TTS 不按包名绑定，Android TTS 对非空 `applicationId`（或回退的 `bundleName`）仍绑定。
+
+兼容旧 SDK 的不绑定应用共用授权仍须选择 `policy.applicationRecord.mode=none`，并将 `applicationId` 和 `bundleName` **同时留空**。旧 Android TTS 不认识显式 `record-only`，会继续按非空应用标识绑定；旧 ASR 也不会执行新增的 `allowlist`。因此验证报告中的策略名称不能替代 SDK 版本验收，宿主标识可另记受控交付记录。
 
 ## 6. 旧入口兼容
 

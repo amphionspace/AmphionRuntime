@@ -1,0 +1,334 @@
+{
+  "schemaVersion": 1,
+  "matrixId": "harmony-diarization-e2e-20260927",
+  "scope": "从录音输入到用户可读结果的角色分离交付门禁",
+  "baseline": {
+    "commit": "f850a7cc6ca6f64612a9f10bb5b99173fc4e4446",
+    "device": "Huawei Mate80 / 7GK0226326015655",
+    "artifact": "com.amphion.asr.harmony.demo 0.3.17 / versionCode 317",
+    "input": "16 kHz mono PCM16 WAV; paced feed when a device run is required",
+    "offlineRequired": true,
+    "baseCommit": "f5bd3867e9548f7630c4e436cb308d7cd63c2040"
+  },
+  "thresholdPolicy": {
+    "identity": "公开集采用同协议相对回归否决：不得新增人数塌缩、UNKNOWN/overlap 丢失、无理由拆分或冻结身份漂移；官方 11.7/20.3 仅用于校准，不设为单独发布阈值；实录体验失败阻断交付",
+    "performance": "必须同时提供队列、处理延迟和内存证据；RTF 单值不能证明长期没有积压",
+    "lifecycle": "finish 前 isLast=0；正常结束恰好一次 isLast 后恰好一次 complete；cancel 不新增 final/complete",
+    "honesty": "UNKNOWN、overlap、低置信度和推断结果保留原始证据并明确标记"
+  },
+  "requiredStages": [
+    "input",
+    "asr",
+    "segmentation",
+    "embedding",
+    "clustering",
+    "identity_freeze",
+    "sdk_alignment",
+    "caller_display"
+  ],
+  "cases": [
+    {
+      "id": "single-speaker",
+      "description": "单人连续发言，包含短句和停止录音尾段",
+      "status": "INCONCLUSIVE",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "prior-commit-device",
+          "path": "docs/speaker/DIARIZATION_SOURCE_ALIGNMENT_20260927.md",
+          "binding": "ancestor-not-current",
+          "reason": "Mate80 单人原始症状和调用方展示已验证，但运行提交为 185414b5，不是当前基线"
+        }
+      ],
+      "blockingReasons": [
+        "需要在当前基线和最终 HAP 上重新绑定完整单人输入、队列、内存和调用方展示证据"
+      ]
+    },
+    {
+      "id": "round-robin-2-to-4",
+      "description": "两到四人轮流发言，按首次出场顺序分配并长期保持身份",
+      "status": "FAIL",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "FAIL",
+        "realtime": "INCONCLUSIVE",
+        "memory": "FAIL",
+        "readability": "FAIL",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "public-evaluation",
+          "path": "docs/speaker/evidence/DIARIZATION_PUBLIC_METRICS_711F5AE7.json",
+          "binding": "ancestor-not-current",
+          "reason": "固定六段公开集加权严格 DER 29.41%；AISHELL-4 三/四人片段分别只输出两人，至少一位参考说话人召回为 0"
+        },
+        {
+          "kind": "review",
+          "path": "docs/speaker/DIARIZATION_PUBLIC_DATASET_REPORT_20260927.md",
+          "binding": "ancestor-not-current",
+          "reason": "公开集身份精度仍为交付阻断项"
+        },
+        {
+          "kind": "same-build-device-and-host",
+          "path": "docs/speaker/DIARIZATION_E2E_PROGRESS_20260928.md",
+          "binding": "runtime-f850a7cc",
+          "reason": "当前 AISHELL-4 四人切片仍输出两人；短实录 RSS 门禁失败；完整快照已复现"
+        }
+      ],
+      "blockingReasons": [
+        "多身份聚类和弱说话人召回未达到门槛",
+        "用户可读结果不能用角色总数接近来抵消缺失或误认",
+        "短实录冷加载 RSS 增长触发资源门禁；尚未证明持续泄漏或稳定驻留"
+      ]
+    },
+    {
+      "id": "sentence-internal-switch",
+      "description": "同一原句内发生换人，文本、时间轴和每段身份可直接阅读",
+      "status": "INCONCLUSIVE",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "contract-tests",
+          "path": "asr/tools/tests/test_harmony_diarization_sentence_output.py",
+          "binding": "current-source",
+          "reason": "覆盖句内时间段输出和文本归属约束，但没有替代 Mate80 真实换人精度证据"
+        }
+      ],
+      "blockingReasons": [
+        "缺少当前基线真实句内换人录音及调用方最终展示的同提交证据"
+      ]
+    },
+    {
+      "id": "short-interruption",
+      "description": "短插话、单字回答和相邻同人短段不能被统一门槛吞掉",
+      "status": "INCONCLUSIVE",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "contract-tests",
+          "path": "asr/tools/tests/test_harmony_community_diarization.py",
+          "binding": "current-source",
+          "reason": "覆盖短段和同人连续段的状态约束；仍需真实多人短插话录音"
+        }
+      ],
+      "blockingReasons": [
+        "需要把短插话与真实换人放在同一输入中验证，而不是仅凭单测或短样例"
+      ]
+    },
+    {
+      "id": "unknown",
+      "description": "无身份证据时保留 UNKNOWN，并区分推断、低置信度和最终冻结结果",
+      "status": "INCONCLUSIVE",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "contract-and-public-evidence",
+          "path": "docs/speaker/DIARIZATION_TIMELINE_FEEDBACK_20260927.md",
+          "binding": "mixed",
+          "reason": "已证明无声学覆盖不能继承身份；公开集仍有较长 UNKNOWN，不能仅因 UNKNOWN 被保留就判为通过"
+        }
+      ],
+      "blockingReasons": [
+        "需要逐段区分诚实 UNKNOWN 与因聚类/对齐丢失产生的 UNKNOWN"
+      ]
+    },
+    {
+      "id": "overlap",
+      "description": "重叠说话保留 overlap 和副角色证据，不能强行归并成单一身份",
+      "status": "FAIL",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "FAIL",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "FAIL",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "public-evaluation",
+          "path": "docs/speaker/evidence/DIARIZATION_PUBLIC_METRICS_711F5AE7.json",
+          "binding": "ancestor-not-current",
+          "reason": "六段固定公开集 identified secondary recall 很低，公开报告明确保留 overlap 相关红灯"
+        }
+      ],
+      "blockingReasons": [
+        "副角色识别和 overlap 可读性尚未达到交付门槛"
+      ]
+    },
+    {
+      "id": "long-meeting",
+      "description": "长会议实时处理，队列有界、内存不持续增长、尾段可结束",
+      "status": "FAIL",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "FAIL",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "FAIL",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "prior-long-session",
+          "path": "docs/speaker/DIARIZATION_EVIDENCE_LIFECYCLE_20260927.md",
+          "binding": "ancestor-not-current",
+          "reason": "123.8 秒回归无明显回退，但 600 秒长跑仍有积压/身份误认开放问题"
+        }
+      ],
+      "blockingReasons": [
+        "需要当前提交上可复用的长时队列和 RSS 斜率证据",
+        "公开身份精度失败仍阻断整体交付"
+      ]
+    },
+    {
+      "id": "stop-tail",
+      "description": "停止录音尾段完成唯一 last/complete，角色定稿与文本尾段对齐",
+      "status": "INCONCLUSIVE",
+      "requiredStages": [
+        "input",
+        "asr",
+        "segmentation",
+        "embedding",
+        "clustering",
+        "identity_freeze",
+        "sdk_alignment",
+        "caller_display"
+      ],
+      "gates": {
+        "identityAccuracy": "INCONCLUSIVE",
+        "realtime": "INCONCLUSIVE",
+        "memory": "INCONCLUSIVE",
+        "readability": "INCONCLUSIVE",
+        "lifecycle": "INCONCLUSIVE",
+        "offline": "INCONCLUSIVE",
+        "identityStability": "INCONCLUSIVE",
+        "honesty": "INCONCLUSIVE"
+      },
+      "evidence": [
+        {
+          "kind": "lifecycle-gate",
+          "path": "delivery/harmony-dingqiao/delivery/run_finish_compat_release_gate.py",
+          "binding": "current-source",
+          "reason": "脚本覆盖回调重入和 finish-shutdown 顺序；仍需把最终运行产物哈希绑定到当前基线"
+        }
+      ],
+      "blockingReasons": [
+        "当前工作树没有同一提交、设备和 HAP 的完整尾段证据包"
+      ]
+    }
+  ]
+}

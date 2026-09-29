@@ -1,0 +1,1125 @@
+{
+  "schemaVersion": 1,
+  "createdAt": "2026-09-27T23:45:29.586230+00:00",
+  "codeCommit": "c7d65deb0b4bb62b377c137539a8fb323adce763",
+  "runtimeCommit": "7f8a7e4ddb90d819e750df6712582bdac5d1463d",
+  "scope": "Non-canonical causal acoustic-boundary fork, saved production Session/caller replay and read-only eight-input boundary audit",
+  "decisions": {
+    "rootCause": "MIXED_LONG_RUN_OWNERSHIP_SUPPORTED",
+    "candidate": "SELECTED_BOUNDARY_NOT_DEPLOYABLE",
+    "genericPropagation": "UNVALIDATED_LOSS_OF_LONG_TRAINING_EVIDENCE",
+    "readability": "OPEN",
+    "release": "BLOCKED"
+  },
+  "productionChanged": false,
+  "deviceBuild": false,
+  "deviceRun": false,
+  "nativeSavedStates": 18,
+  "encodedWindows": 9,
+  "validation": {
+    "originalPoolingParity": true,
+    "allPrefixInputsExact": true,
+    "boundaryAppliedOnlyAfterSourceArrival": true,
+    "frozenPublicWindowExact": true,
+    "sourceTextConserved": true,
+    "asrAlignmentExact": true,
+    "uniqueSessionFinal": true,
+    "simulatedLeaseCleanup": true,
+    "callerFrozenObjects": true,
+    "limitations": [
+      "No automatic boundary policy validated",
+      "Changed caller paragraph/title behavior remains unresolved",
+      "No new device real-time, RSS, lifecycle or offline-network acceptance",
+      "MOSS reused as independent auxiliary evidence, not human truth"
+    ]
+  },
+  "metrics": {
+    "baseline": {
+      "durationSeconds": 180,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 4,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "005-M",
+        "1": "002-F",
+        "2": "003-F",
+        "3": "004-M"
+      },
+      "der": 0.336679,
+      "missedSpeechSeconds": 59.37,
+      "falseAlarmSeconds": 1.28,
+      "speakerConfusionSeconds": 2.07,
+      "referenceSpeakerSeconds": 186.29,
+      "classicDer250msNoOverlap": 0.131893,
+      "singleSpeakerAttributionAccuracy": 0.829463,
+      "macroSpeakerRecall": 0.577535,
+      "minoritySpeakerRecall": 0.222909,
+      "perSpeakerRecall": {
+        "002-F": 0.222909,
+        "003-F": 0.846154,
+        "004-M": 0.456718,
+        "005-M": 0.784358
+      },
+      "referenceOverlapSeconds": 20.03,
+      "detectedOverlapSeconds": 21.1,
+      "overlapDetectionRecall": 0.652022,
+      "overlapDetectionPrecision": 0.618957,
+      "secondaryEvidenceSeconds": 6.04,
+      "secondaryEvidenceRecall": 0.087369,
+      "identifiedSecondarySeconds": 0.94,
+      "identifiedSecondaryRecall": 0.009985,
+      "unknownTurnSeconds": 27.2,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 1.8,
+            "missing": 0.07,
+            "1": 5.14
+          },
+          "003-F": {
+            "2": 8.77,
+            "missing": 0.08
+          },
+          "004-M": {
+            "3": 11.38,
+            "0": 1.55,
+            "unknown": 3.61
+          },
+          "005-M": {
+            "0": 84.0,
+            "missing": 6.57,
+            "unknown": 2.89
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [
+          "004-M"
+        ],
+        "sameSpeakerIdSwitchCount": 2,
+        "switches": [
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 3,
+            "toSpeakerIndex": 0,
+            "previousEvidenceSeconds": 146.395,
+            "atSeconds": 155.405
+          },
+          {
+            "referenceSpeaker": "004-M",
+            "fromSpeakerIndex": 0,
+            "toSpeakerIndex": 3,
+            "previousEvidenceSeconds": 156.945,
+            "atSeconds": 156.955
+          }
+        ]
+      }
+    },
+    "causalFork": {
+      "durationSeconds": 180,
+      "frameMs": 10,
+      "referenceSpeakerCount": 4,
+      "systemSpeakerCount": 4,
+      "speakerCountError": 0,
+      "speakerMapping": {
+        "0": "005-M",
+        "1": "002-F",
+        "2": "003-F",
+        "3": "004-M"
+      },
+      "der": 0.327446,
+      "missedSpeechSeconds": 59.37,
+      "falseAlarmSeconds": 1.28,
+      "speakerConfusionSeconds": 0.35,
+      "referenceSpeakerSeconds": 186.29,
+      "classicDer250msNoOverlap": 0.119577,
+      "singleSpeakerAttributionAccuracy": 0.841494,
+      "macroSpeakerRecall": 0.594378,
+      "minoritySpeakerRecall": 0.222909,
+      "perSpeakerRecall": {
+        "002-F": 0.222909,
+        "003-F": 0.846154,
+        "004-M": 0.524089,
+        "005-M": 0.784358
+      },
+      "referenceOverlapSeconds": 20.03,
+      "detectedOverlapSeconds": 21.1,
+      "overlapDetectionRecall": 0.652022,
+      "overlapDetectionPrecision": 0.618957,
+      "secondaryEvidenceSeconds": 6.04,
+      "secondaryEvidenceRecall": 0.087369,
+      "identifiedSecondarySeconds": 0.94,
+      "identifiedSecondaryRecall": 0.009985,
+      "unknownTurnSeconds": 27.2,
+      "identityStability": {
+        "scope": "single-reference speech outside boundary collar; single named SDK index",
+        "collarSeconds": 0.25,
+        "perReferenceLabelSeconds": {
+          "002-F": {
+            "unknown": 1.8,
+            "missing": 0.07,
+            "1": 5.14
+          },
+          "003-F": {
+            "2": 8.77,
+            "missing": 0.08
+          },
+          "004-M": {
+            "3": 12.93,
+            "unknown": 3.61
+          },
+          "005-M": {
+            "0": 84.0,
+            "missing": 6.57,
+            "unknown": 2.89
+          }
+        },
+        "referenceSpeakersWithMultipleSystemIds": [],
+        "sameSpeakerIdSwitchCount": 0,
+        "switches": []
+      }
+    }
+  },
+  "sources": [
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationSession.ets",
+        "sha256": "c49da8b05f2eba1535ec6f52c15cb789d9bf11b186bbcc4e2ce332880fa9d980",
+        "bytes": 26715
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationSession.ets",
+        "sha256": "c49da8b05f2eba1535ec6f52c15cb789d9bf11b186bbcc4e2ce332880fa9d980",
+        "bytes": 26715
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/CommunitySpeakerIdentity.ts",
+        "sha256": "3df2aa46b3b772afe9e4e8e776fa874c50180e86c34a91808d0de1e04a57908d",
+        "bytes": 5738
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/CommunitySpeakerIdentity.ts",
+        "sha256": "3df2aa46b3b772afe9e4e8e776fa874c50180e86c34a91808d0de1e04a57908d",
+        "bytes": 5738
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/DiarizationCommitClock.ts",
+        "sha256": "6fca2b0e86fd3313409bef26544e191b75768caab9124029e8921e21269ffcc9",
+        "bytes": 2415
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/DiarizationCommitClock.ts",
+        "sha256": "6fca2b0e86fd3313409bef26544e191b75768caab9124029e8921e21269ffcc9",
+        "bytes": 2415
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationTranscriptState.ts",
+        "sha256": "96af9d5e84cc49dd5e94c9ace964b7949abbfc87a3a945c35d60ddb651fd21d6",
+        "bytes": 42404
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationTranscriptState.ts",
+        "sha256": "96af9d5e84cc49dd5e94c9ace964b7949abbfc87a3a945c35d60ddb651fd21d6",
+        "bytes": 42404
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationSpeakerIndex.ts",
+        "sha256": "815e0b0a83afce8231234792c43be42ab66c45fed570088a965761c8cf9203c7",
+        "bytes": 950
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationSpeakerIndex.ts",
+        "sha256": "815e0b0a83afce8231234792c43be42ab66c45fed570088a965761c8cf9203c7",
+        "bytes": 950
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk/src/main/cpp/community_cluster.h",
+        "sha256": "b0c092f73f50afb172bca21c2779c9adddf2e8888e22f31dc1493e8180733515",
+        "bytes": 26218
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_cluster.h",
+        "sha256": "b0c092f73f50afb172bca21c2779c9adddf2e8888e22f31dc1493e8180733515",
+        "bytes": 26218
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk/src/main/cpp/community_diarization.cpp",
+        "sha256": "c5158dda476757c936df3a3c4463fe50a900d4fa47358618be7c0080dd5f2ce1",
+        "bytes": 26961
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_diarization.cpp",
+        "sha256": "c5158dda476757c936df3a3c4463fe50a900d4fa47358618be7c0080dd5f2ce1",
+        "bytes": 26961
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/harmony/sdk/src/main/cpp/community_fbank.h",
+        "sha256": "926116f36ed738139e744d9376060843347be805cd48b0f10695bdaa13133743",
+        "bytes": 2574
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_fbank.h",
+        "sha256": "926116f36ed738139e744d9376060843347be805cd48b0f10695bdaa13133743",
+        "bytes": 2574
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/tools/replay_community_session.py",
+        "sha256": "2925a60b82be80b36a7a2e4c08ae0d67aeacf319f225e835e1cef3b0b2a38014",
+        "bytes": 8594
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/replay_community_session.py",
+        "sha256": "2925a60b82be80b36a7a2e4c08ae0d67aeacf319f225e835e1cef3b0b2a38014",
+        "bytes": 8594
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/asr/tools/tests/ts_extension_loader.mjs",
+        "sha256": "e5dbc4fec7d085267cfe0392c3f956e607b1f5380e68e4c905763453251a64cc",
+        "bytes": 366
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/ts_extension_loader.mjs",
+        "sha256": "e5dbc4fec7d085267cfe0392c3f956e607b1f5380e68e4c905763453251a64cc",
+        "bytes": 366
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/delivery/evaluate_speaker_diarization_report.py",
+        "sha256": "b3a56d72eb05165ac7bc17c35f414a7981a66d3f1e6b827b0ab680024f36dd0b",
+        "bytes": 14855
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/evaluate_speaker_diarization_report.py",
+        "sha256": "b3a56d72eb05165ac7bc17c35f414a7981a66d3f1e6b827b0ab680024f36dd0b",
+        "bytes": 14855
+      }
+    },
+    {
+      "original": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/ets/pages/Index.ets",
+        "sha256": "3490dab56f63c007c1adbb376361f6cdc81686ea06ee3aa9ec8a4c9248e186c2",
+        "bytes": 74013
+      },
+      "snapshot": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/Index.ets",
+        "sha256": "3490dab56f63c007c1adbb376361f6cdc81686ea06ee3aa9ec8a4c9248e186c2",
+        "bytes": 74013
+      }
+    }
+  ],
+  "reusedInputs": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/benchmark/aishell4-current/L_R003S01C02.rttm",
+      "sha256": "9dfd301c5b96f60813aaddec2549edc007851699917d9326e4db7e13c6b05ed9",
+      "bytes": 33636
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200616_M_R001S01C01/native.json",
+      "sha256": "2a1e33b41d9abdb0d4efcdcd7803ab3092a66754062430044f1cdfa8f967b431",
+      "bytes": 997337
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200616_M_R001S01C01/windows.npz",
+      "sha256": "7eca1d97967b784312e286ed35e93e80793f0163fb10c10a4e75fb9f2fabcc26",
+      "bytes": 518844
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200623_S_R001S01C01/native.json",
+      "sha256": "f1efb8ac0533b0534b33504b93af95075c2fa3f1451d52b67e4acaad789dcd72",
+      "bytes": 1182211
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200623_S_R001S01C01/windows.npz",
+      "sha256": "583b71e0a080544af4e89d124709388d47a9c113e8d6b1d866c196707f003a40",
+      "bytes": 603006
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200706_L_R001S01C01/native.json",
+      "sha256": "5ac2640e2cefe0b34b8cbbf4b38fefb63b9e392238789c6dc9a5712c85dd3364",
+      "bytes": 1052766
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/20200706_L_R001S01C01/windows.npz",
+      "sha256": "23826d44a56d847788ce06b0670b4ad5465a0227b88105a216d956288101202a",
+      "bytes": 532012
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/extract.py",
+      "sha256": "c983341aa32a9995dd1bfb0737ef533efe804941ed4ab0252f1e316338683b43",
+      "bytes": 7620
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/fbank",
+      "sha256": "e04585503459f0b03632cd586b8d8f68655857c33bf01a60d4e10132978d4737",
+      "bytes": 36840
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/fbank.cpp",
+      "sha256": "2582944784ab33a33e0810e086ea5de4c5a2974581adf6051b167f53e997efad",
+      "bytes": 655
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/native",
+      "sha256": "1e78306f9cd034766575a4335a390dc5524b12ebddc4bd8c22c52e9303b5c552",
+      "bytes": 124520
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/native.cpp",
+      "sha256": "24246cb3837895ebf6bee46f99b5e4e665028473fcede7c91c48d64cf48536d0",
+      "bytes": 3333
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/protocol.json",
+      "sha256": "377d0f9a397b408d1a99dfd7321bd139f7fd16bb641ff1568572eee14564bafb",
+      "bytes": 19936
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/community-short-calibration-20260928/sources/community_cluster.h",
+      "sha256": "b0c092f73f50afb172bca21c2779c9adddf2e8888e22f31dc1493e8180733515",
+      "bytes": 26218
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/dense-sdk-20260928/caller.py",
+      "sha256": "b83a4ceadd6e779a8d2d9288269e79c8a3026604a4c23fc87ee3cb56a1663f98",
+      "bytes": 2041
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/e2e-delivery-20260927/evaluation-manifest.json",
+      "sha256": "7aa6e422a0cc56e33fa4888662f21211f903b9185fe17ce4a4c712d272c06a34",
+      "bytes": 24620
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-0.bin",
+      "sha256": "75a154d13162ba5d7b5b755166844847da56b38ad31701f70a7e5418a5dc18a2",
+      "bytes": 12260
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-1.bin",
+      "sha256": "df06b9875419c54c56c7a6f78e5df48839e11c42f9b75a196fc2cd995624e0fb",
+      "bytes": 156544
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-10.bin",
+      "sha256": "ea4acc0adb5763c419bf5bc267952a22c61e35b328758fce196e085409467dcd",
+      "bytes": 1389328
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-11.bin",
+      "sha256": "a4e40d8300556215db12b28b0c46d2de55d1773fb012e5897ad3ce084461838a",
+      "bytes": 1528392
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-12.bin",
+      "sha256": "7737b766e4d586cce016525c5125649dc9e54de540647dc2a0101a9a7f9c4953",
+      "bytes": 1557040
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-13.bin",
+      "sha256": "c35d32f891f1d427c630039fcbfe2e9c219f9d14b02259164afb6e50d4516efb",
+      "bytes": 1834708
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-14.bin",
+      "sha256": "8605a82df9e334da8dd1755467e3480da902a25ddcb80be9f0cffadcca1819fc",
+      "bytes": 1959156
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-15.bin",
+      "sha256": "611cb4942f2bf86816e8fd93f7de813180b3b817a6652a7908d61964d09a0b79",
+      "bytes": 2091956
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-16.bin",
+      "sha256": "ec590a180a7445b178b017b9cb65e27151107ef80aff934abe582fffe91e3774",
+      "bytes": 2261296
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-17.bin",
+      "sha256": "a43fd92f83eb81a297b692ad9ce159c1a438824cd6f11e1d324ecc41afab400b",
+      "bytes": 2427504
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-2.bin",
+      "sha256": "16378325ff15f31cd90ba7a1873e98bf5f510ed3385ccdd586471d6b6ab86357",
+      "bytes": 299784
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-3.bin",
+      "sha256": "61e1da420b42dc3aa4ad3358ff208adc79f233668bb0a25afd7a06ba6b901376",
+      "bytes": 445112
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-4.bin",
+      "sha256": "5a6ac04f58d0e5786dd8de8b510c197e0059e2dc28dc8b842cfa8c38fd868cc8",
+      "bytes": 598792
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-5.bin",
+      "sha256": "7219f4532828937d291b5b5ad082a23fb22726f44cc367444d468334ab858f22",
+      "bytes": 726372
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-6.bin",
+      "sha256": "f22ef1ef78b0ece5a568efdbadab2046c99131483f53761e8d4b8cbd6be2596b",
+      "bytes": 848732
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-7.bin",
+      "sha256": "7b9391378f266ad90c6efe32ca196ec20a70bf3e2ec0ebad4df72cf32a2c3e95",
+      "bytes": 998236
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-8.bin",
+      "sha256": "6f541a81a2d60bd50cab66a998bb42d06a6b422f2777ea0dab68bad181974bb7",
+      "bytes": 1120596
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/cluster-9.bin",
+      "sha256": "e93c1106c0272ce74594c2dff941053961958856c128d4ef23cf536f08a6b3e4",
+      "bytes": 1251308
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/input.json",
+      "sha256": "5d40e832b4fba3ea44d133cedfa79e1b712c16d2342cfadd66aefb45e0295100",
+      "bytes": 15224439
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/provenance.json",
+      "sha256": "89bb4c2a2667e75413d4ed1f3a5ef288311ba78e070115ab73eecdd0a0f677ba",
+      "bytes": 2394
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/replay.mts",
+      "sha256": "a86b952d2dc928402a68dcf23b8c2ef3a63fd66147b2521fdb2638113ec38bb7",
+      "bytes": 31081
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/aishell4-4/result.json",
+      "sha256": "8a895f519ef76e76a4e71bfab9d98703fae2cf61d43a12c25ffed810d69d63a6",
+      "bytes": 38050327
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/customer-main-four/cluster-16.bin",
+      "sha256": "c2316c035d9c98211c8dc332e5bf447a9f5293f3b02f7cccb9fa8128358febf3",
+      "bytes": 2064812
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/customer-main-four/result.json",
+      "sha256": "9021c1115f58c222e0e4ecbc82a5c89c9e6943fe3c285289f1dddfbc511429af",
+      "bytes": 33107628
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/four-speaker-124s/cluster-13.bin",
+      "sha256": "88fb860aa94409e6bab4bab7b4cdd6d942035cc26c7f46072b5537910aad186f",
+      "bytes": 1578380
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/four-speaker-124s/result.json",
+      "sha256": "40d950c652245cfd9c0dae4117c72fe89eaad7c4d0a0d5fe267bd204080e43b4",
+      "bytes": 22333066
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/four-speaker-short/cluster-1.bin",
+      "sha256": "f904ad93401829deb00d5278eb695a13a1cd4fba19b49b82202bed91f1259cab",
+      "bytes": 140884
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/four-speaker-short/result.json",
+      "sha256": "93517fe7553f4d442be348018ee8b5073df30ebf660b0aa6fae180175d539b48",
+      "bytes": 321198
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/single-speaker-unknown/cluster-4.bin",
+      "sha256": "1c24d459a5989bac69aa9403d46ab1187adf67b1fbf88837a396a3015fbea264",
+      "bytes": 507504
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-admission-cost-20260928/session/single-speaker-unknown/result.json",
+      "sha256": "b4c23161988acfc6043996f387de0c3a34df14f55c541d090585d3f3377da9e4",
+      "bytes": 2617649
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/short-run-recovery-20260928/aishell4-4.pcm",
+      "sha256": "6eb6f8f41df605ec0d8e92e920f71fa17f739056f295bffb3ddf60fdc90babd7",
+      "bytes": 5760000
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/community-feature.f32",
+      "sha256": "379fcc7bc891b5172cb5dd84899cc96124e7d191c76fbb68a8342b0ddffcdc33",
+      "bytes": 83840
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/community-plda.f64",
+      "sha256": "b6e0f558d31272e1ed2f00a7c26aa4142602fbabf4cdf97ff251d1c8ab24f50c",
+      "bytes": 398352
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/community-wespeaker-encoder.fp32.onnx",
+      "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f",
+      "bytes": 21301300
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/community-wespeaker-pool.fp32.onnx",
+      "sha256": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094",
+      "bytes": 5264664
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx",
+      "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+      "bytes": 5986908
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/archive.py",
+      "sha256": "f4f14ae3035aa767ce669faf43b6040d6933ce50c56f80f7f07bd389f4ccd4f9",
+      "bytes": 5392
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/audit.json",
+      "sha256": "88f68e9b5196319d76584c8f1f7d53d0514a92b6fb2891231ed0eeea2ea059ba",
+      "bytes": 16435
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/audit.log",
+      "sha256": "078582d8317f1d788e3fb9de75664b627b4a4964b4f38f97628b316b1d8d5414",
+      "bytes": 8141
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/audit.py",
+      "sha256": "2645f02da3412464a325ebc17457417533f088bff5537edb500e4c9b12252f02",
+      "bytes": 4072
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/baseline-caller/caller.mts",
+      "sha256": "1e8ddabb5d3739de326a30b88b2bca0ccff3b4563a30ccd4f377a1bd2b20a923",
+      "bytes": 8188
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/baseline-caller/provenance.json",
+      "sha256": "fcc45b78fa7c517d6b30f0c2f6ea1116877753d9df3af59b1f3ea717f151340c",
+      "bytes": 311
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/baseline-caller/result.json",
+      "sha256": "7d386fba8d872d67245d006cba95ed9f6bcd88c9a0c0319acf7fcd99cf799f02",
+      "bytes": 19358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/baseline-caller-payload.json",
+      "sha256": "7ab093e0511831dfda2cd9f235f107c99d3b5670bac4e96f721bf88d80363a0d",
+      "bytes": 35948
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-146-fbank.f32",
+      "sha256": "ef317479216ac037deaf9dea5641b8ddb3d3a47c38647cc3abd13e9bbfbca01d",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-146-pcm.f32",
+      "sha256": "3be669e9d8b23c0f0d28c7119396c2542a8e22999c436e2662530eba3b4d26e3",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-147-fbank.f32",
+      "sha256": "dbbe67be2a3e43c542857771e35f657d0259b52085b518d6d22d7a714ed3d523",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-147-pcm.f32",
+      "sha256": "7135720306f62ea10b03f23929bd1a3779f2f8625b7dc43ae90c52a859ab8afb",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-148-fbank.f32",
+      "sha256": "6a200e64782dff8b095aa1edde700f5767740fd2b089d578049f1fc969a28b82",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-148-pcm.f32",
+      "sha256": "1ebbeda73e33e504a6dc751f93b756d5ea8c81b54150229ef1e1f981d82ad1f4",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-149-fbank.f32",
+      "sha256": "f1af3922fbb58908b26cb199d35abbcefb954e9668af57ebc429488c768a6801",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-149-pcm.f32",
+      "sha256": "445f19d526b7bc43ed6a9f42fb6513fe19bed2054243f068515369b82bf80c61",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-150-fbank.f32",
+      "sha256": "ddd866fe130e84367e13ea7a593460d9f87ef5a11bd5a1e6f11c6cf493724df0",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-150-pcm.f32",
+      "sha256": "17ee8666a341c81c65ea8954808de72f26e3342244648ec90ba6ce140f399db1",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-151-fbank.f32",
+      "sha256": "4a606de7ba89491883872a6ffed406ba66bb0ddb1b33b488dad285a9e23902d2",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-151-pcm.f32",
+      "sha256": "97220dd03bd291a5544e0c3e1a13cc68a4a38b4c60b8fc1cb1157dad53e99a1e",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-153-fbank.f32",
+      "sha256": "5df723ea8a9ac7fd39c1ce4b8ad8dd795f679decac12c2b6b434aa5584d14fd3",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-153-pcm.f32",
+      "sha256": "20347825251cb10648fd00f53b6ccfc521d093be52ec55001edcdef602bc5a7b",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-154-fbank.f32",
+      "sha256": "0b7dbff1ed8d32d599e0fed46bc4fbc483daf79aca00ba80727552c74e3829a6",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-154-pcm.f32",
+      "sha256": "38598c9730c5f7343db87a7128765a47c0b1f224fb05ce5132a827bf2d121f91",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-155-fbank.f32",
+      "sha256": "40199b7d2ca5537e3b02bb1a17dbf99afe836735aa971667b3e5127865dcad81",
+      "bytes": 319360
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-155-pcm.f32",
+      "sha256": "04aab579ab018a0526d1e4f4a28256503bae5719680e9248b40865473ec65198",
+      "bytes": 640000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-assessment-v2.log",
+      "sha256": "3a4460280eaae83ec6927af434485638a0a77e405670d864eee2c4c1c049798f",
+      "bytes": 4407
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-assessment.json",
+      "sha256": "22d9f42590170554eac51cb60e561f74c27a57dca09942326c21ac0d2e8d527a",
+      "bytes": 24045
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-assessment.log",
+      "sha256": "da00df22bef82ced2482cd1cede33e89f780c0ee71e1dbd8b5dcf135140d8802",
+      "bytes": 198
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-caller/caller.mts",
+      "sha256": "1e8ddabb5d3739de326a30b88b2bca0ccff3b4563a30ccd4f377a1bd2b20a923",
+      "bytes": 8188
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-caller/provenance.json",
+      "sha256": "1214ccd6cecc119d4269bac205c9b9294be4b734e8d7066d42228d8ecb030d2c",
+      "bytes": 311
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-caller/result.json",
+      "sha256": "2e6da2b2938577e62f8683b0598ce75adf74297ca93785301cfb1932ef0424ec",
+      "bytes": 19716
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-caller-payload.json",
+      "sha256": "078f9a93b8708e25e5352ef76a4e00a6e10a2dcbb14507041d56cadf8ab0cc51",
+      "bytes": 36381
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-experiment.json",
+      "sha256": "191a09ed8b8573acfd577728019c08929bf8882fae0426a84593e7c1bef1f7d1",
+      "bytes": 2644
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-patches.npz",
+      "sha256": "373f813090b2ac27d6adc24285fbf127fb1656073e6490ecf5034996d29cfed2",
+      "bytes": 1596012
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-preparation.json",
+      "sha256": "9e6ebdcf2221e9b41f91f7d16c4e523db97aaa8dc7ac77fb8cc3db5784296a8f",
+      "bytes": 5191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-preparation.log",
+      "sha256": "b6d3e58c40b8f12127baafd70fe24c05c8dd4165f5a1b9ff83ceec0c6d97bb27",
+      "bytes": 4527
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-0.bin",
+      "sha256": "75a154d13162ba5d7b5b755166844847da56b38ad31701f70a7e5418a5dc18a2",
+      "bytes": 12260
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-0.boundary.json",
+      "sha256": "39f4449a21e3c223e970a11abafd2d8f9f01ef1ef615878edb2aa774876dced9",
+      "bytes": 316
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-1.bin",
+      "sha256": "df06b9875419c54c56c7a6f78e5df48839e11c42f9b75a196fc2cd995624e0fb",
+      "bytes": 156544
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-1.boundary.json",
+      "sha256": "9a430eb2846f59d07b47ca1bed154a0cb438706937924240f86fb2e30f8e4c4a",
+      "bytes": 317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-10.bin",
+      "sha256": "ea4acc0adb5763c419bf5bc267952a22c61e35b328758fce196e085409467dcd",
+      "bytes": 1389328
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-10.boundary.json",
+      "sha256": "44f62adaba3dbac5a7212940ace4d9ae2b321065799aeca49ffaa6866a2d709f",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-11.bin",
+      "sha256": "a4e40d8300556215db12b28b0c46d2de55d1773fb012e5897ad3ce084461838a",
+      "bytes": 1528392
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-11.boundary.json",
+      "sha256": "482f0099d3e8da5e635b6113d55d50d5b1a8edeb8c804cbe6bfabdbbe24d99b2",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-12.bin",
+      "sha256": "7737b766e4d586cce016525c5125649dc9e54de540647dc2a0101a9a7f9c4953",
+      "bytes": 1557040
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-12.boundary.json",
+      "sha256": "0534ddb6653a8e1dca28a1fd3b7bd8e8bf018a30c0d7bcd23a2ca82784359363",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-13.bin",
+      "sha256": "c35d32f891f1d427c630039fcbfe2e9c219f9d14b02259164afb6e50d4516efb",
+      "bytes": 1834708
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-13.boundary.json",
+      "sha256": "1f0db27c8b935a02a4cd2f4be1eeefc32b5f359f39c948021d67b30c1188b217",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-14.bin",
+      "sha256": "8605a82df9e334da8dd1755467e3480da902a25ddcb80be9f0cffadcca1819fc",
+      "bytes": 1959156
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-14.boundary.json",
+      "sha256": "babcba82608f6b356f7b6f1eed6847a2dc9c9d91fffabfea30c4c9e95f433c97",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-15.bin",
+      "sha256": "611cb4942f2bf86816e8fd93f7de813180b3b817a6652a7908d61964d09a0b79",
+      "bytes": 2091956
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-15.boundary.json",
+      "sha256": "914bf97bfbdf80f6bc27fca26aa3680d95eaf3bba3a342acffb9ee478054b03d",
+      "bytes": 320
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-16.bin",
+      "sha256": "ec590a180a7445b178b017b9cb65e27151107ef80aff934abe582fffe91e3774",
+      "bytes": 2261296
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-16.boundary.bin",
+      "sha256": "f3b1352580f9059ab7823b9067c96617a8d4c56c8c285348280220dc0bef8e75",
+      "bytes": 2270692
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-16.boundary.json",
+      "sha256": "c6baf88fcef8da4de5e43014f422e8410ad100ffe1fa9659a94eceb18edfa40d",
+      "bytes": 402
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-17.bin",
+      "sha256": "a43fd92f83eb81a297b692ad9ce159c1a438824cd6f11e1d324ecc41afab400b",
+      "bytes": 2427504
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-17.boundary.bin",
+      "sha256": "4f3b810bc9ba96e163b082990c5d9af45e6cbc661f818ff1f8ea0da1a7f72f9b",
+      "bytes": 2436900
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-17.boundary.json",
+      "sha256": "8d209c814fb359a7f867a98ce6fa7c5da404336524ef7cee431dd9fe03c37d68",
+      "bytes": 402
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-2.bin",
+      "sha256": "16378325ff15f31cd90ba7a1873e98bf5f510ed3385ccdd586471d6b6ab86357",
+      "bytes": 299784
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-2.boundary.json",
+      "sha256": "d439cbb182ab6d12f88809d33e228d6cdc855254d72f137d7dcd06ef811dcd15",
+      "bytes": 317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-3.bin",
+      "sha256": "61e1da420b42dc3aa4ad3358ff208adc79f233668bb0a25afd7a06ba6b901376",
+      "bytes": 445112
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-3.boundary.json",
+      "sha256": "71c129226cc6663ff99fd4dad5ecf1cedde978b34218335c1979857cfed30e2c",
+      "bytes": 317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-4.bin",
+      "sha256": "5a6ac04f58d0e5786dd8de8b510c197e0059e2dc28dc8b842cfa8c38fd868cc8",
+      "bytes": 598792
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-4.boundary.json",
+      "sha256": "ca726dfb43de960e9c3a0b0a81b0a19bd46ea4fea2c6dd1fadf6d1e33c111a65",
+      "bytes": 317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-5.bin",
+      "sha256": "7219f4532828937d291b5b5ad082a23fb22726f44cc367444d468334ab858f22",
+      "bytes": 726372
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-5.boundary.json",
+      "sha256": "24ba9ee0498e2031f7fc30aea4c24dc9dbb5172d7a9fd5e657f719fb013e7f39",
+      "bytes": 317
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-6.bin",
+      "sha256": "f22ef1ef78b0ece5a568efdbadab2046c99131483f53761e8d4b8cbd6be2596b",
+      "bytes": 848732
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-6.boundary.json",
+      "sha256": "8911473ae506b88277fa318dfefb4bfca1a1177b7a7717669085d19dd3271290",
+      "bytes": 318
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-7.bin",
+      "sha256": "7b9391378f266ad90c6efe32ca196ec20a70bf3e2ec0ebad4df72cf32a2c3e95",
+      "bytes": 998236
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-7.boundary.json",
+      "sha256": "bc49137440cc4d03326288c5c3a34de960e07824f993227a40bb9bf7fbc48983",
+      "bytes": 318
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-8.bin",
+      "sha256": "6f541a81a2d60bd50cab66a998bb42d06a6b422f2777ea0dab68bad181974bb7",
+      "bytes": 1120596
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-8.boundary.json",
+      "sha256": "944ab965e569abbf0462159d9e137f58838d3f3d9819a0f74f70005a524faa24",
+      "bytes": 318
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-9.bin",
+      "sha256": "e93c1106c0272ce74594c2dff941053961958856c128d4ef23cf536f08a6b3e4",
+      "bytes": 1251308
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/cluster-9.boundary.json",
+      "sha256": "ac205d814d2741ad8d33abd58f6af1ea192831df44e2527bbffcee901fefac66",
+      "bytes": 318
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/input.json",
+      "sha256": "5d40e832b4fba3ea44d133cedfa79e1b712c16d2342cfadd66aefb45e0295100",
+      "bytes": 15224439
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/replay.mts",
+      "sha256": "a86b952d2dc928402a68dcf23b8c2ef3a63fd66147b2521fdb2638113ec38bb7",
+      "bytes": 31081
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session/result.json",
+      "sha256": "9886c47c57c2d31cb1843f16f0d81e80ce63a2463c281939b793378eff5a1c78",
+      "bytes": 38410000
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary-session.log",
+      "sha256": "336c63fc747299e6a5cd9836d4d7f5817a4d8a485b3e1970dd7c7a5a58abbd42",
+      "bytes": 507
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary_assessment.py",
+      "sha256": "e10c7c10e855a4697754d69e43a3126a14f7c3273b23dea749ebc1def0a1098a",
+      "bytes": 3604
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary_assessment_v2.py",
+      "sha256": "44eb237e1b07cb6e45d5c00182ac8c80297c3244ab689107478283c53ea3114c",
+      "bytes": 4492
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/boundary_fork.py",
+      "sha256": "428603130b3e3222aa62258acc78129eaac2ccb6029a053e49dc37fbe7082586",
+      "bytes": 7351
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/decision.json",
+      "sha256": "4bfc14e670eb7d1abc33443913b381d8dd9330a4d4b8c4f8e1442ba0ae38ba7f",
+      "bytes": 12944
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/decision.log",
+      "sha256": "29043c2e9ee2eac8c59743d3cf28b8c1d995915cda7906f0ba8c873f8101ab2f",
+      "bytes": 2892
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/decision.py",
+      "sha256": "fb6003d4d39caf29ead6005a5a5dfaac16b9d8ede59867ee3be697108565e241",
+      "bytes": 4964
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/direct-boundary-audit.json",
+      "sha256": "12e6924863b2508ca2a23f26dee6b9351dc411b3a67406a312622bfd7f6f0e3c",
+      "bytes": 604385
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/direct-boundary-audit.log",
+      "sha256": "425e0136fe78a8df45fd83dde7edef2b6ad8d1f7bd6e8bed028ab6c5ef453daf",
+      "bytes": 2663
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/direct_boundary_audit.py",
+      "sha256": "d6f5b38752df9f0e86c47a423147713d42085cd1f1776a6267d93291acd9160d",
+      "bytes": 3538
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/experiment.json",
+      "sha256": "c630e6c83f8d1b450395530c6ab1430a0a05f11f614098f19f5df7821452846e",
+      "bytes": 2637
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/moss/L_R003S01C02.turns.json",
+      "sha256": "9f0e6ec5105f1c6afced47bbe17fe2d6420a589e0c5837f63ac4d0dbe04ba792",
+      "bytes": 1403
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/moss/L_R003S01C02.txt",
+      "sha256": "37c223b6d05f3e5d2930f93b9277c642de667ac0a03f9450c55985ca30ee191d",
+      "bytes": 3274
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/moss/results.jsonl",
+      "sha256": "fa90b7e50181e1fdef117be01648b2279195e8a71e720d1d3f49815c2b8ae005",
+      "bytes": 3133
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/moss/run.json",
+      "sha256": "c2ba8774173deef86f061c2abec25aaa7f02492de3ea2c0f133c68f5dce11763",
+      "bytes": 6990
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/native.json",
+      "sha256": "986a5fdb09bcc8895f93692e03393df2796caafaa3c3bb19d51eb8fdd154a468",
+      "bytes": 1118620
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/CommunitySpeakerIdentity.ts",
+      "sha256": "3df2aa46b3b772afe9e4e8e776fa874c50180e86c34a91808d0de1e04a57908d",
+      "bytes": 5738
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/DiarizationCommitClock.ts",
+      "sha256": "6fca2b0e86fd3313409bef26544e191b75768caab9124029e8921e21269ffcc9",
+      "bytes": 2415
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/Index.ets",
+      "sha256": "3490dab56f63c007c1adbb376361f6cdc81686ea06ee3aa9ec8a4c9248e186c2",
+      "bytes": 74013
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationSession.ets",
+      "sha256": "c49da8b05f2eba1535ec6f52c15cb789d9bf11b186bbcc4e2ce332880fa9d980",
+      "bytes": 26715
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationSpeakerIndex.ts",
+      "sha256": "815e0b0a83afce8231234792c43be42ab66c45fed570088a965761c8cf9203c7",
+      "bytes": 950
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/SpeakerDiarizationTranscriptState.ts",
+      "sha256": "96af9d5e84cc49dd5e94c9ace964b7949abbfc87a3a945c35d60ddb651fd21d6",
+      "bytes": 42404
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_cluster.h",
+      "sha256": "b0c092f73f50afb172bca21c2779c9adddf2e8888e22f31dc1493e8180733515",
+      "bytes": 26218
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_diarization.cpp",
+      "sha256": "c5158dda476757c936df3a3c4463fe50a900d4fa47358618be7c0080dd5f2ce1",
+      "bytes": 26961
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/community_fbank.h",
+      "sha256": "926116f36ed738139e744d9376060843347be805cd48b0f10695bdaa13133743",
+      "bytes": 2574
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/evaluate_speaker_diarization_report.py",
+      "sha256": "b3a56d72eb05165ac7bc17c35f414a7981a66d3f1e6b827b0ab680024f36dd0b",
+      "bytes": 14855
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/replay_community_session.py",
+      "sha256": "2925a60b82be80b36a7a2e4c08ae0d67aeacf319f225e835e1cef3b0b2a38014",
+      "bytes": 8594
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/public-long-turn-20260928/sources/ts_extension_loader.mjs",
+      "sha256": "e5dbc4fec7d085267cfe0392c3f956e607b1f5380e68e4c905763453251a64cc",
+      "bytes": 366
+    }
+  ],
+  "disclosure": "Paths/hashes and aggregate metrics only. No PCM, text, embeddings or model snapshots in Git. Qwen not called; reused exact-PCM MOSS."
+}

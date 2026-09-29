@@ -1,0 +1,21 @@
+{
+  "status": "NOT_ACCEPTED",
+  "platform": "harmony",
+  "version": "0.3.18",
+  "source_commit": "74e94a27cc90f033d3f8e5aa18ac0b3b9518e352",
+  "sdk_contract": "build/install smoke only; final ZIP SDK acceptance pending",
+  "speaker_identity": "BLOCKED: missed speakers, misidentification and short UNKNOWN remain",
+  "user_visible_experience": "NOT_ACCEPTED",
+  "network_observation": "NOT_RUN",
+  "size_gate": "NONE per user instruction",
+  "published": false,
+  "public_sdk_build_mode": "debug, diagnostics disabled (repository standard carrier)",
+  "diagnostics_build_mode": "diagnostics",
+  "documentation_adjustments": "target-speaker boundary added; no binary changes",
+  "artifact": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+  "size_bytes": 1750219342,
+  "sha256": "11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884",
+  "zip_crc": "PASS",
+  "layout": "PASS: SDK, Diagnostics, signed Demo, independent Demo source, docs",
+  "local_staging": "~/.cache/amphion-runtime/delivery-staging/asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352"
+}

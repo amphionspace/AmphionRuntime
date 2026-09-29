@@ -2,7 +2,7 @@
 
 本目录沉淀每月一次的「Android / iOS / Linux 服务端」联合工程指标报告，方便横向对比 + 长期趋势观察。
 
-> 识别正确性（WER / CER）由上游 sherpa-onnx [scripts/benchmark/](../../../scripts/benchmark/) 统一出报告，下游不重复造轮子。月度报告里只通过 URL 链上去做引用，本 dashboard 自身只追踪 端 / 服务端工程指标 三轨。
+> 识别正确性（WER / CER）由上游 sherpa-onnx [scripts/benchmark/](../../../third_party/sherpa-onnx/scripts/benchmark/) 统一出报告，下游不重复造轮子。月度报告里只通过 URL 链上去做引用，本 dashboard 自身只追踪 端 / 服务端工程指标 三轨。
 
 ## 目录结构
 
@@ -59,14 +59,15 @@ Dashboard 不接受任意 shell runner，也不从 GitHub runner 直连推理服
 | Crash 率 (端) | ≤ baseline + 0.05% | Bugly / Crashlytics / Sentry |
 | 服务端 9001 错误率 | ≤ 0.1% QPS | Prometheus asr_error_total |
 
-识别正确性指标（WER / CER / 命中率）请直接看上游 [scripts/benchmark/](../../../scripts/benchmark/) 的 CSV 报告，不在本 dashboard 出现。
+识别正确性指标（WER / CER / 命中率）请直接看上游 [scripts/benchmark/](../../../third_party/sherpa-onnx/scripts/benchmark/) 的 CSV 报告，不在本 dashboard 出现。
 
 ## 异常触发
 
-- 任意工程指标连续 2 个月劣化 ≥ 0.5%，自动建 P1 ticket
-- 单月劣化 ≥ 1%，触发 P0 + 走 [RELEASE_PROCESS.md 第 3.2 节回滚 SOP](../RELEASE_PROCESS.md#32-紧急回滚-sop)
+- 任意工程指标连续 2 个月劣化 ≥ 0.5%，建议人工复核后建立 P1 问题。
+- 单月劣化 ≥ 1%，建议人工评估 P0 及[回滚流程](../RELEASE_PROCESS.md#32-紧急回滚-sop)。
+- 当前脚本只生成报告，不自动创建工单或执行回滚；上述阈值是处理建议。
 - 上游 WER 报告劣化阈值（如何回滚）由算法同学根据 baseline 决定，不在本 dashboard 决策
 
 ## 历史报告索引
 
-历史报告按月归档在 `trends/reports/<YYYY-MM>.md`；汇总趋势用 [trends/rtf.csv](trends/rtf.csv) 等 CSV，可直接喂给 Grafana / Superset。
+历史报告按月归档在 `trends/reports/<YYYY-MM>.md`；汇总趋势用 `trends/rtf.csv`（dashboard 生成输出，不随源码提供） 等 CSV，可直接喂给 Grafana / Superset。

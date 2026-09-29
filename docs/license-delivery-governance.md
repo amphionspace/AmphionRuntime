@@ -51,6 +51,7 @@ flowchart LR
 - 每个源文件的基名、SHA-256、工作表和明确 SN 列名。
 - `policy.features`、`policy.sdkMajor`、可选 `policy.installTier`。
 - `policy.applicationRecord.mode`：`none`、`record-only`、`bound` 或 `allowlist`。`allowlist` 每个平台制品只能填 Android `applicationIds` 或 HarmonyOS `bundleNames` 其中一组，最多 50 个。
+- 兼容旧 SDK 的不绑定应用共用授权仍选择 `none`，应用标识留空并另记受控交付记录。旧 Android TTS 不认识显式 `record-only`，旧 ASR 不执行 `allowlist`；策略名称不能替代 SDK 版本验收，见[工具说明](../tools/license/README.md)。
 - `policy.certificateBinding.mode`：`none` 或 `sha256`。
 - `policy.runtimeExpiry`：`perpetual` 或明确日期。
 - `policy.maintenance`：`unlimited` 或明确日期。
