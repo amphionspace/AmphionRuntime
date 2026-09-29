@@ -104,7 +104,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 [AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.13, license=LICENSED
 ```
 
-可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
+可通过 CLT 的 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
 
 ## 3. 生命周期控制
 
@@ -294,10 +294,11 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 `0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
 `speakerIndex + 1`。
 
-角色分离完全在 SDK 内端侧执行。`pyannote-segmentation-3.0.onnx` 与 `eres2net.onnx` 已内置在
+角色分离完全在 SDK 内端侧执行。新方案所需的语音分割、说话人特征提取与聚类资源已内置在
 `amphion_dingqiao.har`，宿主无需配置地址、认证、模型路径、网络权限或 ChildProcess 入口。
+声纹校验与角色分离使用不同资源，不应将声纹校验模型作为角色分离模型替换。
 PCM 写入应用沙箱的 10 秒分块临时文件，处理完成且不再被推理任务引用后回收。
-SDK 按 10 秒推理窗口、2.5 秒 hop 串行执行本地 segmentation 和 embedding。
+SDK 按 10 秒推理窗口、1 秒步长 串行执行本地 segmentation 和 embedding。
 分人结果以 120 秒为目标窗口，在其后的第一个 ASR endpoint 及所需分人推理完成后校准并发布。
 跨窗长句等待原句结束，不强行分句。120 秒是工程默认值，不是准确率最优或固定延迟保证。
 
@@ -512,7 +513,7 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 ## 8. 授权
 
-授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。本交付校验授权结构、ECDSA 签名、ASR 能力和四个月有效期；包内授权不绑定包名、签名证书、设备、SDK 主版本或维护期。
+授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。SDK 校验授权结构、ECDSA 签名、ASR 能力，以及授权声明中实际启用的有效期、设备、证书、主版本和维护期条件；不预设固定试用期限。
 
 `LicenseDeviceIdProvider` 为兼容既有公共接口而保留；本交付授权的设备白名单为空，宿主无需读取或注入 SN/ODID。
 

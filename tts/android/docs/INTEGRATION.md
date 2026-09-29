@@ -10,36 +10,32 @@
 | 模式 | 离线 `RunMode.OFFLINE` |
 | 网络权限 | 不需要 |
 
-SDK AAR 已包含模型资源、ONNX Runtime Java 类和 arm64 native 库。宿主 App 不需要额外下载模型。
+SDK AAR 包含 SDK 代码、ONNX Runtime 和 arm64 native 库；模型、词典、规则与授权不在 AAR 内。接入时须准备随交付提供的外置资源，运行时无需联网下载。
 
 ## 2. Gradle 接入
 
-源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-tts-sdk-0.1.0.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
+源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-tts-sdk-3.0.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
 
-把 `lits-tts-sdk-0.1.0.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
+把 `lits-tts-sdk-3.0.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/lits-tts-sdk-0.1.0.aar"))
+    implementation(files("libs/lits-tts-sdk-3.0.aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 }
 ```
 
 说明：AAR 使用 Kotlin 编译，本地 `files(...)` 方式接入时不会自动携带 Maven 传递依赖。宿主 App 如果已经通过 Kotlin Android 插件引入 `kotlin-stdlib`，可使用项目内已有版本。
 
-推荐宿主 App 避免压缩 ONNX 模型资源，降低首次安装/解包成本：
-
-```kotlin
-android {
-    androidResources {
-        noCompress += listOf("onnx")
-    }
-}
-```
-
 ## 3. 工作目录
 
-SDK 首次创建引擎时会把 AAR 内置模型资源安装到可读写目录，再从文件路径创建 ONNX Runtime session。
+先将交付的 `external-resources/tts/` 完整复制到工作目录的 `tts/` 下，再设置工作目录：
+
+```text
+<workPath>/tts/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/manifest.json
+```
+
+`workPath` 是这棵目录的根，不能指向模型版本目录。SDK 从文件路径加载资源，不会从 AAR 解包模型。
 
 ```kotlin
 TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
@@ -53,7 +49,7 @@ TextToSpeechSdk.setWorkPath(File(filesDir, "lits-tts").absolutePath)
 
 ## 4. 创建与预加载
 
-`createEngine` 会同时加载模型。建议 App 打开后立即调用 callback 版接口做预加载，不要等用户点击合成时才加载。
+资源准备完成后先激活授权（见第 12 节）。需要预热前端时，可在后台线程调用 `preloadFrontendAndTn()`；它不加载 ONNX 模型。随后调用 callback 版 `createEngine` 加载模型，成功后设置监听器。
 
 ```kotlin
 TextToSpeechSdk.createEngine(
@@ -170,7 +166,7 @@ onData(sequence=0..n)
 onComplete(SYNTHESIS_COMPLETE)
 ```
 
-`onData` 返回 16 kHz、16-bit、mono PCM 分片，`sequence` 从 0 递增。
+`onData` 返回 PCM 分片，`sequence` 从 0 递增。格式以 `onStart` 的字段为准；当前模型为 24 kHz、16-bit、mono。
 
 ## 8. 播放通道
 
@@ -236,17 +232,33 @@ engine.shutdown()
 | `1002300017` | license 已过期 |
 | `1002300018` | license 绑定的设备与当前设备不一致 |
 
-`1002300012` 起为离线授权失败码，仅当 SDK 被武装（构建期注入 license 公钥）时才可能出现。
+授权检查失败码及未初始化查询行为见 [API.md](API.md)。
 
 ## 12. 离线授权（License）
 
-To B 交付的纯离线授权：ECDSA P-256 签名，绑定 applicationId / bundleName、签名证书、设备 SN 白名单、运行到期和维护期。
-完整签发 / 校验流程见 `tts/tools/license/README.md`，机制细节见 `docs/LICENSE.md`。
+采用 ECDSA P-256 离线验签。实际期限、授权能力、应用标识、证书和设备限制由本次授权声明决定；机制见 [LICENSE.md](LICENSE.md)。
+TTS Android 会校验非空 `applicationId`（为空时回退 `bundleName`）；共用且不绑定应用的授权必须将两字段均留空，宿主标识只写签发登记。
 
 判断 SDK 是否被武装：构建期 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` 是否注入了公钥。
 
 - 未武装（公钥为空，默认）：开发 / 内部构建，`init` 与 `createEngine` 不做任何校验，功能照常。
-- 已武装（注入公钥）：业务方需把签发的 `.lic` 放进 app 的 `assets/`（默认文件名 `amphion-license.lic`）。ASR 与 TTS 共用同一份授权文件。
+- 已武装（注入公钥）：业务方需把签发的 `.lic` 放进 app 的 `assets/`（默认文件名 `amphion-license.lic`），也可使用下述文件路径方式。同一文件只有在包含相应能力且全部绑定条件适配时才能供 ASR 与 TTS 共用。
+
+使用文件路径激活时，等待成功回调再创建引擎：
+
+```kotlin
+TextToSpeechSdk.setLicense(licenseFile.absolutePath,
+    object : Callback<LicenseActivationResult> {
+        override fun onSuccess(result: LicenseActivationResult) {
+            // 此后调用第 4 节的 callback 版 createEngine。
+        }
+        override fun onError(errorCode: Int, errorMessage: String) {
+            // 显示授权失败，停止本次引擎创建。
+        }
+    })
+```
+
+文件路径方式使用 SDK 的默认设备标识提供方；需要注入宿主自定义 SN 时，使用 `init(context, TtsLicenseOptions(license=... , deviceIdProvider=...))`，不要再用 `setLicense` 覆盖该配置。
 
 业务方可在启动时显式初始化（可选，便于尽早暴露授权问题；不调用也会在首次 `createEngine` 懒校验）：
 
@@ -257,7 +269,7 @@ TextToSpeechSdk.init(
     context,
     TtsLicenseOptions(
         licenseAssetName = "amphion-license.lic",
-        licenseEnforcement = LicenseEnforcement.ENFORCE,
+        enforcement = LicenseEnforcement.ENFORCE,
         // 一般不需要传；仅当客户系统改用其他 SN API 时覆盖默认实现
         deviceIdProvider = TtsDeviceIdProvider { _ -> "DEVICE-SN-FROM-DINGQIAO" },
     ),

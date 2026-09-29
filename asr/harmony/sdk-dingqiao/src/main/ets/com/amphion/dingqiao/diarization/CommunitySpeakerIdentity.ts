@@ -97,11 +97,12 @@ export function communityTimeline(tracks: number[][], mapping: number[],
     boundaries.push(Math.max(beginTime, track[0]), Math.min(endTime, track[1]));
   }
   boundaries.sort((a, b) => a - b);
-  const unique = boundaries.filter((value, index) => index === 0 || value !== boundaries[index - 1]);
+  // API 23 es2abc misparses `< unique.length` as a type expression.
+  const uniqueBoundaries = boundaries.filter((value, index) => index === 0 || value !== boundaries[index - 1]);
   const result: CommunityTimelineTurn[] = [];
   let previous = '';
-  for (let index = 1; index < unique.length; index++) {
-    const begin = unique[index - 1], end = unique[index];
+  for (let index = 1; index < uniqueBoundaries.length; index++) {
+    const begin = uniqueBoundaries[index - 1], end = uniqueBoundaries[index];
     const ids: string[] = [];
     for (const track of tracks) {
       if (track[0] >= end || track[1] <= begin) continue;

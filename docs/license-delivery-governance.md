@@ -50,7 +50,7 @@ flowchart LR
 - `customerId`、`projectId`、`reason`、`issuedAt`。
 - 每个源文件的基名、SHA-256、工作表和明确 SN 列名。
 - `policy.features`、`policy.sdkMajor`、可选 `policy.installTier`。
-- `policy.applicationRecord.mode`：`none` 或 `record-only`。当前 SDK 不按包名限制。
+- `policy.applicationRecord.mode`：`none` 或 `record-only`；当前实现的 `record-only` 会将标识写入 claims。Android TTS 对非空 applicationId/bundleName 仍会校验，因此不绑定应用的共用授权必须选择 `none`，宿主标识另记受控交付记录。不能将验证报告中的 record-only 当作“不绑定”的证据，见[工具说明](../tools/license/README.md)。
 - `policy.certificateBinding.mode`：`none` 或 `sha256`。
 - `policy.runtimeExpiry`：`perpetual` 或明确日期。
 - `policy.maintenance`：`unlimited` 或明确日期。

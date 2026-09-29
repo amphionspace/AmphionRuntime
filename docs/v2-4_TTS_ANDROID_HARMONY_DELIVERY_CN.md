@@ -1,5 +1,7 @@
 # TTS Android / HarmonyOS SDK 交付与编译说明
 
+> 历史 v2.4 交付记录：版本、目录、工具链和验证结论只适用于当时产物。当前入口为 [Android](../tts/android/docs/BUILD_FROM_SOURCE.md) 与 [Harmony](../tts/harmony/docs/BUILD_FROM_SOURCE.md)，不要执行本文的旧 Studio 命令构建当前版本。
+
 本文面向接手 TTS SDK 的同事，说明需要交付哪些内容、模型文件放在哪里，以及如何从源码编译 Android AAR 和 HarmonyOS HAR。
 
 下面统一用 `AmphionRuntime 根目录` 指代仓库根目录，例如：
@@ -162,8 +164,8 @@ sdk.dir=<ANDROID_SDK_ROOT>
 也可以不写 `local.properties`，改用环境变量：
 
 ```bash
-export ANDROID_HOME=<ANDROID_SDK_ROOT>
-export ANDROID_SDK_ROOT=<ANDROID_SDK_ROOT>
+export ANDROID_HOME='<ANDROID_SDK_ROOT>'
+export ANDROID_SDK_ROOT='<ANDROID_SDK_ROOT>'
 ```
 
 ### 4.2 构建 Android AAR

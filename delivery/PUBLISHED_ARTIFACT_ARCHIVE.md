@@ -1,91 +1,81 @@
-# 已发布交付包对象存储归档规范
+# 交付包对象存储归档
 
-已发布交付包长期保存在公司对象存储；本机只保留轻量归档索引，使用时按需下载。归档不重建、不重压缩、不改变已验收的 ZIP，也不改变发布结论。
+完整交付顺序见[双端流程](ASR_DELIVERY_WORKFLOW.md)。本文只定义包的归档、恢复和本地清理；上传不重建或重压缩 ZIP，不改变验收与发布结论。
 
-## 1. 范围与已发布认定
+## 状态与适用范围
 
-- ASR SDK 以 canonical `main` 的 `delivery/asr-sdk-release-history.json` 为依据。候选文件必须同时匹配台账的附件名、字节数、SHA-256，并保留平台、版本、交付日期、源码 commit 与包内 provenance 的绑定。
-- 版本号相同但日期、源码或哈希不同的工作区产物不得沿用主线记录。`FORMAL`、文件名、构建成功、staged 目录或个人分支台账都不能独立证明已发布；历史包冲突或缺少发布依据时，记录文件哈希与原因后直接删除，不另建历史包归档。当前正在验收、身份明确的候选仅可留在规定暂存目录。
-- 完整交付包须有绑定外层 ZIP SHA-256 的已发布记录和最终 ZIP 验收报告；仅内部 Release SDK 在台账中，不足以认定整个外层包已发布。完整 ZIP、外置 SHA-256、最终验收报告和实际交付说明作为一个归档集合，逐个登记大小与 SHA-256，全部验证后才能移除该集合的本地副本。不得用 SDK-only 包替代完整交付。
-- 历史 SDK-only 交付按当时台账原样归档，不重新组装为当前默认结构。其他产品（包括 TTS）须有同等可核对的发布记录后再纳入；没有依据的历史交付包直接清理。
-- 原始 PCM、实验快照、失败现场、授权私钥、签名密钥和构建环境不属于交付包清理；不能整目录上传或清除 `build/`、`.secure/`、诊断目录或工作区。已发布包原有的授权内容不在归档时改写。
+| 包的状态 | 归档依据 | 索引中的状态 |
+| --- | --- | --- |
+| 已正式发布的完整包 | 主线外层发布记录，精确绑定 ZIP 与最终报告 | `published: true` |
+| 身份明确、尚未发布的当前包 | 用户明确要求保存；版本、源码、大小、哈希及真实报告完整 | `published: false` |
+| 历史 SDK-only 已发布包 | 主线 `asr-sdk-release-history.json` 中的原始子包身份 | 保留历史发布依据，不重新组装 |
+| 身份不清或与历史发布记录冲突的包 | 记录哈希和冲突原因，在用户已授权的范围内清理 | 不作为历史发布包上传 |
 
-## 2. 本地与对象存储固定位置
+相同版本号、FORMAL 文件名、构建成功或个人分支台账均不能独立证明已发布。内层 SDK 的正式记录不能证明外层完整 ZIP 已发布。未发布包的明确授权不推广为自动保留所有历史失败产物。
 
-本地交付文件统一暂存于以下目录，不再长期散落在仓库 `build/`、`asr/delivery/`、桌面、下载目录或 `~/delivery/`：
+归档集合包含原包、外置 SHA-256、验收报告及实际交付说明，附件逐个登记身份。TTS 等产品遵守同样的身份原则。源码、原始 PCM、实验快照、失败现场、授权私钥、签名私钥和构建环境不属于交付包清理；不得整目录上传或删除 `build/`、`.secure/` 或工作区。
 
-```text
-~/.cache/amphion-runtime/delivery-staging/<product>/<platform>/<version>/<source-commit>/
-├── packages/       # 待交付的原始 ZIP 与外置校验文件
-├── acceptance/     # 该 ZIP 的最终验收报告及交付说明
-└── scratch/        # 临时解包、独立构建与回下载校验副本
-```
+## 位置与索引
 
-`source-commit` 使用完整 40 位提交号。`product`（如 `asr`、`tts`）与平台明确分隔；同版本不同构建不得混放。现有打包脚本必须显式传入此处的输出目录，不依赖脚本历史默认位置；仅底层编译中间文件可继续留在构建工具自身目录。使用脚本支持的 `output-root` / `--stage-release` 参数指定位置，未支持自定义输出的工具先完成输出目录适配再用于新交付。
+本地暂存布局由[双端流程](ASR_DELIVERY_WORKFLOW.md#2-冻结和构建)定义。归档脚本按 `<product>/<platform>/<version>/<source-commit>` 查找 `packages/`、`acceptance/`、`scratch/`；源码提交使用完整 40 位 SHA，不依赖仓库 build 目录默认输出。
 
-本地只保留正在进行的交付暂存。已发布包在交付完成、归档回下载验证和远端索引保存后立即清理；取消或被否决的候选在保存必要的独立失败报告后清理 ZIP 和确认对应的解包副本。不按“留最近 N 版”建立本地镜像，不通过复制旧目录开始新交付。身份不清的历史交付包记录哈希后直接删除，不上传为历史包袱。独立诊断证据按其自身保留规范处理。
-
-传输使用 AmphionBucket `ab`；先执行 `ab remotes` 确认别名。当前归档位置使用已有公司交付桶 `cos-amphion-delivery`，不修改 ACL、不生成公开链接，也不作为端侧 SDK 在线依赖。
+使用 AmphionBucket，先检查 `ab remotes` 中存在 `cos-amphion-delivery`。远端位置固定为：
 
 ```text
-cos-amphion-delivery:amphion-runtime/releases/<product>/<platform>/<version>/<artifact-sha256>/<artifact-name>
+cos-amphion-delivery:amphion-runtime/releases/<product>/<platform>/<version>/<outer-sha256>/<artifact>
+cos-amphion-delivery:amphion-runtime/releases/<product>/<platform>/<version>/<outer-sha256>/companions/<attachment>
+cos-amphion-delivery:amphion-runtime/archive-index/<unique-batch-id>.json
 ```
 
-当前 `<product>` 为 `asr`。完整交付集合的外置报告与说明放在外层包哈希目录下的 `companions/`，独立记录哈希；平台为 `harmony` 或 `android`。不使用 `latest`，不覆盖不同内容，不以版本目录表示唯一构建。发现远端冲突即停止，不添加 `--overwrite` 绕过。
+不使用 latest，不覆盖不同内容，不修改 ACL 或创建公开下载链接。索引使用不可覆盖的批次 ID，保存包含历史条目的全量索引。
 
-Git 内的 `delivery/published-artifact-archives.json` 只登记已经回下载验证通过的对象，记录发布依据、精确远端 URI、文件大小、SHA-256、验证日期及本次验证的本地副本数量（删除结果另记迁移报告）；不写用户绝对路径、凭证或客户音频。全量索引另存到同桶 `amphion-runtime/archive-index/<batch-id>.json`，批次 ID 唯一，后续批次不覆盖旧索引。原发布台账保持不变。
+Git 中的 `delivery/published-artifact-archives.json` 沿用历史名称，包含正式和明确授权的未发布归档；读取时检查 `published`。旧条目无该字段时，依据其主线发布台账判断。每个原包和附件记录精确 URI、字节数、SHA-256 及完整回下载验证时间；不记录用户绝对路径、凭证或客户音频。删除结果另存 `delivery/archive-migrations/`。
 
-### 每次交付在 Git 中记录什么
+## 身份记录
 
-新的完整交付或没有现成产品台账的交付，在 `delivery/published-deliveries/<product>-<platform>-<version>-<outer-sha256>.json` 保存一条发布记录，并随发布 PR 合入主线。记录至少包含：
+未发布包记录保存在 `delivery/candidate-reports/`，包括 `product`（默认 asr）、`platform`、`version`、完整 `source_commit`、外层 `artifact` 文件名、`size_bytes`、`sha256`、`published: false` 和真实验收结论。
 
-| 字段 | 内容 |
+正式完整包记录保存在 `delivery/published-deliveries/<product>-<platform>-<version>-<outer-sha256>.json`，在归档前随发布记录 PR 合入主线；后续归档索引和清理结果另行提交。除上述身份字段外，正式记录须包含：
+
+| 字段 | 含义 |
 | --- | --- |
-| `product` / `platform` / `version` | 产品、平台、版本 |
-| `source_commit` / `delivered_at` | 冻结源码的完整提交号、实际交付日期 |
-| `artifact` / `size_bytes` / `sha256` | 原始最外层交付包的文件名、字节数、完整 SHA-256 |
-| `release_sdk` | ASR 子包对应的现有台账身份；其他产品无子包时省略 |
-| `acceptance_report` / `acceptance_sha256` | 已入库脱敏最终报告的相对路径与哈希，报告本身绑定外层包身份 |
-| `companions` | 实际交付的外置校验文件、报告和说明的相对文件名、大小与哈希 |
-| `result` / `limitations` | 最终验收结论及未覆盖条件，不把失败或不确定结论改成通过 |
+| `published` / `delivered_at` | `true` 与实际交付日期 |
+| `release_sdk` | ASR 子包的台账身份；没有子包的产品省略 |
+| `acceptance_report` / `acceptance_sha256` | 仓库相对报告路径及哈希；报告绑定外层 ZIP |
+| `companions` | 附件列表，每项有 `artifact`（文件名）、`size_bytes`、`sha256` |
+| `result` / `limitations` | 最终结论及限制；脚本 published 模式只接受主线 `result: "PASS"` 的记录 |
 
-此记录建立正式交付身份；`published-artifact-archives.json` 则追加该身份对应的精确对象地址与回下载校验记录，不替代原始发布记录。每批归档必须保留已有索引条目，只追加新条目；上传包含全部条目的新批次索引，不能用本次条目覆盖历史索引。索引中的每个对象（包括外置附件）分别登记文件名、大小、SHA-256、精确 URI 和回下载验证时间。旧批次远端索引仍保留。
+身份记录、验收报告和外置校验文件由脚本自动纳入相应集合，其他实际交付附件必须显式列出。各附件文件名须唯一，不能靠同名覆盖。
 
-## 3. 执行顺序与删除门禁
+## 执行归档
 
-1. 列出待归档文件，按发布依据计算本地 SHA-256 和大小；记录不匹配项及 SHA-256，按历史包清理规则删除，不上传为正式归档。检查没有构建、验收、传输或其他任务正在使用这些文件。
-2. 执行 `ab push <local-file> <exact-remote-uri> --dry-run`，确认目标与冲突，再执行相同命令去掉 `--dry-run`。每项检查退出码；部分成功不能视为整批成功。
-3. 用 `ab pull <exact-remote-uri> <new-temporary-path>` 从远端完整回下载，重新计算 SHA-256 和字节数，与发布台账及上传前值比较。不能以文件存在、大小相同、ETag、历史上传记录或 push 的退出码替代内容验证。
-4. 将已验证索引写入本地并上传独立批次索引；回读索引核对内容。原始包和归档集合成员在索引落盘、远端索引验证前不得删除。
-5. 删除前再次确认本地文件内容、大小与记录一致，且没有活跃使用者。只删除清单中明确列出的已验证文件和本次回下载的临时文件，不使用通配符、`git clean` 或工作区目录删除。任何失败、源文件变化、远端冲突或回下载校验不符都保留原文件并记录原因。
-6. 有额外解包副本时，先逐文件确认与已归档 ZIP 的成员一致；仅移除匹配且未使用的副本。含额外/修改文件的目录不得整目录删除。构建中间产物不自动视为交付包副本。
-7. 提交规范和已验证索引的 PR。仅归档和文档变更不触发 SDK 重构建或真机重跑；用实际传输回下载、哈希及索引一致性检查验证。归档验证记录不替代发布验收证据。
+`tools/delivery/archive_delivery.py` 在 macOS/Linux 运行，依赖 Python 3.10+、AmphionBucket；删除时还需要 `lsof`。默认使用 `~/.local/bin/ab`，可用 `--ab` 指定安装路径，避免误用系统 ApacheBench。
 
-本流程执行上传与本地移除须在用户授权的范围内。单次临时网络失败可按 `ab` 的断点续传能力重试一次；仍失败则保留文件并报告，不能自动无限重试或清除恢复检查点。
-
-## 4. 每次交付的必经流程
-
-1. **确定身份与范围**：在 canonical 分支完成源码、版本、授权、签名与组包规则冻结，创建上述唯一暂存目录。沿用产品默认交付结构；Harmony 完整包仍按 `harmony-dingqiao/docs/DEFAULT_DELIVERY.md` 执行。
-2. **构建并验收原包**：在 `packages/` 生成最终交付 ZIP，固定其大小与 SHA-256；从该 ZIP 验收。在 `acceptance/` 保存外置报告、绑定身份的验收结论及交付说明。已有同提交、同设备、同二进制证据复用，不重复长跑。临时解包与回下载只进入 `scratch/`。
-3. **登记发布依据**：通过项目现有门禁，将 Release SDK 身份和证据登记至发布台账并合入 canonical 分支。完整外层 ZIP 必须按第 2 节在 `delivery/published-deliveries/` 登记其哈希和最终报告；不能借用子包的身份。待合入、验收失败或 `INCONCLUSIVE` 的能力不得宣称发布通过。
-4. **归档并验证可恢复**：按第 3 节上传原包及该次实际交付的必要附件，完整回下载比对，保存 Git 索引及不可覆盖的远端批次索引。任何传输失败均保留身份明确的原包，不把上传故障误当成“身份不清”。
-5. **交付并清理**：使用已验证对象对应的原始交付内容；发邮件或客户通知须有本次明确授权。确认交付已完成且没有任务使用暂存文件后，清理原 ZIP、附件副本及可确认未修改的解包文件，移除空暂存目录。Git 保留发布台账、归档索引和脱敏报告；对象存储长期保存交付物。不得为了释放空间删除未归档且身份明确的已发布包。
-6. **以 PR 收尾**：提交本次归档索引、发布记录和适用的脱敏证据，记录归档验证与本地清理结果。新的归档位置必须在项目中可查，不能仅留在聊天或本机笔记中。
-
-## 5. 按需恢复
-
-从 Git 归档索引取得精确 `remote_uri`、`sha256` 和 `size_bytes`；本地索引不可用时，使用公司桶中的独立批次索引。恢复到新的临时位置，不覆盖已有文件：
+从仓库根目录执行，先替换占位路径；以下命令只预览，不上传或删除：
 
 ```bash
-ab pull '<remote_uri>' '/path/to/new-temporary-file.zip'
-shasum -a 256 '/path/to/new-temporary-file.zip'
-wc -c < '/path/to/new-temporary-file.zip'
+python3 tools/delivery/archive_delivery.py \
+  --record 'delivery/candidate-reports/<batch>/android.json' \
+  --publication unpublished \
+  --companion acceptance/complete-candidate-report.json \
+  --companion acceptance/delivery-notes.md \
+  --batch-id '<unique-batch-id>'
 ```
 
-哈希及字节数均与索引一致后才解包、使用或交付。核对发布台账中的同一身份；过期授权或当前能力限制仍按原发布记录处理，归档不赋予新的发布资格。使用结束后移除临时下载及已确认无修改的解包副本，不建立长期本地镜像。远端归档默认长期保留，不由本地清理流程删除。
+- `--record` 是仓库相对身份记录路径。脚本自动读取并归档 `packages/<artifact>`、`packages/<artifact>.sha256` 和记录本身；外置校验内容为 `<sha256>  <artifact>`。
+- `--companion` 可重复，路径相对本次固定暂存目录。未发布包须列出真实报告和实际说明；脚本检查文件内容一致性，不替代人工判断附件是否齐全。
+- 正式包使用 `--publication published`，`--record` 指向外层发布记录。执行前 fetch 主线；脚本核对记录与 `origin/main` 一致、报告哈希以及 `companions` 中每项身份，并自动归档仓库报告。不要再重复传入自动纳入的附件。
+- 预览无冲突后，原命令追加 `--apply`。脚本逐项上传、完整回下载、重算哈希和字节数；随后上传并回下载全量批次索引，验证成功后原子保存本地索引。ETag、文件存在或 push 成功不能代替此验证。
+- 本次上传及清理已获得用户授权时，同时追加 `--remove-local`。删除前再次检查哈希、大小和文件占用，只删除本次列明的暂存原包与附件，保留仓库身份记录和报告。逐项删除结果写入迁移记录。
 
-## 6. 本次首次迁移
+历史 SDK-only 包不适用此完整包脚本：按主线台账核对身份，使用 `ab push --dry-run`、`ab push` 和 `ab pull` 完成同样的逐项回下载与索引验证，不伪造外层发布记录。仅在归档验证后移除本地包。
 
-2026-09-27 按主线台账核对本机候选，匹配 Harmony 0.2.9 与 Android 0.3.3 两个历史交付 ZIP。归档结果见 [归档索引](published-artifact-archives.json)。
+## 失败、额外副本与恢复
 
-9 月 24 日交付工作区中的 Harmony 0.3.17 / Android 0.3.8 与主线同版本的 9 月 18 日记录存在身份冲突，按本次用户指令清理，不归档为已发布包；相关完整包、Diagnostics 包、staged 包及缺少发布依据的 TTS 历史包、SDK preview 包同样清理。只清除 ZIP 与可确认对应的解包内容，独立报告、源码与诊断证据保留。具体执行结果见 [迁移记录](archive-migrations/20260927.json)。
+- 远端冲突、下载损坏、源文件变化或索引验证失败时停止，不加 `--overwrite`。未进入删除阶段的原件全部保留；若删除阶段中断，已删除项见迁移记录，剩余文件不继续清理。
+- 保留下载恢复目录和 AmphionBucket 检查点。一次临时传输失败可重试一次，仍失败先诊断。重新执行脚本会使用新下载目录，不保证复用旧下载分块；不为恢复擅自清除旧检查点。
+- 尚未入索引时，处理失败后用新的唯一批次 ID 继续；已入索引的包不得重复登记。若先前仅用 `--apply` 归档而未清理，后续按已有验证记录再次核对内容和占用后人工清理，不能靠重跑命令跳过重复登记保护。
+- 额外内层包或展开副本不自动删除。逐文件与已归档 ZIP（必要时其内层 ZIP）比对，删除明确匹配且未使用的文件；有新增或修改内容的目录不得整目录删除。独立诊断证据保留。
+- 恢复时从 Git 索引或远端批次索引获取精确 URI，用 `ab pull` 下载到新的临时位置，核对 SHA-256 和字节数后才使用。归档不续期授权，也不授予发布资格；使用后清理已核对的临时副本，不建立长期本地镜像。
+
+历史迁移记录见 [2026-09-27](archive-migrations/20260927.json)；2026-09-28 双端当前包及重复副本的处理见同目录 `20260928-asr-*`。这些是具体批次事实，不作为其他任务的删除授权。

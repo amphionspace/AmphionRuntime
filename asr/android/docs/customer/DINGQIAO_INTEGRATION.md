@@ -10,7 +10,7 @@
 | `demo/*.apk` | 参考 Demo（可选，用于验收） |
 | `docs/` | 接口、集成说明、商用授权（LICENSE.md）、第三方开源声明（NOTICE） |
 
-商用授权文件 `amphion-license.lic` 由我方单独签发，见 [`LICENSE.md`](LICENSE.md)。本次正式授权供贵司正式宿主使用，ASR 与 TTS 共用同一份 license，绑定设备 SN 清单并限制到期时间；包名仅作记录，不作为授权限制。
+商用授权文件 `amphion-license.lic` 由我方单独签发，见 [`LICENSE.md`](LICENSE.md)。授权能力、有效期与设备/证书限制以本批文件为准。ASR 与 TTS 共用时须同时满足两者的校验条件；不绑定应用的共用授权应将 applicationId 和 bundleName 均留空。
 
 ## 2. Gradle 集成
 
@@ -50,9 +50,9 @@ SpeechRecognizeSdk.init(
 
 - 声纹 embedding：`{workPath}/voiceprints/{voiceprintId}/`
 - 声纹模型：SDK 会自动把内置 `eres2net.onnx` 准备到 `{workPath}/eres2net.onnx`
-- 会议说话人分离：按需准备 `pyannote-segmentation-3.0.onnx`，PCM 仅写入 App 私有临时目录
+- 会议说话人分离：按需准备内置语音分割、说话人特征提取与聚类资源；声纹校验模型不参与角色聚类。PCM 仅写入 App 私有临时目录
 
-首次启动会将 AAR 内 ASR 模型解包到 App 私有目录，耗时数秒至数十秒，属正常现象。
+完成上述初始化后，按 [LICENSE.md](LICENSE.md) 调用 `setLicense`；成功后调用 `prepareRuntime`，收到 `onReady` 再创建引擎。首次准备会将 AAR 内 ASR 模型解包到 App 私有目录并加载，调用方应显示准备状态。
 `setLogLevel` 默认为 `WARN`；它只影响日志阈值，不改变 ASR 或生命周期语义。
 
 需要采集问题现场时，由我方单独提供 diagnostics 变体 AAR。普通交付 AAR 即使调用已废弃的
@@ -64,7 +64,8 @@ SpeechRecognizeSdk.init(
 ## 4. 识别流程
 
 ```
-createEngine → setListener → startListening
+init → setWorkPath → setLicense 成功 → prepareRuntime 就绪
+  → createEngineAsync 成功 → setListener → startListening
   → writeAudio(DINGQIAO_AUDIO_FRAME_BYTES_20MS 字节 PCM / 20 ms) × N
   → finish
   → onResult(isFinal=true, 警务增强后文本)

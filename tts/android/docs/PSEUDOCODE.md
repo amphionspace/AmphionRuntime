@@ -1,10 +1,16 @@
 # Lits TTS Android SDK 伪代码
 
-本文给交付 SDK 的接入方提供一份从查询音色到释放引擎的完整流程示例。字段和值以当前 Android AAR 实际支持能力为准。
+本文给交付 SDK 的接入方提供一份从资源及授权准备到释放引擎的完整流程示例。字段和值以当前 Android AAR 实际支持能力为准。
 
 ## 1. 完整流程
 
 ```pseudocode
+// 前置：把交付 external-resources/tts/ 复制到 <workPath>/tts/。
+TextToSpeechSdk.setWorkPath(workPath)
+// 使用 assets 授权时先 init(context)，需要自定义 SN 时传 TtsLicenseOptions。
+// 文件授权可用 setLicense(path, callback)，必须等待 onSuccess 后才执行下列流程。
+TextToSpeechSdk.init(context)
+
 // 0. 可选：查询可用音色
 voices = TextToSpeechSdk.listVoices(VoiceQuery {
     requestId: "voices-001",
@@ -12,8 +18,8 @@ voices = TextToSpeechSdk.listVoices(VoiceQuery {
     language: "zh-en"
 })
 
-// 1. 可选：指定 SDK 工作目录
-TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
+// 1. 可选：后台线程预热前端与 TN（不加载 ONNX）
+TextToSpeechSdk.preloadFrontendAndTn()
 
 // 2. 创建引擎并在 createEngine 阶段加载模型
 params = CreateEngineParams {
@@ -24,7 +30,7 @@ params = CreateEngineParams {
     engineName: "xiaoqiao-tts",
     modelLoadOnCreate: true
 }
-engine = TextToSpeechSdk.createEngine(params)
+engine = TextToSpeechSdk.createEngine(params) // 同步流程放在后台线程
 
 // 3. 注册监听器
 engine.setListener(SpeakListener {
@@ -80,8 +86,7 @@ engine.shutdown()
 Android App 推荐优先使用 callback 版 `createEngine` 做预加载，不要在主线程调用同步版创建接口。
 
 ```pseudocode
-TextToSpeechSdk.setWorkPath("<filesDir>/lits-tts")
-
+// 已按第 1 节准备外置资源、设置 workPath 并成功激活授权
 TextToSpeechSdk.createEngine(params, Callback {
     onSuccess(engine):
         engine.setListener(listener)

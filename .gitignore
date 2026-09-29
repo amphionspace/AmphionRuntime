@@ -242,3 +242,6 @@ tts/harmony/build-ohos-tn/
 # Community-1 global model statistics are restored with the pinned private asset manifest.
 shared/models/asr/dingqiao/community-feature.f32
 shared/models/asr/dingqiao/community-plda.f64
+
+# Stable lock for delivery archive index updates
+/delivery/.archive-delivery.lock

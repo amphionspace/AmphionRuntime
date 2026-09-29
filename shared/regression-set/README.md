@@ -2,7 +2,7 @@
 
 本目录是「Android / iOS / Linux 服务端」三端共用的 ASR 烟测 WAV 集，定位是 端侧 / 服务端工程链路自检（启动是否正常、是否能跑通完整 PCM → 文本流程、热词分支是否生效），不做 WER 计算。
 
-WER / CER 由上游统一出报告，参见 [scripts/benchmark/](../../scripts/benchmark/) （LibriSpeech + MFA + jiwer 标准流程）。SDK / 服务端发版前需要看上游对应模型的 WER 报告无劣化，再走 [shared/docs/RELEASE_PROCESS.md](../docs/RELEASE_PROCESS.md) 的灰度。
+WER / CER 由上游统一出报告，参见 [scripts/benchmark/](../../third_party/sherpa-onnx/scripts/benchmark/) （LibriSpeech + MFA + jiwer 标准流程）。SDK / 服务端发版前需要看上游对应模型的 WER 报告无劣化，再走 [shared/docs/RELEASE_PROCESS.md](../docs/RELEASE_PROCESS.md) 的灰度。
 
 ## 用途
 
@@ -65,4 +65,4 @@ WAV 文件不入 git（避免仓库膨胀）。本目录目前只规定样本布
 - 新增样本：append 到对应 category 目录 + 在 manifest.jsonl 末尾追加新行
 - 不要删除已存在的 id：避免历史报告对不上；如果某条样本要废弃请打 `tags: ["deprecated"]` 并保留
 - 增删 hotwords 类别样本时同步更新 `asr/tools/hotwords/` 下的词典
-- 此目录不再承担识别正确性评估职责。WER / CER 评估请走上游 [scripts/benchmark/](../../scripts/benchmark/)，下游不重复造轮子
+- 此目录不再承担识别正确性评估职责。WER / CER 评估请走上游 [scripts/benchmark/](../../third_party/sherpa-onnx/scripts/benchmark/)，下游不重复造轮子
