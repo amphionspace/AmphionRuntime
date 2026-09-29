@@ -73,10 +73,10 @@ Linux 使用同一 baseline、模型哈希、seed 和新目录执行：
 
 ```bash
 python asr/tools/speaker/15_eval_c1_turn_transition_synthetic.py \
-  --baseline-dir <frozen-baseline-dir> \
-  --speaker-model <eres2net.onnx> \
-  --asr-model-dir <ZH_EN-model-dir> \
-  --output-dir <new-buffered-tail-result-dir> \
+  --baseline-dir '<frozen-baseline-dir>' \
+  --speaker-model '<eres2net.onnx>' \
+  --asr-model-dir '<ZH_EN-model-dir>' \
+  --output-dir '<new-buffered-tail-result-dir>' \
   --score-schedule absolute_samples \
   --publication-policy buffered_tail_commit
 ```

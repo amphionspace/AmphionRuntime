@@ -1,7 +1,7 @@
 {
   "model": "pyannote/speaker-diarization-community-1",
   "status": "candidate-not-delivery-accepted",
-  "implementation": "FP32 masked WeSpeaker + PLDA/VBx; segmentation-3.0 retained",
+  "implementation": "FP32 WeSpeaker shared encoder + per-mask pooling + PLDA/VBx; unchanged weights and segmentation-3.0",
   "sampleRate": 16000,
   "windowSamples": 160000,
   "hopSamples": 16000,
@@ -18,9 +18,16 @@
   "destination": "shared/models/asr/dingqiao",
   "files": [
     {
-      "file": "community-wespeaker-masked.fp32.onnx",
-      "sizeBytes": 26553489,
-      "sha256": "bc3912904210f19c7a249a2fca8cfc587b82b4142b73231570839e9dd9041375"
+      "file": "community-wespeaker-encoder.fp32.onnx",
+      "sizeBytes": 21301300,
+      "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f",
+      "derivedFrom": "community-wespeaker-masked.fp32.onnx"
+    },
+    {
+      "file": "community-wespeaker-pool.fp32.onnx",
+      "sizeBytes": 5264664,
+      "sha256": "95d2afe55f7763e66eda76a2d6db4a7f248b0ac77665bde2e6177426d0d77094",
+      "derivedFrom": "community-wespeaker-masked.fp32.onnx"
     },
     {
       "file": "community-feature.f32",
@@ -38,5 +45,22 @@
   "limitations": [
     "Basic four-speaker usability, migration parity and final device resource/lifecycle acceptance remain pending. Per-speaker recall is observational, not an independent delivery gate or tuning trigger.",
     "These are global model parameters, not customer embeddings or enrollment templates."
-  ]
+  ],
+  "embeddingGraphSplit": {
+    "onnxVersion": "1.19.1",
+    "source": {
+      "file": "community-wespeaker-masked.fp32.onnx",
+      "sizeBytes": 26553489,
+      "sha256": "bc3912904210f19c7a249a2fca8cfc587b82b4142b73231570839e9dd9041375"
+    },
+    "splitPoint": "/resnet/pool/Reshape_output_0",
+    "encoderOutputShape": [
+      1,
+      2560,
+      125
+    ],
+    "encodedBytesPerWindow": 1280000,
+    "scope": "single Process call; no cross-window or session cache",
+    "exportScript": "asr/tools/export_community_embedding_split.py"
+  }
 }

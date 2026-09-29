@@ -2,7 +2,7 @@
 
 AmphionRuntime 的 Linux 流式 ASR 服务端实现，基于 [sherpa-onnx cxx-api](../../third_party/sherpa-onnx/sherpa-onnx/c-api/cxx-api.h) + grpc++。
 
-`sherpa-onnx` 通过仓库根的 `third_party/sherpa-onnx` git submodule 引用上游 pinned tag（首期 v1.13.1），公司侧不修改其源码。
+`sherpa-onnx` 通过仓库根的 `third_party/sherpa-onnx` submodule 固定上游提交。项目补丁单独管理，参见[补丁策略](../../third_party/patches/sherpa-amphion/README.md)；服务端链接本次构建指定的 cxx-api 安装产物。
 
 文档索引：对外 gRPC 接口文档见 [API.md](API.md)。
 

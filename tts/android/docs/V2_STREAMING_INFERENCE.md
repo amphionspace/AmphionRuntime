@@ -1,5 +1,7 @@
 # V2 流式推理方案与优化方向
 
+> 历史 v2 流式方案记录，保留当时模型与测量结论。当前资源、输出格式与调用方式以 [INTEGRATION.md](INTEGRATION.md) 和 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md) 为准。
+
 本文只说明当前 v2 TTS 流式推理的大致处理方式，以及后续为了降低手机端首包时延和 RTF 可以优先优化的方向。不展开 SDK 内部代码细节。
 
 ## 1. 当前 v2 使用的模型

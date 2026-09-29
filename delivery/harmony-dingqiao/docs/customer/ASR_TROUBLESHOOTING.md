@@ -61,8 +61,8 @@ SDK 负责出分；短句精度、业务阈值和接受策略由调用方承担�
 
 ## 6. 授权错误
 
-确认授权文件可读、未被修改、授权能力包含 ASR 且仍在四个月有效期内。本体验授权不绑定包名、证书、设备、SDK 主版本或维护期。完整说明见 [LICENSE.md](LICENSE.md)。
+确认授权文件可读、未被修改、授权能力包含 ASR 且在实际有效期内；同时核对本批授权声明中的设备、证书、SDK 主版本和维护期条件。完整说明见 [LICENSE.md](LICENSE.md)。
 
 ## 7. 提交问题材料
 
-提供以下脱敏材料：回调轨迹、启动参数、输入 PCM 的安全样本或可复现替代样本、错误码、系统版本、[checksum.txt](checksum.txt) 和复现步骤。生命周期闭环与结论边界见 [ASR_LIFECYCLE_ASSURANCE_20260716.md](ASR_LIFECYCLE_ASSURANCE_20260716.md)。
+提供以下脱敏材料：回调轨迹、启动参数、输入 PCM 的安全样本或可复现替代样本、错误码、系统版本、交付包内的 `checksum.txt` 和复现步骤。生命周期闭环与结论边界见 [ASR_LIFECYCLE_ASSURANCE_20260716.md](ASR_LIFECYCLE_ASSURANCE_20260716.md)。

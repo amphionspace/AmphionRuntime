@@ -34,6 +34,17 @@ internal object DingqiaoSpeakerModelAssets {
         ensureAssetInstalled(context, "amphion-dingqiao/campplus.onnx",
             File(workPath, "campplus.onnx"), 20L * 1024L * 1024L)
 
+    @Synchronized
+    fun ensureCommunityInstalled(context: Context, workPath: File): List<File> = listOf(
+        SEGMENTATION_FILENAME to SEGMENTATION_MIN_BYTES,
+        "community-wespeaker-encoder.fp32.onnx" to 21_301_300L,
+        "community-wespeaker-pool.fp32.onnx" to 5_264_664L,
+        "community-feature.f32" to 83_840L,
+        "community-plda.f64" to 398_352L,
+    ).map { (name, size) ->
+        ensureAssetInstalled(context, "amphion-dingqiao/$name", File(workPath, name), size)
+    }
+
     private fun ensureAssetInstalled(
         context: Context,
         assetPath: String,

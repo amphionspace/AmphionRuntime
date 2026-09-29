@@ -104,7 +104,7 @@ SpeechRecognizeSdk.unloadRuntime(); // 模型跟随释放，保留已验证授�
 [AmphionRuntime] AmphionRuntime Harmony init done, version=0.3.13, license=LICENSED
 ```
 
-可通过 DevEco Studio Log 或 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
+可通过 CLT 的 `hdc shell hilog | grep "AmphionRuntime Harmony init done"` 查看。
 
 ## 3. 生命周期控制
 
@@ -294,10 +294,11 @@ SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证
 `0..(maxSpeakers-1)`。该索引仅在当前 session 内稳定，业务显示“说话人 1”时需使用
 `speakerIndex + 1`。
 
-角色分离完全在 SDK 内端侧执行。`pyannote-segmentation-3.0.onnx` 与 `eres2net.onnx` 已内置在
+角色分离完全在 SDK 内端侧执行。新方案所需的语音分割、说话人特征提取与聚类资源已内置在
 `amphion_dingqiao.har`，宿主无需配置地址、认证、模型路径、网络权限或 ChildProcess 入口。
+声纹校验与角色分离使用不同资源，不应将声纹校验模型作为角色分离模型替换。
 PCM 写入应用沙箱的 10 秒分块临时文件，处理完成且不再被推理任务引用后回收。
-SDK 按 10 秒推理窗口、2.5 秒 hop 串行执行本地 segmentation 和 embedding。
+SDK 按 10 秒推理窗口、1 秒步长 串行执行本地 segmentation 和 embedding。
 分人结果以 120 秒为目标窗口，在其后的第一个 ASR endpoint 及所需分人推理完成后校准并发布。
 跨窗长句等待原句结束，不强行分句。120 秒是工程默认值，不是准确率最优或固定延迟保证。
 
@@ -388,7 +389,21 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 `overlap` 只表示实际观察到重叠，先后换人不会被伪装成重叠。
 精确的角色及重叠起止位置以 `speakerTurns` 为准，不能把汇总字段解释为整段同时发言。
 
-调用方直接展示完整 `text`；多个已知角色显示“多人／不确定”，其余 `-1` 显示“不确定”。
+Harmony `DiarizedUtterance.speakerTextSpans` 提供与句级汇总独立的文字归属。
+每项的 `sourceBegin/sourceEnd`、`textBegin/textEnd` 分别是本项 `rawText`、`text` 内的
+UTF-16 半开区间，另含 `speakerIndex`、`secondarySpeakerIndexes`、`confidence`、
+`overlap` 和 `speakerInferred`。来源不明确时数组为空；不能按字符数或时长自行补映射。
+转换单元跨角色时保留 UNKNOWN；推断范围仍标 `speakerInferred=true`、`confidence=0`。
+标点只影响呈现偏移，不重新计算这些范围的角色。它们不是声学时间区间，也不是词语或段落边界。
+需要展示一句内换人的调用方应在明确换人处直接显示“说话人 N：对应文字”，编号沿用
+SDK 的 `speakerIndex + 1`；颜色或图例不能替代直接标注。同人连续范围合并，UNKNOWN、
+overlap 或推断状态变化本身不构成新段落边界，不能机械拆开每个 span 或完整词语。
+包含 UNKNOWN 的可读组须明确提示“部分文字归属不确定”，其原始范围和身份仍保留，
+不得把分组标签反写为未知文字的角色。重叠、推断和 confidence=0 同样必须保留。
+不要仅凭句级 `speakerIndex=-1` 把已对齐文字全部标成不确定。
+不使用新字段的调用方继续获得原有句级汇总；回调时序、冻结及结束语义不变。
+
+缺少文字来源范围时，调用方保留完整 `text` 并显示句级不确定性；不能从参与者列表猜测每段归属。
 迁移时停止依赖句内子片段 ID 或按时长多数决定整句身份；原始声学时间线仍可供核查。
 同一原句中最多 2500 ms 的 UNKNOWN 段允许有限邻接补全：首尾只有一个相邻已知角色，或前后角色一致，
 且相关段没有重叠、副角色或相反的时间线证据。补全后同角色文字合并，`speakerInferred=true`、
@@ -498,7 +513,7 @@ const result = SpeechRecognizeSdk.registerVoiceprint(params);
 
 ## 8. 授权
 
-授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。本交付校验授权结构、ECDSA 签名、ASR 能力和四个月有效期；包内授权不绑定包名、签名证书、设备、SDK 主版本或维护期。
+授权文件名为 `amphion-license.lic`。`setLicense` 为异步回调，但鉴权为离线本地完整校验，不发起网络请求。SDK 校验授权结构、ECDSA 签名、ASR 能力，以及授权声明中实际启用的有效期、设备、证书、主版本和维护期条件；不预设固定试用期限。
 
 `LicenseDeviceIdProvider` 为兼容既有公共接口而保留；本交付授权的设备白名单为空，宿主无需读取或注入 SN/ODID。
 

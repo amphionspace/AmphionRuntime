@@ -1,0 +1,301 @@
+{
+  "schemaVersion": 1,
+  "scope": "runtime candidate merge gate failure; evaluation tools may merge independently",
+  "runtimePr": "https://github.com/amphionspace/AmphionRuntime/pull/235",
+  "runtimeCommit": "6578c787f26d181253861f8c5e203208ae8a65a0",
+  "sourceFingerprint": "aa6808711b228d1258f32a6253d3c51bb20946798f0ff68e153b6ac8cc5d8c36",
+  "runtimeMergeStatus": "BLOCKED",
+  "diarizationDeliveryStatus": "BLOCKED",
+  "device": "Mate80 / 7GK0226326015655",
+  "systemVersion": "OpenHarmony-6.1.1.120",
+  "buildIdentity": {
+    "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/build-identity.json",
+    "sha256": "2190bbc6a9a38b7b0446d1182edca0db3f7e610e484f8a77efac6278bdc8e5be",
+    "sizeBytes": 3523
+  },
+  "artifacts": [
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/artifacts/amphion_asr.har",
+      "sha256": "3263aac74792d20b4a0a8016e5f75e2a1b7b5142f92caf13658bb57e8c75e171",
+      "sizeBytes": 7686751
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/artifacts/amphion_asr_demo.hap",
+      "sha256": "c4583f3031dc39a743783770d2edcdae6d54a23263c27b309ea3c1e9a17e3317",
+      "sizeBytes": 436840236
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/artifacts/amphion_dingqiao.har",
+      "sha256": "b40b9b3e19aabee1188b3f3579bee73f9ae5febabbb669ea37366b79812d8c20",
+      "sizeBytes": 93076229
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/artifacts/amphion_police.har",
+      "sha256": "86bc926657c766971283de70aebfec9dccd0a35e0567caf15fc94539414eb795",
+      "sizeBytes": 30205147
+    },
+    {
+      "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/artifacts/sherpa_onnx.har",
+      "sha256": "1cb7f822ba33254379e55a67ee6612caa5b8babda07febf8786b2d99f2ac2ef9",
+      "sizeBytes": 7178307
+    }
+  ],
+  "cases": [
+    {
+      "mode": "burst",
+      "runId": "20260928-091402-burst-cc32952e",
+      "status": "PASS",
+      "configuration": {
+        "cycles": 3,
+        "settle_ms": 0,
+        "pace_ms": 20,
+        "speech_end_ms": 0,
+        "diarization_vad_end_ms": null,
+        "enable_diarization": true,
+        "effective_diarization_vad_end_ms": null,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 0.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "sdkStatus": "PASS",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 3,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 3,
+        "failures": []
+      },
+      "memory": {
+        "status": "INCONCLUSIVE",
+        "reason": "observation shorter than 15s",
+        "sample_count": 9,
+        "observation_seconds": 10.294
+      },
+      "cycleCount": 3,
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/report.json",
+          "sha256": "da328feac4a3a376cea8c6ed4855450adef22227f5b9493b5916b69a028cd828",
+          "sizeBytes": 28392
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/memory.csv",
+          "sha256": "3856e7872d8648e15705cfe87cb2e5e1c9bc8d6a5231d00f13ca12c1e9f970be",
+          "sizeBytes": 680
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/hilog.txt",
+          "sha256": "43b89d1c8ec7c0aa2f5ab70e531f4a177cb359bda6d04acd57ab4d2639f53168",
+          "sizeBytes": 997406
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/inventory.json",
+          "sha256": "c5a17c90efcea6fe9441cc36fe92c3a317e858de6503cf9ace25f1c37ac15ba0",
+          "sizeBytes": 210
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091402-burst-cc32952e/payload/corpus.json",
+          "sha256": "ff36958bb4bd91de6493c9c1f4f29b63d46cdd400148f86adef3527b15732597",
+          "sizeBytes": 1133
+        }
+      ]
+    },
+    {
+      "mode": "paced",
+      "runId": "20260928-091414-paced-ceb511e5",
+      "status": "FAIL",
+      "configuration": {
+        "cycles": 4,
+        "settle_ms": 0,
+        "pace_ms": 20,
+        "speech_end_ms": 0,
+        "diarization_vad_end_ms": null,
+        "enable_diarization": true,
+        "effective_diarization_vad_end_ms": null,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 0.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "sdkStatus": "PASS",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 65,
+        "observation_seconds": 83.191,
+        "warmup_samples_excluded": 13,
+        "head_rss_mb": 481.16,
+        "tail_rss_mb": 579.094,
+        "rss_growth_mb": 97.934,
+        "rss_slope_mb_per_minute": 26.974,
+        "rss_third_medians_mb": [
+          553.039,
+          571.779,
+          500.535
+        ],
+        "peak_rss_mb": 600.73,
+        "peak_hwm_mb": 611.301,
+        "head_vm_data_mb": 3146.953,
+        "tail_vm_data_mb": 3156.953,
+        "vm_data_growth_mb": 10.0,
+        "peak_swap_mb": 89.34,
+        "head_threads": 50,
+        "tail_threads": 50,
+        "thread_growth": 0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "cycleCount": 4,
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/report.json",
+          "sha256": "25638937e836f4a491db4da337702a436d601051d0c970a1e805c1d527e8aeef",
+          "sizeBytes": 74528
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/memory.csv",
+          "sha256": "a806ccfe191ff21ac5ea06bfc03fbb83317a77c3e83e386fa8a780452e54d293",
+          "sizeBytes": 4292
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/hilog.txt",
+          "sha256": "e2ec76c04e0d12ce322896d103bbbfdc835ac839be656ae4bb47752d84afc4e0",
+          "sizeBytes": 1069570
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/inventory.json",
+          "sha256": "c5279e73afc9ff9646447aacf6a004959365ebf4b9c81f09ec7e6ad63748062d",
+          "sizeBytes": 202
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-091414-paced-ceb511e5/payload/corpus.json",
+          "sha256": "cd0e55fe5e40bf966f51f58a6219d48b98e2da64b592fe60a643b8688897bced",
+          "sizeBytes": 370
+        }
+      ]
+    },
+    {
+      "mode": "paced",
+      "runId": "20260928-092013-paced-a9f8a82c",
+      "status": "FAIL",
+      "configuration": {
+        "cycles": 4,
+        "settle_ms": 0,
+        "pace_ms": 20,
+        "speech_end_ms": 0,
+        "diarization_vad_end_ms": null,
+        "enable_diarization": true,
+        "effective_diarization_vad_end_ms": null,
+        "asr_qos": "default",
+        "asr_cpu_ids": "none",
+        "asr_num_threads": 4,
+        "asr_allow_spinning": true,
+        "asr_disable_prepack": true,
+        "sample_interval_seconds": 1.0,
+        "post_run_observe_seconds": 5.0,
+        "target_content_check_enabled": true,
+        "speaker_vad_threshold": null,
+        "finish_recovery_entry_ids": []
+      },
+      "sdkStatus": "PASS",
+      "nativeStreams": {
+        "status": "PASS",
+        "observed_cycles": 4,
+        "nonzero_cycles": 0,
+        "max_live_streams": 0
+      },
+      "diarizationLifecycle": {
+        "status": "PASS",
+        "completed_sessions": 4,
+        "failures": []
+      },
+      "memory": {
+        "status": "FAIL",
+        "sample_count": 70,
+        "observation_seconds": 87.733,
+        "warmup_samples_excluded": 14,
+        "head_rss_mb": 484.721,
+        "tail_rss_mb": 570.371,
+        "rss_growth_mb": 85.65,
+        "rss_slope_mb_per_minute": -17.813,
+        "rss_third_medians_mb": [
+          562.32,
+          506.396,
+          488.082
+        ],
+        "peak_rss_mb": 599.746,
+        "peak_hwm_mb": 604.84,
+        "head_vm_data_mb": 3158.844,
+        "tail_vm_data_mb": 3169.734,
+        "vm_data_growth_mb": 10.891,
+        "peak_swap_mb": 89.348,
+        "head_threads": 50.0,
+        "tail_threads": 49.5,
+        "thread_growth": -0.5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2
+      },
+      "cycleCount": 4,
+      "artifacts": [
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/report.json",
+          "sha256": "13a0da5b30abc1c7a41f6934c10234a836f75a7a7086a18c69acc3300267df81",
+          "sizeBytes": 74464
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/memory.csv",
+          "sha256": "1f48f56ff90c8e56a88e29958b292f069b67156375e64491b1012dedb3261137",
+          "sizeBytes": 4612
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/hilog.txt",
+          "sha256": "7f83f3cb811800623f18fbd32a61a78c061e55a99c28f92dbf33db49f9760557",
+          "sizeBytes": 1073884
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/inventory.json",
+          "sha256": "c5279e73afc9ff9646447aacf6a004959365ebf4b9c81f09ec7e6ad63748062d",
+          "sizeBytes": 202
+        },
+        {
+          "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/payload/corpus.json",
+          "sha256": "cd0e55fe5e40bf966f51f58a6219d48b98e2da64b592fe60a643b8688897bced",
+          "sizeBytes": 370
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Remaining device matrix stopped on first failure; no final release gate PASS.",
+    "Default post-run observation also failed; a negative slope or idle recovery is not used to override the threshold.",
+    "Zero-observation run remains a preserved non-canonical protocol variant.",
+    "No raw PCM, transcript or embeddings included in this index."
+  ]
+}

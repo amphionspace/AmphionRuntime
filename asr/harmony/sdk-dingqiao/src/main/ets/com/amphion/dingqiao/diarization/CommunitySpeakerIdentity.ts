@@ -23,7 +23,8 @@ export class CommunitySpeakerIdentity {
   }
 
   assign(windowIds: string[], hard: number[], clusterCount: number, activity: number[],
-    publishedActivity: number[] = activity, visibleClusters?: boolean[]): CommunityIdentityAssignment {
+    publishedActivity: number[] = activity, visibleClusters?: boolean[],
+    firstAppearanceTimes?: number[]): CommunityIdentityAssignment {
     const before = this.nextId;
     const votes: number[][] = [];
     for (let cluster = 0; cluster < clusterCount; cluster++) votes.push(new Array<number>(before).fill(0));
@@ -51,7 +52,16 @@ export class CommunitySpeakerIdentity {
       visit(cluster + 1, used, score);
     };
     visit(0, 0, 0);
-    for (let cluster = 0; cluster < clusterCount; cluster++) {
+    const appearanceOrder: number[] = [];
+    for (let cluster = 0; cluster < clusterCount; cluster++) appearanceOrder.push(cluster);
+    if (firstAppearanceTimes !== undefined) {
+      appearanceOrder.sort((left, right) =>
+        (firstAppearanceTimes[left] ?? Number.POSITIVE_INFINITY) -
+        (firstAppearanceTimes[right] ?? Number.POSITIVE_INFINITY) || left - right);
+    }
+    // Only allocate new IDs chronologically. Existing committed identities keep
+    // their IDs even if later evidence changes an earlier acoustic boundary.
+    for (const cluster of appearanceOrder) {
       const hasActivity = (visibleClusters === undefined || visibleClusters[cluster]) &&
         hard.some((label, index) => label === cluster && publishedActivity[index] > 0);
       if (hasActivity && best[cluster] < 0 && this.nextId < this.maxSpeakers) best[cluster] = this.nextId++;
@@ -87,11 +97,12 @@ export function communityTimeline(tracks: number[][], mapping: number[],
     boundaries.push(Math.max(beginTime, track[0]), Math.min(endTime, track[1]));
   }
   boundaries.sort((a, b) => a - b);
-  const unique = boundaries.filter((value, index) => index === 0 || value !== boundaries[index - 1]);
+  // API 23 es2abc misparses `< unique.length` as a type expression.
+  const uniqueBoundaries = boundaries.filter((value, index) => index === 0 || value !== boundaries[index - 1]);
   const result: CommunityTimelineTurn[] = [];
   let previous = '';
-  for (let index = 1; index < unique.length; index++) {
-    const begin = unique[index - 1], end = unique[index];
+  for (let index = 1; index < uniqueBoundaries.length; index++) {
+    const begin = uniqueBoundaries[index - 1], end = uniqueBoundaries[index];
     const ids: string[] = [];
     for (const track of tracks) {
       if (track[0] >= end || track[1] <= begin) continue;

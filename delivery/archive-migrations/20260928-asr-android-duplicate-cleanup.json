@@ -1,0 +1,26 @@
+{
+  "archive_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/android/0.3.9/d10021f328f605fe334b34b95427ba37bd06aaac299dc15ac34e829695ff85b5/Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+  "removed": [
+    {
+      "path": "asr/android/0.3.9/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/diagnostics-sdk/dingqiao-asr-diagnostics-v0.3.9.aar",
+      "size_bytes": 324634647,
+      "sha256": "fd947527571ce741a49b76a0afd39389332d051c7bda3076e4757a08cca4b828",
+      "outer": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+      "member": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE/diagnostics-sdk/dingqiao-asr-diagnostics-v0.3.9.aar"
+    },
+    {
+      "path": "asr/android/0.3.9/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/release-sdk/amphion-dingqiao-v0.3.9-customer-20260928.zip",
+      "size_bytes": 1299142118,
+      "sha256": "3e70beb648f3a608cbe79f3278a9c99970eaa720a560fcf9f39e1f7d7abf45f3",
+      "outer": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+      "member": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE/release-sdk/amphion-dingqiao-v0.3.9-customer-20260928.zip"
+    },
+    {
+      "path": "asr/android/0.3.9/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/diagnostics-demo/dingqiao-demo-diagnostics-signed.apk",
+      "size_bytes": 410979795,
+      "sha256": "e1fbe4f8089a1e605b07a3729cfe1739c4b3f2a03f209c0da7382934b3341a49",
+      "outer": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+      "member": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE/diagnostics-demo/dingqiao-demo-diagnostics-signed.apk"
+    }
+  ]
+}

@@ -69,6 +69,11 @@ internal class PostProcessor(
         return result
     }
 
+    fun afterPendingFinals(action: () -> Unit) {
+        if (!accepting || drained) return
+        handler.post { if (!drained) action() }
+    }
+
     override fun close() {
         if (!accepting) return
         accepting = false

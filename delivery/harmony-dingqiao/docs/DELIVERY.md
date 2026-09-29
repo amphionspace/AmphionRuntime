@@ -1,4 +1,6 @@
-# HarmonyOS 交付 SOP
+# HarmonyOS 构建与子包操作参考
+
+鼎桥 ASR 的执行顺序以[双端交付流程](../../ASR_DELIVERY_WORKFLOW.md)为准，完整包结构以[默认交付规范](DEFAULT_DELIVERY.md)为准。本文保留平台构建和 ASR+TTS 子包操作，不作为另一份完整发布流程。
 
 ## 工程结构
 
@@ -11,9 +13,10 @@
 ## 构建步骤
 
 从干净检出开始，先从受控制品库准备 `asr/tools/demo-model/zhen`、`yueen`、标点、ITN、VAD 和可选
-TTS 模型输入。`zhen` 正式输入必须包含 `encoder.int8.onnx`、`decoder.int8.onnx`、
-`joiner.int8.onnx`、`tokens.txt` 和 `bbpe.vocab`。这些模型目录被 Git 忽略；公开 demo 下载
-脚本不是本次交付模型。当前源 SHA-256 见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)。
+TTS 模型输入。模型文件与哈希按[受控资产说明](../../../tools/assets/README.md)、
+[ASR 模型输入说明](../../../asr/tools/demo-model/README.md)和交付模型白名单核对，
+不能把旧版 decoder/joiner 的 INT8 文件名当作当前必需输入。这些目录被 Git 忽略；公开 demo 下载脚本不能代替交付模型。
+历史加载性能数据见 [`MODEL_LOAD_PERFORMANCE.md`](./MODEL_LOAD_PERFORMANCE.md)，不作为当前模型身份清单。
 
 ```bash
 # 1) native（AGC2 + ASR/TTS 共用的 sherpa_onnx .so）
@@ -36,20 +39,20 @@ bash tts/tools/harmony/pack_harmony_tts_assets.sh
 ```bash
 # 构建、签名、校验并安装当前 HAP
 HARMONY_SIGNING_CONFIG=.secure/harmony-signing.json \
-  delivery/harmony-dingqiao/delivery/build_install_smoke.sh --device <HDC_TARGET>
+  delivery/harmony-dingqiao/delivery/build_install_smoke.sh --device '<HDC_TARGET>'
 
 # 10 次独立进程冷加载；产物不进客户包
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --skip-build --device <HDC_TARGET> --warmup-runs 2 --iterations 10
+  --skip-build --device '<HDC_TARGET>' --warmup-runs 2 --iterations 10
 
 # 真实 WAV 生命周期与首轮音频回归
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --skip-build-install --device '<HDC_TARGET>' --data-dir '<WAV_DIR>' \
   --mode burst --cycles 48 --files 24
 
 # vadBegin 专项：真实起音必须优先于 10 秒首段静音阈值
 python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
-  --skip-build-install --device <HDC_TARGET> --data-dir <WAV_DIR> \
+  --skip-build-install --device '<HDC_TARGET>' --data-dir '<WAV_DIR>' \
   --mode vad-begin --cycles 3 --files 3
 ```
 
