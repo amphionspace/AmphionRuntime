@@ -1932,21 +1932,28 @@ async function runVoiceprintVadBeginIdleCycle(engine: SpeechRecognitionEngine, e
     for (let i = 0; i < samples.length; i++) samples[i] = i % 2 === 0 ? 700 : -700;
   }
   let fed = 0;
-  while (events.completes === 0 && fed < 160) {
+  const deadlineFrames = 1000 / FRAME_DURATION_MS;
+  while (events.completes === 0 && fed < deadlineFrames - 1) {
     engine.writeAudio(sessionId, frame);
     fed += 1;
-    // writeAudio snapshots and dispatches asynchronously. Pace this deadline probe so fedFrames
-    // continues to represent processed PCM time instead of the caller-side queue depth.
     await sleep(IDLE_FRAME_PACE_MS);
   }
+  // Hold at 980 ms of PCM while pending work drains. Wall-clock waiting must not advance the
+  // audio deadline. The final frame must then finish the session without any additional PCM.
+  await sleep(1000);
+  const endedBeforeDeadline = events.finals > 0 || events.completes > 0;
+  if (!endedBeforeDeadline) {
+    engine.writeAudio(sessionId, frame);
+    fed += 1;
+  }
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
-  const timingOk = fed >= 45 && fed <= 70;
+  const timingOk = !endedBeforeDeadline && fed === deadlineFrames;
   const ok = completed && timingOk && events.starts === 1 && events.finals === 1 &&
     events.lastFinals === 1 && events.finalChars === 0 && events.speechBegins === 0 &&
     events.completes === 1 && events.errors === 0 && !engine.isBusy();
   let detail = `voiceprint-vad-begin-${noisy ? 'bounded-noise' : 'pure-silence'}`;
   if (!completed) detail = 'auto-complete-timeout';
-  else if (!timingOk) detail = `unexpected-auto-finish-frame-${fed}`;
+  else if (endedBeforeDeadline) detail = `auto-finish-before-deadline-${fed}`;
   else if (events.finals !== 1) detail = `unexpected-final-count-${events.finals}`;
   else if (events.speechBegins !== 0) detail = `unexpected-speech-begin-${events.speechBegins}`;
   else if (events.finalChars !== 0) detail = `unexpected-final-chars-${events.finalChars}`;
