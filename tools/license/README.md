@@ -143,8 +143,11 @@ payload claims 字段：
 
 | 字段 | 含义 | 必填 |
 | --- | --- | --- |
-| applicationId | ASR 不校验包名；Android TTS 对非空值校验宿主包名 | 否 |
-| bundleName | Android TTS 在 applicationId 为空时回退使用此字段校验宿主包名 | 否 |
+| applicationBindingMode | 新 SDK：`none`/`record-only` 不限制，`allowlist` 多包白名单，`bound` 单包绑定；旧授权缺省时保留原平台语义 | 新签发必填 |
+| applicationId | Android 宿主包名记录，也是兼容单包字段 | 否 |
+| applicationIds | Android applicationId 白名单，`allowlist` 时最多 50 个 | 否 |
+| bundleName | HarmonyOS bundleName 记录，也是兼容单包字段 | 否 |
+| bundleNames | HarmonyOS bundleName 白名单，`allowlist` 时最多 50 个 | 否 |
 | certSha256 | 兼容字段，绑定签名证书 SHA-256 | 否 |
 | signingCertDigest | 绑定签名证书 SHA-256 | 否 |
 | customer | 客户名 | 否 |
@@ -159,7 +162,9 @@ payload claims 字段：
 | features | 产品级授权能力列表，仅允许 ASR、TTS | 否 |
 | sdkMajor | 兼容 SDK 大版本 | 否 |
 
-不绑定应用的共用授权必须将 claims 的 `applicationId` 和 `bundleName` **同时留空**；正式工具使用 `policy.applicationRecord.mode=none`。当前 `record-only` 会把标识写进 claims，即使报告显示 record-only，也不能据此判断 TTS 不绑定应用。需要保留宿主标识时放在独立的受控交付记录中，不填入该策略字段。签名验签算法一致不代表各 SDK 对所有 claims 的校验完全一致。Android TTS 保留对非空应用标识的兼容校验，不能把标识写进 claims 后仍宣称不绑定。
+新 SDK 按签名中的显式策略校验：`none` 和 `record-only` 不限制包名，`bound` 校验单包，`allowlist` 校验对应平台的多包名单。没有策略字段的旧授权保留原平台语义：ASR/Harmony TTS 不按包名绑定，Android TTS 对非空 `applicationId`（或回退的 `bundleName`）仍绑定。
+
+兼容旧 SDK 的不绑定应用共用授权仍须选择 `policy.applicationRecord.mode=none`，并将 `applicationId` 和 `bundleName` **同时留空**。旧 Android TTS 不认识显式 `record-only`，会继续按非空应用标识绑定；旧 ASR 也不会执行新增的 `allowlist`。因此验证报告中的策略名称不能替代 SDK 版本验收，宿主标识可另记受控交付记录。
 
 ## 6. 旧入口兼容
 
