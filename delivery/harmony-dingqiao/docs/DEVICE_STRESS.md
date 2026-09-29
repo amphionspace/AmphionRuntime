@@ -125,10 +125,28 @@ VAD 模型与设备包一致；该选项仍不构成源码与二进制的一致�
 | `user-sequence` | cancel 后零等待复用、finish 后立即重启、旧 session 迟到 write/finish/cancel 干扰当前 session；按 sessionId 校验回调归属和顺序 |
 | `numeric-edge` | 交替省略 `maxAudioDuration` 和传入 `NaN`，写入超过 20 秒后仍保持活动，随后显式 finish 并验证一次 last/complete |
 
-默认门槛为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
-不超过 5%。少于 15 秒的采样只报告 `INCONCLUSIVE`，避免把模型冷启动误判为泄漏。
-`rss_slope_mb_per_minute` 和三段 RSS 中位数用于识别缓慢线性增长；斜率至少需要 60 秒观测，
-且当前不单独作为硬门槛。
+普通 ASR 默认门槛仍为 RSS 增长不超过 64 MiB、线程增长不超过 2、正常结束模式空 final
+不超过 5%。少于 6 个采样或 15 秒观测只报告 `INCONCLUSIVE`；满足该长度不代表模型已完成预热。
+`rss_slope_mb_per_minute` 和三段 RSS 中位数保留为诊断数据，斜率至少需要 60 秒观测。
+
+角色分离（`--enable-diarization`，或隐式开启该能力的 `diarization-windows` /
+`customer-meeting-minutes`）不再将默认 64 MiB 单独作为硬否决。它比较整个进程头尾窗口，
+可能混合模型首次驻留、运行工作内存和结束释放阶段；这一限制已在
+[2026-09-15 会议评估](MEETING_SPEAKER_FIX_20260915.md)中确认。
+报告保留全部原始数值、`generic_status` 和 RSS/线程各自的阈值结果，
+`rss_growth_limit_enforced=false`；线程超限仍为 `FAIL`，其余资源结论为 `INCONCLUSIVE`。
+采集脚本的整体 `PASS` 不代表角色分离资源稳定或已满足交付条件。
+
+显式传入 `--max-rss-growth-mb N` 仍是硬预算，包括显式指定 `64`；必须是非负有限数值。
+报告以 `rss_growth_limit_enforced=true` 记录，超限继续失败。旧报告中的非默认预算也保留硬门禁。
+旧的默认 64 MiB 报告没有记录是否显式传参，角色评估器按历史通用报警解释，原报告不改写；
+若旧验收确有特定硬预算，须在绑定原证据的评审中明确判定。
+
+端到端评估器不再用整段 RSS 非正斜率自动证明内存稳定。最终资源放行需要与原始采样、
+设备和产物哈希绑定的评审，比较同一生命周期阶段的驻留、队列、模型卸载和完成后残留。
+证据不足仍为 `INCONCLUSIVE`；线程超限、显式预算超限、stream 未归零和生命周期失败不能
+被评审覆盖为通过。具体排查与复算见
+[报警线审计](../../../docs/speaker/DIARIZATION_RESOURCE_ALARM_AUDIT_20260928.md)。
 
 `speaker-vad-onstart` 的四个 cycle 恰好对应四种时序组合，每种只跑一轮；Speaker VAD 必须使用
 注册时的同一语料源，因此这四轮不机械更换说话人。`callback-api-reentrant` 的三个 cycle 分别对应

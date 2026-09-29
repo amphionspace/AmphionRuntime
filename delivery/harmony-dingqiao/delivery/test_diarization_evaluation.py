@@ -193,6 +193,53 @@ class EvaluationGateTest(unittest.TestCase):
         self.assertEqual("FAIL", result["realtime"])
         self.assertEqual("FAIL", result["memory"])
 
+    def test_generic_rss_alarm_is_not_a_diarization_failure(self):
+        memory = {"status": "FAIL", "rss_growth_mb": 85.650,
+                  "max_rss_growth_mb": 64.0, "thread_growth": -0.5,
+                  "max_thread_growth": 2, "observation_seconds": 87.733,
+                  "rss_third_medians_mb": [562.32, 506.396, 488.082],
+                  "rss_slope_mb_per_minute": -17.813}
+        original = copy.deepcopy(memory)
+        self.assertEqual("INCONCLUSIVE", gate.runtime_evidence({"memory": memory}, [])["memory"])
+        captures = self.captures([])
+        record = captures["cases"]["two"]["report"]
+        path = Path(record["path"])
+        report = json.loads(path.read_text())
+        report["memory"] = memory
+        path.write_text(json.dumps(report))
+        captures["cases"]["two"]["report"] = gate.file_record(path)
+        result = gate.assess(self.manifest, captures)
+        self.assertEqual("INCONCLUSIVE", result["results"]["two"]["gates"]["memory"])
+        self.assertEqual(original, memory)
+
+    def test_falling_process_rss_does_not_prove_phase_aligned_memory_stability(self):
+        report = {"memory": {"status": "PASS", "observation_seconds": 120,
+                             "rss_third_medians_mb": [600, 500, 400],
+                             "rss_slope_mb_per_minute": -100}}
+        self.assertEqual("INCONCLUSIVE", gate.runtime_evidence(report, [])["memory"])
+
+    def test_bound_review_can_resolve_advisory_but_cannot_override_hard_failures(self):
+        for threads, enforced, expected in ((0, False, "PASS"), (3, False, "FAIL"), (0, True, "FAIL")):
+            with self.subTest(threads=threads, enforced=enforced):
+                captures = self.captures([])
+                capture = captures["cases"]["two"]
+                path = Path(capture["report"]["path"])
+                report = json.loads(path.read_text())
+                report["memory"] = {"status": "FAIL", "rss_growth_mb": 85.650,
+                                    "max_rss_growth_mb": 64, "thread_growth": threads,
+                                    "max_thread_growth": 2, "rss_growth_limit_enforced": enforced}
+                path.write_text(json.dumps(report))
+                capture["report"] = gate.file_record(path)
+                review = self.root / "review.json"
+                review.write_text(json.dumps({
+                    "inputSha256": capture["inputSha256"], "bindingSha256": capture["bindingSha256"],
+                    "captureHashes": {"report": capture["report"]["sha256"]},
+                    "assertions": {"memory": [{"status": "PASS", "evidence": "same-phase review fixture"}]}}))
+                capture["review"] = gate.file_record(review)
+                result = gate.assess(self.manifest, captures)
+                self.assertEqual(expected, result["results"]["two"]["gates"]["memory"])
+                self.assertNotEqual("PASS", result["releaseStatus"])
+
 
 if __name__ == "__main__":
     unittest.main()
