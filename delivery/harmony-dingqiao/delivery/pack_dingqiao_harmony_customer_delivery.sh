@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.17}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.19}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
@@ -21,6 +21,9 @@ Options:
   --sdk-only  Package only the zh-en ASR HAR and public customer documents.
   --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
+
+Required environment:
+  HARMONY_API23_ES2ABC  OpenHarmony 6.1 / API 23 compiler for HAR compatibility acceptance.
 EOF
 }
 
@@ -45,6 +48,10 @@ if [[ "$ASR_ONLY" == true && "$SDK_ONLY" == true ]]; then
 fi
 
 BUILD_IDENTITY="$REPO_ROOT/delivery/harmony-dingqiao/build/smoke/build-identity.json"
+if [[ -z "${HARMONY_API23_ES2ABC:-}" || ! -x "$HARMONY_API23_ES2ABC" ]]; then
+  echo "[ERROR] set HARMONY_API23_ES2ABC to the executable OpenHarmony 6.1 / API 23 es2abc" >&2
+  exit 1
+fi
 python3 "$SCRIPT_DIR/harmony_build_identity.py" --verify "$BUILD_IDENTITY"
 BUILD_SOURCE_COMMIT="$(python3 - "$BUILD_IDENTITY" <<'PY'
 import json
@@ -97,6 +104,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py
   delivery/harmony-dingqiao/delivery/verify_dingqiao_model_md5.py
   delivery/harmony-dingqiao/delivery/verify_selfcontained_dingqiao_har.sh
+  delivery/harmony-dingqiao/delivery/verify_harmony_api23_compiler.py
   delivery/asr-sdk-release-history.json
   tools/delivery/asr_release_tracker.py
   delivery/harmony-dingqiao/docs/customer/LICENSE.md
@@ -106,7 +114,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/docs/customer/NOTICE
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md
-  delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.17.md
+  delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.19.md
   delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md
   delivery/harmony-dingqiao/docs/PRIVACY.md
   delivery/harmony-dingqiao/docs/语音识别SDK接口.md
@@ -320,8 +328,10 @@ if commit_notes.startswith("# ASR SDK 更新日志"):
     commit_notes = commit_notes[len("# ASR SDK 更新日志"):].lstrip()
 commit_notes = commit_notes.replace("## HarmonyOS", "### HarmonyOS", 1)
 commit_notes = commit_notes.replace("### Commit 变更", "#### Commit 变更", 1)
+commit_notes = commit_notes.replace("- 上一交付：", "- 上一正式台账交付：", 1)
 output_path.write_text(
-    f"# ASR SDK 更新日志\n\n{section}\n\n## 源码提交明细\n\n{commit_notes}\n",
+    f"# ASR SDK 更新日志\n\n{section}\n\n## 源码提交明细\n\n"
+    f"以下按正式台账追溯提交；本次相对客户实际使用版本的变化以上述版本说明为准。\n\n{commit_notes}\n",
     encoding="utf-8",
 )
 commit_notes_path.unlink()
@@ -332,8 +342,8 @@ if [[ "$SDK_ONLY" == true ]]; then
     "$OUT_ROOT/docs/INTEGRATION.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md" \
     "$OUT_ROOT/docs/LICENSE_SCHEME.md"
-  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.17.md" \
-    "$OUT_ROOT/docs/UPGRADE_0.3.17.md"
+  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.19.md" \
+    "$OUT_ROOT/docs/UPGRADE_0.3.19.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md"
   python3 - "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md" <<'PY'
 import sys
@@ -374,7 +384,7 @@ path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
 | `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
-| `docs/UPGRADE_0.3.17.md` | 相对上一正式交付的接口、角色分离、生命周期与冷启动变化 |
+| `docs/UPGRADE_0.3.19.md` | 相对 0.3.18 的编译兼容修复和替换说明 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
 | `docs/LICENSE.md` | 商用授权接入 |
 | `docs/TROUBLESHOOTING.md` | 故障排查与日志采集 |
@@ -545,6 +555,13 @@ PY
 
 python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
   "$OUT_ROOT/docs" "$OUT_ROOT/har/amphion_dingqiao.har"
+
+# Keep failed compiler evidence outside OUT_ROOT, which the cleanup trap removes.
+COMPILER_REPORT_DIR="$(mktemp -d "${FINAL_OUT_ROOT}.api23-compiler.XXXXXX")"
+python3 "$SCRIPT_DIR/verify_harmony_api23_compiler.py" \
+  --har "$OUT_ROOT/har/amphion_dingqiao.har" --es2abc "$HARMONY_API23_ES2ABC" \
+  --report "$COMPILER_REPORT_DIR/report.json"
+cp "$COMPILER_REPORT_DIR/report.json" "$OUT_ROOT/docs/API23_COMPILER_COMPATIBILITY.json"
 
 (
   cd "$OUT_ROOT"

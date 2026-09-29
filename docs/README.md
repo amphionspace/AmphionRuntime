@@ -87,9 +87,13 @@
 
 | 文档 | 说明 |
 | --- | --- |
-| android-sdk-delivery-runbook.md | Android ASR / TTS / License 三件套交付 Runbook：打包、验包、设备回归、license 策略、目录归档和交付门禁 |
-| delivery-email-template.md | Android SDK 交付邮件模板：更新点、license 策略、测试数据、验证结论和复现说明 |
-| delivery-zip-verification.md | 所有客户交付包的 zip-only 验证流程：以最终 zip 为唯一真相，生成 JSON/Markdown 验收报告 |
+| [双端 ASR 交付流程](../delivery/ASR_DELIVERY_WORKFLOW.md) | 冻结、构建、验收、发布、归档的统一入口 |
+| [Android 完整包](../delivery/android-dingqiao/DEFAULT_DELIVERY.md) / [Harmony 完整包](../delivery/harmony-dingqiao/docs/DEFAULT_DELIVERY.md) | 平台输入和完整包边界 |
+| [调用方变化清单](../delivery/CALLER_CHANGE_CHECKLIST.md) | 对照上一实际交付核查升级影响 |
+| [归档规则](../delivery/PUBLISHED_ARTIFACT_ARCHIVE.md) | 对象存储、回下载验证和本机清理 |
+| [Android 交付入口](android-sdk-delivery-runbook.md) | ASR、TTS、授权按范围选择 |
+| [邮件入口](delivery-email-template.md) | ASR 模板及 TTS、授权可选内容 |
+| [Android 子包验证](delivery-zip-verification.md) | 只适用于文档声明的子包结构，不代替完整包验收 |
 | dingqiao-offline-license.md | 鼎桥专网离线 license 当前前置清单：SN、App 标识记录、可选签名证书、授权范围、维护期和期限策略 |
 | license-delivery-governance.md | SN、License 与交付批次治理方案：完整快照、显式策略、角色分离、最终 ZIP 门禁和可审计登记簿 |
 | license-delivery-industry-practices.md | License 签发与交付方案的业界实践核对：密钥生命周期、签名证明、标识符保护和离线防回退差距 |
@@ -104,7 +108,7 @@
 
 | 文档 | 说明 |
 | --- | --- |
-| speaker/PIPELINE.md | TS-ASR 当前方案落地：模型选型、处理链路、lhotse 数据接入契约、决策门、下一步清单 |
+| speaker/PIPELINE.md | TS-ASR 调研期方案与实验记录；不作为当前 SDK 能力或待办清单 |
 | speaker/AIDATATANG_SPEAKER_VAD_EVAL.md | Aidatatang 500 人主说话人 VAD endpoint 评测：指标定义、场景问题、阈值扫描和结论 |
 
 ### ASR 功能评测
@@ -135,3 +139,9 @@ python3 -m pip install --user sherpa-onnx
 - 命令尽量可复制运行。
 - 具体设备、模型、dump 数据可以写进文档，但要说明它们是本次实验条件，不要泛化成绝对结论。
 - README 只放入口和结论，细节分析放到本目录。
+
+## 工程规范
+
+- [公共契约](engineering/ASR_CONTRACTS.md)：ASR、声纹、角色与体验边界。
+- [验证矩阵](engineering/ASR_VALIDATION.md)：按变更选择检查和发布门禁。
+- [定位流程](engineering/DEBUGGING.md)：复现、状态差分与最小验证。

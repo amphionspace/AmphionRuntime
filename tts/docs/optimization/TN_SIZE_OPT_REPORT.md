@@ -97,7 +97,7 @@ ICU_SOURCES_TGZ=…/icu4c-78.1-sources.tgz ICU_DATA_ZIP=…/icu4c-78.1-data.zip 
   tts/tools/tn/build_slim_icu_data.sh     # 产出 slim libicudata.a(host: MacOSX)
 # 另建一套 full ICU(不设 ICU_DATA_FILTER_FILE)作对照
 # 3) 零回退验证
-FULL_ICU=<full-prefix> SLIM_ICU=<slim-prefix> \
+FULL_ICU='<full-prefix>' SLIM_ICU='<slim-prefix>' \
   tts/tools/tn/icu_slim/verify_zero_regression.sh
 ```
 

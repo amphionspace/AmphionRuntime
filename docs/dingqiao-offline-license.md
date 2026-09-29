@@ -2,27 +2,27 @@
 
 本文是鼎桥专网交付前的信息收集清单。实现细节以 Android/Harmony SDK 内的 `amphion-license.lic` 为准；ASR 与 TTS 可共用同一份 license、公钥和设备白名单。本文只记录当前规则，不写入某次历史交付的 zip 路径、固定到期日或 SN 数量。
 
-## 当前 Android v3.0 交付口径
+## 每批授权范围
 
-| 对象 | applicationId / bundleName | features | SN 绑定 | 到期 |
-| --- | --- | --- | --- | --- |
-| Demo APK | 记录 `com.amphion.dingqiao.demo` | ASR | 不绑定 SN，可绑定 Demo 签名 | 默认签发日起 2 个月 |
-| 正式 SDK license | 不限制应用，仅记录为空或客户当前包名 / bundleName | ASR,TTS | 绑定本次交付确认的鼎桥 SN 清单 | 当前 v3.0 为签发日起 2 个月，后续按商务策略 |
+| 对象 | 能力与设备 | 有效期 |
+| --- | --- | --- |
+| Demo 体验授权 | 按本批声明；普通安装体验不应依赖宿主无法读取的系统 SN | 按本批约定，不固定两个月或四个月 |
+| 正式设备白名单授权 | 只授予约定的 ASR/TTS 能力，并绑定已确认的 SN 清单 | 永久或指定期限须在申请中明确 |
 
-Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的设备上完成 `createEngine`。正式 SDK license 单独下发给客户 App，授权边界默认只看验签、授权能力、到期、SDK 大版本 / 维护期和设备 SN 白名单；不校验宿主包名。若 license 显式写入 `signingCertDigest`，才同时校验宿主签名证书。
+Android ASR 不检查包名；Android TTS 对非空 `applicationId`（为空时回退 `bundleName`）仍执行匹配检查。不绑定应用的共用授权必须将这两个 claims 留空，应用标识只写签发登记。证书字段非空时执行证书校验。完整签发流程见[统一授权工具](../tools/license/README.md)。
 
 ## 交付前鼎桥需要提供的信息
 
 | 类别 | 鼎桥需提供 | 用途 |
 | --- | --- | --- |
-| App 标识 | Android applicationId、HarmonyOS bundleName | 可选记录字段，不作为授权限制 |
+| App 标识 | Android applicationId、HarmonyOS bundleName | 记录在申请/登记中；不绑定应用时不写入 claims |
 | 签名信息 | 正式签名证书 SHA-256 指纹，建议大写十六进制 | 可选记录字段；正式设备白名单 license 默认不绑定签名 |
 | 设备 SN | 首批授权设备 SN 清单，一行一个；说明 SN 字段名和样例 | 生成 authorizedDeviceHashes 白名单 |
 | SN 稳定性 | SN 在系统升级、恢复出厂、主板维修、换机后的变化规则 | 评估换机和重签流程 |
 | SN 读取方式 | Android 端使用 Build.getSerial()；宿主为系统应用，并申请 android.permission.READ_PRIVILEGED_PHONE_STATE | 运行时向 SDK 注入本机 SN |
 | 授权能力 | 是否授权 ASR、是否授权 TTS | 写入 features，仅允许 ASR 和 TTS |
 | 版本范围 | 授权 SDK 大版本 sdkMajor、维护期 maintenanceUntil | 控制大版本和维护期外升级 |
-| 运行期限 | expiresAt 是否为空、固定日期或签发日起几个月；当前 v3.0 交付为 2 个月 | 控制运行到期策略 |
+| 运行期限 | expiresAt 是否为空、固定日期或签发日起几个月 | 控制运行到期策略 |
 | 组包责任 | 后装包或升级包由哪一方组包 | 确认 license、SDK/HAR、模型放置责任 |
 | 固定路径 | App assets 或 rawfile 中 license 的固定路径 | SDK 初始化时读取 amphion-license.lic |
 | 增量设备 | 后续新增设备 SN 的同步周期和交付方式 | 支持增量或全量重签 |
@@ -45,8 +45,8 @@ Demo APK 是普通安装体验包，必须能在没有系统 SN 读取权限的�
 | --- | --- |
 | customer | 客户名称，例如 Dingqiao |
 | licenseId | 授权编号，用于交付和排障追踪 |
-| applicationId | Android 宿主包名记录；正式设备白名单 license 可为空 |
-| bundleName | HarmonyOS 应用 bundleName 记录；正式设备白名单 license 可为空 |
+| applicationId | 不绑定应用时留空；Android TTS 对非空值校验 |
+| bundleName | 不绑定应用时留空；Android TTS 可用作兼容回退 |
 | signingCertDigest | 客户应用正式签名证书 SHA-256；正式设备白名单 license 默认为空 |
 | deviceIdHashAlg | 当前固定为 SHA-256 |
 | deviceIdSaltId | 项目固定 SN 哈希盐编号，当前也作为哈希盐材料 |
@@ -71,11 +71,11 @@ SDK 已提供 `DeviceIdProvider` 注入通道。Android ASR 鼎桥封装层和 A
 
 ## 后装和升级
 
-后装或升级包进入专网前，应确认本次覆盖的 SN 范围、SDK/HAR 版本、模型版本、license 文件和校验清单。设备不需要访问公网，SDK 初始化时在本地完成验签、SN 白名单、`sdkMajor` 和 `maintenanceUntil` 校验；正式设备白名单 license 不按 App 包名限制宿主应用。
+后装或升级包进入专网前，应确认本次覆盖的 SN 范围、SDK/HAR 版本、模型版本、license 文件和校验清单。设备不需要访问公网，SDK 初始化时在本地完成验签、SN 白名单、`sdkMajor` 和 `maintenanceUntil` 校验；应用绑定条件按上述平台差异及实际 claims 核对。
 
 建议策略：
 
-- `expiresAt` 由商务策略决定；当前 v3.0 交付使用签发日起 2 个月，不在当前规则文档中写死历史日期。
+- `expiresAt` 由本批明确约定，不在通用文档中写死期限。
 - `maintenanceUntil` 控制能否升级到某个发布时间的 SDK 或模型版本。
 - `sdkMajor` 不一致或维护期外升级需要重新签发 license。
 - 新增设备、换机或 SN 变化时，需要提供新 SN 并重新签发全量或增量授权包。

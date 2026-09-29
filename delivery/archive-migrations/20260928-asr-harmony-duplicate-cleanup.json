@@ -1,0 +1,152 @@
+{
+  "archive_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/harmony/0.3.18/11b084123775efe5b97d190155b3cb8a782c679997994ff1b2e7661e1cc4d884/Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+  "removed": [
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928.zip",
+      "size_bytes": 351421677,
+      "sha256": "562999352ec4fac892d16460fcbb9dabfe5cbc5de9e112ff179ea99b62c22d3d",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE/release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928.zip"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/diagnostics-sdk/Amphion-ASR-Diagnostics-SDK.zip",
+      "size_bytes": 695813542,
+      "sha256": "1389829f109249c9c7b2cb9081c71bb9da795a889e1dfa14356ed1a1e95856a2",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE/diagnostics-sdk/Amphion-ASR-Diagnostics-SDK.zip"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/har/amphion_dingqiao.har",
+      "size_bytes": 351468200,
+      "sha256": "1b86b311d7cad00c98f109e947c6df0145ecedc4c8da8e1535ab20c615442149",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE/demo-source/libs/amphion_dingqiao.har"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/README.md",
+      "size_bytes": 1334,
+      "sha256": "f179f562e8697b37f0fb61ceddd4fa3c42d8408cc402f1691ee38e7e9adc5a65",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/README.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/LICENSE.md",
+      "size_bytes": 3934,
+      "sha256": "0646aa20de1c0e73c789ba67de5252e060683d8efd9fb8a324904139a3685af3",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/LICENSE.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_LIFECYCLE_ASSURANCE_20260716.md",
+      "size_bytes": 7393,
+      "sha256": "2bf536718087a067a03941be81a9f42c2e4e0dd59e544265190063a158d41e8c",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_LIFECYCLE_ASSURANCE_20260716.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/UPGRADE_0.3.18.md",
+      "size_bytes": 1578,
+      "sha256": "224ca66e185ace431c246498c0699e8efca8c802756f2bdf18ea6d1fd8321157",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/UPGRADE_0.3.18.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/LICENSE_SCHEME.md",
+      "size_bytes": 2242,
+      "sha256": "7b9e24a00b32c507464a88704ae36e7c581c03a04e23e6b924e862a1d646a73f",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/LICENSE_SCHEME.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/INTEGRATION.md",
+      "size_bytes": 6127,
+      "sha256": "db0c17e4d36ba725a7d5d52f6bd68a83dc6728e97c4cbfbb269c9e9517e95777",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/INTEGRATION.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/CHANGELOG.md",
+      "size_bytes": 4759,
+      "sha256": "6cf3d03e50ef70d46147c4a2f176114fbf8e3209169792b765815d052bee4f18",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/CHANGELOG.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/TROUBLESHOOTING.md",
+      "size_bytes": 3144,
+      "sha256": "0c59018aeacc6c31d6fc9b54f5a73b99692fa23b58235d215a72bbe77d96f085",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/TROUBLESHOOTING.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json",
+      "size_bytes": 2083,
+      "sha256": "e9222926f49db888dd82a1ac58a74353486aca94348ed06b0bd7c7f6387b7694",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_LIFECYCLE_ASSURANCE_EVIDENCE_20260716.json"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/PRIVACY.md",
+      "size_bytes": 277,
+      "sha256": "5524e08bfa2a440cc7ce2c6f9405a1bc4c59c5a3874acc29905a89b1f135df66",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/PRIVACY.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/NOTICE",
+      "size_bytes": 1602,
+      "sha256": "ec14f2857553aa77647ecac01904ff4806d942a73d38d070a42922d22a7d2b35",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/NOTICE"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md",
+      "size_bytes": 720,
+      "sha256": "9f62a66f616583c65d586ae14770bc2148aa8a7b97d6b9da4642d6b46a39c8dc",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/checksum.txt",
+      "size_bytes": 1721,
+      "sha256": "7c5bfcb36230f290f96158009ceaeb1f77cdb4328f0f6e36e46e7b34731e2584",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/checksum.txt"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_SDK_API_HARMONY.md",
+      "size_bytes": 37394,
+      "sha256": "e7ff5e6584458641c41f06ee230c192c058aef9ace6f1a72c5dc6204046d6e9c",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/ASR_SDK_API_HARMONY.md"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/BUILD_PROVENANCE.json",
+      "size_bytes": 3231,
+      "sha256": "169b706253c2a2bb1b7e8007f5a2f771c4870df6e094e2b98b2cb14d0a1e9705",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/BUILD_PROVENANCE.json"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/WebRTC-BSD-3-Clause.txt",
+      "size_bytes": 1495,
+      "sha256": "9b79539028e216e813e152d45f5c1ed5fdd0554426ad50270fb03134e7082dac",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/WebRTC-BSD-3-Clause.txt"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/ONNX-Runtime-MIT.txt",
+      "size_bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/ONNX-Runtime-MIT.txt"
+    },
+    {
+      "path": "asr/harmony/0.3.18/74e94a27cc90f033d3f8e5aa18ac0b3b9518e352/packages/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/Apache-2.0.txt",
+      "size_bytes": 11338,
+      "sha256": "ed9f685ca0bc23d067c86693086764e7f09e12c91e29b6a3bdfde605f4ad01d1",
+      "outer": "Amphion-Harmony-ASR-Complete-0.3.18-CANDIDATE.zip",
+      "member": "nested-release-sdk/amphion-harmony-asr-sdk-v0.3.18-20260928/docs/third-party/Apache-2.0.txt"
+    }
+  ]
+}

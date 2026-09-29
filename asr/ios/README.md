@@ -185,5 +185,5 @@ engine.finish(sessionId: "session_001")
 ## 联系
 
 - 共享协议：[shared/api-spec/](../../shared/api-spec/)
-- 跨端烟测样本：[shared/regression-set/](../../shared/regression-set/)（仅烟测，WER 由上游 [scripts/benchmark/](../../scripts/benchmark/) 出报告）
+- 跨端烟测样本：[shared/regression-set/](../../shared/regression-set/)（仅烟测，WER 由上游 [scripts/benchmark/](../../third_party/sherpa-onnx/scripts/benchmark/) 出报告）
 - 发布流程：[shared/docs/RELEASE_PROCESS.md](../../shared/docs/RELEASE_PROCESS.md)

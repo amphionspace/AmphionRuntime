@@ -248,8 +248,8 @@ engine.startListening(
 )
 ```
 
-该能力使用 AAR 内置 pyannote segmentation、eres2net 与 CAMPPlus 互补模型，断网可用，适合会议长转写。SDK 以
-10 秒窗口、2.5 秒 hop 增量推理，支持重叠说话；在线聚类产生的显示序号会在后续证据到达时通过
+该能力使用 AAR 内置的新方案，包含语音分割、说话人特征提取与聚类资源，在端侧离线执行。SDK 以
+10 秒窗口、1 秒步长增量推理，支持重叠说话；在线聚类产生的显示序号会在后续证据到达时通过
 revision 修订。约每 120 秒在句末发布一批 `onSpeakerDiarizationResult`，该批编号随后冻结。
 `finish` 非阻塞，SDK 仅校准未定稿的尾窗，按固定顺序回调：唯一 last →
 `onSpeakerDiarizationResult(isSessionFinal=true)` → 唯一 complete。分离超时或模型/存储不可用时仍保持 ASR 完整结束，

@@ -3,7 +3,7 @@
 内部开发默认依赖 `:sdk-dingqiao`；交付给客户的参考工程见
 `asr/tools/delivery/pack_dingqiao_demo_source_delivery.sh`（纯 demo 模块 + fat AAR，无 SDK 源码）。
 
-完整交付说明见 **[docs/DINGQIAO_DELIVERY.md](../docs/DINGQIAO_DELIVERY.md)**。
+完整交付说明见 **[docs/DINGQIAO_DELIVERY.md](../../docs/DINGQIAO_DELIVERY.md)**。
 
 ## HarmonyOS 0.3.11 场景模式
 
@@ -26,7 +26,7 @@ cd asr/android
 ```bash
 ./gradlew :samples:dingqiao-demo:assembleRelease \
   -PdingqiaoUseFatAar=true \
-  -PdingqiaoFatAarPath=build/dingqiao-delivery/dingqiao-asr-v<版本>.aar
+  -PdingqiaoFatAarPath=build/dingqiao-delivery/dingqiao-asr-v'<版本>'.aar
 ```
 
 ## 声纹模型

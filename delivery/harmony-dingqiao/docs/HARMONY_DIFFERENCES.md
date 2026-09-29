@@ -25,9 +25,9 @@
 5. **TEN_VAD**：枚举保留但模型未打包，选择 `TEN_VAD` 会报错；当前统一使用 Silero VAD。
 6. **createEngine 无 Promise 形态**：仅提供同步 `createEngine(params)` 与回调 `createEngineAsync(params, callback)`（与 Android 一致；接口文档允许 callback / Promise 二选一）。
 7. **设备 SN 读取需宿主特权**（与 Android 相同）：`deviceInfo.serial` 需要 `ohos.permission.sec.ACCESS_UDID`（system_basic），普通三方 App / Demo 无法获得。因此绑定 SN 的正式 license 需宿主为系统/预置应用，并通过 `SpeechRecognizeSdk.init(context, deviceIdProvider)` 注入 SN。普通 Demo 可使用 `deviceInfo.ODID`，但签发清单必须同步改为该 ODID；两种标识不可混用。读不到标识或白名单不匹配会返回 `1002200033`。
-8. **线程模型（鸿蒙特有，建议注意）**：首次 `createEngine` 会**同步加载 ASR 模型（约数秒）**，此期间调用线程被阻塞。**建议调用方在非 UI 线程调用 `createEngine`，或在加载期间显示加载态**。Android 使用 JVM 工作线程无此问题；鸿蒙 ArkTS 的 TaskPool worker 无法跨线程传递 NAPI 对象，故暂未后台化，列为后续优化项。
+8. **模型准备与线程**：授权成功后先调用 `prepareRuntime`，SDK 会异步准备默认中英模型；配置匹配时，后续 `createEngine` 复用已准备的模型。自定义配置或模型卸载后仍可能发生冷加载，建议使用回调式 `createEngineAsync`，并在成功回调前显示加载状态。同步 `createEngine` 不保证无耗时，调用方不应依赖它在 UI 线程立即返回。
 9. **native 内存指标**：`nativeRssMb` / `peakNativeRssMb` 等字段保持 `-1`（鸿蒙端暂未接入 native RSS 读取），字段名与 sentinel 规则与 Android 一致。
-10. **License 错误码收敛（与 Android 的差异）**：鸿蒙 `DingqiaoErrorCode` 只定义到 `1002200035`，将「应用不匹配 / 证书指纹不匹配 / 设备不匹配」三类统一映射为 `LICENSE_DEVICE_MISMATCH = 1002200033`；Android 则拆分为 `1002200036`（`LICENSE_APP_MISMATCH`）/ `1002200037`（`LICENSE_CERT_MISMATCH`）/ `1002200033`。这与正式设备白名单授权**不按 applicationId 限制**（`6004 LicenseAppMismatch` 保留、默认不绑签名证书）的方案一致——鸿蒙有意不再单独发出 036/037。若鼎桥侧按 Android 文档预期 036/037 分支，请注意鸿蒙对应场景只返回 `1002200033`。
+10. **License 错误码（双端已对齐）**：Android 与 Harmony 当前都将设备、证书及兼容应用绑定失败映射为 `LICENSE_DEVICE_MISMATCH = 1002200033`，不单独回调 0036/0037。格式、签名、主版本或授权能力不满足返回 0031；运行期限或维护期不满足返回 0032。历史版本文档中的分平台映射不能用于当前接入。
 
 ## 三、Demo 与授权
 

@@ -37,7 +37,7 @@ Harmony `ZH_EN ASR + ERes2Net + Speaker VAD` 已经常驻的前提下，哪个�
 ### 2.2 现有 0.2.9 的 CPU/RSS
 
 严格短窗口真机报告：
-[`20260804-143605-voiceprint-customer-cases-short-window-b6f7e4ce/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-143605-voiceprint-customer-cases-short-window-b6f7e4ce/report.json)
+`20260804-143605-voiceprint-customer-cases-short-window-b6f7e4ce/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-143605-voiceprint-customer-cases-short-window-b6f7e4ce/report.json`）
 
 | 指标 | `Speaker VAD 1000/300 ms` 实测 |
 | --- | ---: |
@@ -48,7 +48,7 @@ Harmony `ZH_EN ASR + ERes2Net + Speaker VAD` 已经常驻的前提下，哪个�
 | 设备与 SDK | Mate 80 / 0.2.9 / arm64-v8a |
 
 原 `1500/500 ms` 同类客户样例报告：
-[`20260804-142901-voiceprint-customer-cases-e005914a/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-142901-voiceprint-customer-cases-e005914a/report.json)
+`20260804-142901-voiceprint-customer-cases-e005914a/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-142901-voiceprint-customer-cases-e005914a/report.json`）
 
 | 指标 | `Speaker VAD 1500/500 ms` 实测 |
 | --- | ---: |
