@@ -186,6 +186,8 @@ jobs:
               "asr/android/sdk-dingqiao/",
               "asr/android/sdk-police/",
               "asr/native/",
+              // Dingqiao's Android JNI target compiles these shared Harmony sources.
+              "asr/harmony/sdk/src/main/cpp/community_",
               "third_party/patches/sherpa-amphion/",
             ];
             const sampleExactInputs = new Set([
@@ -282,6 +284,12 @@ jobs:
             assertClassification("android-sdk", changes([
               "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt",
             ]), { static: true, harmony: true, police_unit: true, android: true });
+            for (const source of ["community_diarization.cpp", "community_diarization_jni.inc",
+                "community_cluster.h", "community_fbank.h", "community_kmeans.h"]) {
+              assertClassification(`android-shared-${source}`, changes([
+                `asr/harmony/sdk/src/main/cpp/${source}`,
+              ]), { harmony: true, android: true });
+            }
             assertClassification("police-asset", changes([
               "asr/android/sdk-police/src/main/assets/police_terms/terms_global.fst",
             ]), { harmony: true, police: true, police_unit: true, android: true });
