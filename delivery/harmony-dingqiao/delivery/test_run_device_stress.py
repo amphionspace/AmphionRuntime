@@ -648,14 +648,10 @@ class RunCommandTest(unittest.TestCase):
 
     def test_zero_minimum_disables_voiceprint_initial_confirmation_grace(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
-        idle_cycle = source.split(
-            "async function runVoiceprintVadBeginIdleCycle", 1
-        )[1].split("async function runSpeakerVadOnStartCycle", 1)[0]
-
         self.assertIn("result.confirmationGraceMs = 0", source)
         self.assertNotIn("result.confirmationGraceMs = 1500", source)
-        self.assertIn("fed >= 45 && fed <= 70", idle_cycle)
-        self.assertNotIn("fed >= 110 && fed <= 150", idle_cycle)
+        # Actual deadline decisions and delayed completion are exercised by
+        # test_harmony_idle_deadline_carrier; submitted frames are not processed PCM.
 
     def test_voiceprint_enrollment_reads_are_bounded_for_every_source(self) -> None:
         source = CARRIER.read_text(encoding="utf-8")
