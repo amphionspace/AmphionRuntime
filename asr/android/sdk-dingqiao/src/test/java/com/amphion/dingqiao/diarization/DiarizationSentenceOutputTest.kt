@@ -4,6 +4,30 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DiarizationSentenceOutputTest {
+    @Test fun ctSpacingChangesPreserveSpeakerOwnershipWithoutGuessingEnglishWords() {
+        for ((raw, text, speaker) in listOf(
+            Triple("你好 世界", "你好世界。", "S1"),
+            Triple("hello 世界", "hello世界。", "S1"),
+            Triple("你好 world", "你好world。", "S1"),
+            Triple("hello world", "hello，world。", "S1"),
+            Triple(" hello", "hello。", "S1"),
+            Triple("hello world", "helloworld。", "UNKNOWN"),
+            Triple("你好 世界", "你好地球。", "UNKNOWN"),
+        )) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance(raw, text, raw.map { it.toString() },
+                raw.indices.map { it * 100 }, 0, 2000)
+            state.applySpeakerTurns(listOf(turn(0, 2000, "S1")))
+            val before = state.allTurns()
+            val result = state.sentenceUtterances().single()
+            assertEquals(raw, speaker, result.speakerId)
+            assertEquals(text, result.text)
+            assertEquals(raw, result.rawText)
+            assertFalse(result.speakerInferred)
+            assertEquals(before, state.allTurns())
+        }
+    }
+
     @Test fun punctuationCannotChangeOriginalUtteranceTailInference() {
         val raw = "可以听见我说话吗你好"
         for (text in listOf("可以听见我说话吗？你好。", "可以听见我说话吗你好。")) {

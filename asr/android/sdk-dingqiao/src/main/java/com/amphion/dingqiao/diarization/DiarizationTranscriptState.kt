@@ -332,7 +332,7 @@ internal class DiarizationTranscriptState {
         return if (byteOffset == bytes.size) decoded to decodedTimes else null
     }
 
-    // Only punctuation/spacing insertions are alignable; do not guess ITN boundaries.
+    // Match Harmony CT spacing rules; lexical rewrites still require provenance.
     private fun tokenTextBoundaries(tokens: List<String>, text: String): List<Int>? {
         val inserted = " ,.!?，。！？、;；:：\t\r\n"
         val boundaries = mutableListOf(0)
@@ -340,10 +340,18 @@ internal class DiarizationTranscriptState {
         for ((index, token) in tokens.withIndex()) {
             if (token.isEmpty()) return null
             for ((character, value) in token.withIndex()) {
+                val beforeInserted = cursor
                 while (cursor < text.length && text[cursor] != value && text[cursor] in inserted) cursor++
-                if (cursor >= text.length || text[cursor] != value) return null
+                val matches = cursor < text.length && text[cursor] == value
+                // CT drops separators except between ASCII characters; punctuation
+                // may replace a separator without consuming the next lexical character.
+                val replacedSpace = !matches && value in " \t\r\n" &&
+                    (cursor == 0 || text.substring(beforeInserted, cursor).any { it in ",.!?，。！？、;；:：" } ||
+                        !(cursor > 0 && cursor < text.length &&
+                            text[cursor - 1].code < 0x80 && text[cursor].code < 0x80))
+                if (!matches && !replacedSpace) return null
                 if (index > 0 && character == 0) boundaries += cursor
-                cursor++
+                if (matches) cursor++
             }
         }
         while (cursor < text.length && text[cursor] in inserted) cursor++
