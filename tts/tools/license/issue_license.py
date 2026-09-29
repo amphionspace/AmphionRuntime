@@ -76,8 +76,8 @@ def main() -> None:
     ap = argparse.ArgumentParser(description="签发 Amphion 离线 license（.lic）")
     ap.add_argument("--private-key", required=True, help="签发私钥 PEM 路径")
     ap.add_argument("--password", default=None, help="私钥口令（若 gen 时加密）")
-    ap.add_argument("--application-id", default="", help="宿主 applicationId；仅写入记录，不参与 Android 绑定校验")
-    ap.add_argument("--bundle-name", default="", help="HarmonyOS bundleName；仅写入记录，不参与 Android 绑定校验")
+    ap.add_argument("--application-id", default="", help="宿主 applicationId；ASR 不校验，Android TTS 对非空值校验包名；不绑定应用时留空")
+    ap.add_argument("--bundle-name", default="", help="兼容 bundleName；Android TTS 在 applicationId 为空时用此值校验包名；不绑定应用时留空")
     ap.add_argument("--customer", default="", help="客户名")
     ap.add_argument("--license-id", default="", help="授权编号")
     ap.add_argument(

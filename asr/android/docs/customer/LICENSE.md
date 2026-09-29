@@ -1,60 +1,52 @@
-# 商用授权接入说明
+# 离线授权接入说明（Android ASR）
 
-本 SDK 发行包内的 `dingqiao-asr-*.aar` 已启用离线授权校验。集成方**无需**也**不应**自行配置验签公钥；只需按本章放置我方签发的授权文件。
+交付 AAR 已启用离线验签，集成方无需配置或替换公钥。授权文件由签发方受控提供，具体能力、期限、设备白名单、证书、主版本和维护期以本批授权声明为准。
 
-## 1. 获取授权文件
+## 授权范围
 
-正式集成前，请向我方商务 / 技术支持提供：
+- 必须包含 ASR 能力；只有同时包含 TTS 且满足其绑定条件时才可供 TTS 共用。
+- Android ASR 不校验包名；Android TTS 仍校验非空 applicationId（为空时回退 bundleName）。不绑定应用的共用授权须将两字段均留空，应用标识只记签发登记。
+- 含设备白名单时，宿主须能提供与签发依据一致的稳定 SN；未绑定设备的体验授权不需要为此读取 SN。
+- Demo 授权仅证明其自身范围内的体验可用，不能替代正式宿主对实际授权文件的验证。
 
-| 信息 | 说明 |
-|------|------|
-| applicationId | 可选记录字段，不作为授权限制；本次宿主为 com.tdtech.tiassistant |
-| Release 签名证书 SHA-256 | 可选记录字段；正式设备白名单 license 默认不绑定签名 |
-| 设备 SN 清单 | 首批授权设备 SN，一行一个；用于生成设备白名单 |
-| 授权能力 | 本次正式授权为 ASR,TTS，ASR 与 TTS 共用同一份 amphion-license.lic |
+## 调用顺序
 
-我方将签发 `amphion-license.lic` 并通过安全渠道单独下发，不进 SDK 压缩包。本次正式授权限制设备 SN 白名单和到期时间，不按 App 包名限制宿主应用。
-
-Demo APK 内自带的授权文件仅用于体验：记录 Demo 包名，可绑定 Demo 签名，只限制期限，不绑定设备 SN，不可用于贵司正式 App。
-
-Demo APK 验收只证明 Demo 内置授权可用、SDK 能完成初始化和体验流程；它不会验证正式 `amphion-license.lic`。正式授权必须在贵司正式宿主中验证：设备 SN 在授权白名单内，且宿主能读取或注入该 SN。
-
-## 2. 集成方式
-
-将 `.lic` 放入 App 的 assets 目录，默认文件名：
-
-```
-app/src/main/assets/amphion-license.lic
-```
-
-初始化（与 `SpeechRecognizeSdk` 文档一致）：
+将授权文件放到应用私有可读路径；若放在 assets，应先复制为文件，再传绝对路径。
 
 ```kotlin
 SpeechRecognizeSdk.init(applicationContext)
+SpeechRecognizeSdk.setWorkPath(workPath)
+SpeechRecognizeSdk.setLicense(licenseAbsolutePath, object : LicenseActivationCallback {
+    override fun onResult(result: LicenseActivationResult) {
+        if (result.errorCode != 0) return
+        SpeechRecognizeSdk.prepareRuntime(object : PrepareRuntimeCallback {
+            override fun onReady() {
+                // 此后调用 createEngineAsync，成功后设置监听器并开始识别。
+            }
+            override fun onError(errorCode: Int, errorMessage: String) {
+                // Runtime 准备失败，停止本次识别启动。
+            }
+        })
+    }
+    override fun onError(errorCode: Int, errorMessage: String) {
+        // 授权失败，提示并停止本次识别启动。
+    }
+})
 ```
 
-若使用底层 `AmphionRuntime`，可通过 `AmphionOptions` 指定 assets 中的文件名；默认即为 `amphion-license.lic`。
+`init` 设置上下文与设备标识来源，不等于授权成功；`setLicense` 仅验权和缓存，`prepareRuntime` 才准备运行时及默认模型。不能省略任一步或在就绪回调前启动引擎。需要自定义 SN 时使用 `init(context, LicenseDeviceIdProvider)`，见 [DINGQIAO_INTEGRATION.md](DINGQIAO_INTEGRATION.md)。
 
-## 3. 启动与错误码
+## 错误处理
 
-Release 集成在 `init` 阶段校验授权。常见错误（`IllegalStateException`，message 含 `code=`）：
+| 错误码 | 含义与处理 |
+| --- | --- |
+| `1002200030` | 文件缺失或不可读，检查绝对路径及权限 |
+| `1002200031` | 格式、签名、SDK 主版本或授权能力无效，核对并重新获取授权 |
+| `1002200032` | 运行期限或维护期不满足，联系重新签发 |
+| `1002200033` | 设备不可用、不匹配或证书不匹配，核对本批白名单、provider 及签名 |
+| `1002200034` | 未设置授权，先等待 setLicense 成功 |
+| `1002200035` | 激活失败，结合脱敏错误信息排查能力/版本等条件 |
 
-| code | 含义 | 处理 |
-|------|------|------|
-| 6001 | 未找到授权文件 | 确认 assets/amphion-license.lic 已打入 APK |
-| 6003 | 授权无效或被篡改 | 向我方重新获取 |
-| 6004 | 保留错误码；当前正式设备白名单 license 不按包名触发 | 无需按包名重签 |
-| 6005 | 签名证书与授权不一致 | 更换 keystore 后需重新申请 |
-| 6006 | 授权已过期 | 联系续期 |
-| 6007 | 设备 SN 不在授权白名单，或运行时无法读取设备 SN | 确认正式 App 为可读取 SN 的系统应用，并使用包含该 SN 的正式授权 |
+Android 与 Harmony 的适配层均将本地设备/证书绑定错误收敛到 `1002200033`，不单独回调 0036/0037。以上是鼎桥公共 API 错误码，底层 `AmphionRuntime` 的 600x 错误码不能直接当作适配层错误码使用。完整定义见 [语音识别SDK接口.md](语音识别SDK接口.md)。
 
-校验通过后，日志中可见授权状态为已授权（具体 tag 因版本而异）。
-
-## 4. 注意事项
-
-- 正式授权文件不按包名限制宿主应用；授权边界是设备 SN 白名单、有效期和授权能力。
-- 正式授权启用设备 SN 白名单；宿主 App 需要能在运行时向 SDK 提供本机 SN。普通三方 App 通常无法读取系统 SN，系统 / 特权应用需具备对应权限。
-- Demo APK 为普通安装体验包，不绑定 SN；若把 Demo 授权换成正式 SN 绑定授权，普通安装时可能因无法读取 SN 而初始化失败。
-- 独立下发的正式 license zip 不用于 Demo APK；不要用 Demo 通过来替代正式宿主的授权验收。
-- 请勿将授权文件提交到公开代码仓库。
-- 授权相关问题请联系我方对接人，勿在交付包内查找或替换验签密钥。
+不要将授权原文、SN、私钥或证书口令写入公开日志或源码仓库。授权变更后重新完成验权与 Runtime 准备。

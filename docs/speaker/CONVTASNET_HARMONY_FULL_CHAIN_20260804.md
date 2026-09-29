@@ -55,7 +55,7 @@
 ## 4. 真机主结果
 
 优化后 C1～C3 报告：
-[`20260804-162951-rescue-full-chain-26303fa5/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-162951-rescue-full-chain-26303fa5/report.json)
+`20260804-162951-rescue-full-chain-26303fa5/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-162951-rescue-full-chain-26303fa5/report.json`）
 
 | Case | 块数 | 选流序列 | separator RTF | 声纹 RTF | worker RTF | 加 ASR 的离线 RTF | 最终文本 |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | --- |
@@ -80,10 +80,10 @@
 ## 5. 资源基线
 
 最终诊断 HAP 的声纹常驻基线：
-[`20260804-163425-voiceprint-b873db7a/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-163425-voiceprint-b873db7a/report.json)
+`20260804-163425-voiceprint-b873db7a/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-163425-voiceprint-b873db7a/report.json`）
 
 最终诊断 HAP 的 target-only/other-only 运行：
-[`20260804-163256-rescue-negative-10c983ef/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-163256-rescue-negative-10c983ef/report.json)
+`20260804-163256-rescue-negative-10c983ef/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-163256-rescue-negative-10c983ef/report.json`）
 
 两者 HAP SHA-256 均为
 `05ef3a06d7d5721ed92646d2870c6ab44dd47b2667358f591db2154f8aac5c0d`。
@@ -103,7 +103,7 @@
 embedding。A/B 除评分采样外保持模型、阈值、拼接、输入和 ASR 相同。
 
 原方案报告：
-[`20260804-162536-rescue-full-chain-f8a47011/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-162536-rescue-full-chain-f8a47011/report.json)
+`20260804-162536-rescue-full-chain-f8a47011/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-162536-rescue-full-chain-f8a47011/report.json`）
 
 | 指标 | 两个 1.5 秒窗口 | 一个 2 秒窗口 | 变化 |
 | --- | ---: | ---: | ---: |
@@ -175,7 +175,7 @@ Harmony 生命周期门。
 
 清理后的同一 HAP 又完成 3 个公共 API `burst` session：SDK、内存和空 final 门均 PASS，peak RSS
 `396.836 MiB`，报告为
-[`20260804-164006-burst-c38e0ead/report.json`](../../delivery/harmony-dingqiao/build/device-stress/20260804-164006-burst-c38e0ead/report.json)。
+`20260804-164006-burst-c38e0ead/report.json`（历史生成产物，未入库；原相对路径 `../../delivery/harmony-dingqiao/build/device-stress/20260804-164006-burst-c38e0ead/report.json`）。
 
 当前工作树的原许可证与 5 台授权设备清单不一致，直接预检会报 device-hash mismatch。为只完成本轮 USB
 安装，干净 HAP 构建期间临时使用了已验证的 5 设备测试许可证，随后源码文件恢复为原哈希

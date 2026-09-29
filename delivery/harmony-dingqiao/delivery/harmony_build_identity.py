@@ -42,8 +42,10 @@ NATIVE_LIBRARIES = {
 OPTIONAL_HAP_MODELS = {
     "speaker_complementary_embedding":
         "resources/rawfile/amphion-dingqiao/campplus.onnx",
-    "community_speaker_embedding":
-        "resources/rawfile/amphion-dingqiao/community-wespeaker-masked.fp32.onnx",
+    "community_speaker_encoder":
+        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+    "community_speaker_pooling":
+        "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
     "community_feature_transform":
         "resources/rawfile/amphion-dingqiao/community-feature.f32",
     "community_plda":

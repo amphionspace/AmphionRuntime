@@ -4,8 +4,8 @@
 
 | 文件 | 说明 |
 | --- | --- |
-| manifest.schema.json | 模型 manifest.json 的 JSON Schema (draft-2020-12)；三端在 CI 中校验 |
-| errcodes.yaml | 错误码表；三端 AsrErrorCode / proto AsrError.code 都派生自此 |
+| manifest.schema.json | 模型 manifest.json 的 JSON Schema (draft-2020-12)；规范定义；校验覆盖以各端实际 CI 为准 |
+| errcodes.yaml | 错误码表；各端错误码需要与此对照；不表示已有统一自动生成器 |
 | dingqiao-asr-parameters.json | 鼎桥 Android/HarmonyOS 客户可无平台分支使用的参数契约；`platform_extensions` 不属于通用配置 |
 | README.md | 本文件 |
 
@@ -13,17 +13,17 @@
 
 ### Android
 - `AsrError.kt` 中的 `AsrErrorCode` 常量与本目录 errcodes.yaml 保持一致
-- CI（[ci/android.yml](../../ci/android.yml)）中跑单测校验
+- 现有 CI 入口见 [.github/workflows/android.yml](../../.github/workflows/android.yml)；不应假定所有错误码已由 YAML 自动生成或全量校验
 
 ### iOS
 - `AsrError.swift` 中的 `AsrErrorCode` enum 与 errcodes.yaml 保持一致
 - 鼎桥兼容层参数名由 `dingqiao-asr-parameters.json` 驱动；阶段性未实现能力必须显式失败，不能静默忽略
 - `asr.tools.tests.test_ios_dingqiao_contract` 在无 Xcode 环境下检查参数覆盖和生命周期结构
-- xcodebuild test 阶段校验
+- 当前 CI 的契约检查不等于完整 Xcode 构建与设备验证
 
 ### Server (Linux)
 - `proto/asr.proto` 的 `AsrError.code` 字段值域必须 ⊆ errcodes.yaml
-- C++ 服务端启动时把 errcodes.yaml 内嵌为常量（编译期检查）
+- 服务端需按规范维护错误码；当前没有由此 YAML 自动生成并在编译期完整校验的链路
 
 ## 治理流程
 
@@ -32,7 +32,7 @@
 3. 已发布的 manifest_version=1 的 schema 不能变；新版本必须递增 `$id` + 升 `manifest_version`
 4. 错误码不能删除；废弃用 `deprecated_at` 标记，三端继续保留常量
 
-## CI 校验示例（Android Kotlin）
+## 校验实现示意（不是已接入的 CI 门禁）
 
 ```kotlin
 @Test fun `errcodes.yaml is in sync with AsrErrorCode constants`() {

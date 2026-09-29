@@ -1,122 +1,18 @@
-# Git 上传与模型交接
+# Harmony TTS 源码与模型交接
 
-本文只回答两个问题：
+构建步骤与资源清单只在 [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md) 维护。以下区分源码、受控资产和生成物。
 
-1. 哪些文件应该进 Git 分支
-2. 哪些文件应该单独发给负责人
+| 内容 | 位置与处理方式 |
+| --- | --- |
+| SDK、sample、工程配置和文档 | 仓库 `tts/harmony/`；提交源码及必要工程文件 |
+| TN 源码与构建工具 | `tts/training/dingqiao_lits/`、`tts/tools/tn/`；按源码编译说明准备依赖 |
+| 模型、前端词典和规则 | `tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/`；从受控资产恢复，不进 Git |
+| 模型复制结果 | `tts/harmony/sdk/src/main/resources/rawfile/lits-models/tts/`；构建生成，不作为源资产编辑 |
+| TN 可执行文件 | `tts/harmony/build-ohos-tn/`；构建生成，或使用模型包中匹配平台的 TN 文件 |
+| HAR 与 HAP | 各模块 `build/default/outputs/default/`；不进 Git |
 
-## 1. Git 分支保留什么
+源资产已经包含校验过的词典 `.bin`。普通构建只读复制，不在原始模型包中生成或覆盖词典。模型 ID、资源版本、SHA-256 和实际构建提交应随交接记录；源码目录不包含模型不等于交付可缺模型。
 
-HarmonyOS TTS 分支里，保留的是“能从源码重新构建出 SDK 的最小必要工程”，不是模型资产包。
+不得提交或放入源码包：`.hvigor`、`.ohos`、`build`、本地签名配置、私钥、证书口令和授权文件。需要授权时按约定受控交付。
 
-应该进 Git 的内容：
-
-```text
-HarmonyOS/
-├── README.md
-└── AmphionRuntime/
-    ├── AppScope/
-    ├── docs/
-    ├── sample/
-    ├── hvigor/
-    ├── sdk/
-    ├── build-profile.json5
-    ├── hvigorfile.ts
-    ├── oh-package.json5
-    └── README.md
-```
-
-同时，仓库根目录还需要保留：
-
-```text
-tools/README.md
-tools/verify_lits_harmony_package.mjs
-tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/.gitkeep
-```
-
-## 2. 不要上传什么
-
-以下内容不要进 Git：
-
-- `tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/` 里的真实 `.onnx/.json/.txt/.wav`
-- `HarmonyOS/AmphionRuntime/.hvigor/`
-- `HarmonyOS/AmphionRuntime/.ohos/`
-- `HarmonyOS/AmphionRuntime/**/build/`
-- `HarmonyOS/AmphionRuntime/verification/out/`
-- 任何本机签名文件：`.p12`、`.cer`、`.p7b`
-- 任何临时生成的签名配置或手工签名结果
-
-原因很简单：
-
-- 模型包是单独交付资产，不应进源码仓库
-- `.hvigor/.ohos/build` 都是本机生成物
-- 签名材料属于个人或设备环境，不属于 SDK 源码交付
-
-## 3. 负责人单独接收什么
-
-负责人单独接收完整模型包目录：
-
-```text
-AmphionRuntime/tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
-```
-
-至少包括：
-
-- `manifest.json`
-- `lits_hidden_encoder.onnx`
-- `lits_stream_condition_chunk.onnx`
-- `lits_stream_decoder_step.onnx`
-- `vocos_vocoder.onnx`
-- `frontend_golden.json`
-- `frontend_rules.json`
-- `chinese_lexicon.txt`
-- `chinese_lexicon.bin`（由构建脚本从 `chinese_lexicon.txt` 生成）
-- `cmudict.txt`
-- `cmudict.bin`（由构建脚本从 `cmudict.txt` 生成）
-- `supplement_lexicon.json`
-- `pinyin_2_bpmf.txt`
-- `polychar.txt`
-- `zh_en_symbols.json`
-
-当 manifest 声明 `stream_final_zero_pad_with_chunk_condition=true` 时，不需要
-`lits_stream_condition_final.onnx`；旧 manifest 未声明该字段时仍必须提供该文件。
-- `pinyin_to_tokens.json`
-- `arpabet_to_tokens.json`
-- `tn-bin/arm64-v8a/zh_tts`
-- `tn-bin/arm64-v8a/en_tts`
-- `rules_v2/zh.full.json`
-- `rules_v2/en.full.json`
-- `rules_v2/zh_pinyin.json`
-
-如果已有，也建议一并发过去：
-
-- `export_report.json`
-- `external_loop_export_report.json`
-
-## 4. 最终交付物分别是什么
-
-需要区分三类东西：
-
-1. Git 分支交付物
-   - 可从源码重建 HarmonyOS SDK 的工程
-
-2. SDK 产物
-   - `HarmonyOS/AmphionRuntime/sdk/build/default/outputs/default/sdk.har`
-
-3. 本地验证产物
-   - `HarmonyOS/AmphionRuntime/sample/build/default/outputs/default/sample-default-unsigned.hap`
-   - 它只是验证 HAR 的宿主 HAP，不是最终 SDK 交付物
-
-## 5. 当前交接口径
-
-当前 HarmonyOS 工程已经满足：
-
-- 有独立的 `HarmonyOS` 目录入口
-- 有可构建的 HAR 工程
-- 有真实 ONNX 推理和播放实现
-- 有宿主 HAP 验证工程
-- 文档写清了模型放置位置、构建方法、交付边界
-
-当前仍需要接手人自己补的外部条件只有一个：
-
-- 如果要在具体 HarmonyOS 真机安装 `sample` 做验证，需要使用该设备信任的调试签名重新签 HAP
+HAR 是集成产物；sample HAP 是验证载体。若本次包含可安装 Demo，必须对签名及真机行为另行验证，不能交付 unsigned HAP 并宣称可安装。

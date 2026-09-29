@@ -143,7 +143,8 @@ class OptionalModelIdentityTest(unittest.TestCase):
     def test_records_all_community_assets_from_hap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             hap = Path(directory) / 'test.hap'
-            names = ['community_speaker_embedding', 'community_feature_transform', 'community_plda']
+            names = ['community_speaker_encoder', 'community_speaker_pooling',
+                     'community_feature_transform', 'community_plda']
             with zipfile.ZipFile(hap, 'w') as archive:
                 for name in names:
                     archive.writestr(MODULE.OPTIONAL_HAP_MODELS[name], name.encode())

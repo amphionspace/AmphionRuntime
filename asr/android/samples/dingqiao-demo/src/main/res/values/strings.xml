@@ -25,7 +25,8 @@
     <string name="scenario_meeting_minutes">会议纪要</string>
     <string name="diarization_speaker">说话人 %1$d</string>
     <string name="diarization_speaker_unknown">不确定</string>
-    <string name="diarization_intermediate">（中间结果）</string>
+    <string name="diarization_intermediate">（暂定，可修正）</string>
+    <string name="diarization_analyzing">说话人分析中</string>
     <string name="diarization_final">（最终结果）</string>
     <string name="diarization_phase_hint">角色的中间结果可能调整；窗口结束后标为最终结果。</string>
     <string name="diarization_overlap">重叠说话</string>

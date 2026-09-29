@@ -14,6 +14,7 @@ REQUIRED_SYMBOLS = (
     "SherpaOnnxOnlineStreamGetVadEndpointWaitSeconds",
     "SherpaOnnxOnlineStreamCommitRule3Segment",
     "SherpaOnnxOnlineStreamCommitStablePrefix",
+    "SherpaOnnxWetextItnNormalizeWithAlignment",
 )
 
 

@@ -1,0 +1,42 @@
+{
+  "batch_id": "20260928-asr-android-033249",
+  "published": false,
+  "source_commit": "74e94a27cc90f033d3f8e5aa18ac0b3b9518e352",
+  "remote_index_uri": "cos-amphion-delivery:amphion-runtime/archive-index/20260928-asr-android-033249.json",
+  "removed": [
+    {
+      "artifact": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/android/0.3.9/d10021f328f605fe334b34b95427ba37bd06aaac299dc15ac34e829695ff85b5/Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip",
+      "size_bytes": 2612990020,
+      "sha256": "d10021f328f605fe334b34b95427ba37bd06aaac299dc15ac34e829695ff85b5",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:32:41.445221+00:00",
+        "local_copies_verified": 2
+      }
+    },
+    {
+      "artifact": "Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip.sha256",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/android/0.3.9/d10021f328f605fe334b34b95427ba37bd06aaac299dc15ac34e829695ff85b5/companions/Amphion-Android-ASR-Complete-0.3.9-CANDIDATE.zip.sha256",
+      "size_bytes": 115,
+      "sha256": "3810feee8843a10e399c9c5c24b57a385e99c10fa6f3fc5e97858372d9d18e5d",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:32:45.896277+00:00",
+        "local_copies_verified": 2
+      }
+    },
+    {
+      "artifact": "complete-candidate-report.json",
+      "remote_uri": "cos-amphion-delivery:amphion-runtime/releases/asr/android/0.3.9/d10021f328f605fe334b34b95427ba37bd06aaac299dc15ac34e829695ff85b5/companions/complete-candidate-report.json",
+      "size_bytes": 797,
+      "sha256": "90b7e3154bea514901da3624becba23c94b59003a8c483e555dd1e30781a9102",
+      "verification": {
+        "method": "full-download-sha256",
+        "verified_at": "2026-09-28T03:32:49.939048+00:00",
+        "local_copies_verified": 2
+      }
+    }
+  ],
+  "retained": "Independent build logs, diagnostic evidence and source files"
+}

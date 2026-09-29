@@ -24,7 +24,7 @@ pip install onnx==1.17.0 onnxruntime==1.18.1 onnxoptimizer==0.3.13
 # clone icefall（用你训练时一样的 commit）
 git clone https://github.com/k2-fsa/icefall
 cd icefall
-git checkout <your-training-commit>
+git checkout '<your-training-commit>'
 export PYTHONPATH=$PWD:$PYTHONPATH
 ```
 

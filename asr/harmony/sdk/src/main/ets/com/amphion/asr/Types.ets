@@ -167,10 +167,26 @@ export class AsrConfigBuilder {
   }
 }
 
+/** Exact postprocessor source ranges, in UTF-16 code units. A replacement
+ * record is indivisible; empty spans mean its provenance is unavailable. */
+export interface AsrTextNormalizationSpan {
+  sourceBegin: number;
+  sourceEnd: number;
+  textBegin: number;
+  textEnd: number;
+}
+
+export interface AsrTextNormalization {
+  /** Normalized text before punctuation; source offsets address rawText. */
+  text: string;
+  spans: AsrTextNormalizationSpan[];
+}
+
 export class AsrResult {
   text: string = '';
   /** Decoder text before ITN and punctuation. */
   rawText: string = '';
+  textNormalization?: AsrTextNormalization;
   confidence: number = 1.0;
   tokens: string[] = [];
   timestamps: number[] = [];

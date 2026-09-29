@@ -28,5 +28,5 @@
 ## 关键约定
 
 1. NDK 必须用 r26d (26.3.11579264)，与 [asr/tools/ANDROID_TOOLCHAIN.md](../asr/tools/ANDROID_TOOLCHAIN.md) 对齐
-2. CI 拉模型走公司内网 OSS：env `MODEL_OSS_URL`，CI 任务自己 export 后调 `asr/tools/00_fetch_demo_model.sh` 之类脚本
+2. 模型输入以 `.github/workflows/` 的实际步骤为准。`asr/tools/00_fetch_demo_model.sh` 下载其脚本指定的公开示例模型，不读取 `MODEL_OSS_URL`；受控交付模型按仓库资产流程恢复，不能以示例模型替代。
 3. 识别正确性（WER / CER）由上游 sherpa-onnx `scripts/benchmark/`（路径：`third_party/sherpa-onnx/scripts/benchmark/`）统一出报告；下游 dashboard 通过 `--upstream-wer-report-url` 引用上游 URL，不重复跑

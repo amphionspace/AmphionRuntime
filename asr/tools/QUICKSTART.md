@@ -527,9 +527,9 @@ AsrSdk: OnlineRecognizer loaded from /data/user/0/com.amphion.asr.sample/files/a
 | 现象 | 根因 | 处置 |
 | --- | --- | --- |
 | 加载报 `model_type mismatch` 或 encoder 输入维度不匹配 | manifest.json 里 model_type 配错了，或者训练参数与 export 参数不一致 | 老 icefall recipe 用 zipformer，新的（含 chunk-size 32 + left-context 4）用 zipformer2；export-onnx-streaming 时这两个是 fusion 进 ONNX 的，必须与训练时一致 |
-| 加载成功但识别全空 / 全是同一个字符 | tokens.txt 第一行不是 `<blk> 0` | 用编辑器打开看，缺则在最前面插入 `<blk> 0` 一行，并把后续所有 id 全部 +1（注意保持升序连续） |
+| 加载成功但识别全空 / 全是同一个字符 | 词表与模型导出时的 token 编号可能不匹配 | 停止使用该组合，恢复这版模型配套的原始词表并核对导出配置；不要插入 blank 或整体移动 token ID，这会改变模型输出含义 |
 | 加载成功但识别全是 `<unk>` | tokens.txt 与训练时的 BPE 不一致（混用了不同 recipe） | 必须用训练这版模型时的同一份 bpe.model 派生 tokens.txt |
 | 识别出来全是英文，听不到中文 | encoder.int8 量化没用 per_channel | 重做量化，加上 `per_channel=True`（02_quantize_int8.md 第 3 节） |
 | 第一句识别延迟极大（10s+），后面正常 | 首次 OnnxRuntime 需要做算子 JIT，此外热启动会复用 | 是预期行为；生产环境建议在 splash 阶段后台预热 |
 | 模型超过 200 MB，push 一半中断 | 无线调试带宽 / 设备 /sdcard/ 配额 | 改 USB 数据线 push；或 split 量化（先编 + push encoder 再 joiner） |
-| 同一份模型推过去又被 SDK 拒了 | manifest.json 里 min_sdk_version 比当前 SDK 版本高 | 改 manifest 里的 min_sdk_version 到 SDK 当前版本以下，比如 1.0.0 |
+| 同一份模型推过去又被 SDK 拒了 | manifest.json 里 min_sdk_version 比当前 SDK 版本高 | 核对模型的最低 SDK 需求，升级到兼容 SDK 或使用兼容模型；不要降低声明绕过兼容性校验 |

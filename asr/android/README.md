@@ -9,7 +9,7 @@
 | `:sdk` | Android Library (AAR) | 对外发布的 SDK；包名 `com.amphion.asr` |
 | `:sdk-police` | Android Library (AAR) | 警务三域增强：术语、车牌、派出所归一化 |
 | `:sdk-dingqiao` | Android Library (AAR) | 鼎桥客户 API 适配层 |
-| `:samples:public-demo` | Android Application (APK) | 通用 demo：端侧识别 + 热词 + 目标说话人注册/开关；另含云端 ASR 演示开关，applicationId `com.amphion.asr.sample` |
+| `:samples:public-demo` | Android Application (APK) | 通用 demo：端侧识别 + 热词 + 目标说话人注册/开关；离线运行，applicationId `com.amphion.asr.sample` |
 | `:samples:mini-demo` | Android Application (APK) | `:samples:public-demo` 的小屏变体：240x320 等极小屏适配，applicationId `com.amphion.asr.mini` |
 | `:samples:internal-eval` | Android Application (APK) | 内部评测版：评测数据采集 + WER 估算 + 上传。`eval` 即 evaluation（评测），applicationId `com.amphion.asr.sample.eval` |
 | `:samples:dingqiao-demo` | Android Application (APK) | 鼎桥客户定制 demo，applicationId `com.amphion.dingqiao.demo` |
@@ -64,7 +64,7 @@ adb shell am start -n com.amphion.asr.sample/.MainActivity
 
 ```bash
 adb devices                                     # 找到目标真机的 serial
-export ANDROID_SERIAL=<真机 serial>             # 之后 gradle install / adb 都默认走这台
+export ANDROID_SERIAL='<真机 serial>'             # 之后 gradle install / adb 都默认走这台
 ./gradlew :samples:public-demo:installDebug
 ```
 
@@ -247,7 +247,7 @@ AmphionRuntime/
 仓库默认坐标是 `com.amphion:amphion-runtime:0.2.0`，包名 `com.amphion.asr`。如果你的团队 fork 出去要换成自己的命名空间，用脚本一键替换：
 
 ```bash
-bash asr/tools/06_rename_namespace.sh --group-id com.<your-org>
+bash asr/tools/06_rename_namespace.sh --group-id com.'<your-org>'
 ```
 
 ## 与上游 sherpa-onnx 的关系

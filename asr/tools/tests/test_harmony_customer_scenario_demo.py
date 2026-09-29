@@ -210,6 +210,10 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         key = rows.rsplit("}, ", 1)[1].rstrip().removesuffix(")")
         label = rows.split("Span(", 1)[1].split("\n", 1)[0].rstrip().removesuffix(")")
         label = label.replace("this.segmentSpeakerLabel", "page.segmentSpeakerLabel")
+        run_label = rows.split("ForEach(this.segmentTextRuns(item),", 1)[1].split("Span(", 1)[1].split(
+            "\n", 1
+        )[0].rstrip().removesuffix(")")
+        run_label = run_label.replace("this.textRunLabel", "page.textRunLabel")
         script = f"""
             import assert from 'node:assert/strict';
             class FinalSegment {{{segment}
@@ -232,13 +236,17 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
             function render() {{
               return page.finalSegments.map((item, index) => {{
                 const key = keyOf(item, index);
-                if (!cache.has(key)) cache.set(key,
-                  item.speakerDiarization ? ({label}).trim() : '');
+                if (!cache.has(key)) {{
+                  const prefix = item.speakerDiarization ? ({label}) : '';
+                  const text = item.speakerDiarization && item.speakerParts.length > 0 ?
+                    page.segmentTextRuns(item).map((run, runIndex) => ({run_label}) + run.text).join('') : item.text;
+                  cache.set(key, (prefix + text).trim());
+                }}
                 return cache.get(key);
               }});
             }}
-            assert.deepEqual(render(), ['说话人 1（暂定，可修正）', '说话人 2（暂定，可修正）',
-              '说话人分析中（暂定，可修正）']);
+            assert.deepEqual(render(), ['说话人 1（暂定，可修正） 甲句', '说话人 2（暂定，可修正） 乙句',
+              '说话人分析中（暂定，可修正） 丙句']);
             const utterances = page.finalSegments.map((item, index) => ({{
               text: item.text, sourceUtteranceId: item.utteranceId,
               utteranceId: item.utteranceId + '-final', endTime: item.endTime,
@@ -248,15 +256,15 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
               windowIndex: 0, utterances, isSessionFinal: false, degraded: false,
             }});
             assert.deepEqual(page.finalSegments.map(item => item.speakerIndex), [0, 0, -1]);
-            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
-              '不确定（最终结果）'],
+            assert.deepEqual(render(), ['（最终结果）\\n说话人 1：甲句', '（最终结果）\\n说话人 1：乙句',
+              '（最终结果）\\n不确定：丙句'],
               'a committed window must refresh phase and identity before the session ends');
             // Late provisional updates cannot overwrite published assignments.
             page.handleSpeakerDiarizationUpdate('live', {{
               utteranceId: 'u2-final', revision: 99, speakerIndex: 1,
             }});
-            assert.deepEqual(render(), ['说话人 1（最终结果）', '说话人 1（最终结果）',
-              '不确定（最终结果）']);
+            assert.deepEqual(render(), ['（最终结果）\\n说话人 1：甲句', '（最终结果）\\n说话人 1：乙句',
+              '（最终结果）\\n不确定：丙句']);
             // A real second speaker must remain distinct.
             page.handleSpeakerDiarizationResult('live', {{
               windowIndex: 1, isSessionFinal: true, degraded: false,
@@ -264,7 +272,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
                 text:'丁句', endTime:15000, speakerIndex:1, secondarySpeakerIndexes:[],
                 overlap:false}}],
             }});
-            assert.equal(render().at(-1), '说话人 2（最终结果）');
+            assert.equal(render().at(-1), '（最终结果）\\n说话人 2：丁句');
             const mixed = new Page();
             const parts = [
               {{sourceUtteranceId:'u1',utteranceId:'u1',text:'张三。',beginTime:0,endTime:200,

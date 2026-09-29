@@ -93,7 +93,7 @@ punctuation（约 190 ms）走并行 lane、被 recognizer 完全隐藏；asset 
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --device <HDC_TARGET> \
+  --device '<HDC_TARGET>' \
   --warmup-runs 2 \
   --iterations 10 \
   --output delivery/harmony-dingqiao/build/model-load-bench/zhen-current.json
@@ -106,7 +106,7 @@ python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
 
 ```bash
 python3 delivery/harmony-dingqiao/delivery/run_model_load_bench.py \
-  --device <HDC_TARGET> \
+  --device '<HDC_TARGET>' \
   --baseline path/to/comparable-baseline.json \
   --output delivery/harmony-dingqiao/build/model-load-bench/zhen-candidate.json
 ```

@@ -10,7 +10,7 @@ The remote branch contains the HarmonyOS native TN source and ICU static build d
 
 ```bash
 git fetch origin
-git checkout -B tts-android-harmony-v3.0 origin/tts-android-harmony-v3.0
+git switch --detach origin/tts-android-harmony-v3.0
 ```
 
 ## 2. Unpack the resource package
@@ -34,57 +34,10 @@ tts/harmony/build-ohos-tn/zh_tts
 tts/harmony/build-ohos-tn/en_tts
 ```
 
-The HarmonyOS build script reads the model package from `tts/tools/trial-export/...`. The frontend `.bin` files are generated from the text dictionaries during the build. If `tts/harmony/build-ohos-tn/zh_tts` and `en_tts` are present, those HarmonyOS TN binaries are copied into the bundled rawfile model resources during the build.
+The HarmonyOS build script reads the model package from `tts/tools/trial-export/...`. Current source assets already contain verified frontend `.bin` files; ordinary builds copy them without rewriting the source dictionaries. If `tts/harmony/build-ohos-tn/zh_tts` and `en_tts` are present, those HarmonyOS TN binaries are copied into the bundled rawfile model resources during the build.
 
-## 3. Build the sample HAP
+## 3. Current build and signing
 
-On macOS with DevEco Studio installed:
+The archive and hash above identify the historical 2026-07-02 input only. For a current checkout, obtain the matching model resources and follow [BUILD_FROM_SOURCE.md](BUILD_FROM_SOURCE.md) for HAR/HAP commands. Use DevEco CLI, standalone CLT and JDK; do not use DevEco Studio installation paths.
 
-```bash
-cd tts/harmony
-export NODE_HOME=/path/to/node/home
-export DEVECO_SDK_HOME=/Applications/DevEco-Studio.app/Contents/sdk
-/Applications/DevEco-Studio.app/Contents/tools/ohpm/bin/ohpm install --all
-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw \
-  --mode module \
-  -p product=default \
-  -p module=sample@default \
-  assembleHap \
-  --no-daemon
-```
-
-On Windows, run the equivalent command from `tts\harmony`:
-
-```powershell
-$env:DEVECO_SDK_HOME="C:\Program Files\Huawei\DevEco Studio\sdk"
-$env:NODE_HOME="C:\Program Files\Huawei\DevEco Studio\tools\node"
-& "C:\Program Files\Huawei\DevEco Studio\tools\ohpm\bin\ohpm.bat" install --all
-& "C:\Program Files\Huawei\DevEco Studio\tools\hvigor\bin\hvigorw.bat" --mode module -p product=default -p module=sample@default assembleHap --no-daemon
-```
-
-The output is under:
-
-```text
-tts/harmony/sample/build/default/outputs/default/
-```
-
-## 4. Signing for device install
-
-The branch does not contain any personal signing material. If the generated HAP is unsigned or cannot be installed on a device, open `tts/harmony` in DevEco Studio, configure a debug signing profile trusted by the target device, and rebuild the `sample` module.
-
-For SDK-only delivery, build the HAR instead:
-
-```bash
-/Applications/DevEco-Studio.app/Contents/tools/hvigor/bin/hvigorw \
-  --mode module \
-  -p product=default \
-  -p module=sdk@default \
-  assembleHar \
-  --no-daemon
-```
-
-The HAR output is:
-
-```text
-tts/harmony/sdk/build/default/outputs/default/sdk.har
-```
+Configure a signing profile trusted by the target device using local protected signing material. Build the sample with the CLI, verify the signed HAP and install using CLT `hdc`. An unsigned HAP or the historical resource archive alone does not establish current device acceptance.
