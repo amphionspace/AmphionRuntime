@@ -1,6 +1,7 @@
 import { cryptoFramework } from '@kit.CryptoArchitectureKit';
 import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
+import { applicationMatches } from './RuntimePackagePolicy';
 
 // License policy error codes, aligned 1:1 with the Android Lits TTS TtsErrorCode LICENSE_* values
 // so Harmony TTS and Android TTS report identical license error codes. verify() returns these directly.
@@ -60,7 +61,7 @@ export class AmphionLicenseStatus {
 
 export class HarmonyLicenseVerifier {
   /**
-   * License 字段与 Android 对齐；applicationId / bundleName 仅作记录，正式授权边界由设备 SN 白名单决定。
+   * License 字段与 Android 对齐；只有显式 allowlist/bound 策略才限制应用包，旧 license 继续仅记录。
    * 当前实现只解析占位字段，真正签名验签由交付期注入公钥后补齐。
    */
   static verify(
@@ -108,9 +109,20 @@ export class HarmonyLicenseVerifier {
     status.features = HarmonyLicenseVerifier.stringArray(claims, 'features');
     status.authorizedDeviceCount = HarmonyLicenseVerifier.stringArray(claims, 'authorizedDeviceHashes').length;
 
+    if (!applicationMatches(
+      HarmonyLicenseVerifier.stringValue(claims, 'applicationBindingMode'),
+      HarmonyLicenseVerifier.stringValue(claims, 'bundleName'),
+      HarmonyLicenseVerifier.stringArray(claims, 'bundleNames'),
+      bundleName ?? '')) {
+      status.state = AmphionLicenseState.INVALID;
+      status.errorCode = AsrErrorCode.LICENSE_APP_MISMATCH;
+      status.message = 'license application policy rejected host bundle';
+      return status;
+    }
+
     const boundCert = HarmonyLicenseVerifier.normalizeHex(HarmonyLicenseVerifier.stringValue(claims, 'signingCertDigest'));
     const hostCert = HarmonyLicenseVerifier.normalizeHex(signingCertDigest ?? '');
-    if (boundCert.length > 0 && hostCert.length > 0 && boundCert !== hostCert) {
+    if (boundCert.length > 0 && boundCert !== hostCert) {
       status.state = AmphionLicenseState.INVALID;
       status.errorCode = AsrErrorCode.LICENSE_CERT_MISMATCH;
       status.message = 'license signingCertDigest mismatch';

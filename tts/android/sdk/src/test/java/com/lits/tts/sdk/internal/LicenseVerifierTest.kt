@@ -69,6 +69,20 @@ class LicenseVerifierTest {
     }
 
     @Test
+    fun applicationAllowlistAcceptsMultiplePackagesAndRejectsUnlistedPackage() {
+        val packages = setOf(appId, "com.customer.second")
+        assertTrue(LicenseVerifier.applicationMatches("allowlist", appId, packages, appId))
+        assertTrue(LicenseVerifier.applicationMatches("allowlist", appId, packages, "com.customer.second"))
+        assertFalse(LicenseVerifier.applicationMatches("allowlist", appId, packages, "com.customer.other"))
+    }
+
+    @Test
+    fun explicitUnrestrictedPolicyDoesNotBindLegacyRecordField() {
+        assertTrue(LicenseVerifier.applicationMatches("none", "com.recorded.app", emptySet(), appId))
+        assertFalse(LicenseVerifier.applicationMatches("unknown", "", emptySet(), appId))
+    }
+
+    @Test
     fun tamperedSignatureFails() {
         val attacker = newKeyPair()
         val payloadBytes = claims(applicationId = appId).toByteArray(Charsets.UTF_8)
@@ -289,6 +303,8 @@ class LicenseVerifierTest {
 
     private fun claims(
         applicationId: String,
+        applicationBindingMode: String = "",
+        applicationIds: List<String> = emptyList(),
         expiresAt: String = "",
         certSha256: String = "",
         deviceIdSaltId: String = "",
@@ -302,6 +318,8 @@ class LicenseVerifierTest {
     ): String = JSONObject()
         .put("applicationId", applicationId)
         .put("bundleName", applicationId)
+        .put("applicationBindingMode", applicationBindingMode)
+        .put("applicationIds", JSONArray(applicationIds))
         .put("certSha256", certSha256)
         .put("signingCertDigest", certSha256)
         .put("deviceIdHashAlg", "SHA-256")
