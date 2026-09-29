@@ -74,12 +74,15 @@ class AndroidRule3EndpointTransitionTest(unittest.TestCase):
 
         self.assertIn("if (pool.endpointRules != other.endpointRules) return false", source)
 
-    def test_disabled_rule3_is_mapped_to_native_disable_sentinel(self) -> None:
+    def test_disabled_rule3_stays_publicly_negative_but_native_is_bounded_away(self) -> None:
         source = DINGQIAO_CONFIG.read_text(encoding="utf-8")
+        engine = ENGINE_IMPL.read_text(encoding="utf-8")
         patch = RULE_DISABLE_PATCH.read_text(encoding="utf-8")
 
         self.assertIn('enabled = mode == "short"', source)
         self.assertIn('else -1f', source)
+        self.assertIn("NativeRule3Duration.forRecognizer(c.endpointRules.rule3MinUtteranceLengthSec)", engine)
+        # The source patch supports -1, but a locally bundled native build may predate it.
         self.assertIn("rule.min_utterance_length < 0", patch)
         self.assertIn("NegativeMinimumUtteranceDisablesRule", patch)
 

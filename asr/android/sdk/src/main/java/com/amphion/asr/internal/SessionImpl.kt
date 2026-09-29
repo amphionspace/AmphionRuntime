@@ -91,6 +91,7 @@ internal class SessionImpl(
     private val speakerPcmBuffers = SpeakerPcmBuffers(UTT_MAX_SAMPLES)
     private val effectiveSpeechBuffer = EffectiveSpeechBuffer(sampleRate, UTT_MAX_SAMPLES)
     private val recognizerResetGeneration = RecognizerResetGeneration()
+    private val speechBoundarySignals = SpeechBoundarySignalTracker()
     private val agcIngress = StreamingAgcIngress(StreamingAgcProcessor(sampleRate), ::guardAgcFrames)
 
     private val stablePrefixIntervalSamples: Long = if (
@@ -416,6 +417,7 @@ internal class SessionImpl(
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
+                speechBoundarySignals.reset()
                 resetSpeakerVadState()
                 speakerPcmBuffers.clearAll()
                 effectiveSpeechBuffer.reset()
@@ -655,9 +657,7 @@ internal class SessionImpl(
                 if (!vadSpeechActive) {
                     vadSpeechActive = true
                     Logger.d("session $sessionId VAD speech onset")
-                    callbackHandler.post {
-                        safeCallback { callback.onSpeechBegin() }
-                    }
+                    postSpeechBeginIfNeeded()
                 }
                 initialSpeechDetected = true
                 trailingSilenceMs = 0
@@ -766,7 +766,8 @@ internal class SessionImpl(
      */
     private fun triggerVadActiveEndpoint() {
         if (vad == null) return
-        // inputFinished can yield a final without satisfying the native endpoint rules.
+        // inputFinished can yield a final without satisfying native endpoint rules; announce
+        // this public boundary first and prevent a duplicate native endpoint event.
         postEndpoint()
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()
@@ -817,6 +818,7 @@ internal class SessionImpl(
             val endpointReason = recognizer.getEndpointReason(stream)
             val r = recognizer.getResult(stream)
             markInitialSpeechDetected(r)
+            if (!isFinal) announceAsrSpeechIfNeeded(r)
             val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
             val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
             metrics.onRawFinalReady()
@@ -836,6 +838,7 @@ internal class SessionImpl(
         if (!isFinal) maybeCommitStablePrefix()
         val r = recognizer.getResult(stream)
         markInitialSpeechDetected(r)
+        if (!isFinal) announceAsrSpeechIfNeeded(r)
         val decoded = discardInitialSilenceTimeoutResult(toAsrResult(r), initialSilenceTimeoutSent)
         val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
         if (isFinal) {
@@ -856,6 +859,18 @@ internal class SessionImpl(
         if (initialSilenceTimeoutSent || result.text.isEmpty() && result.tokens.isEmpty()) return
         initialSpeechDetected = true
         initialSilenceSamples = 0L
+    }
+
+    private fun announceAsrSpeechIfNeeded(r: OnlineRecognizerResult) {
+        if (initialSilenceTimeoutSent) return
+        postSpeechBeginIfNeeded(r.text.isNotEmpty() || r.tokens.isNotEmpty())
+    }
+
+    private fun postSpeechBeginIfNeeded(hasEvidence: Boolean = true) {
+        if (!speechBoundarySignals.observeSpeech(hasEvidence)) return
+        callbackHandler.post {
+            safeCallback { callback.onSpeechBegin() }
+        }
     }
 
     private fun discardInitialSilenceTimeoutResult(result: AsrResult, timedOut: Boolean): AsrResult {
@@ -1270,6 +1285,7 @@ internal class SessionImpl(
     }
 
     private fun postEndpoint() {
+        speechBoundarySignals.endpoint()
         callbackHandler.post {
             safeCallback { callback.onEndpoint() }
         }
@@ -1294,6 +1310,7 @@ internal class SessionImpl(
         vadSpeechActive = false
         trailingSilenceMs = 0
         vadCarry = FloatArray(0)
+        speechBoundarySignals.reset()
         vadEndpointRecheckSample = 0
         resetSpeakerVadState()
     }
