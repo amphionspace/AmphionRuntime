@@ -1,0 +1,682 @@
+{
+  "status": "HOST_DIAGNOSTIC_NOT_SDK_ACCEPTANCE",
+  "baseCommit": "7f41e794675b92baae2a0c0e74a8c2a56744ef0c",
+  "decision": "NO_LAYER_PASSES_FROZEN_GATE; stage B not started",
+  "gate": 0.012896,
+  "aggregate": {
+    "OV_AGREE_ADJ": {
+      "sizeSeconds": 38.15,
+      "recoveredSeconds": 72.2,
+      "deltaConfusion": 13.98,
+      "deltaFalseAlarm": 5.24,
+      "misattributionRate": 0.1936,
+      "passesGate": false
+    },
+    "OV_AGREE_DISTANT": {
+      "sizeSeconds": 25.16,
+      "recoveredSeconds": 82.55,
+      "deltaConfusion": 22.27,
+      "deltaFalseAlarm": 4.94,
+      "misattributionRate": 0.2698,
+      "passesGate": false
+    },
+    "OV_CONFLICT": {
+      "sizeSeconds": 1.38,
+      "recoveredSeconds": 6.36,
+      "deltaConfusion": 3.92,
+      "deltaFalseAlarm": 0.33,
+      "misattributionRate": 0.6164,
+      "passesGate": false
+    },
+    "OV_NO_EVIDENCE": {
+      "sizeSeconds": 46.1,
+      "recoveredSeconds": 113.5,
+      "deltaConfusion": 21.59,
+      "deltaFalseAlarm": 13.91,
+      "misattributionRate": 0.1902,
+      "passesGate": false
+    },
+    "OV_FULL": {
+      "sizeSeconds": 22.32,
+      "recoveredSeconds": 72.99,
+      "deltaConfusion": 27.32,
+      "deltaFalseAlarm": 7.6,
+      "misattributionRate": 0.3743,
+      "passesGate": false
+    },
+    "SHORT_CAP": {
+      "sizeSeconds": 10.77,
+      "recoveredSeconds": 32.77,
+      "deltaConfusion": 8.48,
+      "deltaFalseAlarm": 1.87,
+      "misattributionRate": 0.2588,
+      "passesGate": false
+    },
+    "SHORT_NOT_CANDIDATE": {
+      "sizeSeconds": 51.53,
+      "recoveredSeconds": 80.59,
+      "deltaConfusion": 8.49,
+      "deltaFalseAlarm": 2.46,
+      "misattributionRate": 0.1053,
+      "passesGate": false
+    },
+    "ALL": {
+      "sizeSeconds": 0,
+      "recoveredSeconds": 194.69,
+      "deltaConfusion": 22.19,
+      "deltaFalseAlarm": 19.99,
+      "misattributionRate": 0.114,
+      "passesGate": false
+    }
+  },
+  "selfLabelOvAgreePreview": {
+    "recoveredSeconds": 108.88,
+    "deltaConfusion": 20.21,
+    "deltaFalseAlarm": 8.6
+  },
+  "parity": {
+    "frameHard": "derived eligibility reproduces native frameHard exactly on six clips",
+    "reconstruct": "Python port matches native labels and order; times within 1e-6 ms (native arm64 FMA)",
+    "scorer": "rebuilt run-policy metrics equal saved metrics"
+  },
+  "inputs": {
+    "snapshots": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/boundary-public-matrix-20260928/protocol.json",
+      "sha256": "d184f6531046979f0b74b3875f2de62a985ad27d42b37f3657bf41c13c05e878",
+      "bytes": 14147
+    },
+    "wholeWindow": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/official-parity-matrix-20260928/whole-window/summary.json",
+      "sha256": "371f95e813a83e522f6abd57f984ec0fa25e65ed028f7f78b286e09d28814298",
+      "bytes": 5064
+    },
+    "parityMatrixIndex": "docs/speaker/evidence/DIARIZATION_OFFICIAL_PARITY_MATRIX_7F41E794.json"
+  },
+  "nonCanonical": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/attribute-v1-failed-json.py",
+      "sha256": "ac12c3cc0250fa9d56bbe1785bc453f1de4ebe2e4c59f1a0e2007f62411e424a",
+      "bytes": 17699,
+      "note": "v1 script; numpy bool broke the final JSON write"
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/attribution-v1-truncated.json",
+      "sha256": "6b590d36bf7a470ff7b6a015d55f3e0113dea8e31cbc42081949d95223df80b4",
+      "bytes": 862,
+      "note": "truncated v1 output, superseded by v2 without changing inputs"
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/experiment.json",
+      "sha256": "34dfcc2f254d5cd587d5c4961ad167ca506cd00bddfa8b0177ba6c4fe2c5f81e",
+      "bytes": 3206
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/attribute.py",
+      "sha256": "3a5d3b5ece3f7f16cc35f2bacab2d44977852f19738eae9d85e421fab797c5ec",
+      "bytes": 17742
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/debug_reconstruct.py",
+      "sha256": "bfc9ad18645554d2a7d88b183c29eeb078ba1cfa0649cfb3b4713b7864d61e81",
+      "bytes": 933
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/attribution.json",
+      "sha256": "78e69968753d6e2416226475f53dedfeee26e22066d74869a57fcd3e59ddca3d",
+      "bytes": 28898
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/run-policy.native.json",
+      "sha256": "fc2227b711b1aa18a84346605a5774f3b803dd1c7f975d87739e88aa49726dd0",
+      "bytes": 1270
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/run-policy.timeline.json",
+      "sha256": "1f8a6a6f525a37a75fb08429417cc08806a96967a0c9d0312ff1a341c941142d",
+      "bytes": 5012
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/self-OV_AGREE.native.json",
+      "sha256": "1130e11b101c05b4d224c652c07dc566708a0b47e028d6af079d29aafe66326f",
+      "bytes": 1161
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/self-OV_AGREE.timeline.json",
+      "sha256": "e1a04157b3195705a388abb4d31ac97d18ffe44d5523361f0b3ce5d0b045ccb0",
+      "bytes": 4715
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-ALL.native.json",
+      "sha256": "1c48458190130512863bbf25a71eb2919fc507b333caea6025bf89985ba7c302",
+      "bytes": 1183
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-ALL.timeline.json",
+      "sha256": "316176bdedeec4f5b919be4bed7098599bbe81146f8ffdc0ccfbf7ddb368a9b4",
+      "bytes": 4831
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "3a4e146d0b5385deff8b383552073d48a759e013d834589cac9c68d75c5ec006",
+      "bytes": 1096
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "d2d8a1aa151cdb9222146ff5c0a7be2deaef10b4f96ee1098f84d7f14c9a08e4",
+      "bytes": 4462
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "ce1e95b3729c8e8030dcc6e46be6d2a32018fc09f741945da3551797598cd12c",
+      "bytes": 1295
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "61b0eff48d81ffefba14827f1559c72692e64e61650ab7b96ecb12b53d2d7d21",
+      "bytes": 5225
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_FULL.native.json",
+      "sha256": "3b687610f5240e6f99c672baa5acc621b656e8ffcba3b5527cd4d8031e72b1d5",
+      "bytes": 1304
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_FULL.timeline.json",
+      "sha256": "fb18979145b55df2d16fda42648a040467cd4c90ec4731593313c5f4af1bf66a",
+      "bytes": 5234
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "4d23531d2a05a2a4636aef2a8df3757f4978e343084e69c1d62419280e6fe08b",
+      "bytes": 1362
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "ebcba53372557ff7151ca5d48f38ae3288f385525790bc43e7d5bf97dcd4f049",
+      "bytes": 5480
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-SHORT_CAP.native.json",
+      "sha256": "f409d5478d2d7bd54b277565c1707c8c1d1779d3549865c8b564845e5f71ee6c",
+      "bytes": 1274
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-SHORT_CAP.timeline.json",
+      "sha256": "f0524a284e712ad635b56e9201175fd999cee727ea162f8f1040b4f43befe4ed",
+      "bytes": 5110
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "36cd4adbe12c48c24b44617ccfe2fdc35a14f717ebbc0fdb3a99345de939c815",
+      "bytes": 1318
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-2/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "6c5efbc1cdfe22f0be986672225437edfa96aef09f9cce766f0325bc57f2e94d",
+      "bytes": 5248
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/run-policy.native.json",
+      "sha256": "f2a96c4d7825f44886f54e7d116def076211cc40de0a122420e633a2a3cd6de0",
+      "bytes": 1324
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/run-policy.timeline.json",
+      "sha256": "0d969dac127b617dc00a1a2287f775fd2c01df3bd4ab5b96b73d77d3cfe79c5e",
+      "bytes": 5540
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/self-OV_AGREE.native.json",
+      "sha256": "611b499250dc348c7ef0ddb6b96dd5aaff44a3589d69e841c57819294820acec",
+      "bytes": 1544
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/self-OV_AGREE.timeline.json",
+      "sha256": "a6aa2c234c607a7000b3c8560812ba0eb17cb9197df84832ab7c0c4098bda57c",
+      "bytes": 6465
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-ALL.native.json",
+      "sha256": "d6480832e041e6330348cd990f62288996fc4a0e9e62d426f4754160ba633217",
+      "bytes": 1095
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-ALL.timeline.json",
+      "sha256": "dd348197141c3de75355a08732e4257ce2902acd40d91ffbd48d49c2a97b872c",
+      "bytes": 4981
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "0988772bcedb9f87f99dbed50b52984a01677065fcbe32e7c53ed957601eb51f",
+      "bytes": 1241
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "433989f94c3c511afb270eb9c145e5450b912cfaca9e16e004c445875360b00d",
+      "bytes": 5271
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "fa299b9bb8afc4af48864c6720301e611695f37c64077bc868b3bc9bf3b4ff9e",
+      "bytes": 1849
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "2e3fa5169d5303e2d854420f38e0a896be1e3aded4284cd894a9260db90e34a1",
+      "bytes": 7429
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_FULL.native.json",
+      "sha256": "ab95b3a8a2bb98db95612bef2786dd9113db0d4b4e92c16c9a410593eb69c5c9",
+      "bytes": 1428
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_FULL.timeline.json",
+      "sha256": "c672d18b860f35d4d74c305f0266a819caa6d6ee95ae5c28fe868641c12134e0",
+      "bytes": 5926
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "0131b9748c88e403b282a6aa52e44ee3be35a1114abe2316be1ac1170486763e",
+      "bytes": 1905
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "80ee7514f29fe84d9f7d004a963c15be3b7905d086c6e042329344a348b305bf",
+      "bytes": 7531
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-SHORT_CAP.native.json",
+      "sha256": "ab396b9c802fb41cc7ec309b34bea4e16ae8a873faca2c7b38cca27b1cdfed09",
+      "bytes": 1519
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-SHORT_CAP.timeline.json",
+      "sha256": "8caa9506f85faf5da9094599d8855f253d697e8d09964168b18e79c5491c1f6e",
+      "bytes": 6065
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "6dc46288b35b7528d543da5a7d2bea483834253e46f5eed768d3c54622f5cd5a",
+      "bytes": 1628
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-3/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "3aa13dca21da4a06e3f35ab43b142d9ec185bdb36dd1d11eddf00bc4a51fa1bf",
+      "bytes": 6562
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/run-policy.native.json",
+      "sha256": "5f5d577e8789dc4a7d17609da06ac67bb488183cdf99499d146fc5e891900d06",
+      "bytes": 2152
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/run-policy.timeline.json",
+      "sha256": "ff381b05376630fd6f85237dd5396c044a6715a4d904a96be3e95fb5c2967b4f",
+      "bytes": 9098
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/self-OV_AGREE.native.json",
+      "sha256": "7549b47e9cc4e2d8ed473d63f4740f86eb6e356ff0fa9797dc1e98700d4d7211",
+      "bytes": 2469
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/self-OV_AGREE.timeline.json",
+      "sha256": "b9ffc22c04a1444c8ec53ab93f6e559561b1e4301ea6dcf60fc005079c64e47e",
+      "bytes": 10491
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-ALL.native.json",
+      "sha256": "caf9be2b928704ee189d56afa4228fe321789f665bd53386bf0f236f3196f769",
+      "bytes": 2779
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-ALL.timeline.json",
+      "sha256": "23f2e06ee130b1611f6d0e0c92555a5b4fefca8386c6dafbe72dee2619037012",
+      "bytes": 11740
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "f923d84e13f2f8896737c5fee4a50b7ba00f461f7039e4948b0b5954d554cdf3",
+      "bytes": 2014
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "b4a7f485e8388088fb24a03d00a921ddaf27fa8a24cc7b79c2e9fcb4dec73d0b",
+      "bytes": 8686
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "6cabedfd4d5f91e27a31a99d016222b591229a0a1936b658793a4d4683d480a7",
+      "bytes": 2812
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "eef827bb167df92b49df04b92d8bacbaec20ddf37b5fe7f9b796577cdbf96aec",
+      "bytes": 11552
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_FULL.native.json",
+      "sha256": "0664d68ba755feab5db705de2feab60cfeb51295e179666ac2246f87c47433b8",
+      "bytes": 2789
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_FULL.timeline.json",
+      "sha256": "054dac300e989f3ca947faaa61a5d2bd825b7699242841427a3e0451559facae",
+      "bytes": 11625
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "ae918bf7b2b286ccfc1ed65556306e5dbddffb8d1171f4a4097540466b8cdd48",
+      "bytes": 3551
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "60edb5d397441359eccaddd8a7dff137832ef9ba990e0cbc1530b004b06b3572",
+      "bytes": 13905
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-SHORT_CAP.native.json",
+      "sha256": "38c11ad9f392f85d24f5f39e853904e24e4054e2de64b2c8b7d70ae6f3673717",
+      "bytes": 2923
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-SHORT_CAP.timeline.json",
+      "sha256": "e088ba772ae3fa2ad6085fba6472cfe2c7ef1a4a086286f58df05c29ffeaf809",
+      "bytes": 11816
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "f5e76567d17ac57b9e24fb1a7a65a10177e3aea77d11eafc8e2d638bca95457f",
+      "bytes": 3759
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/aishell4-4/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "c25d2d30d7421d77f76962408c885a6213da248fbfe7bc96af98bd247d3936a9",
+      "bytes": 14942
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/run-policy.native.json",
+      "sha256": "fa573eff2acacc74f48c9a2fe1237ec24fbdd29bfa944f83cef0c4ebd3407538",
+      "bytes": 2774
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/run-policy.timeline.json",
+      "sha256": "d9c3ba74a6bc9393e814154083f1b4525bb4ca4fd29eea50e55c19e00ade189e",
+      "bytes": 11203
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/self-OV_AGREE.native.json",
+      "sha256": "bd0fcfae6f452a03fcfc3e9d9746d8aabf6b6dd70ed38fea3f843543b6af3c71",
+      "bytes": 2819
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/self-OV_AGREE.timeline.json",
+      "sha256": "b3aba3d822e339dc445f8d3ce7fe193afa96231ff5b85766f774eb807e122cb6",
+      "bytes": 11554
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-ALL.native.json",
+      "sha256": "3b8969b1ff5d5121681b00173e594dc69624aee28b087f835cb7dac7f5c062e1",
+      "bytes": 2287
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-ALL.timeline.json",
+      "sha256": "30b523d8e678c15ab9d04652a70ddf810eb322aa5d321f1e52907bb7739877cb",
+      "bytes": 9704
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "0e7c71eb6327c5a53879771a786b8ad23a5db048e0ea2c9da69813b2bc3310b6",
+      "bytes": 2481
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "22863d918e2cd2bc72cffab1b9ff5f17d62aee424b41def2638caa7d33f681bd",
+      "bytes": 10370
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "f2d399c7293fe15eb37c17493ab8bf0548e53e08158569e1c0a74f5046584acc",
+      "bytes": 2958
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "1ca137d80298b9453dfd6f269c4ffdaa70555f8ac4e41fc629ddf1ce0c21bb30",
+      "bytes": 12040
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_FULL.native.json",
+      "sha256": "3a5f2609e68eb92f8c5201d2db4787a8dbbf78783177ab9c56e1833085778463",
+      "bytes": 2770
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_FULL.timeline.json",
+      "sha256": "f1b88fcccbfdda6ee4afad061bff1b1d49290c52ce0ba08aa3aa2e470cd1388f",
+      "bytes": 11380
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "66da771240a0f1ee81437e90b5336347708df01ba93690ac88b320b1450bc7f1",
+      "bytes": 3176
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "a48ac51aceeb414cd47eb86a6043ccc31f5677e22ca5ddd8a6002dbafd440303",
+      "bytes": 12825
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-SHORT_CAP.native.json",
+      "sha256": "7ea05556a54d0adf710eb3365aca2bb250e69cc712a73ea2760709de690b702a",
+      "bytes": 2918
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-SHORT_CAP.timeline.json",
+      "sha256": "4e64ed863244cd03ab1334b2e87459a7cc2b7418448815fb8275293c35d19fdb",
+      "bytes": 11904
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "a09f5b851af6536a055a1dab05f602cf07c130867c7b1b9ee7cc6bd8bf8a83fa",
+      "bytes": 3425
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting2/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "f6ee780136488f4b31d19f5147c3f4e5a269e773dd12d178e76bf442e7392e03",
+      "bytes": 13236
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/run-policy.native.json",
+      "sha256": "95f7b9091602fce00c4d6c314dc33f334ff76cdee593c12a3d2e49ee49ed2838",
+      "bytes": 1801
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/run-policy.timeline.json",
+      "sha256": "c06a52dacae2088bf6305aef4c9fd76490dc8c9ef12d7b662d46006aefbc9f9c",
+      "bytes": 7825
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/self-OV_AGREE.native.json",
+      "sha256": "8a1f9da119a55c73c91a21509d11f052d0aefa661e0eb08a11fb732c905225ae",
+      "bytes": 1771
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/self-OV_AGREE.timeline.json",
+      "sha256": "c96bb9b922657424a9846258f217ade96b2e918887d78e356abfe74c786b8557",
+      "bytes": 7928
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-ALL.native.json",
+      "sha256": "37ac88a16eaefff0f2359ca93cca79c24be54044b83efeb77f9833986397f646",
+      "bytes": 1522
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-ALL.timeline.json",
+      "sha256": "84b4a1f853e76b75e7f41cebb5830fff124a11da9541c366a20e0cdca21ce1c1",
+      "bytes": 7021
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "76111372c4aeafe21e920adf6eb8b46db01cf0ee5db52db2ee9403af754b82d4",
+      "bytes": 1419
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "0e8f58e65be917ab6075ffc8a404d69e35591b54c8c37494a08cab6995bc3aa9",
+      "bytes": 6636
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "f0b97b5fd9d1c54bd17c2a24c49e850ebf03e5ef4c008426c456d636a6d6fdd3",
+      "bytes": 2208
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "d067e9cd1baa8fa07dadbe3311be54178a7096d29abaccaff69c64bc7661cba6",
+      "bytes": 9137
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_FULL.native.json",
+      "sha256": "5e9859c0007f05ae8b3b2be1740bc3c3b50c0c87c33bc00709ef222f4237d026",
+      "bytes": 1973
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_FULL.timeline.json",
+      "sha256": "3961e40e66202d66757091cb22a93861201b96bd36433a9010f2a1281b1881a9",
+      "bytes": 8445
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "3ff34ec0f8a54e35b74975d04aa04769bfb302733ab0d016d8b9bdabc1103164",
+      "bytes": 2216
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "16d487d4b2b1fd9be77ce5068cde1c74a1a7caa0ae536347e68dffbb93986e41",
+      "bytes": 9501
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-SHORT_CAP.native.json",
+      "sha256": "eb66ba1c47c9526f00865ccffce67fa1fc63aee54bc033dcd886dcb54a860b5d",
+      "bytes": 2164
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-SHORT_CAP.timeline.json",
+      "sha256": "bdc0987a5d2ae8805537df0519d84e5fa0592b0b3b4089ca144057132c3f542c",
+      "bytes": 9011
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "f90ba8c395b855268e7e6e8209da97fe4860f0a8b3a843e6ce76b31273747643",
+      "bytes": 2541
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting3/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "b87759b94d96b99649769469f2e1815fc67d72c174cf7f0deeca83d20ee3eff0",
+      "bytes": 10452
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/run-policy.native.json",
+      "sha256": "07235d53eb9a995cb4543bbd5c44ae6462ef24ca618b128694f105c5916e476f",
+      "bytes": 3129
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/run-policy.timeline.json",
+      "sha256": "9634dae8f0799b6959c756fc134dd51e026e3894fa760203850c08ff25f66f5d",
+      "bytes": 14778
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/self-OV_AGREE.native.json",
+      "sha256": "149f83599fbffbba37b4b6c183366c3a3109b84cc6e1fd9e057d564b60790645",
+      "bytes": 3413
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/self-OV_AGREE.timeline.json",
+      "sha256": "f3643599a497e34a2d7779cfb3716acc17d7389bfb26c814d9161ccf091b265c",
+      "bytes": 16266
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-ALL.native.json",
+      "sha256": "beddd0662d49d0bc82b1aa7fa1656b4d60197f52135033bdbeef9447c52698ab",
+      "bytes": 2775
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-ALL.timeline.json",
+      "sha256": "bcc819da9723a88f29c42b386e5d82c9717f6642b85c15d99ee1c074f94b6077",
+      "bytes": 14079
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_AGREE_ADJ.native.json",
+      "sha256": "401a39204dd08342c15a252a1f5c752363edbf73444f3ebe282896983d572b8c",
+      "bytes": 2370
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_AGREE_ADJ.timeline.json",
+      "sha256": "e5724b47ae02dc3f707cfb8a44b14ebd9ab3664d831ad84e47ec663202a937ec",
+      "bytes": 12684
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_AGREE_DISTANT.native.json",
+      "sha256": "6c15e217fdc6a0fe6ed79c2178a7236c7825024f856403ac2c8240d228cbe0e2",
+      "bytes": 5264
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_AGREE_DISTANT.timeline.json",
+      "sha256": "1b74b827d123138041ce6eb27f5a9f69c9aa0e1970b7dfa84e44c1a582193d29",
+      "bytes": 21985
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_CONFLICT.native.json",
+      "sha256": "d2a1f60367bed072171f6283f02e4e98da64ef2e540feac05e9ca6702c55be23",
+      "bytes": 2928
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_CONFLICT.timeline.json",
+      "sha256": "9d17180315f696cb58c453c747b6047b0e2f5670fc2a2f0b94975cee9781a3cc",
+      "bytes": 14303
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_FULL.native.json",
+      "sha256": "ba711a5eaf458029c03f17201b22f114cc5605ab6dccb44ddd0863915ea67d2b",
+      "bytes": 4696
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_FULL.timeline.json",
+      "sha256": "7b09edd7c71ee3276d1e537d395f0e7844de79d0d82d6a9cbc61b77ad861a952",
+      "bytes": 20492
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_NO_EVIDENCE.native.json",
+      "sha256": "6a4589667ec0a5c74be70cbba991857bbaa7fb2120985f9c8e57a016c9c54571",
+      "bytes": 4645
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-OV_NO_EVIDENCE.timeline.json",
+      "sha256": "f5fb892a06bee45dd222efbea289fc7dd4780dfcd51d0d05210457dcc1044742",
+      "bytes": 19817
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-SHORT_CAP.native.json",
+      "sha256": "214b302a62c99f8010c57130aec9ecdbaced83de9f60e8747e6a1276ee93d0be",
+      "bytes": 3793
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-SHORT_CAP.timeline.json",
+      "sha256": "efe9ee62f9b0e21e311da57bd5fef8fee0dba7306240059296303f0a0c075779",
+      "bytes": 16842
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-SHORT_NOT_CANDIDATE.native.json",
+      "sha256": "3fec24a50a17355603c750e481598163b9b9379957471c26256e8ac0623dce76",
+      "bytes": 6384
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/unknown-attribution-20260928/v2/alimeeting4/whole-SHORT_NOT_CANDIDATE.timeline.json",
+      "sha256": "5d309f62666d760cd6c51e03c210af6fbcf8e294fd05452f4b00453f0eff7839",
+      "bytes": 25604
+    }
+  ],
+  "excluded": "PCM, tensors and full per-frame arrays stay in the private cache"
+}

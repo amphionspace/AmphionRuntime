@@ -1,0 +1,412 @@
+{
+  "status": "HOST_VALIDATED_DEVICE_PENDING",
+  "userDecision": "accept misattribution not worse than official Community-1 in aggregate; recovered identities unmarked; candidate 1",
+  "runtimeCommit": "a83405217ffa7a47a06ade3c44341bd493e1f712",
+  "productionHeaderSha256": "a7d67aea24a58ffdba5acb6d977c95237ec35a03749108aa12db59e6622eed72",
+  "candidateStatus": {
+    "fork": "REJECTED",
+    "fork2": "REJECTED"
+  },
+  "candidateFailures": {
+    "fork": [
+      "aishell4-4:noNewSplit",
+      "alimeeting4:confusion<=official",
+      "20200616_M_R001S01C01:confusion<=official",
+      "20200616_M_R001S01C01:switches<=official",
+      "20200616_M_R001S01C01:noNewSplit",
+      "20200616_M_R001S01C01:splitCount<=max(official,baseline)",
+      "20200620_M_R002S04C01:confusion<=official",
+      "20200620_M_R002S04C01:noNewSplit",
+      "20200808_S_R001S02C01:noNewSplit"
+    ],
+    "fork2": [
+      "aishell4-2:confusion<=official",
+      "aishell4-4:noNewSplit",
+      "alimeeting4:confusion<=official",
+      "20200616_M_R001S01C01:confusion<=official",
+      "20200616_M_R001S01C01:switches<=official",
+      "20200616_M_R001S01C01:noNewSplit",
+      "20200616_M_R001S01C01:splitCount<=max(official,baseline)",
+      "20200620_M_R002S04C01:noNewSplit",
+      "20200808_S_R001S02C01:noNewSplit"
+    ]
+  },
+  "totals": {
+    "public": {
+      "official": {
+        "conf": 44.19,
+        "miss": 80.89,
+        "fa": 36.64,
+        "unknown": 0.0,
+        "switches": 56,
+        "ref": 1106.78,
+        "der": 0.146118
+      },
+      "baseline": {
+        "conf": 10.71,
+        "miss": 276.29,
+        "fa": 16.65,
+        "unknown": 133.38,
+        "switches": 15,
+        "ref": 1106.78,
+        "der": 0.274354
+      },
+      "fork": {
+        "conf": 32.57,
+        "miss": 80.89,
+        "fa": 36.64,
+        "unknown": 0.0,
+        "switches": 29,
+        "ref": 1106.78,
+        "der": 0.135619
+      },
+      "fork2": {
+        "conf": 31.92,
+        "miss": 82.35,
+        "fa": 35.01,
+        "unknown": 0.0,
+        "switches": 30,
+        "ref": 1106.78,
+        "der": 0.134878
+      }
+    },
+    "all": {
+      "official": {
+        "conf": 93.45,
+        "miss": 120.53,
+        "fa": 65.5,
+        "unknown": 0.0,
+        "switches": 101,
+        "ref": 2102.97,
+        "der": 0.132898
+      },
+      "baseline": {
+        "conf": 37.51,
+        "miss": 369.26,
+        "fa": 36.96,
+        "unknown": 182.62,
+        "switches": 36,
+        "ref": 2102.97,
+        "der": 0.211002
+      },
+      "fork": {
+        "conf": 74.92,
+        "miss": 122.28,
+        "fa": 65.12,
+        "unknown": 2.13,
+        "switches": 62,
+        "ref": 2102.97,
+        "der": 0.124738
+      },
+      "fork2": {
+        "conf": 72.85,
+        "miss": 124.25,
+        "fa": 63.49,
+        "unknown": 2.13,
+        "switches": 63,
+        "ref": 2102.97,
+        "der": 0.123915
+      }
+    },
+    "holdout": {
+      "official": {
+        "conf": 49.26,
+        "miss": 39.64,
+        "fa": 28.86,
+        "unknown": 0.0,
+        "switches": 45,
+        "ref": 996.19,
+        "der": 0.11821
+      },
+      "baseline": {
+        "conf": 26.8,
+        "miss": 92.97,
+        "fa": 20.31,
+        "unknown": 49.24,
+        "switches": 21,
+        "ref": 996.19,
+        "der": 0.140616
+      },
+      "fork": {
+        "conf": 42.35,
+        "miss": 41.39,
+        "fa": 28.48,
+        "unknown": 2.13,
+        "switches": 33,
+        "ref": 996.19,
+        "der": 0.112649
+      },
+      "fork2": {
+        "conf": 40.93,
+        "miss": 41.9,
+        "fa": 28.48,
+        "unknown": 2.13,
+        "switches": 33,
+        "ref": 996.19,
+        "der": 0.111736
+      }
+    }
+  },
+  "anchors": {
+    "status": {
+      "fork": "PASS",
+      "fork2": "PASS"
+    },
+    "captureBinding": "ad16789a61edfea82ace0fcfba3b7e642b7cc49a"
+  },
+  "androidNdkCompile": {
+    "ndk": "26.3.11579264",
+    "target": "aarch64-linux-android24",
+    "flags": "-std=c++17 -fexceptions -frtti -O2",
+    "status": "PASS",
+    "object": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/community_diarization.android-arm64.o",
+      "sha256": "760a54e84db366a3234d014a33a7d7f72bda710043359b119ecaec8ef6d91d04",
+      "bytes": 289552
+    }
+  },
+  "device": {
+    "status": "NON_CANONICAL_INTERRUPTED",
+    "reason": "app killed with \"Kill Reason: UpgradeApp\" by a concurrent install from another session (delivery-staging 0.3.19) on the same Mate80",
+    "artifacts": [
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/console.log",
+        "sha256": "6d03ebb47712f2b4171468a7a67b951b013096a70e964adc8a1c800b7217ffd4",
+        "bytes": 208
+      },
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/console.log",
+        "sha256": "3072b6e955e26ba9dbcbe28cc880731f792b640f9d078631fd200f5dc00def98",
+        "bytes": 208
+      },
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/anchors/four-speaker-124s/device/20260928-143208-diarization-windows-3583c464/hilog.txt",
+        "sha256": "6a618382cec664d26d36fc925e244a73f7329f1e533623b1e0e5ff556a2c2817",
+        "bytes": 1073916
+      },
+      {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/public/aishell4-2/device/20260928-143414-diarization-windows-81620228/hilog.txt",
+        "sha256": "4210bf16aa66baf22ea4d71db03f53fa2cfdff71260c3d2d2a00ed709a3e5883",
+        "bytes": 1196401
+      }
+    ]
+  },
+  "artifacts": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/experiment.json",
+      "sha256": "8f6d8bacbb58fbbb654cf0598effc5b9e229af46073130d390f953f0580b06d5",
+      "bytes": 2186
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/experiment-2.json",
+      "sha256": "ac82e44cc24bf3fb04312dadfd3d7503926083408ab2e242f9b79489905ab4da",
+      "bytes": 2112
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/build.sh",
+      "sha256": "192c7a831079bedf8279f97c27c2fb298f8a43cc002c25c435cb0ea48406d96c",
+      "bytes": 554
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/build-2.sh",
+      "sha256": "43f9610b67159de09526c2e9ef8fb6c26f07bec155ed03e4260b16f7aa0d5db9",
+      "bytes": 326
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/build.sha256",
+      "sha256": "2d8d7e5a3659fafa8fb87bcd306e3134ed50adc0ded5b994341fef62b27cb059",
+      "bytes": 690
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/build-2.sha256",
+      "sha256": "55afd2e2adf1be17c90e545fb2385d096a5fe0f1e188c82f2e516fec8238d25e",
+      "bytes": 341
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/gate_b1.py",
+      "sha256": "6ce5808d7c139d7c0b08d1dfbb7b2c6ead3b417ed0903f969a4aeb63f3c17bcc",
+      "bytes": 5095
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/gate_c2.py",
+      "sha256": "877c0f86df06941c7c33cd948be659d7c84471d8dc1ccf15eef6b188c57efbf4",
+      "bytes": 6907
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/gate_b2.py",
+      "sha256": "3bf0ee820812169aaad7ec95d7cec05362b1e44021d07a3b3bba7023bade320e",
+      "bytes": 3634
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/diag_layers.py",
+      "sha256": "0dd117b2118303b5bd7949e93a4fb6907e478e25bfb1b7978052da234909b9d4",
+      "bytes": 2496
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/prepare_holdout.py",
+      "sha256": "c2318ce72af6677bea6d68efccc72663d1e81acefddd0257fe74e1111fd7ed92",
+      "bytes": 1530
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/extract_validation.py",
+      "sha256": "cc761459cc155b665c247870ee970959411b10496ae9881256696a490284cde7",
+      "bytes": 2470
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/inputs/cases.json",
+      "sha256": "df8a39c4d5fc3f5f1e42f0f8a2f6be6a3ce1a5608152127586e0532f2d85b9c8",
+      "bytes": 3810
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/run.log",
+      "sha256": "15a705cc1e9d3e41d544b9b199b23d3d3d76e63b66e3b447971e6649b8bacfd8",
+      "bytes": 4165
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/b1/report.json",
+      "sha256": "b26f25501436906050023c432e8bee358eee1f25b51a243d4c0dee21704273fd",
+      "bytes": 10496
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/b1-layers/report.json",
+      "sha256": "942642fbc8122efff8daae58cbd3481646567f8539a9b68cc72e4205a0a27f48",
+      "bytes": 7023
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/c2/report.json",
+      "sha256": "389bd727a5035f524a2115e890d11d757fbe8c501b7bb4a50037eaed0dd17465",
+      "bytes": 42312
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/b2/report.json",
+      "sha256": "578a19644d256a894a9bde2065f8d2b48ef65fc0c010fb2e2209c1c5744309e8",
+      "bytes": 5364
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/prepare_worktree_build.py",
+      "sha256": "329b16d60b6c51c7ab30b73289e9936040c8f63eb3d5c7d7b2d8bde0b76418c9",
+      "bytes": 1682
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/worktree-build-links-1.json",
+      "sha256": "c4bdd5bf01c3b0ec9df2ec446eb65b9496a1cd5fe7fba8e4284fba0cdeecf79c",
+      "bytes": 4344
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/worktree-build-links.json",
+      "sha256": "13ef7a6544e371d4a28fceea94597cf4d520494c2a22cd713c9eccf10d2a55fe",
+      "bytes": 644
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device_check.py",
+      "sha256": "332f59a6469909c352d83dda9ae9d413413bccf15c86e2645081928a036d6c73",
+      "bytes": 4705
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/build-identity.json",
+      "sha256": "717d28a69f5fe6ea3bd503382cd6af97a719813b81858657f2d81f3dc81f9198",
+      "bytes": 3523
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/evaluation-manifest.json",
+      "sha256": "c1b06a724c583f51ba6cf2c151c189d20e2cfc1b1c49fb11fac116df41da63d5",
+      "bytes": 24673
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/build-1-missing-native-libs.log",
+      "sha256": "5e10eab56f64489ee66049845abea759ca4e3443ca0c630b06a7b25de250139f",
+      "bytes": 1387
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/build.log",
+      "sha256": "09746711796ada691952d1a29f190eaacf51b27e4328ecc4130315d53a1ff89f",
+      "bytes": 7138
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/baseline/community_cluster.h",
+      "sha256": "b0c092f73f50afb172bca21c2779c9adddf2e8888e22f31dc1493e8180733515",
+      "bytes": 26218
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/fork/community_cluster.h",
+      "sha256": "a7d67aea24a58ffdba5acb6d977c95237ec35a03749108aa12db59e6622eed72",
+      "bytes": 27634
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/fork2/community_cluster.h",
+      "sha256": "05f763f680cc305069f213b6ef4055349188b33312b77c1a867db20cd8fc180e",
+      "bytes": 28441
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200616_M_R001S01C01-result.json",
+      "sha256": "526f98975871791d56a7999ccfadcf69c729a92d6c8dad7ab5d8623caec25826",
+      "bytes": 4262
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200620_M_R002S04C01-result.json",
+      "sha256": "797f0b075c6981ad6b1435a4b680607521905363ba603b9ad6276792bded21f3",
+      "bytes": 4577
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200623_S_R001S01C01-result.json",
+      "sha256": "dd3f3f8019b931c6b0ea863d935edb38281c5e63764632292c4e75a3c4127b23",
+      "bytes": 6343
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200706_L_R001S01C01-result.json",
+      "sha256": "2eaf0dc92c1328af1bfed48e3ef3665579d0e93a0881fbb702121ca49e15bb6d",
+      "bytes": 4768
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200708_L_R002S01C01-result.json",
+      "sha256": "9b93b57e8423173fcf3d192010c5830a4214b3ca437631d9b64f9133bdbed227",
+      "bytes": 5247
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/original-community/20200808_S_R001S02C01-result.json",
+      "sha256": "2c457edb646a8b8447d83168e73165a2ee168a33b81bd14a5ebb92dca58249a4",
+      "bytes": 3955
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/tensors/20200620_M_R002S04C01/cluster.bin",
+      "sha256": "2bb55f0a3ccba8b0404ff23f0d8a5d5a2c3575974bc513184e855e70f0d70da0",
+      "bytes": 2217660
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/tensors/20200708_L_R002S01C01/cluster.bin",
+      "sha256": "420d8543a8c3dfe086596020a840f975a97e2e35d99ebe51af79def9efe6a084",
+      "bytes": 2183208
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/holdout/tensors/20200808_S_R001S02C01/cluster.bin",
+      "sha256": "ff692cf229ac04c5b186f9236592d034e7c1faeddd16a80a97b14716f648e7b6",
+      "bytes": 2141448
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_asr.har",
+      "sha256": "74e8f7805184ec8c3f25bf465f03ef9c07409a59137d3a30db3067d6abf4ac11",
+      "bytes": 7688006
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_asr_demo.hap",
+      "sha256": "bb311c941b391716af5fa6e1c0689de28d12f732187249fcb03c77c4f6b0d1bc",
+      "bytes": 436845325
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_dingqiao.har",
+      "sha256": "5bcd1c413717caa96458cbd0ad909593d21b203ee3197375a43e7d8cf5c139d1",
+      "bytes": 93076154
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/amphion_police.har",
+      "sha256": "7bfa9dff88e7ac497b4599c6facb54539646065da6f7baf34955912fc69b108c",
+      "bytes": 30205081
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/hybrid-fallback-20260928/device/artifacts/sherpa_onnx.har",
+      "sha256": "6b1f91046f4bdc520058860499464a27119ed394bcd29fb3fddcb0882f370809",
+      "bytes": 7178310
+    }
+  ],
+  "excluded": "PCM, tensors other than holdout cluster snapshots, transcripts and official intermediates stay private"
+}

@@ -9,9 +9,10 @@ import { DiarizationLocalWindowResult, SpeakerDiarizationLocalClient,
 import { SpeakerDiarizationRuntimeLease, SpeakerDiarizationRuntimeLeaseRegistry } from './SpeakerDiarizationRuntimeLease';
 import { speakerIndexFromInternalId, speakerIndexesFromInternalIds } from './SpeakerDiarizationSpeakerIndex';
 import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
-  DiarizedTranscriptUtterance, TranscriptTextNormalization,
+  DiarizedTranscriptUtterance, TranscriptTextNormalization, TranscriptTextPresentation,
   TranscriptNormalizationSpan } from './SpeakerDiarizationTranscriptState';
 import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerIdentity';
+import { PoliceTextProvenance, PoliceTextSpan } from '../PoliceEnhancementPolicy';
 
 const SAMPLE_RATE: number = 16000;
 interface DiarizationEvidenceWindow {
@@ -27,7 +28,7 @@ export interface SpeakerDiarizationSessionObserver {
 
 export interface SpeakerDiarizationSessionController {
   append(audio: ArrayBuffer): void;
-  observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void;
+  observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult, provenance?: PoliceTextProvenance): void;
   asrFinalDelivered(result: AsrResult): void;
   asrAudioProcessed(endSample: number): void;
   finish(confirmedInitialSilence?: boolean): void;
@@ -102,7 +103,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
   }
 
-  observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
+  observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult, provenance?: PoliceTextProvenance): void {
     if (payload.isLast) { this.asrTailObserved = true; this.terminalPayload = payload; }
     if (payload.result.length === 0) {
       this.finalizeIfReady();
@@ -122,9 +123,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           textBegin: span.textBegin, textEnd: span.textEnd,
         })),
       };
+    const presentation: TranscriptTextPresentation | undefined = provenance === undefined ? undefined : {
+      sourceText: provenance.sourceText,
+      spans: provenance.spans.map((span: PoliceTextSpan): TranscriptNormalizationSpan => ({
+        sourceBegin: span.sourceBegin, sourceEnd: span.sourceEnd,
+        textBegin: span.textBegin, textEnd: span.textEnd,
+      })),
+    };
     const utteranceId = this.transcript.addUtterance({
       rawText: result.rawText,
       textNormalization: normalization,
+      presentation,
       text: payload.result,
       tokens: result.tokens,
       tokenTimesMs: timestampMs,
@@ -138,6 +147,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['utteranceId'] = utteranceId;
       fields['rawText'] = result.rawText ?? '';
       if (result.textNormalization !== undefined) fields['textNormalization'] = result.textNormalization;
+      if (provenance !== undefined) fields['presentation'] = provenance;
       fields['text'] = payload.result;
       fields['tokens'] = result.tokens.slice();
       fields['tokenTimesMs'] = timestampMs.slice();
