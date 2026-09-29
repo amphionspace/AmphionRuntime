@@ -1,0 +1,165 @@
+{
+  "scope": "host-only reinterpretation; original device evidence unchanged",
+  "modules": [
+    {
+      "path": "/Users/boxp/.codex/worktrees/diarization-evaluation/AmphionRuntime/tools/delivery/device_stress_metrics.py",
+      "sha256": "963f956947d862098cb69d58fd168e04b25ca9352b21da46d7bb6d7f1281205b"
+    },
+    {
+      "path": "/Users/boxp/.codex/worktrees/diarization-evaluation/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py",
+      "sha256": "01e3c8ea0a950be769a249cdfc05244569f04439435e4b7e5e4786c6f056a05c"
+    },
+    {
+      "path": "/Users/boxp/.codex/worktrees/diarization-evaluation/AmphionRuntime/delivery/harmony-dingqiao/delivery/diarization_evaluation.py",
+      "sha256": "02fe5fe632fba5d0a5fdef894c7a32f7fc115efb3a46c58e86a639aa524e2bb1"
+    }
+  ],
+  "cases": [
+    {
+      "runId": "20260928-092013-paced-a9f8a82c",
+      "report": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/report.json",
+        "sha256": "13a0da5b30abc1c7a41f6934c10234a836f75a7a7086a18c69acc3300267df81"
+      },
+      "samples": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-092013-paced-a9f8a82c/memory.csv",
+        "sha256": "1f48f56ff90c8e56a88e29958b292f069b67156375e64491b1012dedb3261137"
+      },
+      "originalOverallStatus": "FAIL",
+      "originalMemory": {
+        "status": "FAIL",
+        "sample_count": 70,
+        "observation_seconds": 87.733,
+        "warmup_samples_excluded": 14,
+        "head_rss_mb": 484.721,
+        "tail_rss_mb": 570.371,
+        "rss_growth_mb": 85.65,
+        "rss_slope_mb_per_minute": -17.813,
+        "rss_third_medians_mb": [
+          562.32,
+          506.396,
+          488.082
+        ],
+        "peak_rss_mb": 599.746,
+        "peak_hwm_mb": 604.84,
+        "head_vm_data_mb": 3158.844,
+        "tail_vm_data_mb": 3169.734,
+        "vm_data_growth_mb": 10.891,
+        "peak_swap_mb": 89.348,
+        "head_threads": 50.0,
+        "tail_threads": 49.5,
+        "thread_growth": -0.5,
+        "max_rss_growth_mb": 64,
+        "max_thread_growth": 2
+      },
+      "memoryAssessment": {
+        "status": "INCONCLUSIVE",
+        "sample_count": 70,
+        "observation_seconds": 87.733,
+        "warmup_samples_excluded": 14,
+        "head_rss_mb": 484.721,
+        "tail_rss_mb": 570.371,
+        "rss_growth_mb": 85.65,
+        "rss_slope_mb_per_minute": -17.813,
+        "rss_third_medians_mb": [
+          562.32,
+          506.396,
+          488.082
+        ],
+        "peak_rss_mb": 599.746,
+        "peak_hwm_mb": 604.84,
+        "head_vm_data_mb": 3158.844,
+        "tail_vm_data_mb": 3169.734,
+        "vm_data_growth_mb": 10.891,
+        "peak_swap_mb": 89.348,
+        "head_threads": 50.0,
+        "tail_threads": 49.5,
+        "thread_growth": -0.5,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2,
+        "generic_status": "FAIL",
+        "rss_growth_limit_enforced": false,
+        "rss_growth_status": "FAIL",
+        "thread_growth_status": "PASS",
+        "reason": "Generic RSS growth is advisory for diarization; model/workspace and completion phases are mixed. Phase-aligned resource evidence is required; thread growth remains enforced."
+      },
+      "metricsUnchanged": true,
+      "explicit64MiBStillFails": true,
+      "nonDiarizationStillFails": true,
+      "lifecycleStillPasses": true
+    },
+    {
+      "runId": "20260928-094954-voiceprint-fallback-e8f2dfe2",
+      "report": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/report.json",
+        "sha256": "d0658af98b247131ad928aa8341264b1955a93bf2f472e79d3f2a364fe031e60"
+      },
+      "samples": {
+        "path": "/Users/boxp/workspace/AmphionRuntime/delivery/harmony-dingqiao/build/pr235-20260928/raw/20260928-094954-voiceprint-fallback-e8f2dfe2/memory.csv",
+        "sha256": "d6879728e737b7691132bbc3612dcfb9eb01b85c239e3f0d20b527ef34a59dcb"
+      },
+      "originalOverallStatus": "FAIL",
+      "originalMemory": {
+        "status": "FAIL",
+        "sample_count": 23,
+        "observation_seconds": 27.973,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 506.914,
+        "tail_rss_mb": 575.027,
+        "rss_growth_mb": 68.113,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          512.426,
+          569.824,
+          575.027
+        ],
+        "peak_rss_mb": 652.895,
+        "peak_hwm_mb": 702.543,
+        "head_vm_data_mb": 2823.453,
+        "tail_vm_data_mb": 3130.641,
+        "vm_data_growth_mb": 307.188,
+        "peak_swap_mb": 83.059,
+        "head_threads": 57.0,
+        "tail_threads": 47.0,
+        "thread_growth": -10.0,
+        "max_rss_growth_mb": 64,
+        "max_thread_growth": 2
+      },
+      "memoryAssessment": {
+        "status": "INCONCLUSIVE",
+        "sample_count": 23,
+        "observation_seconds": 27.973,
+        "warmup_samples_excluded": 4,
+        "head_rss_mb": 506.914,
+        "tail_rss_mb": 575.027,
+        "rss_growth_mb": 68.113,
+        "rss_slope_mb_per_minute": null,
+        "rss_third_medians_mb": [
+          512.426,
+          569.824,
+          575.027
+        ],
+        "peak_rss_mb": 652.895,
+        "peak_hwm_mb": 702.543,
+        "head_vm_data_mb": 2823.453,
+        "tail_vm_data_mb": 3130.641,
+        "vm_data_growth_mb": 307.188,
+        "peak_swap_mb": 83.059,
+        "head_threads": 57.0,
+        "tail_threads": 47.0,
+        "thread_growth": -10.0,
+        "max_rss_growth_mb": 64.0,
+        "max_thread_growth": 2,
+        "generic_status": "FAIL",
+        "rss_growth_limit_enforced": false,
+        "rss_growth_status": "FAIL",
+        "thread_growth_status": "PASS",
+        "reason": "Generic RSS growth is advisory for diarization; model/workspace and completion phases are mixed. Phase-aligned resource evidence is required; thread growth remains enforced."
+      },
+      "metricsUnchanged": true,
+      "explicit64MiBStillFails": true,
+      "nonDiarizationStillFails": true,
+      "lifecycleStillPasses": true
+    }
+  ]
+}
