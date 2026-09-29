@@ -365,7 +365,11 @@ internal class EngineImpl(
             val endpointConfig = EndpointConfig(
                 rule1 = EndpointRule(false, c.endpointRules.rule1MinTrailingSilenceSec, 0f),
                 rule2 = EndpointRule(true, c.endpointRules.rule2MinTrailingSilenceSec, 0f),
-                rule3 = EndpointRule(false, 0f, c.endpointRules.rule3MinUtteranceLengthSec),
+                rule3 = EndpointRule(
+                    false,
+                    0f,
+                    NativeRule3Duration.forRecognizer(c.endpointRules.rule3MinUtteranceLengthSec),
+                ),
             )
 
             // 解码方式：默认 greedy_search；hotwords 非空时自动切到 modified_beam_search
