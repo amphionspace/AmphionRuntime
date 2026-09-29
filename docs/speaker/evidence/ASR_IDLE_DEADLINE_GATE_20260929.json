@@ -1,0 +1,108 @@
+{
+  "sourcePr": 241,
+  "fixPr": 242,
+  "runtimeChanged": false,
+  "carrierCommit": "c3ec56ef84f6f248a5c61cd4ab0ddb68bc3d0e62",
+  "buildMode": "diagnostics",
+  "hapSha256": "21092dc04416bbcf5661ad6c8a969edf72694213844fb28da4947651e5cbe3ff",
+  "oldEvidence": {
+    "candidateAndBaseCycles": 40,
+    "processedPcmBytesEveryCycle": 32000,
+    "decisionToCompleteMs": [
+      430,
+      548
+    ],
+    "classification": "carrier counts ignored writes during native drain; not a 71-frame SDK deadline"
+  },
+  "deviceReportSha256": "5d4a1dc2f4198e0895374c6d8916c29ff185a6b0583a5dc982b040a4ca228d6d",
+  "deviceReport": "/Users/boxp/.cache/amphion-runtime/pr-completion-20260929/idle-gate/device/20260929-121829-voiceprint-vad-begin-idle-ceb837f7/report.json",
+  "sdkStatus": {
+    "runId": "20260929-121829-voiceprint-vad-begin-idle-ceb837f7",
+    "status": "PASS",
+    "mode": "voiceprint-vad-begin-idle",
+    "requested": "4",
+    "completed": "4",
+    "failed": "0",
+    "emptyFinals": "4",
+    "starts": "4",
+    "partials": "0",
+    "finals": "4",
+    "completes": "4",
+    "errors": "0",
+    "elapsedMs": "14098",
+    "fatal": ""
+  },
+  "memoryStatus": {
+    "status": "INCONCLUSIVE",
+    "sample_count": 14,
+    "observation_seconds": 16.203,
+    "warmup_samples_excluded": 2,
+    "head_rss_mb": 497.0,
+    "tail_rss_mb": 458.719,
+    "rss_growth_mb": -38.281,
+    "rss_slope_mb_per_minute": null,
+    "rss_third_medians_mb": [
+      500.777,
+      498.736,
+      458.719
+    ],
+    "peak_rss_mb": 520.121,
+    "peak_hwm_mb": 550.344,
+    "head_vm_data_mb": 2743.578,
+    "tail_vm_data_mb": 2790.672,
+    "vm_data_growth_mb": 47.094,
+    "peak_swap_mb": 90.094,
+    "head_threads": 53,
+    "tail_threads": 48,
+    "thread_growth": -5,
+    "max_rss_growth_mb": 64.0,
+    "max_thread_growth": 2,
+    "generic_status": "PASS",
+    "rss_growth_limit_enforced": false,
+    "rss_growth_status": "PASS",
+    "thread_growth_status": "PASS",
+    "reason": "Generic RSS growth is advisory for diarization; model/workspace and completion phases are mixed. Phase-aligned resource evidence is required; thread growth remains enforced."
+  },
+  "cycles": [
+    {
+      "index": "0",
+      "status": "PASS",
+      "fedFrames": "50",
+      "starts": "1",
+      "finals": "1",
+      "completes": "1",
+      "errors": "0",
+      "detail": "voiceprint-vad-begin-pure-silence"
+    },
+    {
+      "index": "1",
+      "status": "PASS",
+      "fedFrames": "50",
+      "starts": "1",
+      "finals": "1",
+      "completes": "1",
+      "errors": "0",
+      "detail": "voiceprint-vad-begin-bounded-noise"
+    },
+    {
+      "index": "2",
+      "status": "PASS",
+      "fedFrames": "50",
+      "starts": "1",
+      "finals": "1",
+      "completes": "1",
+      "errors": "0",
+      "detail": "voiceprint-vad-begin-pure-silence"
+    },
+    {
+      "index": "3",
+      "status": "PASS",
+      "fedFrames": "50",
+      "starts": "1",
+      "finals": "1",
+      "completes": "1",
+      "errors": "0",
+      "detail": "voiceprint-vad-begin-bounded-noise"
+    }
+  ]
+}
