@@ -27,6 +27,21 @@ class LicenseVerifierTest {
     }
 
     @Test
+    fun `application allowlist accepts every listed package`() {
+        val packages = setOf("ai.fourhz.primary", "ai.fourhz.secondary")
+        assertTrue(LicenseVerifier.applicationMatches("allowlist", "ai.fourhz.primary", packages, "ai.fourhz.primary"))
+        assertTrue(LicenseVerifier.applicationMatches("allowlist", "ai.fourhz.primary", packages, "ai.fourhz.secondary"))
+        assertFalse(LicenseVerifier.applicationMatches("allowlist", "ai.fourhz.primary", packages, "ai.fourhz.unlisted"))
+    }
+
+    @Test
+    fun `unrestricted and legacy ASR policies keep existing customers compatible`() {
+        assertTrue(LicenseVerifier.applicationMatches("none", "ai.fourhz.recorded", emptySet(), "ai.customer.app"))
+        assertTrue(LicenseVerifier.applicationMatches("", "ai.fourhz.recorded", emptySet(), "ai.customer.app"))
+        assertFalse(LicenseVerifier.applicationMatches("unknown", "", emptySet(), "ai.customer.app"))
+    }
+
+    @Test
     fun `rotated second trust root accepts license signature`() {
         val generator = KeyPairGenerator.getInstance("EC").apply {
             initialize(ECGenParameterSpec("secp256r1"))
