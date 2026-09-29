@@ -1,6 +1,7 @@
 import common from '@ohos.app.ability.common';
 import fs from '@ohos.file.fs';
 import { audio } from '@kit.AudioKit';
+import { bundleManager } from '@kit.AbilityKit';
 import deviceInfo from '@ohos.deviceInfo';
 import { HarmonyLicenseVerifier, AmphionLicenseStatus } from './License';
 import { AudioTransforms, lengthScaleForSpeed } from './AudioTransforms';
@@ -3585,7 +3586,23 @@ export class TextToSpeechSdk {
       return;
     }
     // Gate 3: claim policy (feature must include TTS, not expired, maintenance, etc.).
-    const status: AmphionLicenseStatus = HarmonyLicenseVerifier.verify(licenseText, undefined, undefined, serial, pub);
+    const bundleName = TextToSpeechSdk.context?.applicationInfo.name;
+    let signingCertDigest: string | undefined;
+    try {
+      const bundleInfo = bundleManager.getBundleInfoForSelfSync(
+        bundleManager.BundleFlag.GET_BUNDLE_INFO_WITH_SIGNATURE_INFO
+      );
+      signingCertDigest = bundleInfo.signatureInfo.fingerprint;
+    } catch (_error) {
+      signingCertDigest = undefined;
+    }
+    const status: AmphionLicenseStatus = HarmonyLicenseVerifier.verify(
+      licenseText,
+      bundleName,
+      signingCertDigest,
+      serial,
+      pub
+    );
     if (!status.valid) {
       const infoStatus =
         status.errorCode === TtsErrorCode.LICENSE_EXPIRED || status.errorCode === TtsErrorCode.LICENSE_MAINTENANCE_EXPIRED ? 1 : 2;
