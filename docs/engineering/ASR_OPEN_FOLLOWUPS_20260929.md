@@ -18,8 +18,8 @@
 
 | 项目 | 当前工作 | 尚未满足的完成条件 |
 | --- | --- | --- |
-| 普通口语“这这”误改为“浙J” | [#243](https://github.com/amphionspace/AmphionRuntime/pull/243)：两端只在完整车牌可解析时替换；原用例红灯，Harmony 803 例通过，Android Debug/Release 各 518 通过、2 项原有跳过。 | 当前 HEAD 平台构建、CI、相关 SDK 调用方验证；不能仅凭主机测试宣称已交付。 |
-| Android CT 空格对齐 | [#244](https://github.com/amphionspace/AmphionRuntime/pull/244)：同步 Harmony 的中英空格/标点替代规则，保留英文粘连和无 provenance 改词时的 UNKNOWN。旧实现红灯，Debug/Release 各 130 项及 Release AAR 通过。 | 当前 HEAD CI 与真实调用方验证。此项不涵盖下面的完整 Android 差异。 |
+| 普通口语“这这”误改为“浙J” | [#243](https://github.com/amphionspace/AmphionRuntime/pull/243)：两端只在完整车牌可解析时替换；原用例红灯，Harmony 803 例通过，Android Debug/Release 各 518 通过、2 项原有跳过。 | 当前 HEAD CI 已通过；仍需 Harmony 平台构建及相关 SDK 调用方验证，不能仅凭主机测试宣称已交付。 |
+| Android CT 空格对齐 | [#244](https://github.com/amphionspace/AmphionRuntime/pull/244)：同步 Harmony 的中英空格/标点替代规则，保留英文粘连和无 provenance 改词时的 UNKNOWN。旧实现红灯，Debug/Release 各 130 项及 Release AAR 通过。 | 当前 HEAD CI 已通过，仍需真实调用方验证。此项不涵盖下面的完整 Android 差异。 |
 
 ## 仍需实施或裁定的项目
 
