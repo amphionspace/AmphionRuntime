@@ -17,6 +17,13 @@
 #include <sstream>
 #include <string>
 #include <unordered_map>
+#if defined(__OHOS__)
+// Platform headers stay outside every namespace; including them from within one
+// is ill-formed and only stayed hidden because the host slices included them
+// separately before pasting the production block.
+#include <sched.h>
+#include <qos/qos.h>
+#endif
 
 namespace {
 using Clock = std::chrono::steady_clock;
@@ -32,9 +39,6 @@ constexpr int kDefaultEncoderThreads = 4;
 constexpr int kMaxEncoderThreads = 8;
 
 #if defined(__OHOS__)
-#include <sched.h>
-#include <qos/qos.h>
-
 namespace {
 // The engine-wide scheduling request the ASR recognizer already receives. The
 // role encoder owns a second compute pool, so it needs its own copy: the ASR
@@ -87,10 +91,14 @@ class ScopedCommunityScheduling {
     const bool have_cpus = !policy.cpu_ids.empty() &&
         sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
     if (policy.qos >= 0) {
+      // Every thread this scope runs on is borrowed from the runtime, never one
+      // this module created. A failed read cannot tell an unset QoS apart from a
+      // system error, so applying a policy and then resetting it would discard a
+      // previous policy this module never learned. Skip instead.
       const int before = OH_QoS_GetThreadQoS(&previous_qos_);
-      if (OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos)) == 0) {
-        if (before == 0) restore_qos_ = true;
-        else reset_qos_ = true;
+      if (before == 0) {
+        const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
+        restore_qos_ = result == 0;
       }
     }
     if (!policy.cpu_ids.empty() && have_cpus) {
@@ -102,7 +110,6 @@ class ScopedCommunityScheduling {
   }
   ~ScopedCommunityScheduling() {
     if (restore_qos_) OH_QoS_SetThreadQoS(previous_qos_);
-    if (reset_qos_) OH_QoS_ResetThreadQoS();
     if (restore_cpus_) sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_);
   }
   ScopedCommunityScheduling(const ScopedCommunityScheduling&) = delete;
@@ -113,7 +120,6 @@ class ScopedCommunityScheduling {
   cpu_set_t previous_cpus_{};
   QoS_Level previous_qos_{};
   bool restore_qos_ = false;
-  bool reset_qos_ = false;
   bool restore_cpus_ = false;
 };
 }  // namespace
@@ -619,7 +625,11 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         if (napi_create_reference(env, args[0], 1, &task->resource_ref) != napi_ok) {
           throw std::runtime_error("Community resource reference failed");
         }
-        if (count == 2 && napi_get_value_int32(env, args[1], &task->encoder_threads) != napi_ok) {
+        // The budget and the scheduling request travel in the same call, so each
+        // present argument is parsed on its own instead of being tied to one
+        // exact argument count. Tying threads to count==2 silently discarded the
+        // caller's budget as soon as a scheduling string was appended.
+        if (count >= 2 && napi_get_value_int32(env, args[1], &task->encoder_threads) != napi_ok) {
           throw std::runtime_error("invalid Community encoder threads");
         }
         if (count == 3) {
@@ -628,7 +638,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         }
       } else {
         for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
-        if (count == 6 && napi_get_value_int32(env, args[5], &task->encoder_threads) != napi_ok) {
+        if (count >= 6 && napi_get_value_int32(env, args[5], &task->encoder_threads) != napi_ok) {
           throw std::runtime_error("invalid Community encoder threads");
         }
         if (count == 7) {
