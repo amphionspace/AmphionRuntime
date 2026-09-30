@@ -17,6 +17,11 @@ class HarmonyCommunityNativeTest(unittest.TestCase):
         source_text = (CPP / 'community_diarization.cpp').read_text()
         reader = source_text[source_text.index('std::vector<uint8_t> ReadCommunityAsset'):
                              source_text.index('\n#endif', source_text.index('std::vector<uint8_t> ReadCommunityAsset'))]
+        # Work carries the encoder budget default, so the slice has to bring the
+        # production constants along instead of restating their values.
+        budgets = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):
+                              source_text.index('constexpr int kMaxEncoderThreads = 8;') +
+                              len('constexpr int kMaxEncoderThreads = 8;')]
         work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
         # Exercise production ownership with a platform resource provider that
         # returns partial reads and errors. No models or customer data needed.
@@ -56,7 +61,7 @@ void OH_ResourceManager_ReleaseNativeResourceManager(NativeResourceManager* mana
 int napi_delete_reference(napi_env env,napi_ref ref) {
   assert(env&&ref&&managers==0);--references;return 0;
 }
-''' + reader + work + r'''
+''' + budgets + reader + work + r'''
 int main() {
   NativeResourceManager manager;
   assert(ReadCommunityAsset(&manager,"model")==std::vector<uint8_t>({1,2,3,4,5}));
@@ -988,3 +993,90 @@ int main() {
             source.write_text(program)
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
+
+    def test_cluster_serialization_emits_frame_labels_only_on_request(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source = (CPP / 'community_diarization.cpp').read_text()
+        # Compile the production serialization verbatim. The per-frame label
+        # grid is 589*3 integers per window and grows with the whole session
+        # (about 1.57 M integers at 15 minutes), so a caller that records no
+        # diagnostics must not receive it while reconstruction is unaffected.
+        body = source[source.index('    std::ostringstream json;'):
+                      source.index('    return json.str();')]
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <cmath>
+#include <iomanip>
+#include <sstream>
+#include <string>
+#include <vector>
+namespace {
+struct Vbx { community::Matrix q; std::vector<double> priors; };
+struct Turn { double begin; double end; int speaker; };
+struct Result {
+  std::vector<int> hard, frame_hard, trainingIndices, trainingRunIndices, ahc, retainedClusters;
+  community::Matrix scores, centroids;
+  Vbx vbx;
+  std::vector<double> capacityRms;
+  bool usedKMeans = false, usedAhcFallback = false;
+  int shortRunTrainingCount = 0;
+};
+std::string Serialize(const Result& result, const std::vector<Turn>& turns,
+                      bool include_frame_hard) {
+''' + body + r'''
+  return json.str();
+}
+}  // namespace
+int main() {
+  Result result;
+  result.hard = {0, 1};
+  result.frame_hard = {0, 1, 2, -2, 1, 0};
+  result.trainingIndices = {0};
+  result.trainingRunIndices = {0};
+  result.ahc = {0};
+  result.retainedClusters = {0};
+  result.scores = {{0.5, 0.25}};
+  result.centroids = {{0.5, 0.25}};
+  result.vbx.q = {{0.75, 0.25}};
+  result.vbx.priors = {1.0, 0.0};
+  result.capacityRms = {0.25};
+  const std::vector<Turn> turns = {{0, 1000, 0}};
+  const std::string withLabels = Serialize(result, turns, true);
+  const std::string withoutLabels = Serialize(result, turns, false);
+  assert(withLabels.find("\"frameHard\"") != std::string::npos);
+  assert(withoutLabels.find("\"frameHard\"") == std::string::npos);
+  // Everything the caller consumes, including the reconstructed timeline and
+  // the window-level registry evidence, is identical either way.
+  for (const char* key : {"\"speakerCount\"", "\"hard\"", "\"trainingIndices\"",
+                          "\"trainingRunIndices\"", "\"ahc\"", "\"retainedClusters\"",
+                          "\"scores\"", "\"centroids\"", "\"posteriors\"",
+                          "\"capacityRms\"", "\"priors\"", "\"turns\""}) {
+    assert(withLabels.find(key) != std::string::npos);
+    assert(withoutLabels.find(key) != std::string::npos);
+  }
+  assert(withoutLabels.size() < withLabels.size());
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'serialize.cpp'
+            binary = Path(directory) / 'serialize'
+            path.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(path), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_encoder_worker_budget_is_requested_not_hardcoded(self):
+        # The encoder builds its own pthread pool, so the ASR threads neither
+        # bound it nor disable its idle spinning. The budget has to travel from
+        # the caller into the XNNPACK provider explicitly.
+        source = (CPP / 'community_diarization.cpp').read_text()
+        self.assertIn('int encoder_threads = kDefaultEncoderThreads', source)
+        self.assertIn('{"intra_op_num_threads", std::to_string(encoder_threads)}', source)
+        self.assertIn('Community encoder threads must be in [1, 8]', source)
+        self.assertIn('bool include_frame_hard = true', source)
+        declaration = (CPP / 'types/libamphion_asr/index.d.ts').read_text()
+        self.assertIn('loadCommunityDiarizationResources(resourceManager: Object,\n  encoderThreads?: number)', declaration)
+        self.assertIn('runRms: Float32Array, includeFrameHard?: boolean', declaration)

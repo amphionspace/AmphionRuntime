@@ -116,12 +116,23 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         run_node(
             f"""
             import assert from 'node:assert/strict';
-            import {{ validateSpeakerDiarizationConfig }} from {CONFIG_POLICY.as_uri()!r};
+            import {{ validateSpeakerDiarizationConfig,
+                      validateSpeakerDiarizationThreads }} from {CONFIG_POLICY.as_uri()!r};
 
             assert.equal(validateSpeakerDiarizationConfig({{ maxSpeakers: 4 }}), 4);
             assert.equal(validateSpeakerDiarizationConfig({{ maxSpeakers: 2 }}), 2);
             for (const maxSpeakers of [0, 5, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {{
               assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers }}));
+            }}
+
+            // The encoder budget is independent of the ASR threads and defaults
+            // to the measured value so existing callers keep their throughput.
+            assert.equal(validateSpeakerDiarizationThreads({{ maxSpeakers: 4 }}), 4);
+            for (const numThreads of [1, 2, 4, 8]) {{
+              assert.equal(validateSpeakerDiarizationThreads({{ maxSpeakers: 4, numThreads }}), numThreads);
+            }}
+            for (const numThreads of [0, 9, 2.5, Number.NaN, Number.POSITIVE_INFINITY]) {{
+              assert.throws(() => validateSpeakerDiarizationThreads({{ maxSpeakers: 4, numThreads }}));
             }}
             """
         )
@@ -140,7 +151,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("this.inference.load(context)", client)
         inference = (CORE_DIARIZATION.parent / "CommunityDiarizationInference.ets").read_text()
         self.assertIn("context.resourceManager", inference)
-        self.assertIn("loadCommunityDiarizationResources(context.resourceManager)", inference)
+        # The encoder owns a pthread pool of its own, so the budget has to reach
+        # the model load explicitly instead of being implied by the ASR threads.
+        self.assertIn("loadCommunityDiarizationResources(context.resourceManager, this.encoderThreads)", inference)
+        self.assertIn("includeFrameHard", inference)
         self.assertNotIn("NetworkKit", client)
         self.assertNotIn("http.createHttp", client)
         self.assertNotIn("startArkChildProcess", client)

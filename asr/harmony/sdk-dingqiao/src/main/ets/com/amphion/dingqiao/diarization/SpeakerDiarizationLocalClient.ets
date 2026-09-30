@@ -50,6 +50,8 @@ export interface SpeakerDiarizationLocalClientOptions {
   hopMs?: number;
   /** Maximum queued descriptors behind the single native in-flight job. */
   maxPendingJobs?: number;
+  /** Community encoder worker budget in [1, 8]; independent of the ASR threads. */
+  encoderThreads?: number;
 }
 
 /**
@@ -63,8 +65,9 @@ export class SpeakerDiarizationLocalClient {
   private readonly spool: DiarizationPcmSpool;
   private readonly evidence: DiarizationEvidenceSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
-  private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference();
+  private readonly inference: CommunityDiarizationInference;
   private readonly maxPendingJobs: number;
+  private readonly encoderThreads: number;
   private pendingClusters: number = 0;
   private readonly inferenceLoad: Promise<void>;
   private readonly quiescentCallbacks: Array<() => void> = [];
@@ -91,6 +94,12 @@ export class SpeakerDiarizationLocalClient {
     if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
       throw new Error('maxPendingJobs must be a positive integer');
     }
+    // The encoder pool is built with the Community model, so the budget has to
+    // be fixed before the model load starts. The adapter validates and forwards
+    // the public config value; this fallback only covers direct construction.
+    this.encoderThreads = options?.encoderThreads ??
+      CommunityDiarizationInference.DEFAULT_THREADS;
+    this.inference = new CommunityDiarizationInference(this.encoderThreads);
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
@@ -164,14 +173,15 @@ export class SpeakerDiarizationLocalClient {
   async cluster(segments: Float32Array, embeddings: Float32Array,
     maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
     runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0),
-    runRms: Float32Array = new Float32Array(0)): Promise<CommunityDiarizationCluster> {
+    runRms: Float32Array = new Float32Array(0),
+    includeFrameHard: boolean = true): Promise<CommunityDiarizationCluster> {
     if (this.closed) throw new Error('speaker diarization client is closed');
     this.pendingClusters += 1;
     try {
       await this.inferenceLoad;
       if (this.closed) throw new Error('speaker diarization client is closed');
       return await this.inference.cluster(segments, embeddings, runEmbeddings, runRanges,
-        maxSpeakers, windowStartSamples, beginSample, runRms);
+        maxSpeakers, windowStartSamples, beginSample, runRms, includeFrameHard);
     } finally {
       this.pendingClusters -= 1;
       this.closeWhenQuiescent();
@@ -316,6 +326,9 @@ export class SpeakerDiarizationLocalClient {
       queueFields['completedThroughSample'] = job.realEndSample;
       queueFields['audioDelayMs'] = Math.max(0, this.spool.endOffset() / 2 - job.realEndSample) / 16;
       queueFields['elapsedMs'] = Date.now() - this.activeJobStartedMs;
+      // The encoder pool is not the ASR pool; record the budget actually in
+      // force so a device run can attribute CPU and heat to this component.
+      queueFields['encoderThreads'] = this.encoderThreads;
       this.diagnostic('DIARIZATION_QUEUE', queueFields);
       for (let channel = 0; channel < 3; channel++) {
         const active: number[] = [];

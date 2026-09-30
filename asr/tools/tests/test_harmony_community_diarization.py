@@ -452,6 +452,35 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.equal(published.length,1,'reentrant or duplicate finish must not republish');
         """)
 
+    def test_frame_grid_is_requested_only_when_diagnostics_are_recorded(self):
+        # The per-frame label grid is 589*3 integers per window and grows with
+        # the whole session. A session that records no diagnostics must not ask
+        # the native side to build and ship it.
+        run_community_session("""
+          const requested=[];
+          const plain=session();plain.totalSamples=14000*16;
+          plain.client.cluster=async(segments,embeddings,cap,starts,begin,runEmbeddings,runRanges,runRms,includeFrameHard)=>{
+            requested.push([includeFrameHard,starts.length]);
+            return clusterResult(starts.length);
+          };
+          plain.onWindow(window(0));
+          await plain.commitWindow(10000,Infinity,true,0);
+          assert.deepEqual(requested,[[false,1]],'a non-diagnostic session must not pay for the frame grid');
+
+          const events=[];
+          const observed=new SpeakerDiarizationSession({},'',4,{
+            onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}},(event,fields)=>events.push(event));
+          observed.totalSamples=14000*16;
+          observed.client.cluster=async(segments,embeddings,cap,starts,begin,runEmbeddings,runRanges,runRms,includeFrameHard)=>{
+            requested.push([includeFrameHard,starts.length]);
+            return clusterResult(starts.length);
+          };
+          observed.onWindow(window(0));
+          await observed.commitWindow(10000,Infinity,true,0);
+          assert.deepEqual(requested[1],[true,1],'the diagnostic build keeps the frame grid');
+          assert.ok(events.includes('DIARIZATION_COMMUNITY_COMMIT'));
+        """)
+
     def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]

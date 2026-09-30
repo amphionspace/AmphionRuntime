@@ -379,7 +379,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const starts = new Float64Array(available.map(window => window.windowStartSample));
       const startedMs = Date.now();
       const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
-        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges, evidence.runRms);
+        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges, evidence.runRms,
+        this.diagnostic !== undefined);
       const clusterElapsedMs = Date.now() - startedMs;
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
@@ -415,7 +416,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         fields['ahc'] = clustered.ahc;
         fields['priors'] = clustered.priors;
         fields['hard'] = clustered.hard;
-        fields['frameHard'] = clustered.frameHard;
+        fields['frameHard'] = clustered.frameHard ?? [];
         fields['trainingRunIndices'] = clustered.trainingRunIndices;
         fields['model'] = 'Community-1 masked WeSpeaker / PLDA / VBx';
         fields['similarityOffset'] = 1;
