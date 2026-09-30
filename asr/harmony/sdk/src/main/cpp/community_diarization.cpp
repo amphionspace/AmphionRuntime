@@ -15,6 +15,7 @@
 #endif
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <unordered_map>
 
 namespace {
@@ -22,6 +23,13 @@ using Clock = std::chrono::steady_clock;
 double Milliseconds(Clock::time_point start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
+
+// Community encoder worker budget. XNNPACK owns a pthread pool of its own, so
+// this is independent of the ASR recognizer threads and cannot be implied by
+// them. Its workers spin before blocking while no window is running, so the
+// budget also sets how much CPU idles between the 1 s windows.
+constexpr int kDefaultEncoderThreads = 4;
+constexpr int kMaxEncoderThreads = 8;
 
 #ifndef __ANDROID__
 template <typename T>
@@ -91,8 +99,12 @@ class Model {
  public:
   Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
         const std::vector<uint8_t>& pooling,
-        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda)
+        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda,
+        int encoder_threads = kDefaultEncoderThreads)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
+    if (encoder_threads < 1 || encoder_threads > kMaxEncoderThreads) {
+      throw std::runtime_error("Community encoder threads must be in [1, 8]");
+    }
     if (feature.size() != (400 + 80 * 257) * sizeof(float)) {
       throw std::runtime_error("invalid Community feature constants");
     }
@@ -126,9 +138,10 @@ class Model {
     options.SetIntraOpNumThreads(1);
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
     pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
-    // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
+    // XNNPACK owns its own compute workers. Keep the ORT fallback serial so
     // a second pool cannot compete with them between convolution operators.
-    options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
+    options.AppendExecutionProvider("XNNPACK",
+      {{"intra_op_num_threads", std::to_string(encoder_threads)}});
     encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
@@ -266,7 +279,8 @@ class Model {
   std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
                       const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
                       int max_speakers, const std::vector<double>& starts, double begin_sample,
-                      const std::vector<float>& run_rms = {}) const {
+                      const std::vector<float>& run_rms = {},
+                      bool include_frame_hard = true) const {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
@@ -291,7 +305,12 @@ class Model {
       json << ']';
     };
     ints("hard", result.hard);
-    ints("frameHard", result.frame_hard);
+    // The per-frame label grid is 589 * 3 integers per window and therefore
+    // grows with the whole session (about 1.57 M integers at 15 minutes). Only
+    // the diagnostic build consumes it, so a caller that records no diagnostics
+    // must not pay to build and parse it. `Reconstruct` above already consumed
+    // the in-memory grid, so reconstruction is unaffected either way.
+    if (include_frame_hard) ints("frameHard", result.frame_hard);
     ints("trainingIndices", result.trainingIndices);
     ints("trainingRunIndices", result.trainingRunIndices);
     ints("ahc", result.ahc);
@@ -364,6 +383,8 @@ struct Work {
   double begin_sample = 0;
   Window window;
   int max_speakers = 4;
+  int encoder_threads = kDefaultEncoderThreads;
+  bool include_frame_hard = true;
   std::string result, error;
   ~Work() {
     resource_manager.reset();
@@ -385,11 +406,12 @@ void Execute(napi_env, void* data) {
           task.assets[i] = ReadCommunityAsset(task.resource_manager.get(), names[i]);
         }
       }
-      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4]);
+      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2],
+                                           task.assets[3], task.assets[4], task.encoder_threads);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
                                            task.run_ranges, task.max_speakers, task.window_starts,
-                                           task.begin_sample, task.run_rms);
+                                           task.begin_sample, task.run_rms, task.include_frame_hard);
   } catch (const std::exception& error) { task.error = error.what(); }
 }
 void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {
@@ -436,15 +458,23 @@ void Complete(napi_env env, napi_status status, void* data) {
   napi_delete_async_work(env, task->work);
 }
 napi_value Queue(napi_env env, napi_callback_info info, Operation operation, bool from_resources = false) {
-  size_t count = 9;
-  napi_value args[9] = {};
+  size_t count = 10;
+  napi_value args[10] = {};
   napi_get_cb_info(env, info, &count, args, nullptr, nullptr);
   try {
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
-    const bool clusterLevels = operation == Operation::Cluster && count == 9;
-    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 5u)) {
-      throw std::runtime_error("invalid Community arguments");
+    const bool clusterLevels = operation == Operation::Cluster && (count == 9 || count == 10);
+    bool accepted = false;
+    if (operation == Operation::Cluster) {
+      accepted = legacyCluster || count == 8 || clusterLevels;
+    } else if (operation == Operation::Process) {
+      accepted = count == 2;
+    } else if (from_resources) {
+      accepted = count == 1 || count == 2;
+    } else {
+      accepted = count == 5 || count == 6;
     }
+    if (!accepted) throw std::runtime_error("invalid Community arguments");
     auto task = std::make_unique<Work>();
     task->operation = operation;
     if (operation == Operation::Load) {
@@ -455,8 +485,14 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         if (napi_create_reference(env, args[0], 1, &task->resource_ref) != napi_ok) {
           throw std::runtime_error("Community resource reference failed");
         }
+        if (count == 2 && napi_get_value_int32(env, args[1], &task->encoder_threads) != napi_ok) {
+          throw std::runtime_error("invalid Community encoder threads");
+        }
       } else {
         for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
+        if (count == 6 && napi_get_value_int32(env, args[5], &task->encoder_threads) != napi_ok) {
+          throw std::runtime_error("invalid Community encoder threads");
+        }
       }
     } else {
       uint32_t handle = 0;
@@ -476,7 +512,13 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           task->run_embeddings = CopyArray<float>(env, args[3], napi_float32_array);
           task->run_ranges = CopyArray<float>(env, args[4], napi_float32_array);
           offset = 2;
-          if (clusterLevels) task->run_rms = CopyArray<float>(env, args[8], napi_float32_array);
+          if (clusterLevels) {
+            task->run_rms = CopyArray<float>(env, args[8], napi_float32_array);
+            if (count == 10 &&
+                napi_get_value_bool(env, args[9], &task->include_frame_hard) != napi_ok) {
+              throw std::runtime_error("invalid Community frame-hard option");
+            }
+          }
         }
         if (napi_get_value_int32(env, args[3 + offset], &task->max_speakers) != napi_ok) throw std::runtime_error("invalid speaker cap");
         task->window_starts = CopyArray<double>(env, args[4 + offset], napi_float64_array);

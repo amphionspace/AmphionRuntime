@@ -19,6 +19,14 @@ export class CreateEngineParams {
 export class SpeakerDiarizationConfig {
   /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
   maxSpeakers: number = 4;
+  /**
+   * On-device Community encoder worker budget in [1, 8]. The encoder owns its
+   * own pthread pool, so this is not the ASR `numThreads` and is not bounded by
+   * it; its workers also spin before blocking while no window is running.
+   * Default 4 preserves the measured throughput; lower values trade window
+   * latency for less CPU and heat on thermally constrained devices.
+   */
+  numThreads: number = 4;
 }
 
 export class StartParams {

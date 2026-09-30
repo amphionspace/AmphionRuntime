@@ -57,7 +57,7 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
-import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
+import { validateSpeakerDiarizationConfig, validateSpeakerDiarizationThreads } from './diarization/SpeakerDiarizationConfigPolicy';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
@@ -606,6 +606,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
         const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const encoderThreads = validateSpeakerDiarizationThreads(params.speakerDiarization);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -632,7 +633,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             diarizationObserver,
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);
-            } : undefined);
+            } : undefined,
+            { encoderThreads });
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
