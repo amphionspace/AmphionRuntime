@@ -481,6 +481,54 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.ok(events.includes('DIARIZATION_COMMUNITY_COMMIT'));
         """)
 
+    def test_window_activity_is_folded_once_and_keeps_the_exact_public_range(self):
+        # Folding a window's whole-window activity in once, and skipping windows
+        # whose frame centres all fall outside the public interval, must produce
+        # exactly the vectors the per-frame rescan produced.
+        run_community_session("""
+          const captured=[];
+          const originalAssign=CommunitySpeakerIdentity.prototype.assign;
+          CommunitySpeakerIdentity.prototype.assign=function(jobIds,hard,clusterCount,activity,publishedActivity,visible,first){
+            captured.push({activity:[...activity],publishedActivity:[...publishedActivity]});
+            return originalAssign.call(this,jobIds,hard,clusterCount,activity,publishedActivity,visible,first);
+          };
+          function patterned(index,starts,lengths) {
+            const segments=new Float32Array(589*3);
+            for(let c=0;c<3;c++)for(let f=starts[c];f<starts[c]+lengths[c];f++)segments[f*3+c]=1;
+            return {jobId:`w${index}`,windowStartSample:index*16000,realEndSample:(index+10)*16000,
+              result:{segments,embeddings:new Float32Array(3*256),segmentationMs:0,featureMs:0,embeddingMs:0}};
+          }
+          const windows=[
+            patterned(0,[0,100,200],[100,100,100]),
+            patterned(1,[0,0,0],[50,0,0]),
+            patterned(2,[0,500,0],[0,89,0]),
+          ];
+          const s=session();s.totalSamples=48000*16;
+          for(const w of windows)s.onWindow(w);
+          s.client.cluster=async(segments,embeddings,cap,starts,begin)=>clusterResult(starts.length);
+          const beginTime=1000,endTime=2000;
+          await s.commitWindow(endTime,Infinity,true,beginTime);
+
+          // Reference: the exact per-frame rescan this optimisation replaced.
+          const refSeg=new Float32Array(3*589*3);
+          windows.forEach((w,i)=>refSeg.set(w.result.segments,i*589*3));
+          const refActivity=new Array(9).fill(0),refPublished=new Array(9).fill(0);
+          for(let index=0;index<3;index++)for(let frame=0;frame<589;frame++){
+            const frameTime=(windows[index].windowStartSample+495.5+frame*270)*1000/16000;
+            for(let channel=0;channel<3;channel++){
+              const value=refSeg[(index*589+frame)*3+channel];
+              refActivity[index*3+channel]+=value;
+              if(frameTime>=beginTime&&frameTime<endTime)refPublished[index*3+channel]+=value;
+            }
+          }
+          assert.equal(captured.length,1,'the commit must reach the identity registry once');
+          assert.deepEqual(captured[0].activity,refActivity,'whole-window activity changed');
+          assert.deepEqual(captured[0].publishedActivity,refPublished,'public-interval activity changed');
+          assert.ok(refPublished.some(v=>v>0),'fixture must exercise frames inside the interval');
+          assert.ok(refPublished.some(v=>v===0),'fixture must exercise windows outside the interval');
+          assert.ok(refActivity.some(v=>v>0),'fixture must exercise whole-window activity');
+        """)
+
     def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]
