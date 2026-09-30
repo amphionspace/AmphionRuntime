@@ -96,6 +96,88 @@ int main() {
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_ohos_scheduling_scope_parses_and_restores_thread_state(self):
+        # The host slices compile the non-OHOS branch, so the branch that actually
+        # ships is otherwise never built. Compile it against platform stubs and
+        # check the parser rejections plus set/restore of both mask and QoS.
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source_text = (CPP / 'community_diarization.cpp').read_text()
+        constants = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):
+                                source_text.index('#if defined(__OHOS__)')]
+        ohos_start = source_text.index('namespace {', source_text.index('#if defined(__OHOS__)'))
+        block = constants + source_text[ohos_start:source_text.index('#else', ohos_start)]
+        program = r'''
+#include <cassert>
+#include <sched.h>
+#include <qos/qos.h>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <vector>
+''' + block + r'''
+int main() {
+  assert(kDefaultEncoderThreads == 4 && kMaxEncoderThreads == 8);
+  CommunityScheduling none;
+  assert(!none.has_thread_policy());
+  CommunityScheduling policy;
+  ParseCommunityScheduling("AmphionQos=user-initiated;AmphionCpuIds=4,5", &policy);
+  assert(policy.qos == QOS_USER_INITIATED && policy.cpu_ids.size() == 2);
+  assert(policy.cpu_ids[0] == 4 && policy.cpu_ids[1] == 5 && policy.has_thread_policy());
+  // An empty request must stay a no-op rather than clearing an earlier one.
+  CommunityScheduling untouched;
+  ParseCommunityScheduling("", &untouched);
+  assert(!untouched.has_thread_policy());
+  for (const char* bad : {"AmphionQos=realtime", "AmphionCpuIds=4,4", "AmphionCpuIds=9999",
+                          "AmphionCpuIds=4,", "AmphionCpuIds=x"}) {
+    CommunityScheduling rejected_policy;
+    bool rejected = false;
+    try { ParseCommunityScheduling(bad, &rejected_policy); }
+    catch (const std::runtime_error&) { rejected = true; }
+    assert(rejected);
+  }
+  // A scope must leave both the mask and the QoS exactly as it found them.
+  StubMask() = cpu_set_t{};
+  CPU_SET(1, &StubMask());
+  StubQos() = QOS_USER_INTERACTIVE;
+  {
+    ScopedCommunityScheduling scope(policy);
+    assert(StubQos() == QOS_USER_INITIATED);
+    assert(CPU_ISSET(4, &StubMask()) && CPU_ISSET(5, &StubMask()));
+    assert(!CPU_ISSET(1, &StubMask()));
+  }
+  assert(StubQos() == QOS_USER_INTERACTIVE);
+  assert(CPU_ISSET(1, &StubMask()) && !CPU_ISSET(4, &StubMask()));
+  return 0;
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'qos').mkdir()
+            (root / 'qos/qos.h').write_text(
+                'typedef enum { QOS_DEFAULT=0, QOS_USER_INITIATED=2, QOS_USER_INTERACTIVE=3 } QoS_Level;\n'
+                'inline QoS_Level& StubQos(){ static QoS_Level v = QOS_DEFAULT; return v; }\n'
+                'inline int OH_QoS_GetThreadQoS(QoS_Level* level){ *level = StubQos(); return 0; }\n'
+                'inline int OH_QoS_SetThreadQoS(QoS_Level level){ StubQos() = level; return 0; }\n'
+                'inline int OH_QoS_ResetThreadQoS(){ StubQos() = QOS_DEFAULT; return 0; }\n')
+            (root / 'sched.h').write_text(
+                '#pragma once\n#include <cstddef>\n'
+                '#define CPU_SETSIZE 1024\n'
+                'typedef struct { unsigned char bits[CPU_SETSIZE/8]; } cpu_set_t;\n'
+                'inline void CPU_ZERO(cpu_set_t* s){ for (size_t i=0;i<sizeof(s->bits);++i) s->bits[i]=0; }\n'
+                'inline void CPU_SET(int cpu, cpu_set_t* s){ s->bits[cpu/8] |= (unsigned char)(1u<<(cpu%8)); }\n'
+                'inline int CPU_ISSET(int cpu, const cpu_set_t* s){ return (s->bits[cpu/8]>>(cpu%8))&1u; }\n'
+                'inline cpu_set_t& StubMask(){ static cpu_set_t m{}; return m; }\n'
+                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ *s = StubMask(); return 0; }\n'
+                'inline int sched_setaffinity(int,size_t,const cpu_set_t* s){ StubMask() = *s; return 0; }\n')
+            source = root / 'scheduling.cpp'
+            binary = root / 'scheduling'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(root),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_encoder_features_and_run_vectors_belong_to_one_window(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
