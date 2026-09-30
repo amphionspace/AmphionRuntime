@@ -10,6 +10,7 @@ import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench
 import { runSdkSelfTest } from '../util/SdkSelfTest';
 import { HotwordDeviceEvalOptions, runHotwordDeviceEval } from '../util/HotwordDeviceEval';
 import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
+import { AudioRecorder } from '../util/AudioRecorder';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 
@@ -30,6 +31,7 @@ export default class EntryAbility extends UIAbility {
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
   private allowScreenOff: boolean = false;
+  private micHold?: AudioRecorder;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
@@ -127,6 +129,7 @@ export default class EntryAbility extends UIAbility {
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
       options.diarizationNumThreads = this.numberParameter(want, 'stressDiarizationNumThreads', 4);
+      options.holdMicCapture = this.stringParameter(want, 'stressHoldMicCapture', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
       options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));
@@ -207,15 +210,53 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
+  /**
+   * Reproduction helper. A customer recording app has a live capture session while the
+   * screen is off; this carrier feeds PCM from a file, so with no real capture the system
+   * can treat the process as idle and stop scheduling it. Captured frames are discarded so
+   * the SDK input stays the deterministic file payload.
+   */
+  private async startMicHold(): Promise<void> {
+    if (this.micHold !== undefined) return;
+    const hold = new AudioRecorder(
+      (_samples: Int16Array): void => {},
+      (message: string): void => {
+        hilog.warn(0x0000, 'MicHold', 'MIC_HOLD|capture error %{public}s', message);
+      },
+      'mic');
+    this.micHold = hold;
+    try {
+      await hold.start();
+      hilog.info(0x0000, 'MicHold', 'MIC_HOLD|started');
+    } catch (e) {
+      this.micHold = undefined;
+      hilog.error(0x0000, 'MicHold', 'MIC_HOLD|start failed %{public}s', `${e}`);
+    }
+  }
+
+  private async stopMicHold(): Promise<void> {
+    const hold = this.micHold;
+    if (hold === undefined) return;
+    this.micHold = undefined;
+    try {
+      await hold.stop();
+      hilog.info(0x0000, 'MicHold', 'MIC_HOLD|stopped');
+    } catch (e) {
+      hilog.error(0x0000, 'MicHold', 'MIC_HOLD|stop failed %{public}s', `${e}`);
+    }
+  }
+
   private async runStressWithBackgroundRecording(options: DeviceStressOptions): Promise<void> {
     try {
       await BackgroundRecordingTask.start(this.context);
+      if (options.holdMicCapture) await this.startMicHold();
       await runDeviceStress(this.context, options);
     } catch (e) {
       hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
     } finally {
       this.stressFinished = true;
       this.setStressKeepScreenOn(false);
+      await this.stopMicHold();
       try {
         await BackgroundRecordingTask.stop(this.context);
       } catch (e) {
