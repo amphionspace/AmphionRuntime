@@ -103,7 +103,9 @@ fbank、segmentation 与聚类的空间加起来不足 25%。
 | 余弦相似度 | **0.9881 – 0.9925**（中位 0.9911） |
 | 相对 L2 偏移 | **12.3% – 15.4%**（中位 13.4%） |
 | 模型体积 | 21.3 MB → **5.4 MB**（约 1/4） |
-| encoder 单窗主机耗时 | 213.5 ms → **98.0 ms（2.18×）**；x86 参考值，ARM 设备端收益未验证 |
+| encoder 单窗主机耗时 | 213.5 ms → **98.0 ms（2.18×）**（x86 参考） |
+| **设备端单窗耗时（ARM）** | **427 ms → 315 ms（1.36×）** |
+| **设备端整进程 CPU** | **2.665 → 1.474 CPU-s/墙钟秒（−44.7%）** |
 
 **结论：量化机械上可行、体积收益明确，但它把每个 embedding 移动了约 13% 的相对幅度（角度上偏离约
 1%）。** 对 256 维声纹 + PLDA 打分而言这是**足以改变打分与聚类判定的量级**，因此：
@@ -112,8 +114,26 @@ fbank、segmentation 与聚类的空间加起来不足 25%。
 - 必须按仓库既有门禁，用人数已确认的标注录音比对**误认时长与同人换号**，并单独报告未知；
 - 在这项评估完成前，**发烫没有可交付的修复**——软件层已排除，模型层尚未证明可行。
 
+### 设备端 A/B（同构建、只换 encoder）
+
+把量化模型临时注入 `amphion_dingqiao.har` 的 `rawfile/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx`
+（文件名不变，仅内容替换），同一 HAP 配置、同一 120 秒切片、亮屏、encoder 4 线程，各跑一臂，两臂均 PASS：
+
+| 模型 | 臂 | segmentationMs | featureMs | embeddingMs | CPU-s/墙钟秒 |
+| --- | --- | ---: | ---: | ---: | ---: |
+| FP32 | `armFp32T4`（23:22:08） | 102 | 25 | **427** | **2.665** |
+| INT8 | `armInt8T4`（23:17:04） | 101 | 25 | **315（1.36×）** | **1.474（−44.7%）** |
+
+对号方式：用臂产物目录的时间戳与设备 run 的 epoch id 对应（`run-1790781731584` → 23:22:11 = FP32；
+`run-1790781427437` → 23:17:07 = INT8）。**早先误读为"INT8 慢到 478 ms"是因为取到了更早的另一条 run**
+（`run-1790778923526`，22:35），该读数已作废。
+
+设备端结论：量化后 encoder **又快又省**，整进程 CPU 降约 45%。以角色链路占 1.79 CPU-s/墙钟秒计算，
+可回收约 1.2 CPU-s/墙钟秒；按 encoder 快 1.36× 推算，锁屏 RTF 0.962 有望降到约 0.7，正好是需要的余量。
+**但这两臂只证明"量化模型能在管线里正常运行并通过生命周期判定"，没有身份真值，不能据此判定身份精度。**
+
 复现材料（不进入 Git）：`.cache/speaker-screen-repro-acf477c2/encoder_quant/`
-（`extract_at.cpp`、`measure_shift.py`、`encoder.int8.onnx`、`quantisation-embedding-shift.json`）。
+（`extract_at.cpp`、`measure_shift.py`、`encoder.int8.onnx`、`fp32-encoder.onnx`、`quantisation-embedding-shift.json`）。
 
 ## 锁屏下的反证：2 线程不可作为默认
 
