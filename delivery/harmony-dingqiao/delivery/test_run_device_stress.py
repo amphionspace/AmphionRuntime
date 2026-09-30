@@ -228,6 +228,22 @@ class CorpusPreconditionsTest(unittest.TestCase):
         self.assertIn("stressDiarizationNumThreads = options.diarizationNumThreads", carrier)
         self.assertIn("diarization.numThreads = stressDiarizationNumThreads", carrier)
 
+    def test_screen_off_release_is_wired_end_to_end(self):
+        # The stock carrier holds a keep-screen-on lock, so a run that never
+        # releases it reports AWAKE for every sample and cannot measure the
+        # screen-off condition at all.
+        script = SCRIPT.read_text()
+        entry = (SCRIPT.parents[1]
+                 / "samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets").read_text()
+        self.assertIn('"--ps", "stressAllowScreenOff"', script)
+        self.assertIn("'stressAllowScreenOff'", entry)
+        self.assertIn("if (!this.stressFinished && !this.allowScreenOff) this.setStressKeepScreenOn(true);",
+                      entry)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst"]):
+            self.assertFalse(MODULE.parse_args().allow_screen_off)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst", "--allow-screen-off"]):
+            self.assertTrue(MODULE.parse_args().allow_screen_off)
+
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:
             short = self.source(directory, "short.wav", 55 * 320)

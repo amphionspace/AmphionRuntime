@@ -29,6 +29,7 @@ export default class EntryAbility extends UIAbility {
   private hotwordEval: boolean = false;
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
+  private allowScreenOff: boolean = false;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
@@ -141,6 +142,10 @@ export default class EntryAbility extends UIAbility {
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
         this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
+      // Screen-off reproduction: a customer app runs as a background continuous task
+      // instead of holding a keep-screen-on lock, so let the run observe the real
+      // screen-off behaviour.
+      this.allowScreenOff = this.stringParameter(want, 'stressAllowScreenOff', 'false') === 'true';
       this.runStressWithBackgroundRecording(options);
     }
   }
@@ -150,7 +155,7 @@ export default class EntryAbility extends UIAbility {
       // A real-time corpus run lasts longer than Harmony's content-less foreground grace period.
       // Keep a minimal window attached so the event runner is not suspended between audio frames.
       this.stressWindow = windowStage.getMainWindowSync();
-      if (!this.stressFinished) this.setStressKeepScreenOn(true);
+      if (!this.stressFinished && !this.allowScreenOff) this.setStressKeepScreenOn(true);
       windowStage.loadContent('pages/DeviceTest', (err: BusinessError): void => {
         if (err.code !== 0) {
           hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to load device test page: %{public}s', JSON.stringify(err));
