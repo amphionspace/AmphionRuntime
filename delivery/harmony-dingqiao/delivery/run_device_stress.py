@@ -171,6 +171,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")
     parser.add_argument("--asr-enable-prepack", action="store_true")
+    parser.add_argument(
+        "--diarization-num-threads", type=int, choices=range(1, 9),
+        help="Community encoder worker budget. Separate pool from the ASR threads; "
+             "omitted keeps the SDK default of 4.")
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
     parser.add_argument("--post-run-observe", type=float, default=5.0)
@@ -216,6 +220,9 @@ def parse_args() -> argparse.Namespace:
         args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
     if args.diarization_vad_end_ms is not None and args.mode not in {"customer-meeting-minutes", "diarization-windows"}:
         parser.error("--diarization-vad-end-ms requires a meeting diarization mode")
+    if args.diarization_num_threads is not None and not (
+            args.enable_diarization or args.mode in DIARIZATION_MODES):
+        parser.error("--diarization-num-threads requires diarization to be enabled")
     if args.mode == "speech-end-latency" and (args.speech_end_ms <= 0 or args.pace_ms != 20):
         parser.error("speech-end-latency requires --speech-end-ms and --pace-ms 20")
     if args.cycles <= 0:
@@ -1248,6 +1255,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
+        "--ps", "stressDiarizationNumThreads",
+        str(args.diarization_num_threads if args.diarization_num_threads is not None else 4),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1433,6 +1442,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             "diarization_vad_end_ms": args.diarization_vad_end_ms,
             "enable_diarization": args.enable_diarization,
             "effective_enable_diarization": diarization_enabled,
+            "diarization_num_threads": args.diarization_num_threads,
+            "effective_diarization_num_threads": (
+                args.diarization_num_threads if args.diarization_num_threads is not None else 4),
             "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
                                                if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,

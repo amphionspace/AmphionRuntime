@@ -57,6 +57,9 @@ const VOICEPRINT_SCENARIOS: string[] = [
 ];
 // Test-carrier option only. Every lifecycle mode uses the same public StartParams.
 let stressEnableDiarization: boolean = false;
+// Community encoder worker budget. This is not the ASR `numThreads`: the encoder
+// builds its own XNNPACK pthread pool, so only this value bounds it.
+let stressDiarizationNumThreads: number = 4;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -78,6 +81,7 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
+  diarizationNumThreads: number = 4;
 }
 
 class CorpusEntry {
@@ -1246,7 +1250,11 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   const params = new StartParams();
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
-  if (stressEnableDiarization) params.speakerDiarization = new SpeakerDiarizationConfig();
+  if (stressEnableDiarization) {
+    const diarization = new SpeakerDiarizationConfig();
+    diarization.numThreads = stressDiarizationNumThreads;
+    params.speakerDiarization = diarization;
+  }
   params.extraParams['enablePartialResult'] = false;
   // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
   params.extraParams['maxAudioDuration'] = 28800000;
@@ -2941,6 +2949,7 @@ function safeDetail(value: string): string {
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
   stressEnableDiarization = options.enableDiarization;
+  stressDiarizationNumThreads = options.diarizationNumThreads;
   const startedAt = Date.now();
   const lines: string[] = [];
   const totals = new StressTotals();
@@ -3120,6 +3129,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   } finally {
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
+    stressDiarizationNumThreads = 4;
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }

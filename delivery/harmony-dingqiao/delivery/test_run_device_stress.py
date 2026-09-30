@@ -201,6 +201,33 @@ class CorpusPreconditionsTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 MODULE.parse_args()
 
+    def test_diarization_thread_budget_is_optional_and_needs_diarization(self):
+        # The encoder owns a pthread pool that the ASR threads do not bound, so
+        # the experiment needs its own knob and must not silently apply it when
+        # diarization is off.
+        for value in [1, 2, 4, 8]:
+            with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows",
+                                                "--diarization-num-threads", str(value)]):
+                self.assertEqual(value, MODULE.parse_args().diarization_num_threads)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "diarization-windows"]):
+            self.assertIsNone(MODULE.parse_args().diarization_num_threads)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst",
+                                            "--diarization-num-threads", "2"]):
+            with self.assertRaises(SystemExit):
+                MODULE.parse_args()
+
+    def test_diarization_thread_budget_is_wired_end_to_end(self):
+        # A typo in any of the three hops would leave the run at the SDK default
+        # and silently compare 4 against 4.
+        script = SCRIPT.read_text()
+        entry = (SCRIPT.parents[1]
+                 / "samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets").read_text()
+        carrier = CARRIER.read_text()
+        self.assertIn('"--ps", "stressDiarizationNumThreads"', script)
+        self.assertIn("'stressDiarizationNumThreads'", entry)
+        self.assertIn("stressDiarizationNumThreads = options.diarizationNumThreads", carrier)
+        self.assertIn("diarization.numThreads = stressDiarizationNumThreads", carrier)
+
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:
             short = self.source(directory, "short.wav", 55 * 320)
