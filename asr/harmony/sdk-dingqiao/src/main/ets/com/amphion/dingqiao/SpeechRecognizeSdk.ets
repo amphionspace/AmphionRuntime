@@ -634,7 +634,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);
             } : undefined,
-            { encoderThreads });
+            { encoderThreads, scheduling: this.params.scheduling });
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,

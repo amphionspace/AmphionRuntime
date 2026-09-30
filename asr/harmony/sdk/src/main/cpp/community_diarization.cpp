@@ -31,6 +31,112 @@ double Milliseconds(Clock::time_point start) {
 constexpr int kDefaultEncoderThreads = 4;
 constexpr int kMaxEncoderThreads = 8;
 
+#if defined(__OHOS__)
+#include <sched.h>
+#include <qos/qos.h>
+
+namespace {
+// The engine-wide scheduling request the ASR recognizer already receives. The
+// role encoder owns a second compute pool, so it needs its own copy: the ASR
+// policy reaches that pool only when it is passed here as well.
+struct CommunityScheduling {
+  int qos = -1;
+  std::vector<int> cpu_ids;
+  bool has_thread_policy() const { return qos >= 0 || !cpu_ids.empty(); }
+};
+
+void ParseCommunityScheduling(const std::string& provider, CommunityScheduling* out) {
+  std::istringstream entries(provider);
+  std::string entry;
+  while (std::getline(entries, entry, ';')) {
+    const auto separator = entry.find('=');
+    if (separator == std::string::npos) continue;
+    const auto key = entry.substr(0, separator);
+    const auto value = entry.substr(separator + 1);
+    if (key == "AmphionQos") {
+      if (value == "user-initiated") out->qos = QOS_USER_INITIATED;
+      else if (value == "user-interactive") out->qos = QOS_USER_INTERACTIVE;
+      else throw std::runtime_error("invalid Community scheduling QoS");
+    } else if (key == "AmphionCpuIds") {
+      if (value.empty() || value.back() == ',')
+        throw std::runtime_error("empty Community scheduling CPU id");
+      std::istringstream ids(value);
+      std::string id;
+      while (std::getline(ids, id, ',')) {
+        if (id.empty() || id.find_first_not_of("0123456789") != std::string::npos)
+          throw std::runtime_error("invalid Community scheduling CPU id");
+        const int cpu = std::stoi(id);
+        if (cpu < 0 || cpu >= CPU_SETSIZE)
+          throw std::runtime_error("Community scheduling CPU id out of range");
+        for (int existing : out->cpu_ids) {
+          if (existing == cpu) throw std::runtime_error("duplicate Community scheduling CPU id");
+        }
+        out->cpu_ids.push_back(cpu);
+      }
+    }
+  }
+}
+
+// Applies the requested affinity and QoS to the current thread and restores the
+// previous values on scope exit, including the exception paths. A borrowed
+// runtime thread never loses an unknown previous QoS: when it cannot be read the
+// request is skipped rather than applied and left behind.
+class ScopedCommunityScheduling {
+ public:
+  explicit ScopedCommunityScheduling(const CommunityScheduling& policy) : policy_(policy) {
+    const bool have_cpus = !policy.cpu_ids.empty() &&
+        sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
+    if (policy.qos >= 0) {
+      const int before = OH_QoS_GetThreadQoS(&previous_qos_);
+      if (OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos)) == 0) {
+        if (before == 0) restore_qos_ = true;
+        else reset_qos_ = true;
+      }
+    }
+    if (!policy.cpu_ids.empty() && have_cpus) {
+      cpu_set_t requested;
+      CPU_ZERO(&requested);
+      for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested);
+      restore_cpus_ = sched_setaffinity(0, sizeof(requested), &requested) == 0;
+    }
+  }
+  ~ScopedCommunityScheduling() {
+    if (restore_qos_) OH_QoS_SetThreadQoS(previous_qos_);
+    if (reset_qos_) OH_QoS_ResetThreadQoS();
+    if (restore_cpus_) sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_);
+  }
+  ScopedCommunityScheduling(const ScopedCommunityScheduling&) = delete;
+  ScopedCommunityScheduling& operator=(const ScopedCommunityScheduling&) = delete;
+
+ private:
+  const CommunityScheduling& policy_;
+  cpu_set_t previous_cpus_{};
+  QoS_Level previous_qos_{};
+  bool restore_qos_ = false;
+  bool reset_qos_ = false;
+  bool restore_cpus_ = false;
+};
+}  // namespace
+#else
+namespace {
+struct CommunityScheduling {
+  int qos = -1;
+  std::vector<int> cpu_ids;
+  bool has_thread_policy() const { return false; }
+};
+inline void ParseCommunityScheduling(const std::string& provider, CommunityScheduling* out) {
+  (void)out;
+  if (!provider.empty()) {
+    throw std::runtime_error("Community scheduling requires an OHOS runtime");
+  }
+}
+class ScopedCommunityScheduling {
+ public:
+  explicit ScopedCommunityScheduling(const CommunityScheduling&) {}
+};
+}  // namespace
+#endif
+
 #ifndef __ANDROID__
 template <typename T>
 std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type expected) {
@@ -100,8 +206,9 @@ class Model {
   Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
         const std::vector<uint8_t>& pooling,
         const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda,
-        int encoder_threads = kDefaultEncoderThreads)
-      : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
+        int encoder_threads = kDefaultEncoderThreads,
+        const CommunityScheduling& scheduling = CommunityScheduling())
+      : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community"), scheduling_(scheduling) {
     if (encoder_threads < 1 || encoder_threads > kMaxEncoderThreads) {
       throw std::runtime_error("Community encoder threads must be in [1, 8]");
     }
@@ -140,9 +247,15 @@ class Model {
     pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
     // XNNPACK owns its own compute workers. Keep the ORT fallback serial so
     // a second pool cannot compete with them between convolution operators.
-    options.AppendExecutionProvider("XNNPACK",
-      {{"intra_op_num_threads", std::to_string(encoder_threads)}});
-    encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
+    {
+      // The pool is created while the encoder session is built, and pthread
+      // workers inherit the creating thread's affinity. Scoping the policy here
+      // is what covers those workers; the ASR recognizer's own policy does not.
+      ScopedCommunityScheduling scope(scheduling_);
+      options.AppendExecutionProvider("XNNPACK",
+        {{"intra_op_num_threads", std::to_string(encoder_threads)}});
+      encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
+    }
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
     output_name_ = segmentation_.GetOutputNameAllocated(0, allocator).get();
@@ -151,6 +264,8 @@ class Model {
   Window Process(std::vector<float>& pcm) {
     if (pcm.size() != 160000) throw std::runtime_error("Community requires a 10 second window");
     std::lock_guard<std::mutex> lock(inference_mutex_);
+    // Keep the thread that drives the encoder pool on the requested CPUs too.
+    ScopedCommunityScheduling scope(scheduling_);
     Window result;
     auto start = Clock::now();
     auto memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -284,6 +399,7 @@ class Model {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
+    ScopedCommunityScheduling scope(scheduling_);
     int windows = segments.size() / (589 * 3);
     std::vector<int32_t> native_ranges;
     native_ranges.reserve(run_ranges.size());
@@ -355,6 +471,7 @@ class Model {
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::Plda plda_;
+  CommunityScheduling scheduling_;
   std::mutex inference_mutex_;
 };
 
@@ -384,6 +501,7 @@ struct Work {
   Window window;
   int max_speakers = 4;
   int encoder_threads = kDefaultEncoderThreads;
+  CommunityScheduling scheduling;
   bool include_frame_hard = true;
   std::string result, error;
   ~Work() {
@@ -407,15 +525,31 @@ void Execute(napi_env, void* data) {
         }
       }
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2],
-                                           task.assets[3], task.assets[4], task.encoder_threads);
+                                           task.assets[3], task.assets[4], task.encoder_threads,
+                                           task.scheduling);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
                                            task.run_ranges, task.max_speakers, task.window_starts,
                                            task.begin_sample, task.run_rms, task.include_frame_hard);
   } catch (const std::exception& error) { task.error = error.what(); }
 }
-void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {
-  napi_value buffer, array;
+// Optional trailing scheduling request. An absent argument means "no request",
+// which must stay distinct from a present but empty string.
+std::string OptionalString(napi_env env, napi_value value, const char* what) {
+  if (value == nullptr) return std::string();
+  size_t length = 0;
+  if (napi_get_value_string_utf8(env, value, nullptr, 0, &length) != napi_ok) {
+    throw std::runtime_error(what);
+  }
+  std::string text(length + 1, '\0');
+  size_t written = 0;
+  if (napi_get_value_string_utf8(env, value, text.data(), text.size(), &written) != napi_ok) {
+    throw std::runtime_error(what);
+  }
+  text.resize(written);
+  return text;
+}
+void FloatProperty(napi_env env, napi_value object, const char* name, const std::vector<float>& values) {  napi_value buffer, array;
   void* bytes = nullptr;
   napi_create_arraybuffer(env, values.size() * sizeof(float), &bytes, &buffer);
   if (!values.empty()) std::memcpy(bytes, values.data(), values.size() * sizeof(float));
@@ -470,9 +604,9 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
     } else if (operation == Operation::Process) {
       accepted = count == 2;
     } else if (from_resources) {
-      accepted = count == 1 || count == 2;
+      accepted = count == 1 || count == 2 || count == 3;
     } else {
-      accepted = count == 5 || count == 6;
+      accepted = count == 5 || count == 6 || count == 7;
     }
     if (!accepted) throw std::runtime_error("invalid Community arguments");
     auto task = std::make_unique<Work>();
@@ -488,10 +622,18 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         if (count == 2 && napi_get_value_int32(env, args[1], &task->encoder_threads) != napi_ok) {
           throw std::runtime_error("invalid Community encoder threads");
         }
+        if (count == 3) {
+          ParseCommunityScheduling(OptionalString(env, args[2], "invalid Community scheduling option"),
+                                   &task->scheduling);
+        }
       } else {
         for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
         if (count == 6 && napi_get_value_int32(env, args[5], &task->encoder_threads) != napi_ok) {
           throw std::runtime_error("invalid Community encoder threads");
+        }
+        if (count == 7) {
+          ParseCommunityScheduling(OptionalString(env, args[6], "invalid Community scheduling option"),
+                                   &task->scheduling);
         }
       }
     } else {

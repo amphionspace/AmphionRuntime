@@ -73,9 +73,10 @@ export interface CommunityDiarizationWindow {
   embeddingMs: number;
 }
 export function loadCommunityDiarization(segmentation: Uint8Array, encoder: Uint8Array,
-  pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, encoderThreads?: number): Promise<number>;
+  pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, encoderThreads?: number,
+  scheduling?: string): Promise<number>;
 export function loadCommunityDiarizationResources(resourceManager: Object,
-  encoderThreads?: number): Promise<number>;
+  encoderThreads?: number, scheduling?: string): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function clusterCommunityDiarization(handle: number, segments: Float32Array,
   embeddings: Float32Array, runEmbeddings: Float32Array, runRanges: Float32Array,

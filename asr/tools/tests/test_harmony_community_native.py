@@ -17,11 +17,14 @@ class HarmonyCommunityNativeTest(unittest.TestCase):
         source_text = (CPP / 'community_diarization.cpp').read_text()
         reader = source_text[source_text.index('std::vector<uint8_t> ReadCommunityAsset'):
                              source_text.index('\n#endif', source_text.index('std::vector<uint8_t> ReadCommunityAsset'))]
-        # Work carries the encoder budget default, so the slice has to bring the
-        # production constants along instead of restating their values.
-        budgets = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):
-                              source_text.index('constexpr int kMaxEncoderThreads = 8;') +
-                              len('constexpr int kMaxEncoderThreads = 8;')]
+        # Work carries the encoder budget default and the scheduling request, so
+        # the slice has to bring the production definitions along instead of
+        # restating their values. Keep the trailing newline: the closing #endif
+        # must not share a line with the next slice.
+        scheduling_end = source_text.index(
+            'explicit ScopedCommunityScheduling(const CommunityScheduling&) {}')
+        budget_end = source_text.index('\n', source_text.index('#endif', scheduling_end)) + 1
+        budgets = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):budget_end]
         work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
         # Exercise production ownership with a platform resource provider that
         # returns partial reads and errors. No models or customer data needed.
@@ -1068,15 +1071,27 @@ int main() {
                             str(path), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
-    def test_encoder_worker_budget_is_requested_not_hardcoded(self):
+    def test_encoder_pool_and_scheduling_reach_the_native_model(self):
         # The encoder builds its own pthread pool, so the ASR threads neither
         # bound it nor disable its idle spinning. The budget has to travel from
-        # the caller into the XNNPACK provider explicitly.
+        # the caller into the XNNPACK provider explicitly, and the engine-wide
+        # scheduling request has to be forwarded for the same reason.
         source = (CPP / 'community_diarization.cpp').read_text()
         self.assertIn('int encoder_threads = kDefaultEncoderThreads', source)
         self.assertIn('{"intra_op_num_threads", std::to_string(encoder_threads)}', source)
         self.assertIn('Community encoder threads must be in [1, 8]', source)
         self.assertIn('bool include_frame_hard = true', source)
+        self.assertIn('const CommunityScheduling& scheduling = CommunityScheduling()', source)
+        self.assertIn('ScopedCommunityScheduling scope(scheduling_);', source)
+        # The pool is created while the encoder session is built and inherits that
+        # thread's affinity, so the scope has to wrap the session construction.
+        self.assertIn('ScopedCommunityScheduling scope(scheduling_);\n      options.AppendExecutionProvider("XNNPACK"', source)
+        self.assertIn('"invalid Community scheduling QoS"', source)
+        self.assertIn('"Community scheduling CPU id out of range"', source)
+        self.assertIn('if (count == 3) {', source)
+        self.assertIn('if (count == 7) {', source)
         declaration = (CPP / 'types/libamphion_asr/index.d.ts').read_text()
-        self.assertIn('loadCommunityDiarizationResources(resourceManager: Object,\n  encoderThreads?: number)', declaration)
+        self.assertIn('loadCommunityDiarizationResources(resourceManager: Object,\n'
+                      '  encoderThreads?: number, scheduling?: string)', declaration)
+        self.assertIn('plda: Uint8Array, encoderThreads?: number,\n  scheduling?: string', declaration)
         self.assertIn('runRms: Float32Array, includeFrameHard?: boolean', declaration)

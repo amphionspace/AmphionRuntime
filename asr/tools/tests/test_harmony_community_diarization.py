@@ -260,11 +260,14 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         inference = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/CommunityDiarizationInference.ets'
         source = inference.read_text().split('export class CommunityDiarizationInference', 1)[1]
         source = 'export class CommunityDiarizationInference' + source.split('\nexport {', 1)[0]
-        script = """
-          import assert from 'node:assert/strict';
+        scheduling = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/AsrSchedulingConfig.ts'
+        script = (
+            "import assert from 'node:assert/strict';\n"
+            f"import {{ asrSchedulingTokens }} from {scheduling.as_uri()!r};\n"
+            + """
           const loads=[],closed=[],processed=[];
-          function loadCommunityDiarizationResources(resources) {
-            return new Promise((resolve,reject)=>loads.push({resources,resolve,reject}));
+          function loadCommunityDiarizationResources(resources,threads,scheduling) {
+            return new Promise((resolve,reject)=>loads.push({resources,threads,scheduling,resolve,reject}));
           }
           function closeCommunityDiarization(handle){closed.push(handle)}
           async function processCommunityDiarization(handle,pcm){processed.push(handle);return pcm}
@@ -280,7 +283,15 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           const failed=new CommunityDiarizationInference();const pending=failed.load({resourceManager:{}});
           loads[2].reject(new Error('asset unavailable'));await assert.rejects(pending,/asset unavailable/);
           failed.close();assert.deepEqual(closed,[101,202]);
-        """
+          // The recognizer's policy does not reach the encoder pool by itself.
+          const scopedConfig={qos:'user-initiated',cpuIds:[4,5],allowSpinning:true};
+          const scoped=new CommunityDiarizationInference(2,scopedConfig);
+          const pendingScoped=scoped.load({resourceManager:{}});
+          assert.equal(loads[3].threads,2);
+          assert.equal(loads[3].scheduling,asrSchedulingTokens(scopedConfig));
+          assert.notEqual(loads[3].scheduling,'');
+          loads[3].resolve(303);await pendingScoped;scoped.close();
+        """)
         with tempfile.TemporaryDirectory() as directory:
             harness = Path(directory) / 'resource-load.mts'
             harness.write_text(script)
