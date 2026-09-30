@@ -6,9 +6,18 @@
 - `docs/speaker/DIARIZATION_THREAD_OVERHEAD_20260930.md`（角色链路的 CPU 成本与线程预算）
 - `docs/speaker/DIARIZATION_CROSS_WINDOW_REUSE_FALSIFIED_20260930.md`（跨窗复用证伪）
 
-设备口径：Mate 80 `VYG-AL30` / OpenHarmony-6.1.1.120 / `7GK0226326015655`；语料为仓库冻结的 960 秒
-会议与 120 秒切片；ASR 统一 `cpuIds=[4..11] spinning=false numThreads=4`；CPU 用 OS 自身
-`ps -o TIME -p <pid>` 记账。
+设备口径：Mate 80 `VYG-AL30` / OpenHarmony-6.1.1.120 / `7GK0226326015655`；ASR 统一
+`cpuIds=[4..11] spinning=false numThreads=4`；CPU 用 OS 自身 `ps -o TIME -p <pid>` 记账。
+
+语料口径（区分冻结资产与派生切片）：
+
+| 语料 | 来源 | SHA-256 |
+| --- | --- | --- |
+| 960 秒会议 | 由带标注的 `S_R003S01C01.flac`（源 `e4a8a763…`）自第 540 秒起截取 960 秒，配尾清单 | `66133c62a0f6da69d2b98d96a5d193816e73899fa28340313beb146309c9167d` |
+| 120 秒切片 | **由上面 960 秒语料中段派生**（非仓库冻结资产），仅用于短臂对比 | `2fc6d548fa3393e19e0e…` |
+
+因此涉及"仓库冻结语料"的结论只取 960 秒长臂；120 秒切片上的对比（线程预算、成本构成）标注为派生
+语料，不当作冻结资产证据。
 
 ## 结论一：发烫来自角色分离自身的推理计算量
 
