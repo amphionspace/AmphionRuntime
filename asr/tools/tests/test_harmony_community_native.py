@@ -104,10 +104,14 @@ int main() {
         if compiler is None:
             self.skipTest('C++17 compiler unavailable')
         source_text = (CPP / 'community_diarization.cpp').read_text()
-        constants = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):
-                                source_text.index('#if defined(__OHOS__)')]
-        ohos_start = source_text.index('namespace {', source_text.index('#if defined(__OHOS__)'))
-        block = constants + source_text[ohos_start:source_text.index('#else', ohos_start)]
+        # Anchor on the scheduling section itself. The platform includes above it
+        # also sit behind `#if defined(__OHOS__)`, so the first occurrence of that
+        # guard is not this one.
+        marker = source_text.index('// The engine-wide scheduling request')
+        ohos_if = source_text.rindex('#if defined(__OHOS__)', 0, marker)
+        constants = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):ohos_if]
+        ohos_start = source_text.index('namespace {', ohos_if)
+        block = constants + source_text[ohos_start:source_text.index('#else', marker)]
         program = r'''
 #include <cassert>
 #include <sched.h>
@@ -149,6 +153,47 @@ int main() {
   }
   assert(StubQos() == QOS_USER_INTERACTIVE);
   assert(CPU_ISSET(1, &StubMask()) && !CPU_ISSET(4, &StubMask()));
+  // A borrowed thread whose previous QoS cannot be read must be left alone: a
+  // reset on exit would discard a policy this module never learned.
+  StubQos() = QOS_USER_INTERACTIVE;
+  StubQosGetFails() = true;
+  StubQosSetCalls() = 0;
+  {
+    ScopedCommunityScheduling scope(policy);
+    assert(StubQosSetCalls() == 0 && "unknown previous QoS must not be overwritten");
+    assert(StubQos() == QOS_USER_INTERACTIVE);
+  }
+  assert(StubQos() == QOS_USER_INTERACTIVE);
+  assert(StubQosSetCalls() == 0 && "unknown previous QoS must not be reset");
+  StubQosGetFails() = false;
+  // A failed setter must not leave a restore behind either.
+  StubQos() = QOS_USER_INTERACTIVE;
+  StubQosSetFails() = true;
+  {
+    ScopedCommunityScheduling scope(policy);
+    assert(StubQos() == QOS_USER_INTERACTIVE);
+  }
+  assert(StubQos() == QOS_USER_INTERACTIVE);
+  StubQosSetFails() = false;
+  // The same rule applies to the affinity mask.
+  StubMask() = cpu_set_t{};
+  CPU_SET(1, &StubMask());
+  StubMaskGetFails() = true;
+  {
+    ScopedCommunityScheduling scope(policy);
+    assert(CPU_ISSET(1, &StubMask()) && "unreadable mask must not be replaced");
+  }
+  assert(CPU_ISSET(1, &StubMask()));
+  StubMaskGetFails() = false;
+  StubMask() = cpu_set_t{};
+  CPU_SET(1, &StubMask());
+  StubMaskSetFails() = true;
+  {
+    ScopedCommunityScheduling scope(policy);
+    assert(CPU_ISSET(1, &StubMask()));
+  }
+  assert(CPU_ISSET(1, &StubMask()) && "failed set must not restore anything");
+  StubMaskSetFails() = false;
   return 0;
 }
 '''
@@ -158,8 +203,13 @@ int main() {
             (root / 'qos/qos.h').write_text(
                 'typedef enum { QOS_DEFAULT=0, QOS_USER_INITIATED=2, QOS_USER_INTERACTIVE=3 } QoS_Level;\n'
                 'inline QoS_Level& StubQos(){ static QoS_Level v = QOS_DEFAULT; return v; }\n'
-                'inline int OH_QoS_GetThreadQoS(QoS_Level* level){ *level = StubQos(); return 0; }\n'
-                'inline int OH_QoS_SetThreadQoS(QoS_Level level){ StubQos() = level; return 0; }\n'
+                'inline bool& StubQosGetFails(){ static bool v = false; return v; }\n'
+                'inline bool& StubQosSetFails(){ static bool v = false; return v; }\n'
+                'inline int& StubQosSetCalls(){ static int v = 0; return v; }\n'
+                'inline int OH_QoS_GetThreadQoS(QoS_Level* level){ if (StubQosGetFails()) return -1;'
+                ' *level = StubQos(); return 0; }\n'
+                'inline int OH_QoS_SetThreadQoS(QoS_Level level){ ++StubQosSetCalls();'
+                ' if (StubQosSetFails()) return -1; StubQos() = level; return 0; }\n'
                 'inline int OH_QoS_ResetThreadQoS(){ StubQos() = QOS_DEFAULT; return 0; }\n')
             (root / 'sched.h').write_text(
                 '#pragma once\n#include <cstddef>\n'
@@ -169,14 +219,242 @@ int main() {
                 'inline void CPU_SET(int cpu, cpu_set_t* s){ s->bits[cpu/8] |= (unsigned char)(1u<<(cpu%8)); }\n'
                 'inline int CPU_ISSET(int cpu, const cpu_set_t* s){ return (s->bits[cpu/8]>>(cpu%8))&1u; }\n'
                 'inline cpu_set_t& StubMask(){ static cpu_set_t m{}; return m; }\n'
-                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ *s = StubMask(); return 0; }\n'
-                'inline int sched_setaffinity(int,size_t,const cpu_set_t* s){ StubMask() = *s; return 0; }\n')
+                'inline bool& StubMaskGetFails(){ static bool v = false; return v; }\n'
+                'inline bool& StubMaskSetFails(){ static bool v = false; return v; }\n'
+                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ if (StubMaskGetFails()) return -1;'
+                ' *s = StubMask(); return 0; }\n'
+                'inline int sched_setaffinity(int,size_t,const cpu_set_t* s){ if (StubMaskSetFails()) return -1;'
+                ' StubMask() = *s; return 0; }\n')
             source = root / 'scheduling.cpp'
             binary = root / 'scheduling'
             source.write_text(program)
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(root),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
+
+    def test_load_arguments_parse_threads_and_scheduling_together(self):
+        # The caller always passes (resourceManager, threads, scheduling), so a
+        # parser that only reads threads at exactly two arguments silently drops
+        # the public SpeakerDiarizationConfig.numThreads. Run the production
+        # Queue() against NAPI stubs and inspect the Work it builds.
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source_text = (CPP / 'community_diarization.cpp').read_text()
+        marker = source_text.index('// The engine-wide scheduling request')
+        ohos_if = source_text.rindex('#if defined(__OHOS__)', 0, marker)
+        constants = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):ohos_if]
+        ohos_body = source_text[source_text.index('namespace {', ohos_if):
+                                source_text.index('#else', marker)]
+        optional_string = source_text[source_text.index('std::string OptionalString('):
+                                      source_text.index('\nvoid FloatProperty')]
+        work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
+        queue = source_text[source_text.index('napi_value Queue('):source_text.index('\nnapi_value Load(')]
+        program = r'''
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
+#include <cstring>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <sched.h>
+#include <qos/qos.h>
+struct Value { int kind = 0; long long integer = 0; const char* text = nullptr; };
+struct CallInfo { Value* const* args = nullptr; size_t count = 0; };
+namespace {
+using napi_env = void*;
+using napi_value = Value*;
+using napi_ref = void*;
+using napi_deferred = void*;
+using napi_async_work = void*;
+using napi_callback_info = CallInfo*;
+using napi_status = int;
+using napi_typedarray_type = int;
+constexpr int napi_ok = 0;
+constexpr int napi_uint8_array = 1, napi_float32_array = 2, napi_float64_array = 3;
+constexpr size_t NAPI_AUTO_LENGTH = 0;
+void* g_pending = nullptr;
+bool g_queue_failed = false;
+int g_throw_calls = 0;
+int napi_get_cb_info(napi_env, napi_callback_info info, size_t* argc, napi_value* argv,
+                     napi_value*, void*) {
+  size_t n = std::min(*argc, info->count);
+  for (size_t i = 0; i < n; ++i) argv[i] = info->args[i];
+  *argc = info->count;
+  return napi_ok;
+}
+int napi_get_value_int32(napi_env, napi_value value, int32_t* out) {
+  if (value == nullptr || value->kind != 1) return 1;
+  *out = static_cast<int32_t>(value->integer);
+  return napi_ok;
+}
+int napi_get_value_double(napi_env, napi_value, double* out) { *out = 0; return napi_ok; }
+int napi_get_value_uint32(napi_env, napi_value, uint32_t* out) { *out = 0; return napi_ok; }
+int napi_get_value_bool(napi_env, napi_value, bool* out) { *out = true; return napi_ok; }
+int napi_get_value_string_utf8(napi_env, napi_value value, char* buffer, size_t size,
+                               size_t* written) {
+  if (value == nullptr || value->kind != 2) return 1;
+  const size_t length = std::strlen(value->text);
+  if (buffer == nullptr) { *written = length; return napi_ok; }
+  const size_t copied = std::min(size - 1, length);
+  std::memcpy(buffer, value->text, copied);
+  buffer[copied] = '\0';
+  *written = copied;
+  return napi_ok;
+}
+int napi_create_reference(napi_env, napi_value, uint32_t, napi_ref* ref) {
+  *ref = reinterpret_cast<void*>(1); return napi_ok;
+}
+int napi_delete_reference(napi_env, napi_ref) { return napi_ok; }
+int napi_create_promise(napi_env, napi_deferred* deferred, napi_value* promise) {
+  static Value value;
+  *deferred = reinterpret_cast<void*>(1);
+  *promise = &value;
+  return napi_ok;
+}
+int napi_create_string_utf8(napi_env, const char*, size_t, napi_value* out) {
+  static Value value; *out = &value; return napi_ok;
+}
+int napi_create_async_work(napi_env, napi_value, napi_value, void (*)(napi_env, void*),
+                           void (*)(napi_env, napi_status, void*), void* data,
+                           napi_async_work* handle) {
+  g_pending = data; *handle = reinterpret_cast<void*>(1); return napi_ok;
+}
+int napi_queue_async_work(napi_env, napi_async_work) { return g_queue_failed ? 1 : napi_ok; }
+int napi_delete_async_work(napi_env, napi_async_work) { return napi_ok; }
+int napi_reject_deferred(napi_env, napi_deferred, napi_value) { return napi_ok; }
+int napi_throw_error(napi_env, const char*, const char*) { ++g_throw_calls; return napi_ok; }
+void Execute(napi_env, void*) {}
+void Complete(napi_env, napi_status, void*) {}
+struct NativeResourceManager {};
+NativeResourceManager* OH_ResourceManager_InitNativeResourceManager(napi_env, napi_value) {
+  static NativeResourceManager manager; return &manager;
+}
+void OH_ResourceManager_ReleaseNativeResourceManager(NativeResourceManager*) {}
+enum class Operation { Load, Process, Cluster };
+struct Model {}; struct Window {};
+template <typename T> std::vector<T> CopyArray(napi_env, napi_value, napi_typedarray_type) {
+  return std::vector<T>();
+}
+std::mutex model_mutex;
+std::unordered_map<uint32_t, std::shared_ptr<Model>> models;
+uint32_t next_handle = 1;
+''' + constants + ohos_body + optional_string + work + queue + r'''
+Work* Run(Operation operation, bool from_resources, Value* values, size_t count) {
+  g_pending = nullptr; g_throw_calls = 0;
+  Value* slots[10] = {};
+  for (size_t index = 0; index < count; ++index) slots[index] = &values[index];
+  CallInfo info{slots, count};
+  napi_value result = Queue(nullptr, &info, operation, from_resources);
+  (void)result;
+  return static_cast<Work*>(g_pending);
+}
+}  // namespace
+int main() {
+  Value values[7] = {};
+  for (int index = 0; index < 7; ++index) {
+    values[index].kind = 1;
+    values[index].integer = 9;
+  }
+  Value threads, scheduling;
+  threads.kind = 1;
+  scheduling.kind = 2;
+
+  values[0].kind = 0;                       // resource manager handle
+  threads.integer = 2;
+
+  // One argument keeps the documented default.
+  Work* work = Run(Operation::Load, true, values, 1);
+  assert(work != nullptr && work->encoder_threads == kDefaultEncoderThreads);
+  assert(work->scheduling.qos < 0 && work->scheduling.cpu_ids.empty());
+  delete work;
+
+  // Two arguments carry the budget.
+  values[1] = threads;
+  work = Run(Operation::Load, true, values, 2);
+  assert(work != nullptr && work->encoder_threads == 2);
+  assert(work->scheduling.qos < 0 && work->scheduling.cpu_ids.empty());
+  delete work;
+
+  // Three arguments carry the budget AND the scheduling request. This is the
+  // shape every Harmony caller uses, empty request included.
+  scheduling.text = "";
+  values[2] = scheduling;
+  work = Run(Operation::Load, true, values, 3);
+  assert(work != nullptr && work->encoder_threads == 2 && "threads must survive a third argument");
+  assert(work->scheduling.qos < 0 && work->scheduling.cpu_ids.empty());
+  delete work;
+
+  scheduling.text = "AmphionQos=user-initiated;AmphionCpuIds=4,5";
+  values[2] = scheduling;
+  threads.integer = 3;
+  values[1] = threads;
+  work = Run(Operation::Load, true, values, 3);
+  assert(work != nullptr && work->encoder_threads == 3);
+  assert(work->scheduling.qos == QOS_USER_INITIATED);
+  assert(work->scheduling.cpu_ids.size() == 2 && work->scheduling.cpu_ids[0] == 4);
+  delete work;
+
+  // A malformed budget must be reported, not replaced by the default.
+  values[1].kind = 0;
+  assert(Run(Operation::Load, true, values, 2) == nullptr && g_throw_calls == 1);
+
+  // The asset path keeps the same rule at five, six and seven arguments.
+  values[1].kind = 1; values[1].integer = 2;
+  values[5] = threads;
+  values[6] = scheduling;
+  work = Run(Operation::Load, false, values, 5);
+  assert(work != nullptr && work->encoder_threads == kDefaultEncoderThreads);
+  delete work;
+  work = Run(Operation::Load, false, values, 6);
+  assert(work != nullptr && work->encoder_threads == 3);
+  assert(work->scheduling.qos < 0);
+  delete work;
+  work = Run(Operation::Load, false, values, 7);
+  assert(work != nullptr && work->encoder_threads == 3 && "threads must survive a seventh argument");
+  assert(work->scheduling.qos == QOS_USER_INITIATED && work->scheduling.cpu_ids.size() == 2);
+  delete work;
+  return 0;
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'qos').mkdir()
+            (root / 'qos/qos.h').write_text(
+                'typedef enum { QOS_DEFAULT=0, QOS_USER_INITIATED=2, QOS_USER_INTERACTIVE=3 } QoS_Level;\n'
+                'inline int OH_QoS_GetThreadQoS(QoS_Level* level){ *level = QOS_DEFAULT; return 0; }\n'
+                'inline int OH_QoS_SetThreadQoS(QoS_Level){ return 0; }\n'
+                'inline int OH_QoS_ResetThreadQoS(){ return 0; }\n')
+            (root / 'sched.h').write_text(
+                '#pragma once\n#include <cstddef>\n'
+                '#define CPU_SETSIZE 1024\n'
+                'typedef struct { unsigned char bits[CPU_SETSIZE/8]; } cpu_set_t;\n'
+                'inline void CPU_ZERO(cpu_set_t* s){ for (size_t i=0;i<sizeof(s->bits);++i) s->bits[i]=0; }\n'
+                'inline void CPU_SET(int, cpu_set_t*) {}\n'
+                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ CPU_ZERO(s); return 0; }\n'
+                'inline int sched_setaffinity(int,size_t,const cpu_set_t*){ return 0; }\n')
+            source = root / 'queue.cpp'
+            binary = root / 'queue'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O1', '-I', str(root),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
+    def test_platform_headers_are_included_outside_every_namespace(self):
+        # Including <sched.h>/<qos/qos.h> from inside an anonymous namespace is
+        # ill-formed. The compile tests paste their own includes first, so only a
+        # structural check can catch a regression here.
+        text = (CPP / 'community_diarization.cpp').read_text()
+        first_namespace = text.index('namespace {')
+        for header in ('#include <sched.h>', '#include <qos/qos.h>'):
+            self.assertLess(text.index(header), first_namespace,
+                            f'{header} must precede the first namespace')
 
     def test_encoder_features_and_run_vectors_belong_to_one_window(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
