@@ -1,6 +1,6 @@
 import { DiarizationPcmSpool } from './DiarizationPcmSpool';
 import { DiarizationEvidence, DiarizationEvidenceSpool } from './DiarizationEvidenceSpool';
-import { CommunityDiarizationInference, CommunityDiarizationWindow, CommunityDiarizationCluster } from 'amphion_asr';
+import { CommunityDiarizationInference, CommunityDiarizationWindow, CommunityDiarizationCluster, AsrSchedulingConfig } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
 import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './DiarizationWindowScheduler';
@@ -52,6 +52,12 @@ export interface SpeakerDiarizationLocalClientOptions {
   maxPendingJobs?: number;
   /** Community encoder worker budget in [1, 8]; independent of the ASR threads. */
   encoderThreads?: number;
+  /**
+   * Engine-wide scheduling request (qos and CPU affinity) for the role path. The
+   * encoder owns a compute pool of its own, so the recognizer's policy does not
+   * reach it unless it is forwarded here.
+   */
+  scheduling?: AsrSchedulingConfig;
 }
 
 /**
@@ -99,7 +105,7 @@ export class SpeakerDiarizationLocalClient {
     // the public config value; this fallback only covers direct construction.
     this.encoderThreads = options?.encoderThreads ??
       CommunityDiarizationInference.DEFAULT_THREADS;
-    this.inference = new CommunityDiarizationInference(this.encoderThreads);
+    this.inference = new CommunityDiarizationInference(this.encoderThreads, options?.scheduling);
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;

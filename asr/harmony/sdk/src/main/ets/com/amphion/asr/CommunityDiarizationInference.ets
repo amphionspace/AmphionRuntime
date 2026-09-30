@@ -2,6 +2,7 @@ import {
   loadCommunityDiarizationResources, processCommunityDiarization,
   clusterCommunityDiarization, closeCommunityDiarization, CommunityDiarizationWindow
 } from 'libamphion_asr.so';
+import { AsrSchedulingConfig, asrSchedulingTokens } from './AsrSchedulingConfig';
 
 export interface CommunityDiarizationCluster {
   speakerCount: number;
@@ -29,18 +30,22 @@ export class CommunityDiarizationInference {
   private handle?: number;
   private closed: boolean = false;
   private readonly encoderThreads: number;
+  private readonly scheduling: string;
 
-  constructor(encoderThreads: number = CommunityDiarizationInference.DEFAULT_THREADS) {
+  constructor(encoderThreads: number = CommunityDiarizationInference.DEFAULT_THREADS,
+    scheduling?: AsrSchedulingConfig) {
     if (!Number.isInteger(encoderThreads) || encoderThreads < 1 ||
       encoderThreads > CommunityDiarizationInference.MAX_THREADS) {
       throw new Error('Community encoder threads must be an integer in [1, 8]');
     }
     this.encoderThreads = encoderThreads;
+    this.scheduling = asrSchedulingTokens(scheduling);
   }
 
   async load(context: Context): Promise<void> {
     if (this.closed) throw new Error('Community inference is closed');
-    const handle = await loadCommunityDiarizationResources(context.resourceManager, this.encoderThreads);
+    const handle = await loadCommunityDiarizationResources(context.resourceManager,
+      this.encoderThreads, this.scheduling);
     if (this.closed) { closeCommunityDiarization(handle); return; }
     this.handle = handle;
   }

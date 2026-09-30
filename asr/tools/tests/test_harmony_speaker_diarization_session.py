@@ -151,9 +151,14 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("this.inference.load(context)", client)
         inference = (CORE_DIARIZATION.parent / "CommunityDiarizationInference.ets").read_text()
         self.assertIn("context.resourceManager", inference)
-        # The encoder owns a pthread pool of its own, so the budget has to reach
-        # the model load explicitly instead of being implied by the ASR threads.
-        self.assertIn("loadCommunityDiarizationResources(context.resourceManager, this.encoderThreads)", inference)
+        # The encoder owns a pthread pool of its own, so the budget and the
+        # engine-wide scheduling request have to reach the model load explicitly
+        # instead of being implied by the ASR recognizer's own policy.
+        self.assertIn("loadCommunityDiarizationResources(context.resourceManager,\n"
+                      "      this.encoderThreads, this.scheduling)", inference)
+        self.assertIn("this.scheduling = asrSchedulingTokens(scheduling);", inference)
+        self.assertIn("new CommunityDiarizationInference(this.encoderThreads, options?.scheduling)", client)
+        self.assertIn("scheduling: this.params.scheduling", adapter)
         self.assertIn("includeFrameHard", inference)
         self.assertNotIn("NetworkKit", client)
         self.assertNotIn("http.createHttp", client)

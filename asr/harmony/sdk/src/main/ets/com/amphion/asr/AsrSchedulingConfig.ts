@@ -39,3 +39,17 @@ export function asrCpuProvider(disablePrepack: boolean, source?: AsrSchedulingCo
   if (!config.allowSpinning) provider += ';AmphionAllowSpinning=0';
   return provider;
 }
+
+/**
+ * The same request without the recognizer's provider prefix, for a second model
+ * that owns its own compute pool. Only qos and cpuIds can be honoured there:
+ * `allowSpinning` governs the recognizer's ORT pool, while the role encoder runs
+ * on XNNPACK's own pthread pool whose idle spin it cannot reach.
+ */
+export function asrSchedulingTokens(source?: AsrSchedulingConfig): string {
+  const config = snapshotAsrScheduling(source);
+  const tokens: string[] = [];
+  if (config.qos !== 'default') tokens.push(`AmphionQos=${config.qos}`);
+  if (config.cpuIds.length > 0) tokens.push(`AmphionCpuIds=${config.cpuIds.join(',')}`);
+  return tokens.join(';');
+}
