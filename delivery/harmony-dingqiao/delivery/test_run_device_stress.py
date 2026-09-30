@@ -244,6 +244,23 @@ class CorpusPreconditionsTest(unittest.TestCase):
         with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst", "--allow-screen-off"]):
             self.assertTrue(MODULE.parse_args().allow_screen_off)
 
+    def test_hold_mic_capture_is_wired_end_to_end(self):
+        # Without a live capture the system can treat the file-fed carrier as idle and
+        # stop scheduling it, which would make any screen-off measurement meaningless.
+        script = SCRIPT.read_text()
+        entry = (SCRIPT.parents[1]
+                 / "samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets").read_text()
+        carrier = CARRIER.read_text()
+        self.assertIn('"--ps", "stressHoldMicCapture"', script)
+        self.assertIn("'stressHoldMicCapture'", entry)
+        self.assertIn("if (options.holdMicCapture) await this.startMicHold();", entry)
+        self.assertIn("await this.stopMicHold();", entry)
+        self.assertIn("holdMicCapture: boolean = false;", carrier)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst"]):
+            self.assertFalse(MODULE.parse_args().hold_mic_capture)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst", "--hold-mic-capture"]):
+            self.assertTrue(MODULE.parse_args().hold_mic_capture)
+
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:
             short = self.source(directory, "short.wav", 55 * 320)

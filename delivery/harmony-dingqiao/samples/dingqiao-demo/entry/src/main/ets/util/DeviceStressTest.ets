@@ -82,6 +82,13 @@ export class DeviceStressOptions {
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
   diarizationNumThreads: number = 4;
+  /**
+   * Hold a live microphone capture for the whole run. A customer recording app
+   * keeps an active capture session while the screen is off; this carrier feeds
+   * PCM from a file, so without a real capture the system sees no audio activity
+   * and can suspend the process. Captured frames are discarded.
+   */
+  holdMicCapture: boolean = false;
 }
 
 class CorpusEntry {
