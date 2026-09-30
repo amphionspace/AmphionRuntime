@@ -44,6 +44,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly commitClock: DiarizationCommitClock;
   private readonly identities: CommunitySpeakerIdentity;
   private readonly windows: DiarizationEvidenceWindow[] = [];
+  /** Whole-window activity per retained window, folded in once. Indexed as `windows`. */
+  private readonly windowActivity: number[][] = [];
   private readonly observer: SpeakerDiarizationSessionObserver;
   private readonly maxSpeakers: number;
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
@@ -363,15 +365,35 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const embeddings = evidence.embeddings;
       const activity: number[] = new Array<number>(available.length * 3).fill(0);
       const publishedActivity: number[] = new Array<number>(available.length * 3).fill(0);
+      // A window's whole-window activity is a fixed property of that window's own
+      // segmentation evidence, so fold each window in once and reuse it. Only the
+      // public interval has to be re-derived per call, and a window whose frame
+      // centres all fall outside that interval contributes exactly zero.
       for (let index = 0; index < available.length; index++) {
-        for (let frame = 0; frame < 589; frame++) {
-          const frameTime = (available[index].windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
-          for (let channel = 0; channel < 3; channel++) {
-            const value = segments[(index * 589 + frame) * 3 + channel];
-            activity[index * 3 + channel] += value;
-            if (frameTime >= beginTime && frameTime < endTime) {
-              publishedActivity[index * 3 + channel] += value;
+        let summed = this.windowActivity[index];
+        if (summed === undefined) {
+          summed = [0, 0, 0];
+          for (let frame = 0; frame < 589; frame++) {
+            for (let channel = 0; channel < 3; channel++) {
+              summed[channel] += segments[(index * 589 + frame) * 3 + channel];
             }
+          }
+          this.windowActivity[index] = summed;
+        }
+        activity[index * 3] = summed[0];
+        activity[index * 3 + 1] = summed[1];
+        activity[index * 3 + 2] = summed[2];
+      }
+      for (let index = 0; index < available.length; index++) {
+        const start = available[index].windowStartSample;
+        const firstFrameTime = (start + 495.5) * 1000 / SAMPLE_RATE;
+        const lastFrameTime = (start + 495.5 + 588 * 270) * 1000 / SAMPLE_RATE;
+        if (lastFrameTime < beginTime || firstFrameTime >= endTime) continue;
+        for (let frame = 0; frame < 589; frame++) {
+          const frameTime = (start + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
+          if (frameTime < beginTime || frameTime >= endTime) continue;
+          for (let channel = 0; channel < 3; channel++) {
+            publishedActivity[index * 3 + channel] += segments[(index * 589 + frame) * 3 + channel];
           }
         }
       }
