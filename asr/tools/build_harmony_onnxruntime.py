@@ -16,6 +16,11 @@ REPO = Path(__file__).resolve().parents[2]
 ORT_COMMIT = "2ac381c55397dffff327cc6efecf6f95a70f90a1"  # v1.16.3
 EIGEN_COMMIT = "e7248b26a1ed53fa030c5c459f7ea095dfd276ac"
 PATCH = REPO / "third_party/patches/onnxruntime-amphion/0001-ohos-bounded-worker-spin.patch"
+# CMake fetches pthreadpool into the build tree, so its spin bound is a separate
+# patch applied between configure and compile.
+POOL_PATCH = (REPO / "third_party/patches/onnxruntime-amphion"
+              / "0002-bound-xnnpack-pool-idle-spin.patch")
+POOL_SPIN_MARKER = "#define PTHREADPOOL_SPIN_WAIT_ITERATIONS 4096"
 FLAGS = REPO / "asr/tools/harmony_onnxruntime_flags.cmake"
 
 
@@ -45,6 +50,26 @@ def checkout(path, url, commit):
 
 def source_diff(source):
     return run("git", "diff", "--binary", "HEAD", cwd=source, capture=True)
+
+
+def apply_pool_patch(build):
+    """Bound the XNNPACK pool's idle spin in the fetched pthreadpool source.
+
+    The CMake configure step downloads pthreadpool into the build tree, so the
+    patch is applied after that step and before anything is compiled. Success is
+    judged from the patched source rather than from the patch exit status, so a
+    rebuilt tree stays correct and re-running is a no-op.
+    """
+    source = build / "_deps/pthreadpool-src"
+    header = source / "src/threadpool-common.h"
+    if not header.is_file():
+        raise RuntimeError(f"pthreadpool source missing after configure: {header}")
+    if POOL_SPIN_MARKER in header.read_text():
+        return False
+    run("patch", "-p1", "--forward", "--input", POOL_PATCH, cwd=source)
+    if POOL_SPIN_MARKER not in header.read_text():
+        raise RuntimeError(f"pthreadpool spin bound was not applied: {header}")
+    return True
 
 
 def main():
@@ -117,6 +142,9 @@ def main():
         f"-DPYTHON_EXECUTABLE={sys.executable}", f"-DONNX_CUSTOM_PROTOC_EXECUTABLE={protoc}",
         "-Dprotobuf_BUILD_PROTOC_BINARIES=OFF", "-DFLATBUFFERS_BUILD_FLATC=OFF",
         cwd=source)  # ORT derives its embedded Git identity from the working directory.
+    # The role encoder runs one window per second, so its pool sits idle between
+    # windows; the upstream spin loop burns CPU there without producing results.
+    apply_pool_patch(build)
     run(cmake, "--build", build, "--target", "onnxruntime", "--parallel", "4")
     if source_diff(source) != PATCH.read_bytes():
         raise RuntimeError("ORT source changed during the build")
@@ -132,6 +160,10 @@ def main():
         "compiler": run(sdk / "llvm/bin/clang++", "--version", capture=True).decode().strip(),
         "workerSpinLog2": 14,
         "parallelCompletionWait": "mutex-predicate-notification",
+        # apply_pool_patch raises unless the bound is in place, so this records the
+        # verified state of the source that was compiled, not just the request.
+        "xnnpackPoolSpinIterations": 4096,
+        "xnnpackPoolSpinPatchSha256": sha256(POOL_PATCH),
         "compiledExecutionProviders": ["CPU", "XNNPACK"],
     }
     output.with_suffix(".provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
