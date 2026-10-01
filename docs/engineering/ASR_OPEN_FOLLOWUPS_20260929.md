@@ -18,8 +18,8 @@
 
 | 项目 | 当前工作 | 尚未满足的完成条件 |
 | --- | --- | --- |
-| 普通口语“这这”误改为“浙J” | [#243](https://github.com/amphionspace/AmphionRuntime/pull/243)：两端只在完整车牌可解析时替换；原用例红灯，Harmony 803 例通过，Android Debug/Release 各 518 通过、2 项原有跳过。 | 当前 HEAD CI 已通过；仍需 Harmony 平台构建及相关 SDK 调用方验证，不能仅凭主机测试宣称已交付。 |
-| Android CT 空格对齐 | [#244](https://github.com/amphionspace/AmphionRuntime/pull/244)：同步 Harmony 的中英空格/标点替代规则，保留英文粘连和无 provenance 改词时的 UNKNOWN。旧实现红灯，Debug/Release 各 130 项及 Release AAR 通过。 | 当前 HEAD CI 已通过，仍需真实调用方验证。此项不涵盖下面的完整 Android 差异。 |
+| 普通口语“这这”误改为“浙J” | [#243](https://github.com/amphionspace/AmphionRuntime/pull/243)：两端只在完整车牌可解析时替换；原用例红灯，Harmony 803 例通过，Android Debug/Release 各 518 通过、2 项原有跳过。2026-09-29 补齐门禁：Mate80 真机在 `219075d9` 跑完 API 23 内容检查（4 个 HAR）与 10 段输入，raw 文本与声学轮次同基线一致，只出现 3 处预期回退、0 处意外改动、无 span 字符为 0；主机差分 44,956 条语料的 4,802 处变化全部为纯回退，20,160 例车牌召回 0 丢失。报告见该 PR 的 `docs/speaker/DIARIZATION_PLATE_CONTEXT_DEVICE_20260929.md`。 | 门禁已完成，待该 PR 合入后本行转入上表。通用冒烟仍因设备缺少 RECORD_AUDIO 权限失败，属既有问题，不构成本项结论，也不替代 D1 的界面验收。 |
+| Android CT 空格对齐 | [#244](https://github.com/amphionspace/AmphionRuntime/pull/244)：同步 Harmony 的中英空格/标点替代规则，保留英文粘连和无 provenance 改词时的 UNKNOWN。旧实现红灯，Debug/Release 各 130 项及 Release AAR 通过。2026-09-29 补齐调用方验证：真机 A/B（`acf477c2` 对 `c27faac5`，相同忽略构建输入）三段定向输入均未降级，声学轮次与最终结果逐项一致，9 句中 7 句由 -1 变为具名角色。报告见该 PR 的 `docs/speaker/DIARIZATION_ANDROID_TEXT_ALIGNMENT_20260929.md`。 | 调用方验证已完成，待该 PR 合入后本行转入上表。剩余 2 句已定位且与对齐无关：一句的覆盖声学轮次本身是 UNKNOWN，另一句命中既有 overlap 规则并受 A1 影响。验证设备算力低，超过约 20 s 的输入两端都 FINISH_TIMEOUT，性能以 Mate80 为准，本项不给性能结论。此项仍不涵盖下面的完整 Android 差异。 |
 
 ## 仍需实施或裁定的项目
 
@@ -50,5 +50,5 @@
 
 - 精度、文字归属：[UNKNOWN 回退报告](../speaker/DIARIZATION_UNKNOWN_FALLBACK_20260928.md)、[文字归属报告](../speaker/DIARIZATION_SPEAKER_SPAN_PROVENANCE_20260928.md)及其 `docs/speaker/evidence/` 哈希索引。
 - 本轮主线合入证据位于 `~/.cache/amphion-runtime/pr-completion-20260929/` 的各 PR 目录；失败调用及无效载体现场保留。原始 PCM、完整转写、embedding、私钥和授权文件不提交。
-- 先完成 #243/#244 各自门禁，再按 A1/A2 做独立根因与修复；Q1/Q2、R1/R2 先复用现有证据定位。D1 在最终产物冻结后执行，不能为了补文档反复跑发布矩阵。
+- #243 的 Harmony 平台门禁与 #244 的调用方验证已于 2026-09-29 完成，证据分别在 `~/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/` 和 `pr244-android-20260929/`，两个 PR 仍待合入；接着按 A1/A2 做独立根因与修复；Q1/Q2、R1/R2 先复用现有证据定位。D1 在最终产物冻结后执行，不能为了补文档反复跑发布矩阵。
 - 此文档的检查只需链接/事实及差异核对。后续运行代码的测试按各项具体风险选择，不把清单视为已执行结果，也不以关闭本 PR 关闭未完成项。
