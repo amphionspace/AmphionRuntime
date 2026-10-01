@@ -160,7 +160,11 @@ class PlateNormalizerV2 private constructor(
         t = t.replace(Regex("建寨"), "晋J")
         t = t.replace(Regex("建债"), "晋J")
         t = t.replace(Regex("近债"), "晋J")
-        t = t.replace(Regex("这这"), "浙J")
+        val repeatedPrefixInput = t
+        t = t.replace(Regex("这这")) { match ->
+            val candidate = repeatedPrefixInput.replaceRange(match.range, "浙J")
+            if (tryMatchPlateAt(candidate, match.range.first) != null) "浙J" else match.value
+        }
         // 北京纯数字尾真人复测
         t = t.replace(Regex("(?<![A-HJ-NP-Z])京(?=49372)"), "京R")
         t = t.replace(Regex("(经|金)债\\s*95376"), "京J95376")

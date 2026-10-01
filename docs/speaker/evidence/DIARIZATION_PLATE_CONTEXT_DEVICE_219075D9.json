@@ -1,0 +1,745 @@
+{
+  "status": "HARMONY_DEVICE_GATE_PASSED",
+  "runtimeCommit": "219075d983c306287c62641819e0b2df37699776",
+  "comparedAgainst": {
+    "round": "span-provenance-20260928/round2",
+    "commit": "0a44add832f41d5e48b9404d9f8fd1aa1429764e"
+  },
+  "deviceComparison": {
+    "customer-main-four": {
+      "finals": 20,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "four-speaker-124s": {
+      "finals": 23,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "four-speaker-short": {
+      "finals": 4,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "single-speaker-unknown": {
+      "finals": 11,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "aishell4-2": {
+      "finals": 3,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "aishell4-3": {
+      "finals": 19,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 1,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 1,
+      "noSpanChars": 0
+    },
+    "aishell4-4": {
+      "finals": 25,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "alimeeting2": {
+      "finals": 21,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 0,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 0,
+      "noSpanChars": 0
+    },
+    "alimeeting3": {
+      "finals": 3,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 1,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 1,
+      "noSpanChars": 0
+    },
+    "alimeeting4": {
+      "finals": 3,
+      "rawSame": true,
+      "acousticTurnsSame": true,
+      "zheJReverted": 1,
+      "unexpectedTextChanges": [],
+      "utterancesChanged": 1,
+      "noSpanChars": 0
+    }
+  },
+  "reverts": {
+    "aishell4-3": [
+      {
+        "begin": 103180,
+        "old": "那这种情况，浙J这里怎么处理啊。",
+        "new": "那这种情况，这这这里怎么处理啊。"
+      }
+    ],
+    "alimeeting3": [
+      {
+        "begin": 30360,
+        "old": "这边的话，我们我们现在前段时间我们安排了人，还要让他们去了。嗯，这边的话我们呃正在努力的宣传。然后现在的话，这些难点就是目前来说不可能一下子功课，可能一下子功课，浙J个我也是可以理解的。嗯，但是还有吗？就是坏了之后，要是放在你的那些位置，是属于公共单公共自行车很少的地方，很少的地方，就是人们就是不会就是找那边有很多选择，我会观察一下自己车到底是好是坏，就是有时候可能就是扫了之后才发现那个自行车是坏的，然后就也没办法，然后就会全养父就那种。后来大学的这样的话，我们其实可以跟厂家大家协调一下，说开开锁之后大概多少的话，我们可以采取这种就不用付款，可以更好的便民哈。然后是还有什么还有没有什么别的问题嘞。",
+        "new": "这边的话，我们我们现在前段时间我们安排了人，还要让他们去了。嗯，这边的话我们呃正在努力的宣传。然后现在的话，这些难点就是目前来说不可能一下子功课，可能一下子功课，这这个我也是可以理解的。嗯，但是还有吗？就是坏了之后，要是放在你的那些位置，是属于公共单公共自行车很少的地方，很少的地方，就是人们就是不会就是找那边有很多选择，我会观察一下自己车到底是好是坏，就是有时候可能就是扫了之后才发现那个自行车是坏的，然后就也没办法，然后就会全养父就那种。后来大学的这样的话，我们其实可以跟厂家大家协调一下，说开开锁之后大概多少的话，我们可以采取这种就不用付款，可以更好的便民哈。然后是还有什么还有没有什么别的问题嘞。"
+      }
+    ],
+    "alimeeting4": [
+      {
+        "begin": 1280,
+        "old": "因为都在年底年底的时候，各个部门结算呀，什么的都很忙，经常会加班时间就比较晚，这个无所谓啊，就只要定好一天，谁能参加，谁参加呃，参加不了，那是他自己的事儿。好吧，因为咱们有抽奖了，有各种活动，他不参加是他的事儿。然后但是首先是咱们不能选在那个周末，因为周末你给人算不上，加班人说我参加年会，那我是不是应该申请年班费，那我是不是应该很高兴？嗯，这个无形中增加了公司的负担？我觉得我如果工作日还还得去，我浙J太亏了是吧？但是还有一点，你这个年会本身，其实某种程度上是对员工的一种福利。人家部门如果必须要加班，就是去不了，不是个人原因，那怎么办？我也不去啊，就是年会就是这样，就是大家定好的时间能去就去，不能这个可以协调。这个可以就是提前调查。好，大家哪天参加的人最多就定哪天不不，这个我们干过这种事儿，就是不要调查。越调查。今天说这个我有事，那个说那个我有事没有，一天是大家都能就是定好一天能去的，自己协调，不能去自己看着办，就是这样一定就是领导定好的就可以。就是如果是要保证员工的利益的话，咱们还是就工作日比较合适，对吧？因为员工大部分都愿意工作日去参加公司的活动。因为他周末他想我有自己的事儿，那我为什么要参加年会？那您能保证我都抽上奖，还是能保证我能干什么？所以最好的工作是这样，省事儿大家没去的同事可以有安慰下工作日有没有可能。比如说星期五这个特殊的工作日，他就是即将到周末了，但他也是工作日，那全部我们都是提前下班。嗯嗯，那工那就是如果定在工作日的话，就是下班儿的时候去是吗？对呀，或者中午你提前去提前下班儿，比如说你六点下班儿，然后可以允许员工4 . 4点。如果组织筹委会的同事，那你可能两三点就得接了。大家提醒工作提前就加点加点班，提前赶出来就负责这个年会的，就是可以早点到场地，这是肯定的。他们可能上午就得到。因为你为了想让他玩嗨了或者怎么样的，你最好第二天还是赶上周六，然后你没有很第二天你没必要把他见客户，没必要去出出外勤，就想着明天的事情。对，嗯，这样能放松一些。嗯，大家都是觉得就是周五比较合适是吧？嗯嗯，周五，然后这个周五呢，你是定到12月份嘛，还是年会。对，年前还是年后，我看看这个，它这个就很明白，你看周五，你看咱们也得年会，一般都是12月靠后中学的时候，估计也就是18号那个周五还可以，你后面就没办法定了圣诞节，然后再后面就开始新年，而且工作量也大好点，就是下个月结尾的工作。",
+        "new": "因为都在年底年底的时候，各个部门结算呀，什么的都很忙，经常会加班时间就比较晚，这个无所谓啊，就只要定好一天，谁能参加，谁参加呃，参加不了，那是他自己的事儿。好吧，因为咱们有抽奖了，有各种活动，他不参加是他的事儿。然后但是首先是咱们不能选在那个周末，因为周末你给人算不上，加班人说我参加年会，那我是不是应该申请年班费，那我是不是应该很高兴？嗯，这个无形中增加了公司的负担？我觉得我如果工作日还还得去，我这这太亏了是吧？但是还有一点，你这个年会本身，其实某种程度上是对员工的一种福利。人家部门如果必须要加班，就是去不了，不是个人原因，那怎么办？我也不去啊，就是年会就是这样，就是大家定好的时间能去就去，不能这个可以协调。这个可以就是提前调查。好，大家哪天参加的人最多就定哪天不不，这个我们干过这种事儿，就是不要调查。越调查。今天说这个我有事，那个说那个我有事没有，一天是大家都能就是定好一天能去的，自己协调，不能去自己看着办，就是这样一定就是领导定好的就可以。就是如果是要保证员工的利益的话，咱们还是就工作日比较合适，对吧？因为员工大部分都愿意工作日去参加公司的活动。因为他周末他想我有自己的事儿，那我为什么要参加年会？那您能保证我都抽上奖，还是能保证我能干什么？所以最好的工作是这样，省事儿大家没去的同事可以有安慰下工作日有没有可能。比如说星期五这个特殊的工作日，他就是即将到周末了，但他也是工作日，那全部我们都是提前下班。嗯嗯，那工那就是如果定在工作日的话，就是下班儿的时候去是吗？对呀，或者中午你提前去提前下班儿，比如说你六点下班儿，然后可以允许员工4 . 4点。如果组织筹委会的同事，那你可能两三点就得接了。大家提醒工作提前就加点加点班，提前赶出来就负责这个年会的，就是可以早点到场地，这是肯定的。他们可能上午就得到。因为你为了想让他玩嗨了或者怎么样的，你最好第二天还是赶上周六，然后你没有很第二天你没必要把他见客户，没必要去出出外勤，就想着明天的事情。对，嗯，这样能放松一些。嗯，大家都是觉得就是周五比较合适是吧？嗯嗯，周五，然后这个周五呢，你是定到12月份嘛，还是年会。对，年前还是年后，我看看这个，它这个就很明白，你看周五，你看咱们也得年会，一般都是12月靠后中学的时候，估计也就是18号那个周五还可以，你后面就没办法定了圣诞节，然后再后面就开始新年，而且工作量也大好点，就是下个月结尾的工作。"
+      }
+    ]
+  },
+  "hostDifferential": {
+    "outputDiff": {
+      "base": "origin/main",
+      "corpus": {
+        "parity": 779,
+        "acceptance": 11788,
+        "device": 130,
+        "mutated": 26292,
+        "table": 5967
+      },
+      "corpusSha256": "54cfca8a5c6699cb4b0536a35f4e7c352d9ae62488edad8ad4ec2b904eef7ef1",
+      "compared": 44956,
+      "pipelineMismatches": 4802,
+      "standaloneCalls": 179824,
+      "standaloneMismatches": 4802,
+      "changed": 24622,
+      "withProvenance": 23949,
+      "wholeRecordOnly": 673,
+      "opaque": 0,
+      "invalidProvenance": 0,
+      "newSources": {
+        "PoliceAssets.ets": "5f9f9296866251bf662d41317da20f70573fb3bee2abc68294b9796d1802a5cb",
+        "PlateV2.ets": "aa3eeb8539a6d0a49a6254e69373f0b836f798f3be19372a53e22615b13a5d61",
+        "PoliceTermsV2.ets": "b08c18d4102913920631ed7e6403cf77c0bcb3f103082cf20ab0e3428a5d1722",
+        "PoliceStationV2.ets": "1391302280f63da367429e2f74d6bab184e2490688d22b720ab66952e1e1dff0",
+        "PersonNameMatcher.ts": "eee788c05358cffe3c80c6d282948c39ba6e7de76721b4610b4110aedeb05b03",
+        "PoliceTextTrace.ts": "728378e052b68b67aa980fae0435e3649c6ea7f47655410dfef271d5bfbd309a"
+      }
+    },
+    "classification": {
+      "note": "every pipeline mismatch is a pure 浙J->这这 revert",
+      "tool": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/span-provenance-20260928/police/classify_pr243.py",
+        "sha256": "6543c7ef74ebbf6dc4e49e2f4fdc468de7e0fdb166d30159dc77c3b5bad78b61",
+        "bytes": 1334
+      }
+    },
+    "plateRecall": {
+      "tool": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/span-provenance-20260928/police/pr243_plate_recall_8.py",
+        "sha256": "e860967d9c13adf7ed8c333b3e39391d58bab6691f34207bf26c4bfc2d82ca80",
+        "bytes": 4101
+      },
+      "report": {
+        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/span-provenance-20260928/police/pr243-recall.json",
+        "sha256": "01d973634b12f56d8436001f572b94e1aba48eb5d2abdb8e1117c5cb2aff73a9",
+        "bytes": 121
+      }
+    }
+  },
+  "parityCorpus": {
+    "cases": 803,
+    "status": "PASS"
+  },
+  "smokeFailure": {
+    "stage": "build_install_smoke engine readiness",
+    "reason": "device RECORD_AUDIO permission missing",
+    "preExisting": true,
+    "evidence": {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/sequence-1-smoke-mic-permission.done",
+      "sha256": "83bf9133c14997fc2e42720d7c223e2dcbd277841d9d6a43a43390d151a5a6c2",
+      "bytes": 13
+    }
+  },
+  "files": [
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/sequence.sh",
+      "sha256": "b3b095a24861ff93e41f3eb38be22e9ffb0129bb87b5cf974821288421992beb",
+      "bytes": 2537
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/continue.sh",
+      "sha256": "6ca7392331551f10200baaf6cd4c4624ace744cee1f76d13dcf283a37adfa1f1",
+      "bytes": 2040
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/build.log",
+      "sha256": "b1e9a4ac8179a5e56cf4e74e76982ad5feac80d22d2e225fe3a712b60497d105",
+      "bytes": 19813
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/identity.log",
+      "sha256": "cf44a0d06812012c549ecd2bfc6c65d1fc715d943f355dae02851ef3f08d7eec",
+      "bytes": 73
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/api23.log",
+      "sha256": "71403b6d87b80827971a8eb59f380fe5705311892f307adacf64304b375b9859",
+      "bytes": 570
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/build-identity.json",
+      "sha256": "1f4adc396befbd1a30a0903abf7f9e217c8b583dc0928ec23d0f23b3421cb10e",
+      "bytes": 3523
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/install-updateTime.txt",
+      "sha256": "b95ef3fe7284e5dcce01ad0f26f0b7e254e51ef3a4d85e01b58642fd3d9e09a8",
+      "bytes": 33
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/compare_round2.py",
+      "sha256": "025b76fa4b6a32239eebf22fc9996afa8d2d1dabaa674f4d7b1e9a7144eea7a1",
+      "bytes": 2526
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/compare-round2.json",
+      "sha256": "1435a6915b90c1b73d11600275e8e785e8ef678bcb60d64ade3ca215d5e5d106",
+      "bytes": 10323
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/unpack.py",
+      "sha256": "78aa24c948ef2cb485277884e55447a9e4e36f42c1be591ac212ee0be6468cc1",
+      "bytes": 959
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors.log",
+      "sha256": "f7584b9333f253764cd9e14db1d7799622cc514c0a8c11493dbc332f19e0c025",
+      "bytes": 984
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public.log",
+      "sha256": "5023972100e665d0829516d341a2cc6bb2665ce6a92028d567647292c80795dc",
+      "bytes": 1340
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/artifacts/amphion_asr.har",
+      "sha256": "2ca08678d9cb43f926aee27d70b62843b515a071d92299f7fe566a1b4db20cad",
+      "bytes": 7688407
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/artifacts/amphion_asr_demo.hap",
+      "sha256": "52d99c056b19e18fee165e94331451f77977f567fd4015c0fbb469b26a88bc92",
+      "bytes": 436899025
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/artifacts/amphion_dingqiao.har",
+      "sha256": "902a396a810cfa75fd53e13cbaedc401c3176882545af5ebaa2c3fae508c3b8e",
+      "bytes": 93077526
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/artifacts/amphion_police.har",
+      "sha256": "e42be177fb62580b40b2ccdab6b22e962c4fe59041831fcc2ce3e2fd8bd2a9ca",
+      "bytes": 30208279
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/artifacts/sherpa_onnx.har",
+      "sha256": "8996f505cae395b382d2ba33939bdb4c78a8aa08ea057366c807d1755cdee3cf",
+      "bytes": 7178289
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/api23/amphion_asr.json",
+      "sha256": "ebf82f3cea50b956940fb18e19a288e06cd440f457e9f9604ef68563971d3656",
+      "bytes": 5824
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/api23/amphion_dingqiao.json",
+      "sha256": "77c353109bfc7addf4465abf8bbdabab040edf7e184a480c6e0a7eba20a48daa",
+      "bytes": 7637
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/api23/amphion_police.json",
+      "sha256": "8d72a1f1b1ca1f3e4a5a34d6e57507cb9d8e9fef83c0d4be02213dccdffd00ed",
+      "bytes": 1311
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/api23/sherpa_onnx.json",
+      "sha256": "6c217db51e17593a4a2cada15e7385c74eb481fec19cd81590d0ecbf70029e06",
+      "bytes": 813
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/run.json",
+      "sha256": "54369593c060ab263a904f664f0fab4a4753c8a80b3f0f065038c7774119d4d1",
+      "bytes": 199
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/console.log",
+      "sha256": "ba0f18d2a37c02f1eb177da6b1afc70aa6fb6c1ad2b45d7c85f6d04e498e2e78",
+      "bytes": 578
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/collection.log",
+      "sha256": "317850f7e3ba73a0ba835434fa0405e5a23847c3c59103e6387e2fe92880d709",
+      "bytes": 330
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/device/20260929-135406-diarization-windows-64223878/report.json",
+      "sha256": "2efecd06f3664f47f4284e0285c4b8eff5a85539fff71e80dbbf12b3536c0290",
+      "bytes": 158558
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/device/20260929-135406-diarization-windows-64223878/hilog.txt",
+      "sha256": "d49ce543af014527f79162322c27d0c2dfb4d1c71db593ce831aab872372275b",
+      "bytes": 1085994
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/device/20260929-135406-diarization-windows-64223878/memory.csv",
+      "sha256": "ad3f0bc259c189b4bacf33dfc4e0d2e9ac0a3d899412ea7e6170d6822d99bcad",
+      "bytes": 8629
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/device/20260929-135406-diarization-windows-64223878/payload/corpus.json",
+      "sha256": "f43020dfcb4581df9a0a8c44f4203bbc9951b930411159d242dfdf1e2e526b7a",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/diagnostics/asr-diagnostics-20260929-135657.zip",
+      "sha256": "69cdc0cced6b009e9e6ed4a5c7a8e576f0632d153be6cb7a3db462557f0ceacb",
+      "bytes": 8414275
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/customer-main-four/diagnostics/unpacked/asr-diagnostics-20260929-135657/asr-diagnostics-20260929-135657/run-1790661250258/events.full.ndjson",
+      "sha256": "efb1ab5d4f9cd5f0b5769e70728d8f03152a012d3573d09653c6b7049999feed",
+      "bytes": 17967698
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/run.json",
+      "sha256": "7fb8d42a4028b7c3972a72f649ff985f91f926b1177f0485825f327095c44a22",
+      "bytes": 198
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/console.log",
+      "sha256": "ce9c20307b2dfedea662458a0eafaf3fa2f7d6f1d6e9c61687a4c3c895b6c37a",
+      "bytes": 578
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/collection.log",
+      "sha256": "f26a219cbf309267e634710946f5daa4026caa621b39823a5fa185e010dfb280",
+      "bytes": 328
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/device/20260929-135016-diarization-windows-555eb3ab/report.json",
+      "sha256": "a0f1f60e3c5b39146b86ac32be8265c7d48111f51ab88d9a6676ad7d400e19f5",
+      "bytes": 130253
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/device/20260929-135016-diarization-windows-555eb3ab/hilog.txt",
+      "sha256": "9651045a9ef31b5bc62b2877924bfe03202dda8ded6a4a081b57d09283665e59",
+      "bytes": 1082875
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/device/20260929-135016-diarization-windows-555eb3ab/memory.csv",
+      "sha256": "d45545094c56030a53b1d30cb7c7720b050aae8500dc6bc4ec7f2563c4545023",
+      "bytes": 6851
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/device/20260929-135016-diarization-windows-555eb3ab/payload/corpus.json",
+      "sha256": "1f0e23dc0160c8071fb93e69b9efe5c6d0c97250086cc93e7c0fd565f3d3071a",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/diagnostics/asr-diagnostics-20260929-135231.zip",
+      "sha256": "993f4f634ff10cf26809d4c6fa8d31030a34f096d73714880829d14a048a6830",
+      "bytes": 7586204
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-124s/diagnostics/unpacked/asr-diagnostics-20260929-135231/asr-diagnostics-20260929-135231/run-1790661019868/events.full.ndjson",
+      "sha256": "076bebf0b372ac4afc0b14e3aa615f3faaa5ab277fbf04fd56a9bbcb0c2e7c74",
+      "bytes": 13361598
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/run.json",
+      "sha256": "09b2b68d43a15658b19b15a9c87c6ed5393dc909cd4ea6c71e2144995962c075",
+      "bytes": 185
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/console.log",
+      "sha256": "8a694231cc582709fe8c729b5c146bdb4e9d9e88eecbed08c54fd4ed839f0dde",
+      "bytes": 556
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/collection.log",
+      "sha256": "9c1e5fa921fafdfd8b0cd42406a53d3695533fd59bd30f647601c1771a7fa802",
+      "bytes": 330
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/device/20260929-135234-paced-ea810305/report.json",
+      "sha256": "506d0d445d4282c2eaf6879c8752d3722ca462c57e0c4d6760d76823e420e44a",
+      "bytes": 24292
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/device/20260929-135234-paced-ea810305/hilog.txt",
+      "sha256": "70a08f9e5e67a40cf9b90bc187903c3f194f49d6ae8e8aa680ab08448ffa967c",
+      "bytes": 978307
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/device/20260929-135234-paced-ea810305/memory.csv",
+      "sha256": "05a730249b02b0dda1e5c2c51a3eb7dfdec8ce81a499c0af57c8f4fa6d3e631b",
+      "bytes": 1510
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/device/20260929-135234-paced-ea810305/payload/corpus.json",
+      "sha256": "b6d86e3ce477a3caa018dfffb9bae739432d4707f92e2762dbc82050485320e2",
+      "bytes": 357
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/diagnostics/asr-diagnostics-20260929-135303.zip",
+      "sha256": "fe827718c8685c84609b483ff04de9e49e858a8b6eea77118fcb2040386516c7",
+      "bytes": 969729
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/four-speaker-short/diagnostics/unpacked/asr-diagnostics-20260929-135303/asr-diagnostics-20260929-135303/run-1790661157776/events.full.ndjson",
+      "sha256": "28e233052c0cf5c6034cc2a3e71de16976072d399ad88166984ef72baf0207df",
+      "bytes": 1106925
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/run.json",
+      "sha256": "b8d6cf320a558a87d3a8a15a863c9c7c5050568aa940b53ad2da14229b967e86",
+      "bytes": 189
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/console.log",
+      "sha256": "2de1840d51eaedfb551035bd6ac9100f4b78d9f63c8d67c11056591bd58cf4ac",
+      "bytes": 561
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/collection.log",
+      "sha256": "2ed8d5d0ea6cd24e9ad660f4e032f645fa558c17eed65ebabe46a51356199d9d",
+      "bytes": 338
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/device/20260929-135306-paced-a58c1b3a/report.json",
+      "sha256": "5646987073f839337da74921aa784368bc0ff9369d8f40f0b84f42825bf38cb4",
+      "bytes": 46755
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/device/20260929-135306-paced-a58c1b3a/hilog.txt",
+      "sha256": "3a29d82495271cb14241d4b3c861ceb5d6c7094cf00e3e06880031ae4863bef6",
+      "bytes": 1091030
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/device/20260929-135306-paced-a58c1b3a/memory.csv",
+      "sha256": "246bc7977003c975dea80c8a4722104aacaffb398e8dd2ed45aac7edbea402fe",
+      "bytes": 2932
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/device/20260929-135306-paced-a58c1b3a/payload/corpus.json",
+      "sha256": "84b8d17dde2d547712f4e31825ab9273fd2b6c54fe5827a56deab16daf1df725",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/diagnostics/asr-diagnostics-20260929-135403.zip",
+      "sha256": "a5a1e6e0b7db929cb2de02c4070628230d5882f1862c15c0cfca1f4cc4d1ded8",
+      "bytes": 2397814
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/anchors/single-speaker-unknown/diagnostics/unpacked/asr-diagnostics-20260929-135403/asr-diagnostics-20260929-135403/run-1790661189457/events.full.ndjson",
+      "sha256": "c1bd05af15e8c53e8682d9a6e5c0a6aec3bd612c144c49be016a81dc835c387f",
+      "bytes": 3243422
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/run.json",
+      "sha256": "241ff6417c71be7ddab9b6c7e5df8f154f1ca8dead18394c4905995cd1cd6c64",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/console.log",
+      "sha256": "2935e7bb0d2ac855e6533405a951822d9881dbf87e842bd52b5e1d3bc8d5f330",
+      "bytes": 569
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/collection.log",
+      "sha256": "8c98540b82273d335bb4aa7a8a6af607e2941cfc653ae710de3fda3f35f07ec5",
+      "bytes": 312
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/device/20260929-135702-diarization-windows-b01dff64/report.json",
+      "sha256": "c1f4186defa0a8f33aea3d41e9ba077bfa22041a851a1af81c3d0952ee25bf23",
+      "bytes": 108476
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/device/20260929-135702-diarization-windows-b01dff64/hilog.txt",
+      "sha256": "57213342673900ba34507a3df8cd67d6a4889928eaf31930168cd4ceaafed171",
+      "bytes": 1100023
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/device/20260929-135702-diarization-windows-b01dff64/memory.csv",
+      "sha256": "523e4371a8af17096193e62e37d79d54b5b1c5a9e3f5168203495f4fbc07cb41",
+      "bytes": 9685
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/device/20260929-135702-diarization-windows-b01dff64/payload/corpus.json",
+      "sha256": "3d354867e69a079129b59fc4abdc15464d2896022fda8e4bae715c0bb3eb7af5",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/diagnostics/asr-diagnostics-20260929-140013.zip",
+      "sha256": "6fd4656e281e4b0cf52f3426ca2df1c28370d0aafbe6df79343086a2666bb31a",
+      "bytes": 9078760
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-2/diagnostics/unpacked/asr-diagnostics-20260929-140013/asr-diagnostics-20260929-140013/run-1790661425921/events.full.ndjson",
+      "sha256": "0814df510261662817c2b85416453b7d56687c15e7303ef4530ee2faeb949049",
+      "bytes": 18998152
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/run.json",
+      "sha256": "d0d5907f78767519353f7452ef3deedc5850e135b0bef66a7448f51e5b56982f",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/console.log",
+      "sha256": "cae09405a8612adfc2ff6f74a7fde34af9f8c9cddb8f3d125ca8500d0234ae55",
+      "bytes": 570
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/collection.log",
+      "sha256": "c883db1ee5b80d7e7b681c833bff70ea2b240d00a8b60ab2b5d971d80a212a8c",
+      "bytes": 312
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/device/20260929-140020-diarization-windows-f70435fb/report.json",
+      "sha256": "551d096ab954ac3efc2f5b6f27a50c773926a960531d6dc24ce536113cbe3c1f",
+      "bytes": 110568
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/device/20260929-140020-diarization-windows-f70435fb/hilog.txt",
+      "sha256": "1f7c3b6e65ea24a6ce5109b3eac77235863d95933084b5b058fe0f45e89352d9",
+      "bytes": 1104258
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/device/20260929-140020-diarization-windows-f70435fb/memory.csv",
+      "sha256": "d6505cb831d86d5e247831e4ab23d6b96c5ff782aae390f5088774e2ee4ff5c1",
+      "bytes": 9687
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/device/20260929-140020-diarization-windows-f70435fb/payload/corpus.json",
+      "sha256": "b5fde04154220b923324f10493e79527ad1ecb8146c958cb5b0d1915ea5c76bd",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/diagnostics/asr-diagnostics-20260929-140332.zip",
+      "sha256": "aa436b8fbe67f8fcb819e9da790f88863baf3bd625782d6bc86d143a7f0cc01f",
+      "bytes": 8787472
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-3/diagnostics/unpacked/asr-diagnostics-20260929-140332/asr-diagnostics-20260929-140332/run-1790661625284/events.full.ndjson",
+      "sha256": "35f847c29db22fff4cc256b97eaaf16d4fc26d82db233df388879c6cd1706e38",
+      "bytes": 20681941
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/run.json",
+      "sha256": "b6e2c09cdf3f896cf4861daa4527321bff6543e191d23e42d2f79576e70fdb79",
+      "bytes": 191
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/console.log",
+      "sha256": "a0c1bba6dac05776a2f738eb917c7e2abdedc7a854d067ed5cb0f91ecb98703f",
+      "bytes": 570
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/collection.log",
+      "sha256": "01f189d1dfb377cdbc768b9ddd0c2331319b11c4145b7b755f4f7ad305f5b6bf",
+      "bytes": 312
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/device/20260929-140340-diarization-windows-1e0e167f/report.json",
+      "sha256": "de9476710b1c542868e5f6ae3cf7729af0b7ebecb596799af85893c79a0ac5d1",
+      "bytes": 185329
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/device/20260929-140340-diarization-windows-1e0e167f/hilog.txt",
+      "sha256": "0b320daf1d15a396d92bd2eeb44b94197d072d503e9cb80105f266fd8cbf6e0c",
+      "bytes": 1096972
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/device/20260929-140340-diarization-windows-1e0e167f/memory.csv",
+      "sha256": "44337736b24d47b984b5928a9f21796a6d7487b246b68babfcc825c65d448ae8",
+      "bytes": 9681
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/device/20260929-140340-diarization-windows-1e0e167f/payload/corpus.json",
+      "sha256": "d5222434e7b8baec08135be692a3c50b917ce4fe33024d72d94c68367e6f2be7",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/diagnostics/asr-diagnostics-20260929-140651.zip",
+      "sha256": "f2e2631b59c65d8a06ebd5953246a218d634f60e5bfee008cac9975089e27413",
+      "bytes": 9664895
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/aishell4-4/diagnostics/unpacked/asr-diagnostics-20260929-140651/asr-diagnostics-20260929-140651/run-1790661824242/events.full.ndjson",
+      "sha256": "288ed27b1fd47a1c75524401c8b13df6d6bc8fc054ba7ceb6df7a9721a324a32",
+      "bytes": 21318477
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/run.json",
+      "sha256": "5eb97957d84e32c91a2ea832332491ab3edefd3fc37ab937de6224f856934137",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/console.log",
+      "sha256": "6e94ba86a282e90ae6e2211b001ae6e7cc6069bee652aab09a99429a2104cbb2",
+      "bytes": 571
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/collection.log",
+      "sha256": "b17d21b4e4e25231035e0ceda1cb95701d88461a1004ea233ec8d4a30b7641d1",
+      "bytes": 314
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/device/20260929-140659-diarization-windows-0073c05c/report.json",
+      "sha256": "ffd4e77e003ec8e1539ec511f3678c409bf2dd7d4d563761fb1e7f725c57eed8",
+      "bytes": 215736
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/device/20260929-140659-diarization-windows-0073c05c/hilog.txt",
+      "sha256": "4bd465023ef0eb3de9234a19676a24f48ff78f6fe471d19e0323ece2a53193c2",
+      "bytes": 1107823
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/device/20260929-140659-diarization-windows-0073c05c/memory.csv",
+      "sha256": "4d2e1df97117ce8547d6f9bcff6896512a4c5e66d8061a0d9cf5567bdfe0529a",
+      "bytes": 9818
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/device/20260929-140659-diarization-windows-0073c05c/payload/corpus.json",
+      "sha256": "4cca1a9a041e34efd3ab0e534de87df08065897f894575e29c3f64cde7a335cd",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/diagnostics/asr-diagnostics-20260929-141012.zip",
+      "sha256": "e1b20e6568fd9999ca120912144187030b0f7bf7a36203b2e7ade2fd4f1b514f",
+      "bytes": 8970607
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting2/diagnostics/unpacked/asr-diagnostics-20260929-141012/asr-diagnostics-20260929-141012/run-1790662023427/events.full.ndjson",
+      "sha256": "a87c6f3628a2f0597ddd1400f0b6c1033fb6f2ff4892e0679a7c9537ba2aba52",
+      "bytes": 21346649
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/run.json",
+      "sha256": "5713a03a9e5da2725998077cb3993e9e6ddb47e32a803df5e117b8b55c37951a",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/console.log",
+      "sha256": "cf5676658b898cfab5bbd6a7f1bd39a901e44d9311fd42d401173f17ae86bafc",
+      "bytes": 571
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/collection.log",
+      "sha256": "f10c3d45f84891b01bb6d18a48a441d8f9a31f257c54ae46427e107ada641aa2",
+      "bytes": 314
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/device/20260929-141020-diarization-windows-1b44dc2a/report.json",
+      "sha256": "046069dfc7e532a9f8836b1f0ed8b4e4518113fbeacd118300d88186d73a5e1a",
+      "bytes": 163832
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/device/20260929-141020-diarization-windows-1b44dc2a/hilog.txt",
+      "sha256": "7724ba9abfca9973570b340ec0e3ef4a897e71c6cc964786a824f4a1d2a94a3c",
+      "bytes": 1099823
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/device/20260929-141020-diarization-windows-1b44dc2a/memory.csv",
+      "sha256": "7164b740cf53b7c5374c309dd95825e48dcef2ae1e5c160bc329ce8537f017e4",
+      "bytes": 9745
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/device/20260929-141020-diarization-windows-1b44dc2a/payload/corpus.json",
+      "sha256": "c9dacb1d8b7f2b393fcee5b7d33b25cd1a13c3be2f80080ee9fdc83514f12381",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/diagnostics/asr-diagnostics-20260929-141333.zip",
+      "sha256": "94ebaab6776847d4b5dcab82886a2cf4e27d4d98a25cef137d7e7fbcc88a5c3b",
+      "bytes": 8511316
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting3/diagnostics/unpacked/asr-diagnostics-20260929-141333/asr-diagnostics-20260929-141333/run-1790662224387/events.full.ndjson",
+      "sha256": "0a1751b77084248464c3ad9dabd77466ffe827d830626d2083989614c3dc2656",
+      "bytes": 17790378
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/run.json",
+      "sha256": "a59f2f2b38f955a0b3d6199404469135ff5f58d886e7e3a050e1badab9424c6f",
+      "bytes": 192
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/console.log",
+      "sha256": "f8a200b89a99f3b8e3c264617e97341baae3f98993bd7e6fb7dbfcd83b597d6b",
+      "bytes": 571
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/collection.log",
+      "sha256": "bfea25614c4a8d348d314d708c450516c7c0d1784205a62d83e3d8572a9ac634",
+      "bytes": 314
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/device/20260929-141341-diarization-windows-2e825765/report.json",
+      "sha256": "ad1837e7df8510499c4c7e9bd9095f9305fedd6ba42ed3239e4cde3e6459afec",
+      "bytes": 258205
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/device/20260929-141341-diarization-windows-2e825765/hilog.txt",
+      "sha256": "2a18e2c1c8ede0c3fdd51e3ae51724fef114de600269d91627b1af1d39ab639d",
+      "bytes": 1102104
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/device/20260929-141341-diarization-windows-2e825765/memory.csv",
+      "sha256": "37706fc428bab8c5e10db96c05e8b88721fe2b45c7ba859e04c56f7d94ab6c76",
+      "bytes": 9686
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/device/20260929-141341-diarization-windows-2e825765/payload/corpus.json",
+      "sha256": "82fd73a8e5d9070d69ab97d71f33a6f3e6c92b10de3e42e5c39b02c14dd8c8a0",
+      "bytes": 358
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/diagnostics/asr-diagnostics-20260929-141651.zip",
+      "sha256": "f78b07eac22536bc7b3b609bd377c2d4f17665a7101389201d6da0f96a781d2a",
+      "bytes": 9787771
+    },
+    {
+      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr243-harmony-20260929/public/alimeeting4/diagnostics/unpacked/asr-diagnostics-20260929-141651/asr-diagnostics-20260929-141651/run-1790662424560/events.full.ndjson",
+      "sha256": "1ac2ab5ef5cb27d44c2798b0fbb8253c05975a9534b079dbbf268fad24419ba3",
+      "bytes": 15252229
+    }
+  ],
+  "excluded": "PCM, transcripts and model binaries stay in the private cache"
+}
