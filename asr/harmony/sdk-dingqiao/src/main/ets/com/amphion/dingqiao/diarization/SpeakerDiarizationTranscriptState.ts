@@ -803,7 +803,8 @@ export class SpeakerDiarizationTranscriptState {
 
   // Streaming ASR stamps a token when it is emitted, after its audio. A token in a
   // non-speech gap therefore belongs to the known speech that ended just before it,
-  // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned.
+  // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned, and
+  // so does overlapped speech: several voices end together, so the bounded backfill decides.
   private turnAt(timeMs: number): SpeakerTimelineTurn | undefined {
     for (let i = this.turns.length - 1; i >= 0; i--) {
       if (timeMs >= this.turns[i].beginTime && timeMs < this.turns[i].endTime) {
@@ -816,6 +817,7 @@ export class SpeakerDiarizationTranscriptState {
     }
     if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return undefined;
     const ending = this.turns.filter(turn => turn.endTime === previousEnd);
+    if (ending.some(turn => (turn.overlap ?? false) || turn.secondarySpeakerIds.length > 0)) return undefined;
     if (new Set(ending.map(turn => turn.speakerId)).size !== 1) return undefined;
     const speakerId = ending[0].speakerId;
     return speakerId === UNKNOWN_SPEAKER || speakerId === 'UNKNOWN_SECONDARY' ? undefined : ending[0];

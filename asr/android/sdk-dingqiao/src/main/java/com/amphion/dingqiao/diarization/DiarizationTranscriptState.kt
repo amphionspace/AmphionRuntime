@@ -290,12 +290,15 @@ internal class DiarizationTranscriptState {
 
     // Streaming ASR stamps a token when it is emitted, after its audio. A token in a
     // non-speech gap therefore belongs to the known speech that ended just before it,
-    // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned.
+    // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned, and
+    // so does overlapped speech: several voices end together, so the bounded backfill decides.
     private fun turnAt(timeMs: Int): SpeakerTimelineTurn? {
         turns.asReversed().find { timeMs >= it.beginTime && timeMs < it.endTime }?.let { return it }
         val previousEnd = turns.filter { it.endTime <= timeMs }.maxOfOrNull { it.endTime } ?: return null
         if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return null
-        return turns.filter { it.endTime == previousEnd }.distinctBy { it.speakerId }.singleOrNull()
+        val ending = turns.filter { it.endTime == previousEnd }
+        if (ending.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }) return null
+        return ending.distinctBy { it.speakerId }.singleOrNull()
             ?.takeIf { it.speakerId != "UNKNOWN" && it.speakerId != "UNKNOWN_SECONDARY" }
     }
 
