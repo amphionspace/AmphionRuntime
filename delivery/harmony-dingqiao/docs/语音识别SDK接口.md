@@ -440,7 +440,14 @@ ASR 尾结果时开始计算，不是从调用方执行 `finish()` 或收到公�
 达到 15 秒就丢弃尾批，会错过随后到达的正常或降级结果。`finish()` 会先处理完已接收的音频；
 音频积压不受分人超时截断，也不会用空 last 代替尚未完成的识别结果。分人收尾超时时，
 按相同顺序返回真实 ASR 尾结果及 `degraded=true` 的当前最佳分人结果；`cancel()` 不产生
-last、`onSpeakerDiarizationResult` 或 `onComplete`。未开启时不产生任何 diarization 回调，
+last、`onSpeakerDiarizationResult` 或 `onComplete`。
+
+分人收尾超时（`FINISH_TIMEOUT`）时，SDK 不再丢弃已经推理完的音频的角色：停止剩余窗口，
+对已推理部分做最后一次聚类并作为尾批定稿；`degradedMessage` 写明角色覆盖到的音频时间点。
+覆盖点之后的音频从未推理，其文字保持 `speakerIndex=-1`，不做 UNKNOWN 邻接补全。
+SDK 最多再等 3,000 ms 取得该结果，超出则返回不含角色的降级尾批（此前的行为）。
+调用方迁移：不要再假定 `FINISH_TIMEOUT` 尾批没有角色；应展示其中的角色，同时提示后段角色未完成。
+按时完成的会话不受影响。未开启时不产生任何 diarization 回调，
 原有 ASR 生命周期不变。
 
 > `TargetSpeakerConfig.minSegSec` 默认并在鼎桥适配层固定为 `0`，SDK 不设置最短时长门槛。ASR
