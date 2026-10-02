@@ -70,6 +70,12 @@ class DiarizationSentenceOutputTest {
             applySpeakerTurns(listOf(turn(0, 500, "S1"), turn(200, 500, "S2")))
         }
         assertEquals(listOf("UNKNOWN"), ambiguous.finalUtterances().map { it.speakerId })
+        // Overlapped speech ends several voices at once: a known secondary blocks any owner,
+        // and an unknown secondary leaves only the marked bounded backfill.
+        assertEquals(listOf("S1" to false, "UNKNOWN" to false),
+            owners(listOf(100, 600), listOf(turn(0, 500, "S1", listOf("S2")))))
+        assertEquals(listOf("S1" to true),
+            owners(listOf(100, 600), listOf(turn(0, 500, "S1", listOf("UNKNOWN_SECONDARY")))))
         // Emission is causal: a token before any speech is not given the following speaker directly.
         val leading = DiarizationTranscriptState().apply {
             addUtterance("甲", "甲。", listOf("甲"), listOf(100), 100, 150)

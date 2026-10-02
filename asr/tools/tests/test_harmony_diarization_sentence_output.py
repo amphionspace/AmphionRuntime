@@ -124,6 +124,11 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             tokenTimesMs:[600],beginTime:600,endTime:700}});
           ambiguous.applySpeakerTurns([turn(0,500,'S1'),turn(200,500,'S2')]);
           assert.deepEqual(ambiguous.finalUtterances().map(x=>x.speakerId),['UNKNOWN']);
+          // Overlapped speech ends several voices at once: a known secondary blocks any owner,
+          // and an unknown secondary leaves only the marked bounded backfill.
+          const overlapped=(secondary)=>({{...turn(0,500,'S1'),overlap:true,secondarySpeakerIds:[secondary]}});
+          assert.deepEqual(owners([100,600],[overlapped('S2')]),[['S1',false],['UNKNOWN',false]]);
+          assert.deepEqual(owners([100,600],[overlapped('UNKNOWN_SECONDARY')]),[['S1',false],['S1',true]]);
           // Emission is causal: a token before any speech is not given the following speaker.
           const leading=new State();leading.addUtterance({{rawText:'甲',text:'甲。',tokens:['甲'],
             tokenTimesMs:[100],beginTime:100,endTime:150}});
