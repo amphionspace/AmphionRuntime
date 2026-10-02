@@ -127,6 +127,49 @@ class CommunitySessionTest {
         }
     }
 
+    @Test fun finishTimeoutSalvageFreezesInferredFrontAndLeavesTailUnknown() {
+        Harness(true).use { h ->
+            h.session.append(ByteArray(40_000*32))
+            // Non-overlapping windows keep the mock's single-speaker tracks free of overlap.
+            h.audio(10_000); h.audio(20_000)
+            h.asr(10_000); h.asr(20_000); h.asr(30_000); h.asr(40_000)
+            h.settle()
+            h.session.finish()
+            h.session.observeAsrFinal(SpeechRecognitionResult(isFinal=true,isLast=true),AsrResult("",isLast=true))
+            h.settle()
+            assertFalse("inference has not drained", h.events.contains("finished"))
+            h.session.salvage()
+            h.audio(30_000) // the dropped in-flight window cannot extend frozen evidence
+            h.settle()
+            verify(h.construction.constructed().single()).stopInference()
+            val result = h.results.single()
+            assertTrue(result.isSessionFinal)
+            assertEquals(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT, result.degradedReason)
+            assertEquals(listOf(0, 0, -1, -1), result.utterances.map { it.speakerIndex })
+            assertTrue(result.speakerTurns.isNotEmpty())
+            assertTrue(result.speakerTurns.all { it.endTime <= 20_000 && it.speakerIndex == 0 })
+            assertEquals(1, result.speakerCount)
+            h.session.salvage(); h.session.onDrained(); h.settle()
+            assertEquals(1, h.events.count { it == "finished" })
+        }
+    }
+
+    @Test fun salvageAfterDrainKeepsTheCompleteFinalResult() {
+        Harness(true).use { h ->
+            h.session.append(ByteArray(20_000*32))
+            h.audio(10_000); h.audio(20_000)
+            h.asr(10_000); h.asr(20_000)
+            h.session.finish()
+            h.session.observeAsrFinal(SpeechRecognitionResult(isFinal=true,isLast=true),AsrResult("",isLast=true))
+            h.session.onDrained()
+            h.session.salvage()
+            h.settle()
+            verify(h.construction.constructed().single(), never()).stopInference()
+            assertFalse(h.results.single().degraded)
+            assertEquals(listOf(0, 0), h.results.single().utterances.map { it.speakerIndex })
+        }
+    }
+
     @Test fun confirmedSilenceCompletesWithoutWaitingForPaddedModelTail() {
         Harness(true).use { h ->
             h.session.append(ByteArray(1000*32));h.session.finish(true)

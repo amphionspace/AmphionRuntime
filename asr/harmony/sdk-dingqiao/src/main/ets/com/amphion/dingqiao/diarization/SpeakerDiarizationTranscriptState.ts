@@ -250,6 +250,9 @@ export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
   private nextUtteranceId: number = 1;
   private readonly turns: SpeakerTimelineTurn[] = [];
+  // Audio after this point was never inferred (finish-timeout salvage). Its lack of
+  // turns is not evidence of silence, so UNKNOWN text there is not backfilled.
+  private evidenceEndTime: number = Number.POSITIVE_INFINITY;
 
   addUtterance(input: DiarizationTranscriptInput): string {
     const decoded = decodedTranscriptTokens(input.rawText, input.tokens, input.tokenTimesMs);
@@ -293,6 +296,8 @@ export class SpeakerDiarizationTranscriptState {
       confidence: this.assignmentFor(utterance.beginTime, utterance.endTime).confidence,
     };
   }
+
+  limitEvidence(endTime: number): void { this.evidenceEndTime = Math.min(this.evidenceEndTime, endTime); }
 
   applySpeakerTurns(newTurns: SpeakerTimelineTurn[], replace: boolean = false): DiarizationTranscriptUpdate[] {
     // Community previews are complete snapshots of the uncommitted range.
@@ -858,7 +863,7 @@ export class SpeakerDiarizationTranscriptState {
     const resolved = parts.map((part, index): DiarizedTranscriptUtterance => {
       const duration = part.endTime - part.beginTime;
       if (part.speakerId !== UNKNOWN_SPEAKER || duration < 0 || duration > MAX_UNKNOWN_BACKFILL_MS ||
-        this.blocksBackfill(part)) return part;
+        part.endTime > this.evidenceEndTime || this.blocksBackfill(part)) return part;
       const previous = index > 0 ? parts[index - 1] : undefined;
       const next = index + 1 < parts.length ? parts[index + 1] : undefined;
       if (previous !== undefined && next !== undefined && previous.speakerId !== next.speakerId) return part;

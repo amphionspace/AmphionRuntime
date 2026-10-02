@@ -504,6 +504,54 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_finish_timeout_waits_boundedly_for_salvaged_speakers(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+            // undefined: diarization does not answer within the salvage grace period.
+            for (const salvage of [{{ degraded: true, value: 'front-frozen' }},
+              {{ degraded: false, value: 'complete-in-grace' }}, undefined]) {{
+              const outputs = [];
+              let timeouts = 0;
+              const barrier = new SpeakerDiarizationFinishBarrier(20, result => outputs.push(result), 200,
+                () => {{ timeouts++; if (salvage !== undefined) barrier.resolveSpeaker(salvage); }});
+              barrier.begin();
+              barrier.resolveAsr('last');
+              await sleep(60);
+              assert.equal(timeouts, 1);
+              if (salvage === undefined) {{
+                assert.deepEqual(outputs, [], 'the grace period still waits for salvaged speakers');
+                await sleep(240);
+              }}
+              assert.deepEqual(outputs, [{{ asr: 'last', speaker: salvage?.value,
+                degraded: salvage?.degraded ?? true }}]);
+              barrier.resolveSpeaker({{ degraded: false, value: 'late' }});
+              await sleep(240);
+              assert.equal(outputs.length, 1);
+            }}
+            """
+        )
+
+    def test_unknown_text_after_inferred_evidence_is_not_backfilled(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          function state(limit) {{
+            const s=new SpeakerDiarizationTranscriptState();
+            s.addUtterance({{rawText:'你好',text:'你好',tokens:['你','好'],tokenTimesMs:[18000,21000],
+              beginTime:17000,endTime:21500}});
+            s.applySpeakerTurns([{{beginTime:15000,endTime:20000,speakerId:'S1',secondarySpeakerIds:[],confidence:0.9}}]);
+            if (limit !== undefined) s.limitEvidence(limit);
+            return s.sentenceUtterances()[0];
+          }}
+          assert.equal(state().speakerId,'S1','a gap the model saw keeps the authorized bounded backfill');
+          const limited=state(20000);
+          assert.equal(limited.speakerId,'UNKNOWN','audio never inferred is not evidence of silence');
+          assert.equal(limited.confidence,0);
+        """)
+
     def test_stopped_fallback_preserves_real_tail_waiting_for_speaker_decoration(self) -> None:
         from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
 

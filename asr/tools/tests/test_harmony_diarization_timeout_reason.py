@@ -69,6 +69,18 @@ assert.equal(client.activeJob, undefined);
 assert.equal(client.failures.length, 1);
 """)
 
+    def test_stopped_inference_does_not_publish_timeout_or_late_result(self):
+        self.run_executor("""
+client.stopped = true;
+timers[0]();
+await flush();
+assert.deepEqual(client.failures, []);
+resolveInference({ segments: [], embeddings: [] });
+await task;
+assert.deepEqual(client.windows, []);
+assert.deepEqual(client.failures, []);
+""")
+
     def test_cancel_during_inference_does_not_publish_timeout_or_late_result(self):
         self.run_executor("""
 client.closed = true;

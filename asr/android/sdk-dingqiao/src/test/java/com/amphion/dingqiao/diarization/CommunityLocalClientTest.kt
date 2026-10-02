@@ -52,6 +52,35 @@ class CommunityLocalClientTest {
         assertEquals(run(false,640),run(true,61*16000*2))
     }
 
+    @Test fun stoppedInferenceDropsInFlightWindowAndStillClustersRetainedEvidence() {
+        val directory = Files.createTempDirectory("community-stop").toFile()
+        val entered = CountDownLatch(1);val release = CountDownLatch(1);val clustered = CountDownLatch(1)
+        val model = mock<CommunityDiarizationInference>()
+        whenever(model.process(any())).thenAnswer {
+            entered.countDown();assertTrue(release.await(3,TimeUnit.SECONDS))
+            CommunityDiarizationWindow(FloatArray(1767),FloatArray(768),0.0,0.0,0.0)
+        }
+        whenever(model.cluster(any(),any(),any(),any(),any(),any(),any(),any()))
+            .thenReturn(CommunityDiarizationCluster(1,IntArray(3),emptyList()))
+        val drained = CountDownLatch(1)
+        val observer = mock<SpeakerDiarizationLocalObserver> { on { onDrained() } doAnswer { drained.countDown() } }
+        val client = SpeakerDiarizationLocalClient(mock(),directory,observer,{ model })
+        try {
+            client.append(ByteArray(30*16000*2));client.finish()
+            assertTrue(entered.await(3,TimeUnit.SECONDS))
+            client.stopInference()
+            client.cluster(FloatArray(1767),FloatArray(768),4,doubleArrayOf(0.0),0.0,
+                FloatArray(0),FloatArray(0),FloatArray(0)) { if (it.isSuccess) clustered.countDown() }
+            release.countDown()
+            assertTrue(clustered.await(3,TimeUnit.SECONDS))
+            // Drained means no queued or scheduled window is left to start.
+            assertTrue(drained.await(3,TimeUnit.SECONDS))
+            verify(model,times(1)).process(any())
+            verify(observer,never()).onWindow(any())
+            verify(observer,never()).onDegraded(any(),any())
+        } finally { release.countDown();client.cancel();directory.deleteRecursively() }
+    }
+
     @Test fun cancelWaitsForNativeReturnAndSuppressesItsLateWindow() {
         val directory = Files.createTempDirectory("community-cancel").toFile()
         val entered = CountDownLatch(1);val release = CountDownLatch(1);val closed = CountDownLatch(1)
