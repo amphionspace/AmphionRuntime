@@ -72,6 +72,7 @@ export class SpeakerDiarizationLocalClient {
   private activeJob?: DiarizationLocalJob;
   private activeJobStartedMs: number = 0;
   private finishing: boolean = false;
+  private stopped: boolean = false;
   private finishWindowQueued: boolean = false;
   private closed: boolean = false;
   private degraded: boolean = false;
@@ -148,6 +149,13 @@ export class SpeakerDiarizationLocalClient {
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
+  /** Finish timeout: keep completed evidence, start no more windows, drop the in-flight one. */
+  stopInference(): void {
+    if (this.closed) return;
+    this.stopped = true;
+    this.queue.splice(0, this.queue.length);
+  }
+
   retainEvidence(window: CommunityDiarizationWindow): void {
     try { this.evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms); }
     catch (error) { throw new SpeakerDiarizationStorageError(`${error}`); }
@@ -201,7 +209,7 @@ export class SpeakerDiarizationLocalClient {
   }
 
   private pump(): void {
-    if (this.closed || this.degraded || this.activeJob !== undefined) return;
+    if (this.closed || this.degraded || this.stopped || this.activeJob !== undefined) return;
     this.fillQueue();
     const job = this.queue.shift();
     if (job === undefined) {
@@ -250,7 +258,7 @@ export class SpeakerDiarizationLocalClient {
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
-      if (this.closed || this.degraded || this.activeJob?.jobId !== job.jobId ||
+      if (this.closed || this.degraded || this.stopped || this.activeJob?.jobId !== job.jobId ||
         this.activeJob?.generation !== job.generation) {
         await this.settleInference(inferencePromise);
         return;
@@ -268,7 +276,7 @@ export class SpeakerDiarizationLocalClient {
         result,
       });
     } catch (error) {
-      if (!this.closed && !this.degraded && this.activeJob?.jobId === job.jobId) {
+      if (!this.closed && !this.degraded && !this.stopped && this.activeJob?.jobId === job.jobId) {
         const message = `${error}`;
         const reason = error instanceof SpeakerDiarizationStorageError ?
           SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE :
