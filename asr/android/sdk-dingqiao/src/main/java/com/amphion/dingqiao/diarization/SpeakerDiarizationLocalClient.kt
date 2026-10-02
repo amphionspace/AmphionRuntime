@@ -58,6 +58,7 @@ internal class SpeakerDiarizationLocalClient(
     private val queue = ArrayDeque<DiarizationLocalJob>()
     private val jobDir = File(File(workPath, "speaker-diarization-jobs"), "job-${System.nanoTime()}")
     private val spool: DiarizationPcmSpool
+    private val evidence: DiarizationEvidenceSpool
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { task ->
         Thread(task, "amphion-diarization").apply { isDaemon = true }
     }
@@ -82,6 +83,7 @@ internal class SpeakerDiarizationLocalClient(
     init {
         check(jobDir.mkdirs() || jobDir.isDirectory) { "cannot create ${jobDir.absolutePath}" }
         spool = DiarizationPcmSpool(jobDir)
+        evidence = DiarizationEvidenceSpool(jobDir)
         executor.execute {
             try {
                 val loaded = loadInference()
@@ -135,21 +137,40 @@ internal class SpeakerDiarizationLocalClient(
             closed = true
             queue.clear()
             runCatching { spool.close() }
+            runCatching { evidence.close() }
         }
         closeWhenQuiescentLocked()
     }
 
     fun cleanup(onQuiescent: (() -> Unit)? = null) = cancel(onQuiescent)
 
+    /** Keeps every completed window's model inputs until cleanup; commits never prune them. */
+    @Synchronized
+    fun retainEvidence(window: CommunityDiarizationWindow) {
+        check(!closed) { "speaker diarization client is closed" }
+        evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms)
+    }
+
+    @Synchronized
+    fun readEvidence(windowCount: Int): DiarizationEvidence = try {
+        evidence.read(windowCount)
+    } catch (t: Throwable) {
+        failLocked(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+            "diarization evidence read failed: ${t.message ?: t.javaClass.simpleName}")
+        throw t
+    }
+
     fun cluster(segments: FloatArray, embeddings: FloatArray, maxSpeakers: Int,
-        starts: DoubleArray, beginSample: Double, complete: (Result<CommunityDiarizationCluster>) -> Unit) {
+        starts: DoubleArray, beginSample: Double, runEmbeddings: FloatArray, runRanges: FloatArray,
+        runRms: FloatArray, complete: (Result<CommunityDiarizationCluster>) -> Unit) {
         synchronized(this) {
             check(!closed) { "speaker diarization client is closed" }
             pendingClusters++
             executor.execute {
                 val result = runCatching {
                     synchronized(this) { check(!closed) }
-                    checkNotNull(inference).cluster(segments, embeddings, maxSpeakers, starts, beginSample)
+                    checkNotNull(inference).cluster(segments, embeddings, maxSpeakers, starts, beginSample,
+                        runEmbeddings, runRanges, runRms)
                 }
                 try { complete(result) } finally {
                     synchronized(this) { pendingClusters--; closeWhenQuiescentLocked() }
@@ -291,6 +312,7 @@ internal class SpeakerDiarizationLocalClient(
         runCatching { inference?.close() }
         inference = null
         runCatching { spool.remove() }
+        runCatching { evidence.remove() }
         jobDir.delete()
         executor.shutdown()
         timeoutExecutor.shutdown()
