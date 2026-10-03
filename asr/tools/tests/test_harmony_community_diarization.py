@@ -592,6 +592,33 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             subprocess.run(['node','--experimental-strip-types','--experimental-loader',
                             TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
 
+    def test_first_client_removes_job_files_left_by_a_killed_process(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = """
+          import assert from 'node:assert/strict';
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          let nextDiarizationJobId=1;const removed=[];
+          const fs={accessSync:()=>true,mkdirSync(){},listFileSync:root=>['job-1-1','job-2-1'],
+            rmdirSync:path=>removed.push(path)};
+          class DiarizationWindowScheduler {} class DiarizationPcmSpool {close(){}remove(){}}
+          class DiarizationEvidenceSpool {close(){}remove(){}}
+          class CommunityDiarizationInference {async load(){}close(){}}
+          const SpeakerDiarizationDegradedReason={};
+        """
+        body = """
+          const observer={onWindow(){},onDrained(){},onDegraded(){}};
+          const first=new SpeakerDiarizationLocalClient({},'/work',observer);
+          assert.deepEqual(removed,['/work/speaker-diarization-jobs/job-1-1','/work/speaker-diarization-jobs/job-2-1']);
+          const second=new SpeakerDiarizationLocalClient({},'/work',observer);
+          assert.equal(removed.length,2,'a later client must not remove live session files');
+          first.cancel();second.cancel();
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'sweep.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
     def test_client_retains_native_lease_until_delayed_cluster_is_quiescent(self):
         source=(DIARIZATION/'SpeakerDiarizationLocalClient.ets').read_text()
         source=source[source.index('export class SpeakerDiarizationStorageError'):]
