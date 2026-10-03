@@ -816,6 +816,8 @@ export class SpeakerDiarizationTranscriptState {
         return this.turns[i];
       }
     }
+    // A turn cut at the inferred-evidence end did not necessarily end there.
+    if (timeMs > this.evidenceEndTime) return undefined;
     let previousEnd = -Infinity;
     for (const turn of this.turns) {
       if (turn.endTime <= timeMs) previousEnd = Math.max(previousEnd, turn.endTime);

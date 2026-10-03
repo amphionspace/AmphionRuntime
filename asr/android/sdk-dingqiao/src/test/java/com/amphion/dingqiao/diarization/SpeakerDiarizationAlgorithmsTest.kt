@@ -361,8 +361,8 @@ class SpeakerDiarizationAlgorithmsTest {
 
     @Test
     fun unknownTextAfterInferredEvidenceIsNotBackfilled() {
-        fun state(limit: Int?): DiarizationTranscriptState = DiarizationTranscriptState().apply {
-            addUtterance("你好", "你好", listOf("你", "好"), listOf(18_000, 21_000), 17_000, 21_500)
+        fun state(limit: Int?, tail: Int = 21_000): DiarizationTranscriptState = DiarizationTranscriptState().apply {
+            addUtterance("你好", "你好", listOf("你", "好"), listOf(18_000, tail), 17_000, tail + 500)
             applySpeakerTurns(listOf(SpeakerTimelineTurn(15_000, 20_000, "S1", emptyList(), 0.9f)))
             limit?.let(::limitEvidence)
         }
@@ -373,6 +373,9 @@ class SpeakerDiarizationAlgorithmsTest {
         assertEquals("UNKNOWN", limited.speakerId)
         assertEquals(listOf("S1"), limited.secondarySpeakerIds)
         assertEquals(0f, limited.confidence)
+        // Within the emission lag, a turn cut at the evidence end still cannot claim later tokens.
+        assertEquals("S1", state(null, 20_300).sentenceUtterances().single().speakerId)
+        assertEquals("UNKNOWN", state(20_000, 20_300).sentenceUtterances().single().speakerId)
     }
 
     @Test
