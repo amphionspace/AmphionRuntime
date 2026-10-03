@@ -4,7 +4,10 @@
 #ifndef __ANDROID__
 #include <node_api.h>
 #endif
+#include <algorithm>
 #include <array>
+#include <cmath>
+#include <cstdint>
 #include <chrono>
 #include <cstring>
 #include <iomanip>
@@ -21,8 +24,11 @@
 // Platform headers stay outside every namespace; including them from within one
 // is ill-formed and only stayed hidden because the host slices included them
 // separately before pasting the production block.
+#include <cerrno>
+#include <hilog/log.h>
 #include <sched.h>
 #include <qos/qos.h>
+#include <unistd.h>
 #endif
 
 namespace {
@@ -31,10 +37,9 @@ double Milliseconds(Clock::time_point start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
-// Community encoder worker budget. XNNPACK owns a pthread pool of its own, so
-// this is independent of the ASR recognizer threads and cannot be implied by
-// them. Its workers spin before blocking while no window is running, so the
-// budget also sets how much CPU idles between the 1 s windows.
+// Community encoder compute budget, independent of the ASR recognizer pool.
+// Harmony's pinned U8/S8 per-channel INT8 graph uses the ORT CPU pool; Android's
+// FP32 graph uses XNNPACK. Both receive the caller's budget below.
 constexpr int kDefaultEncoderThreads = 4;
 constexpr int kMaxEncoderThreads = 8;
 
@@ -43,9 +48,23 @@ namespace {
 // The engine-wide scheduling request the ASR recognizer already receives. The
 // role encoder owns a second compute pool, so it needs its own copy: the ASR
 // policy reaches that pool only when it is passed here as well.
+struct CommunitySchedulingReports {
+  std::mutex mutex;
+  std::unordered_map<int, std::array<std::string, 2>> last;
+  CommunitySchedulingReports() = default;
+  // A copied model policy starts a new diagnostic lifetime, with no references
+  // to the Work or model it was copied from.
+  CommunitySchedulingReports(const CommunitySchedulingReports&) {}
+  CommunitySchedulingReports& operator=(const CommunitySchedulingReports&) {
+    std::lock_guard<std::mutex> lock(mutex);
+    last.clear();
+    return *this;
+  }
+};
 struct CommunityScheduling {
   int qos = -1;
   std::vector<int> cpu_ids;
+  mutable CommunitySchedulingReports reports;
   bool has_thread_policy() const { return qos >= 0 || !cpu_ids.empty(); }
 };
 
@@ -81,46 +100,140 @@ void ParseCommunityScheduling(const std::string& provider, CommunityScheduling* 
   }
 }
 
-// Applies the requested affinity and QoS to the current thread and restores the
-// previous values on scope exit, including the exception paths. A borrowed
-// runtime thread never loses an unknown previous QoS: when it cannot be read the
-// request is skipped rather than applied and left behind.
+std::string CommunityCpuMask(const cpu_set_t& cpus, bool known) {
+  if (!known) return "unknown";
+  std::string result;
+  for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+    if (!CPU_ISSET(cpu, &cpus)) continue;
+    if (!result.empty()) result += ',';
+    result += std::to_string(cpu);
+  }
+  return result.empty() ? "none" : result;
+}
+
+bool CommunityCpuMasksEqual(const cpu_set_t& left, const cpu_set_t& right) {
+  for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
+    if (!!CPU_ISSET(cpu, &left) != !!CPU_ISSET(cpu, &right)) return false;
+  }
+  return true;
+}
+
+// This controls the current driver thread. Pools inherit its effective affinity
+// when created; existing ORT/XNNPACK workers are not rebound by later scopes.
 class ScopedCommunityScheduling {
  public:
   explicit ScopedCommunityScheduling(const CommunityScheduling& policy) : policy_(policy) {
-    const bool have_cpus = !policy.cpu_ids.empty() &&
-        sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
+    if (!policy.has_thread_policy()) return;
+    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested_cpus_);
+    // Current affinity is only a snapshot, not the system cpuset limit.
+    // Submit the complete request and let the kernel enforce its restrictions.
+    have_previous_ = sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
+    snapshot_error_ = have_previous_ ? 0 : errno;
+    current_after_qos_cpus_ = previous_cpus_;
+    have_current_after_qos_ = have_previous_;
     if (policy.qos >= 0) {
-      // Every thread this scope runs on is borrowed from the runtime, never one
-      // this module created. A failed read cannot tell an unset QoS apart from a
-      // system error, so applying a policy and then resetting it would discard a
-      // previous policy this module never learned. Skip instead.
-      const int before = OH_QoS_GetThreadQoS(&previous_qos_);
-      if (before == 0) {
-        const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
-        restore_qos_ = result == 0;
+      qos_result_ = OH_QoS_GetThreadQoS(&previous_qos_);
+      if (qos_result_ == 0) {
+        effective_qos_ = static_cast<int>(previous_qos_);
+        qos_result_ = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
+        restore_qos_ = qos_result_ == 0;
+        qos_status_ = restore_qos_ ? "applied" : "set-failed";
+        if (restore_qos_) {
+          // QoS itself may change affinity, even when the later CPU request
+          // fails. Restore that side effect as well.
+          restore_cpus_ = have_previous_;
+          have_current_after_qos_ = sched_getaffinity(0, sizeof(current_after_qos_cpus_), &current_after_qos_cpus_) == 0;
+          affinity_error_ = have_current_after_qos_ ? 0 : errno;
+          QoS_Level effective;
+          qos_result_ = OH_QoS_GetThreadQoS(&effective);
+          effective_qos_ = qos_result_ == 0 ? static_cast<int>(effective) : -1;
+          if (qos_result_ != 0) qos_status_ = "readback-failed";
+        }
+      } else {
+        // Never overwrite an unknown policy on a borrowed runtime thread.
+        qos_status_ = "read-failed-skipped";
       }
     }
-    if (!policy.cpu_ids.empty() && have_cpus) {
-      cpu_set_t requested;
-      CPU_ZERO(&requested);
-      for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested);
-      restore_cpus_ = sched_setaffinity(0, sizeof(requested), &requested) == 0;
+    effective_cpus_ = current_after_qos_cpus_;
+    have_effective_ = have_current_after_qos_;
+    if (!policy.cpu_ids.empty()) {
+      if (!have_previous_) {
+        affinity_status_ = "snapshot-read-failed";
+        affinity_error_ = snapshot_error_;
+      } else if (sched_setaffinity(0, sizeof(requested_cpus_), &requested_cpus_) != 0) {
+        affinity_status_ = "set-failed";
+        affinity_error_ = errno;
+      } else {
+        // Own restoration immediately after a successful set, even if the
+        // readback fails. An immediate rollback is retried on scope exit.
+        restore_cpus_ = true;
+        affinity_error_ = 0;
+        have_effective_ = sched_getaffinity(0, sizeof(effective_cpus_), &effective_cpus_) == 0;
+        if (!have_effective_) {
+          affinity_status_ = "readback-failed";
+          affinity_error_ = errno;
+          const int result = sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_);
+          rollback_error_ = result == 0 ? 0 : errno;
+          fallback_ = result == 0 ? "restored-unverified" : "restore-failed";
+        } else if (!CommunityCpuMasksEqual(requested_cpus_, effective_cpus_)) {
+          affinity_status_ = "readback-adjusted";
+        } else {
+          affinity_status_ = "applied";
+        }
+      }
     }
+    Report(false);
   }
   ~ScopedCommunityScheduling() {
-    if (restore_qos_) OH_QoS_SetThreadQoS(previous_qos_);
-    if (restore_cpus_) sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_);
+    const int qos_result = restore_qos_ ? OH_QoS_SetThreadQoS(previous_qos_) : 0;
+    // QoS restoration comes first because it can also alter the thread mask.
+    const int affinity_result = restore_cpus_ ? sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) : 0;
+    const int affinity_error = affinity_result == 0 ? 0 : errno;
+    if (policy_.has_thread_policy()) Report(true, qos_result, affinity_error);
   }
   ScopedCommunityScheduling(const ScopedCommunityScheduling&) = delete;
   ScopedCommunityScheduling& operator=(const ScopedCommunityScheduling&) = delete;
 
  private:
+  void Report(bool restoring, int qos_restore = 0, int affinity_restore = 0) noexcept {
+    try {
+      const int tid = gettid();
+      auto& reports = policy_.reports;
+      std::lock_guard<std::mutex> lock(reports.mutex);
+      auto& last = reports.last[tid][restoring ? 1 : 0];
+      // Successful scope restoration is quiet unless it recovers from a failure.
+      if (restoring && qos_restore == 0 && affinity_restore == 0 && last.empty()) return;
+      std::ostringstream state;
+      state << "requested=" << CommunityCpuMask(requested_cpus_, true)
+            << " before=" << CommunityCpuMask(previous_cpus_, have_previous_)
+            << " currentAfterQos=" << CommunityCpuMask(current_after_qos_cpus_, have_current_after_qos_)
+            << " effective=" << CommunityCpuMask(effective_cpus_, have_effective_)
+            << " status=" << affinity_status_ << " errno=" << affinity_error_
+            << " snapshotErrno=" << snapshot_error_
+            << " fallback=" << fallback_ << " rollbackErrno=" << rollback_error_
+            << " qosRequested=" << policy_.qos << " qosEffective=" << effective_qos_
+            << " qosStatus=" << qos_status_ << " qosResult=" << qos_result_;
+      if (restoring) state << " maskPhase=apply qosRestore=" << qos_restore << " affinityRestoreErrno=" << affinity_restore;
+      const auto message = state.str();
+      if (last == message) return;
+      last = message;
+      OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
+                   "poolTag=community-driver tid=%{public}d policy=%{public}p phase=%{public}s %{public}s "
+                   "workers=inherit-creator-mask-no-later-driver-rebind",
+                   tid, static_cast<const void*>(&policy_), restoring ? "restore" : "apply", message.c_str());
+    } catch (...) {
+      // Diagnostics must not break restoration or propagate from a destructor.
+    }
+  }
   const CommunityScheduling& policy_;
-  cpu_set_t previous_cpus_{};
+  cpu_set_t previous_cpus_{}, requested_cpus_{}, current_after_qos_cpus_{}, effective_cpus_{};
   QoS_Level previous_qos_{};
-  bool restore_qos_ = false;
-  bool restore_cpus_ = false;
+  bool restore_qos_ = false, restore_cpus_ = false;
+  bool have_previous_ = false, have_current_after_qos_ = false, have_effective_ = false;
+  const char* affinity_status_ = "not-requested";
+  const char* qos_status_ = "not-requested";
+  const char* fallback_ = "none";
+  int snapshot_error_ = 0, affinity_error_ = 0, rollback_error_ = 0, qos_result_ = 0, effective_qos_ = -1;
 };
 }  // namespace
 #else
@@ -145,7 +258,8 @@ class ScopedCommunityScheduling {
 
 #ifndef __ANDROID__
 template <typename T>
-std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type expected) {
+std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type expected,
+                         size_t max_elements = std::numeric_limits<size_t>::max()) {
   napi_typedarray_type type;
   size_t length = 0, offset = 0;
   void* data = nullptr;
@@ -168,9 +282,42 @@ std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type ex
   if (length != elements && length != bytes) {
     throw std::runtime_error("inconsistent Community typed array length");
   }
+  if (elements > max_elements) {
+    throw std::runtime_error("Community typed array exceeds sample limit");
+  }
   std::vector<T> result(elements);
   if (bytes) std::memcpy(result.data(), data, bytes);
   return result;
+}
+
+napi_value NormalizeCommunityPcm16Window(napi_env env, napi_callback_info info) {
+  try {
+    size_t count = 1;
+    napi_value input = nullptr;
+    if (napi_get_cb_info(env, info, &count, &input, nullptr, nullptr) != napi_ok || count != 1) {
+      throw std::runtime_error("normalizeCommunityPcm16Window requires one Int16Array");
+    }
+    constexpr size_t window_samples = 160000;
+    const auto pcm = CopyArray<int16_t>(env, input, napi_int16_array, window_samples);
+    napi_value buffer = nullptr, result = nullptr;
+    void* data = nullptr;
+    if (napi_create_arraybuffer(env, window_samples * sizeof(float), &data, &buffer) != napi_ok ||
+        data == nullptr) {
+      throw std::runtime_error("Community PCM output allocation failed");
+    }
+    if (napi_create_typedarray(env, napi_float32_array, window_samples, buffer, 0, &result) != napi_ok) {
+      throw std::runtime_error("Community PCM output view creation failed");
+    }
+    auto* output = static_cast<float*>(data);
+    std::fill_n(output, window_samples, 0.0f);
+    for (size_t i = 0; i < pcm.size(); ++i) output[i] = static_cast<float>(pcm[i]) / 32768.0f;
+    return result;
+  } catch (const std::exception& error) {
+    bool pending = false;
+    if (napi_is_exception_pending(env, &pending) != napi_ok || pending) return nullptr;
+    if (napi_throw_error(env, nullptr, error.what()) != napi_ok) return nullptr;
+    return nullptr;
+  }
 }
 
 #endif
@@ -183,6 +330,62 @@ struct Window {
   std::vector<float> run_rms;
   double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
 };
+
+
+class CommunityCancellation {
+ public:
+  const community::CancellationToken* token() const noexcept { return &token_; }
+  bool IsCancelled() const noexcept { return token_.IsCancelled(); }
+
+  bool Register(Ort::RunOptions* options) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if (token_.IsCancelled()) return false;
+    active_.push_back(options);
+    return true;
+  }
+
+  void Unregister(Ort::RunOptions* options) noexcept {
+    std::lock_guard<std::mutex> lock(mutex_);
+    const auto found = std::find(active_.begin(), active_.end(), options);
+    if (found != active_.end()) active_.erase(found);
+  }
+
+  void Cancel() noexcept {
+    std::lock_guard<std::mutex> lock(mutex_);
+    token_.Cancel();
+    for (auto* options : active_) {
+      try {
+        options->SetTerminate();
+      } catch (...) {
+        // The CPU cancellation checks still make progress when an execution
+        // provider rejects SetTerminate; never throw across the N-API callback.
+      }
+    }
+  }
+
+ private:
+  community::CancellationToken token_;
+  std::mutex mutex_;
+  std::vector<Ort::RunOptions*> active_;
+};
+
+template <typename Function>
+auto RunCommunityOrt(const std::shared_ptr<CommunityCancellation>& cancellation,
+                     Function&& function) {
+  if (!cancellation) return function(Ort::RunOptions{nullptr});
+  Ort::RunOptions options;
+  if (!cancellation->Register(&options)) {
+    throw std::runtime_error("Community operation cancelled");
+  }
+  try {
+    auto result = function(options);
+    cancellation->Unregister(&options);
+    return result;
+  } catch (...) {
+    cancellation->Unregister(&options);
+    throw;
+  }
+}
 
 #ifndef __ANDROID__
 std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const char* name) {
@@ -243,33 +446,63 @@ class Model {
     plda_.mu = vector(128);
     for (int row = 0; row < 128; ++row) plda_.transform.push_back(vector(128));
     plda_.phi = vector(128);
+    Ort::SessionOptions segmentation_options;
+    segmentation_options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    segmentation_options.SetInterOpNumThreads(1);
+    segmentation_options.DisableCpuMemArena();
+    segmentation_options.DisableMemPattern();
+    segmentation_options.SetIntraOpNumThreads(2);
+    segmentation_options.AddConfigEntry("session.intra_op.allow_spinning", "0");
+    CommunityScheduling construction_scheduling = scheduling_;
+#if !defined(__OHOS__)
+    construction_scheduling.cpu_ids.clear();
+#endif
+    // Harmony pools inherit the effective requested mask; the scope restores
+    // this borrowed driver after construction, including exception paths.
+    ScopedCommunityScheduling construction_scope(construction_scheduling);
+    segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), segmentation_options);
+    Ort::SessionOptions pooling_options;
+    pooling_options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    pooling_options.SetInterOpNumThreads(1);
+    pooling_options.DisableCpuMemArena();
+    pooling_options.DisableMemPattern();
+    pooling_options.SetIntraOpNumThreads(1);
+    pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), pooling_options);
     Ort::SessionOptions options;
     options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
     options.SetInterOpNumThreads(1);
     options.DisableCpuMemArena();
     options.DisableMemPattern();
+#if defined(__OHOS__)
+    // The pinned Harmony INT8 graph uses U8 activations and per-channel S8
+    // weights. ORT 1.16.3 XNNPACK cannot claim those convolutions, so their CPU
+    // kernels must receive the caller's budget instead of a serial fallback.
+    options.SetIntraOpNumThreads(encoder_threads);
+    options.AddConfigEntry("session.intra_op.allow_spinning", "0");
+#else
+    // Android retains the FP32 encoder and its XNNPACK compute pool.
     options.SetIntraOpNumThreads(1);
-    segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
-    pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
-    // XNNPACK owns its own compute workers. Keep the ORT fallback serial so
-    // a second pool cannot compete with them between convolution operators.
-    {
-      // The pool is created while the encoder session is built, and pthread
-      // workers inherit the creating thread's affinity. Scoping the policy here
-      // is what covers those workers; the ASR recognizer's own policy does not.
-      ScopedCommunityScheduling scope(scheduling_);
-      options.AppendExecutionProvider("XNNPACK",
-        {{"intra_op_num_threads", std::to_string(encoder_threads)}});
-      encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
-    }
+#endif
+    // Keep XNNPACK registered on both platforms. The from-buffer API also accepts
+    // FP32 encoders; retaining the provider preserves the existing ORT provider /
+    // allocator path without changing the CPU fallback for unsupported INT8 ops.
+    options.AppendExecutionProvider("XNNPACK",
+      {{"intra_op_num_threads", std::to_string(encoder_threads)}});
+    encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
     output_name_ = segmentation_.GetOutputNameAllocated(0, allocator).get();
   }
 
-  Window Process(std::vector<float>& pcm) {
+  void Cancel() noexcept { cancellation_->Cancel(); }
+  bool IsCancelled() const noexcept { return cancellation_->IsCancelled(); }
+
+  Window Process(std::vector<float>& pcm, int64_t window_start_sample = 0,
+                 bool cache_fbank = false) {
+    community::CheckCancellation(cancellation_->token());
     if (pcm.size() != 160000) throw std::runtime_error("Community requires a 10 second window");
     std::lock_guard<std::mutex> lock(inference_mutex_);
+    community::CheckCancellation(cancellation_->token());
     // Keep the thread that drives the encoder pool on the requested CPUs too.
     ScopedCommunityScheduling scope(scheduling_);
     Window result;
@@ -279,7 +512,10 @@ class Model {
     auto tensor = Ort::Value::CreateTensor<float>(memory, pcm.data(), pcm.size(), shape.data(), 3);
     const char* input_names[] = {input_name_.c_str()};
     const char* output_names[] = {output_name_.c_str()};
-    auto output = segmentation_.Run(Ort::RunOptions{nullptr}, input_names, &tensor, 1, output_names, 1);
+    auto output = RunCommunityOrt(cancellation_, [&](const Ort::RunOptions& options) {
+      return segmentation_.Run(options, input_names, &tensor, 1, output_names, 1);
+    });
+    community::CheckCancellation(cancellation_->token());
     if (output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 589 * 7) {
       throw std::runtime_error("invalid Community segmentation output");
     }
@@ -289,6 +525,7 @@ class Model {
     int clean_count[3] = {};
     constexpr int codes[7] = {0, 1, 2, 4, 3, 5, 6};
     for (int frame = 0; frame < 589; ++frame) {
+      community::CheckCancellation(cancellation_->token());
       int label = std::max_element(logits + frame * 7, logits + (frame + 1) * 7) - (logits + frame * 7);
       int bits = codes[label];
       for (int channel = 0; channel < 3; ++channel) {
@@ -304,7 +541,9 @@ class Model {
     }
     result.segmentation_ms = Milliseconds(start);
     start = Clock::now();
-    auto features = community::Fbank(pcm, constants_);
+    auto features = community::Fbank(pcm, constants_, cancellation_->token(),
+                                     cache_fbank ? &fbank_cache_ : nullptr,
+                                     window_start_sample);
     result.feature_ms = Milliseconds(start);
     std::array<int64_t, 3> feature_shape{1, 998, 80}, mask_shape{1, 3, 589};
     std::array<int64_t, 3> encoded_shape{1, 2560, 125};
@@ -315,7 +554,10 @@ class Model {
     // The split graphs retain the pinned model's weights. Encoded features
     // belong to this Process call and outlive all of its synchronous pooling
     // calls; they are never retained across windows, generations or sessions.
-    auto encoded = encoder_.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
+    auto encoded = RunCommunityOrt(cancellation_, [&](const Ort::RunOptions& options) {
+      return encoder_.Run(options, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
+    });
+    community::CheckCancellation(cancellation_->token());
     if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
       throw std::runtime_error("invalid Community encoder output");
     }
@@ -325,7 +567,10 @@ class Model {
     tensors.push_back(Ort::Value::CreateTensor<float>(memory, masks.data(), masks.size(), mask_shape.data(), 3));
     const char* names[] = {"/resnet/pool/Reshape_output_0", "masks"};
     const char* outputs[] = {"embeddings"};
-    auto embeddings = pooling_.Run(Ort::RunOptions{nullptr}, names, tensors.data(), 2, outputs, 1);
+    auto embeddings = RunCommunityOrt(cancellation_, [&](const Ort::RunOptions& options) {
+      return pooling_.Run(options, names, tensors.data(), 2, outputs, 1);
+    });
+    community::CheckCancellation(cancellation_->token());
     if (embeddings[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
       throw std::runtime_error("invalid Community embedding output");
     }
@@ -334,11 +579,55 @@ class Model {
     // Keep the full-window vectors above for compatibility, and also export
     // one embedding per disconnected clean run. Overlap runs are exported as
     // non-trainable sentinels so they cannot fall back to a mixed identity.
+    struct PendingRun {
+      size_t output_offset;
+      int channel;
+      int begin;
+      int end;
+    };
+    std::vector<PendingRun> pending_runs;
+    std::vector<float> packed_run_masks;
+    auto flush_pending_runs = [&]() {
+      if (pending_runs.empty()) return;
+      community::CheckCancellation(cancellation_->token());
+      if (packed_run_masks.empty()) packed_run_masks.resize(3 * 589, 0.f);
+      std::fill(packed_run_masks.begin(), packed_run_masks.end(), 0.f);
+      for (size_t slot = 0; slot < pending_runs.size(); ++slot) {
+        const auto& pending = pending_runs[slot];
+        for (int frame = pending.begin; frame < pending.end; ++frame) {
+          packed_run_masks[slot * 589 + frame] = 1.f;
+        }
+      }
+      std::vector<Ort::Value> run_tensors;
+      run_tensors.reserve(2);
+      run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values,
+        2560 * 125, encoded_shape.data(), 3));
+      run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, packed_run_masks.data(),
+        packed_run_masks.size(), mask_shape.data(), 3));
+      community::CheckCancellation(cancellation_->token());
+      auto run_output = RunCommunityOrt(cancellation_, [&](const Ort::RunOptions& options) {
+        return pooling_.Run(options, names, run_tensors.data(), 2, outputs, 1);
+      });
+      community::CheckCancellation(cancellation_->token());
+      if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
+        throw std::runtime_error("invalid Community run embedding output");
+      }
+      const auto* run_values = run_output[0].GetTensorData<float>();
+      community::CheckCancellation(cancellation_->token());
+      for (size_t slot = 0; slot < pending_runs.size(); ++slot) {
+        const auto& pending = pending_runs[slot];
+        std::copy(run_values + slot * 256, run_values + (slot + 1) * 256,
+                  result.run_embeddings.begin() + pending.output_offset);
+      }
+      community::CheckCancellation(cancellation_->token());
+      pending_runs.clear();
+    };
     for (int channel = 0; channel < 3; ++channel) {
       const int base = channel * 589;
       int begin = -1;
       int kind = -1; // 1 = clean, 0 = overlap/blocked, -1 = inactive.
       for (int frame = 0; frame <= 589; ++frame) {
+        community::CheckCancellation(cancellation_->token());
         const bool active = frame < 589 && masks[base + frame] > 0;
         const int next_kind = active ? (clean[base + frame] > 0 ? 1 : 0) : -1;
         if (next_kind != kind && begin >= 0) {
@@ -361,18 +650,10 @@ class Model {
               result.run_embeddings.insert(result.run_embeddings.end(), values + channel * 256,
                                            values + (channel + 1) * 256);
             } else {
-              std::vector<float> run_masks(3 * 589, 0.f);
-              for (int f = begin; f < end; ++f) run_masks[base + f] = 1.f;
-              std::vector<Ort::Value> run_tensors;
-              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values, 2560 * 125, encoded_shape.data(), 3));
-              run_tensors.push_back(Ort::Value::CreateTensor<float>(memory, run_masks.data(), run_masks.size(), mask_shape.data(), 3));
-              auto run_output = pooling_.Run(Ort::RunOptions{nullptr}, names, run_tensors.data(), 2, outputs, 1);
-              if (run_output[0].GetTensorTypeAndShapeInfo().GetElementCount() != 3 * 256) {
-                throw std::runtime_error("invalid Community run embedding output");
-              }
-              const auto* run_values = run_output[0].GetTensorData<float>();
-              result.run_embeddings.insert(result.run_embeddings.end(), run_values + channel * 256,
-                                           run_values + (channel + 1) * 256);
+              const size_t output_offset = result.run_embeddings.size();
+              result.run_embeddings.insert(result.run_embeddings.end(), 256, 0.f);
+              pending_runs.push_back({output_offset, channel, begin, end});
+              if (pending_runs.size() == 3) flush_pending_runs();
             }
           } else if (kind == 0) {
             // A finite zero vector would become eligible for a long overlap
@@ -393,6 +674,7 @@ class Model {
         kind = next_kind;
       }
     }
+    flush_pending_runs();
     result.embedding_ms = Milliseconds(start);
     return result;
   }
@@ -402,6 +684,15 @@ class Model {
                       int max_speakers, const std::vector<double>& starts, double begin_sample,
                       const std::vector<float>& run_rms = {},
                       bool include_frame_hard = true) const {
+    community::CheckCancellation(cancellation_->token());
+#if defined(__OHOS__)
+    // Cluster reads immutable PLDA and owns its work buffers. Cancellation and
+    // scheduling reports have their own locks; ORT and fbank stay in Process.
+    std::lock_guard<std::mutex> lock(cluster_mutex_);
+#else
+    std::lock_guard<std::mutex> lock(inference_mutex_);
+#endif
+    community::CheckCancellation(cancellation_->token());
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
@@ -410,15 +701,19 @@ class Model {
     std::vector<int32_t> native_ranges;
     native_ranges.reserve(run_ranges.size());
     for (float value : run_ranges) {
+      community::CheckCancellation(cancellation_->token());
       if (!std::isfinite(value) || value != std::floor(value)) {
         throw std::runtime_error("invalid Community run range");
       }
       native_ranges.push_back(static_cast<int32_t>(value));
     }
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers,
-                                     run_embeddings, native_ranges, run_rms);
+                                     run_embeddings, native_ranges, run_rms,
+                                     cancellation_->token());
+    community::CheckCancellation(cancellation_->token());
     auto turns = community::Reconstruct(segments, result.hard, starts, begin_sample, max_speakers,
-                                        result.frame_hard);
+                                        result.frame_hard, cancellation_->token());
+    community::CheckCancellation(cancellation_->token());
     std::ostringstream json;
     json << std::setprecision(17) << "{\"speakerCount\":" << result.centroids.size();
     auto ints = [&](const char* key, const std::vector<int>& values) {
@@ -472,13 +767,18 @@ class Model {
   }
 
  private:
+  std::shared_ptr<CommunityCancellation> cancellation_ = std::make_shared<CommunityCancellation>();
   Ort::Env env_;
   Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
   std::string input_name_, output_name_;
   std::vector<float> constants_;
+  community::FbankCache fbank_cache_;
   community::Plda plda_;
   CommunityScheduling scheduling_;
-  std::mutex inference_mutex_;
+  mutable std::mutex inference_mutex_;
+#if defined(__OHOS__)
+  mutable std::mutex cluster_mutex_;
+#endif
 };
 
 #ifndef __ANDROID__
@@ -504,6 +804,8 @@ struct Work {
   std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
+  int64_t window_start_sample = 0;
+  bool cache_fbank = false;
   Window window;
   int max_speakers = 4;
   int encoder_threads = kDefaultEncoderThreads;
@@ -522,7 +824,7 @@ void Execute(napi_env, void* data) {
       if (task.resource_manager) {
         constexpr const char* names[] = {
           "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
-          "amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+          "amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
           "amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
           "amphion-dingqiao/community-feature.f32", "amphion-dingqiao/community-plda.f64"
         };
@@ -533,11 +835,19 @@ void Execute(napi_env, void* data) {
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2],
                                            task.assets[3], task.assets[4], task.encoder_threads,
                                            task.scheduling);
-    } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
-    else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
-                                           task.run_ranges, task.max_speakers, task.window_starts,
-                                           task.begin_sample, task.run_rms, task.include_frame_hard);
-  } catch (const std::exception& error) { task.error = error.what(); }
+    } else if (task.operation == Operation::Process) {
+      if (task.model->IsCancelled()) throw std::runtime_error("Community operation cancelled");
+      task.window = task.model->Process(task.pcm, task.window_start_sample, task.cache_fbank);
+    } else {
+      if (task.model->IsCancelled()) throw std::runtime_error("Community operation cancelled");
+      task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
+                                        task.run_ranges, task.max_speakers, task.window_starts,
+                                        task.begin_sample, task.run_rms, task.include_frame_hard);
+    }
+  } catch (const std::exception& error) {
+    task.error = task.model && task.model->IsCancelled()
+      ? "Community operation cancelled" : error.what();
+  }
 }
 // Optional trailing scheduling request. An absent argument means "no request",
 // which must stay distinct from a present but empty string.
@@ -569,6 +879,9 @@ void NumberProperty(napi_env env, napi_value object, const char* name, double va
 }
 void Complete(napi_env env, napi_status status, void* data) {
   std::unique_ptr<Work> task(static_cast<Work*>(data));
+  if (task->model && task->model->IsCancelled() && task->error.empty()) {
+    task->error = "Community operation cancelled";
+  }
   if (status != napi_ok && task->error.empty()) task->error = "Community operation cancelled";
   napi_value value = nullptr;
   if (!task->error.empty()) {
@@ -608,7 +921,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
     if (operation == Operation::Cluster) {
       accepted = legacyCluster || count == 8 || clusterLevels;
     } else if (operation == Operation::Process) {
-      accepted = count == 2;
+      accepted = count == 2 || count == 3 || count == 4;
     } else if (from_resources) {
       accepted = count == 1 || count == 2 || count == 3;
     } else {
@@ -655,8 +968,22 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         if (found == models.end()) throw std::runtime_error("Community model is closed");
         task->model = found->second;
       }
-      if (operation == Operation::Process) task->pcm = CopyArray<float>(env, args[1], napi_float32_array);
-      else {
+      if (operation == Operation::Process) {
+        task->pcm = CopyArray<float>(env, args[1], napi_float32_array);
+        if (count >= 3) {
+          double start = 0;
+          if (napi_get_value_double(env, args[2], &start) != napi_ok ||
+              !std::isfinite(start) || start < 0 || start != std::floor(start) ||
+              start > static_cast<double>(std::numeric_limits<int64_t>::max())) {
+            throw std::runtime_error("invalid Community window start sample");
+          }
+          task->window_start_sample = static_cast<int64_t>(start);
+          task->cache_fbank = true;
+          if (count == 4 && napi_get_value_bool(env, args[3], &task->cache_fbank) != napi_ok) {
+            throw std::runtime_error("invalid Community fbank cache option");
+          }
+        }
+      } else {
         task->segments = CopyArray<float>(env, args[1], napi_float32_array);
         task->embeddings = CopyArray<float>(env, args[2], napi_float32_array);
         size_t offset = 0;
@@ -695,6 +1022,22 @@ napi_value Load(napi_env env, napi_callback_info info) { return Queue(env, info,
 napi_value LoadResources(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Load, true); }
 napi_value Process(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Process); }
 napi_value Cluster(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Cluster); }
+napi_value Cancel(napi_env env, napi_callback_info info) {
+  size_t count = 1;
+  napi_value arg = nullptr, result = nullptr;
+  napi_get_cb_info(env, info, &count, &arg, nullptr, nullptr);
+  uint32_t handle = 0;
+  std::shared_ptr<Model> model;
+  if (count == 1 && napi_get_value_uint32(env, arg, &handle) == napi_ok) {
+    std::lock_guard<std::mutex> lock(model_mutex);
+    auto found = models.find(handle);
+    if (found != models.end()) model = found->second;
+  }
+  if (model) model->Cancel();
+  napi_get_undefined(env, &result);
+  return result;
+}
+
 napi_value Close(napi_env env, napi_callback_info info) {
   size_t count = 1;
   napi_value arg = nullptr, result = nullptr;
@@ -713,8 +1056,10 @@ void RegisterCommunityDiarization(napi_env env, napi_value exports) {
   napi_property_descriptor methods[] = {
     {"loadCommunityDiarization", nullptr, Load, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"loadCommunityDiarizationResources", nullptr, LoadResources, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"normalizeCommunityPcm16Window", nullptr, NormalizeCommunityPcm16Window, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"processCommunityDiarization", nullptr, Process, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"clusterCommunityDiarization", nullptr, Cluster, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"cancelCommunityDiarization", nullptr, Cancel, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"closeCommunityDiarization", nullptr, Close, nullptr, nullptr, nullptr, napi_default, nullptr},
   };
   napi_define_properties(env, exports, sizeof(methods) / sizeof(methods[0]), methods);

@@ -155,7 +155,7 @@ interface CreateEngineCallback {
 
 - 必须在 `prepareRuntime().onReady` 后调用。
 - 默认 `zh-CN` 配置复用 `prepareRuntime()` 已准备的模型；其他语言或配置未加载时，创建引擎会按需加载模型。
-- 同语言、同配置模型已加载时直接复用模型，只创建新的引擎对象；会话对象在 `startListening()` 时创建。
+- 与 Runtime 池中模型的语言和完整配置一致时复用池中模型；配置不同则创建专用 recognizer，并保留默认池。会话对象在 `startListening()` 时创建。
 - `createEngine()` 在冷加载时会阻塞调用线程；客户业务优先使用 `createEngineAsync()`，不得在 UI 关键路径同步冷加载。
 - 创建识别引擎只加载 ASR 相关模型，不会因为 HAR 内置声纹资源而加载声纹 extractor。声纹 extractor 在注册、显式预加载或声纹会话中另行按需加载。
 
@@ -230,7 +230,11 @@ endpoint final 会直接成为本 session 的 `isLast=true` 结果，不再追�
 | `locate` | `string` | `CN` | 兼容字段；当前仅支持中国区，不改变模型选择 |
 | `recognizerMode` | `string` | `short` | `short` 保持旧版有最大单句时长的分段识别；`long` 为会议/持续转写，不做周期性 Rule3 硬切，仅在内部压缩已稳定解码前缀且不产生回调 |
 | `sysGeneralLexicon` | `string[]` | 空 | 调用方热词，用于解码 |
-| `disablePrepack` | `boolean/number/string` | `true` | 默认跳过 ORT INT8 权重 prepack，降低冷加载时间和峰值内存；设为 `false` 恢复吞吐优先模式 |
+| `disablePrepack` | `boolean/number/string` | `short：true；long：false` | `true` 跳过 ORT INT8 权重 prepack，`false` 启用；显式引擎级 `true`/`false` 优先于模式缺省值 |
+
+未设置引擎级 `disablePrepack` 时，鼎桥 SDK 按最终解析的 `recognizerMode` 选择缺省值：`short` 跳过 prepack，`long` 启用 prepack。会话级显式 mode 优先于引擎 mode；两者均未设置时，普通会话为 `short`，`enableContinuousRecognition=true` 的会话为 `long`。`prepareRuntime()` 仍准备 `short`、`disablePrepack=true` 的默认模型；Core `AsrConfig.disablePrepack` 默认值仍为 `true`。`StartParams` 中的同名 `disablePrepack` 不作为引擎参数覆盖生效。
+
+从默认 short 切换到 long 时，既有模式重建路径会加载相应配置；默认 `true` 预热池与 `false` 长模式专用 recognizer 仍可能同时保留。显式设为 `true` 只固定跳过 prepack 的策略，整体初始化时延和内存还取决于调度、线程、端点配置及模型持有关系，不能据此声称完全恢复旧模式的资源表现。缺省路径的设备验收必须实际省略该键，并单独测量初始化成本。
 
 SDK 会自动进行保守的 WebRTC AGC2 输入电平归一化，调用方无需配置开关。该处理不会改善低 SNR 或已削波音频，调用方不要再叠加固定软件增益。
 

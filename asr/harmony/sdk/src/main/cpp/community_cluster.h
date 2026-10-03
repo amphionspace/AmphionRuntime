@@ -1,13 +1,17 @@
 #pragma once
 #include <algorithm>
+#include <array>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <functional>
 #include <limits>
+#include <new>
 #include <numeric>
 #include <stdexcept>
 #include <tuple>
 #include <vector>
+#include "community_cancel.h"
 #include "community_kmeans.h"
 
 namespace community {
@@ -16,9 +20,10 @@ using Matrix=std::vector<Vec>;
 struct Plda {
   Vec mean1,mean2,mu,phi;
   Matrix lda,transform;
-  Matrix Apply(const Matrix& input) const {
+  Matrix Apply(const Matrix& input, const CancellationToken* cancellation = nullptr) const {
     Matrix result;
     for(const auto& row:input) {
+      CheckCancellation(cancellation);
       Vec x(row.size());double norm=0;
       for(size_t d=0;d<x.size();++d){x[d]=row[d]-mean1[d];norm+=x[d]*x[d];}
       norm=std::sqrt(x.size()/norm);for(auto& v:x)v*=norm;
@@ -33,11 +38,56 @@ struct Plda {
 };
 // Centroid linkage followed by distance fcluster; the subtree maximum handles
 // inversions in centroid linkage exactly as scipy's distance criterion does.
-inline std::vector<int> Ahc(const Matrix& x) {
+inline std::vector<int> Ahc(const Matrix& x, const CancellationToken* cancellation);
+inline std::vector<int> Ahc(const Matrix& x) { return Ahc(x, nullptr); }
+inline std::vector<int> Ahc(const Matrix& x, const CancellationToken* cancellation) {
   int n=x.size();Matrix centers(2*n-1);std::vector<int> count(2*n-1,1),left(2*n-1,-1),right(2*n-1,-1);
   std::vector<bool> alive(2*n-1,false);Vec height(2*n-1);
-  for(int i=0;i<n;++i){centers[i]=x[i];double norm=0;for(auto v:x[i])norm+=v*v;norm=std::sqrt(norm);for(auto&v:centers[i])v/=norm;alive[i]=true;}
-  auto distance=[&](int a,int b){double d=0;for(size_t j=0;j<x[0].size();++j){double v=centers[a][j]-centers[b][j];d+=v*v;}return std::sqrt(d);};
+  for(int i=0;i<n;++i){
+    CheckCancellation(cancellation);
+    centers[i]=x[i];double norm=0;for(auto v:x[i])norm+=v*v;norm=std::sqrt(norm);for(auto&v:centers[i])v/=norm;alive[i]=true;}
+  // Slots belong only to this fit's live nodes; the merge tree keeps its IDs.
+  // The score budget is private: larger inputs use the original distance path.
+  constexpr size_t memo_byte_budget = 16u * 1024u * 1024u;
+  Vec memo;
+  std::vector<int> memo_slots;
+  const size_t slot_count = static_cast<size_t>(n);
+  if (slot_count > 1 && slot_count <= std::numeric_limits<size_t>::max() / (slot_count - 1)) {
+    const size_t entries = slot_count * (slot_count - 1) / 2;
+    if (entries <= memo_byte_budget / sizeof(double) && entries <= memo.max_size() &&
+        centers.size() <= memo_slots.max_size()) {
+      try {
+        memo.assign(entries, -1.);
+        memo_slots.assign(centers.size(), -1);
+        std::iota(memo_slots.begin(), memo_slots.begin() + n, 0);
+      } catch (const std::bad_alloc&) {
+        Vec().swap(memo);
+        std::vector<int>().swap(memo_slots);
+      }
+    }
+  }
+  auto memo_index = [&](int a, int b) {
+    assert(a >= 0 && b >= 0 && static_cast<size_t>(a) < memo_slots.size() &&
+           static_cast<size_t>(b) < memo_slots.size());
+    const int sa = memo_slots[a], sb = memo_slots[b];
+    assert(sa >= 0 && sb >= 0 && sa != sb && sa < n && sb < n);
+    const size_t lo = static_cast<size_t>(std::min(sa, sb));
+    const size_t hi = static_cast<size_t>(std::max(sa, sb));
+    // The checked slot_count product above also bounds this index product.
+    const size_t index = hi * (hi - 1) / 2 + lo;
+    assert(index < memo.size());
+    return index;
+  };
+  auto distance=[&](int a,int b){
+    CheckCancellation(cancellation);
+    const size_t index = memo.empty() ? 0 : memo_index(a, b);
+    if (!memo.empty() && memo[index] >= 0.) return memo[index];
+    double d=0;for(size_t j=0;j<x[0].size();++j){double v=centers[a][j]-centers[b][j];d+=v*v;}
+    const double score=std::sqrt(d);
+    // Zero and infinity retain their values; NaN is returned but not cached.
+    if (!memo.empty() && score >= 0.) memo[index] = score;
+    return score;
+  };
   using Pair=std::tuple<double,int,int>;
   // Each row keeps a lower bound for its nearest active higher-ID neighbor.
   // Removing that neighbor can only increase the bound. A newly merged center
@@ -45,12 +95,17 @@ inline std::vector<int> Ahc(const Matrix& x) {
   const double infinity=std::numeric_limits<double>::infinity();
   std::vector<Pair> nearest(2*n-1,Pair{infinity,0,-1});
   auto refresh=[&](int a,int limit){
+    CheckCancellation(cancellation);
     Pair best{infinity,a,-1};
     for(int b=a+1;b<limit;++b)if(alive[b])best=std::min(best,Pair{distance(a,b),a,b});
     nearest[a]=best;
   };
-  for(int a=0;a<n;++a)refresh(a,n);
+  for(int a=0;a<n;++a){
+    CheckCancellation(cancellation);
+    refresh(a,n);
+  }
   for(int node=n;node<2*n-1;++node){
+    CheckCancellation(cancellation);
     Pair closest;
     for(;;){
       closest=Pair{infinity,0,-1};
@@ -63,12 +118,26 @@ inline std::vector<int> Ahc(const Matrix& x) {
     auto [d,a,b]=closest;alive[a]=alive[b]=false;alive[node]=true;
     left[node]=a;right[node]=b;count[node]=count[a]+count[b];height[node]=std::max({d,height[a],height[b]});
     centers[node].resize(x[0].size());for(size_t j=0;j<x[0].size();++j)centers[node][j]=(centers[a][j]*count[a]+centers[b][j]*count[b])/count[node];
-    for(int c=0;c<node;++c)if(alive[c])nearest[c]=std::min(nearest[c],Pair{distance(c,node),c,node});
+    if (!memo.empty()) {
+      memo_slots[node] = memo_slots[a];
+      memo_slots[a] = memo_slots[b] = -1;
+    }
+    for(int c=0;c<node;++c)if(alive[c]) {
+      // Refresh every pair incident to the reused slot, on either triangle side.
+      if (!memo.empty()) memo[memo_index(c, node)] = -1.;
+      nearest[c]=std::min(nearest[c],Pair{distance(c,node),c,node});
+    }
     nearest[node]=Pair{infinity,node,-1};
   }
   std::vector<int> labels(n,-1);int next=0;
-  std::function<void(int,int)> assign=[&](int node,int label){if(node<n){labels[node]=label;return;}assign(left[node],label);assign(right[node],label);};
+  std::function<void(int,int)> assign=[&](int node,int label){
+    CheckCancellation(cancellation);
+    if(node<n){labels[node]=label;return;}
+    assign(left[node],label);
+    assign(right[node],label);
+  };
   std::function<void(int)> cut=[&](int node){
+    CheckCancellation(cancellation);
     if(node<n||height[node]<=.6){assign(node,next++);return;}
     // scipy visits both internal children before numbering singleton leaves.
     // Preserve this order because equal reconstruction scores use cluster order.
@@ -80,19 +149,24 @@ inline std::vector<int> Ahc(const Matrix& x) {
   cut(2*n-2);return labels;
 }
 struct VbxResult { Matrix q;Vec priors;Vec objectives; };
-inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial) {
+inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial,
+                      const CancellationToken* cancellation = nullptr) {
   const int n=x.size(),d=phi.size(),k=*std::max_element(initial.begin(),initial.end())+1;
   constexpr double fa=.07,fb=.8;const double smooth=std::exp(7.);
   VbxResult result;auto& q=result.q;auto& prior=result.priors;
   q=Matrix(n,Vec(k,1./(smooth+k-1)));prior=Vec(k,1./k);
-  Matrix rho=x;Vec g(n);for(int i=0;i<n;++i){q[i][initial[i]]=smooth/(smooth+k-1);double s=0;for(int j=0;j<d;++j){rho[i][j]*=std::sqrt(phi[j]);s+=x[i][j]*x[i][j];}g[i]=-.5*(s+d*std::log(2*std::acos(-1.)));}
+  Matrix rho=x;Vec g(n);
+  for(int i=0;i<n;++i){
+    CheckCancellation(cancellation);q[i][initial[i]]=smooth/(smooth+k-1);double s=0;for(int j=0;j<d;++j){rho[i][j]*=std::sqrt(phi[j]);s+=x[i][j]*x[i][j];}g[i]=-.5*(s+d*std::log(2*std::acos(-1.)));}
   for(int iteration=0;iteration<20;++iteration){
+    CheckCancellation(cancellation);
     Matrix inv(k,Vec(d)),alpha(k,Vec(d));Vec sums(k),penalty(k);
     for(int i=0;i<n;++i)for(int c=0;c<k;++c){sums[c]+=q[i][c];for(int j=0;j<d;++j)alpha[c][j]+=q[i][c]*rho[i][j];}
     double objective=0;
     for(int c=0;c<k;++c)for(int j=0;j<d;++j){inv[c][j]=1./(1+fa/fb*sums[c]*phi[j]);alpha[c][j]*=fa/fb*inv[c][j];double aa=alpha[c][j]*alpha[c][j];penalty[c]+=.5*(inv[c][j]+aa)*phi[j];objective+=fb*.5*(std::log(inv[c][j])-inv[c][j]-aa+1);}
     Vec newPrior(k);
     for(int i=0;i<n;++i){
+      CheckCancellation(cancellation);
       Vec logits(k);double maximum=-std::numeric_limits<double>::infinity();
       for(int c=0;c<k;++c){double dot=0;for(int j=0;j<d;++j)dot+=rho[i][j]*alpha[c][j];logits[c]=fa*(dot-penalty[c]+g[i])+std::log(prior[c]+1e-8);maximum=std::max(maximum,logits[c]);}
       double sum=0;for(auto v:logits)sum+=std::exp(v-maximum);double logSum=maximum+std::log(sum);objective+=logSum;
@@ -120,7 +194,8 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
                                     const std::vector<int>& hard,
                                     const std::vector<double>& windowStartSamples,
                                     double beginSample,int maxSpeakers=4,
-                                    const std::vector<int>& frameHard={}) {
+                                    const std::vector<int>& frameHard={},
+                                     const CancellationToken* cancellation = nullptr) {
   constexpr int local=3,frames=589;
   constexpr double step=270./16000.,halfFrame=991./32000.;
   const int windows=windowStartSamples.size();
@@ -130,6 +205,7 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
       !std::isfinite(beginSample) || beginSample<0) throw std::runtime_error("invalid reconstruction input");
   double endSample=beginSample;
   for(double sample:windowStartSamples){
+    CheckCancellation(cancellation);
     if(!std::isfinite(sample) || sample<0 || sample!=std::floor(sample))
       throw std::runtime_error("invalid window start sample");
     endSample=std::max(endSample,sample+160000);
@@ -142,8 +218,10 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   if(!frameHard.empty())knownClusters=std::max(knownClusters,*std::max_element(frameHard.begin(),frameHard.end())+1);
   Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
+    CheckCancellation(cancellation);
     const int64_t start=static_cast<int64_t>(std::nearbyint(windowStartSamples[w]/270.))-firstFrame;
     for(int f=0;f<frames;++f){
+      CheckCancellation(cancellation);
       const int64_t t=start+f;if(t<0 || t>=total)continue;
       Vec active(knownClusters);int n=0;
       for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=frameHard.empty()?hard[w*local+k]:frameHard[(w*frames+f)*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
@@ -156,6 +234,7 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   // voices: none of those voices may have acoustic support at this frame.
   int anonymousTracks=0;
   for(int t=0;t<total;++t){
+    CheckCancellation(cancellation);
     counts[t]=weights[t]>0?std::min(static_cast<int>(std::nearbyint(counts[t]/weights[t])),maxSpeakers):0;
     anonymousTracks=std::max(anonymousTracks,static_cast<int>(counts[t]));
   }
@@ -163,6 +242,7 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   for(auto& row:activation)row.resize(clusters);
   std::vector<Turn> turns;std::vector<int> start(clusters,-1);
   for(int t=0;t<total;++t){
+    CheckCancellation(cancellation);
     int count=static_cast<int>(counts[t]);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
     std::stable_sort(order.begin(),order.end(),[&](int a,int b){return activation[t][a]>activation[t][b];});
     std::vector<bool> on(clusters,false);int anonymous=knownClusters;
@@ -181,11 +261,17 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4,
                             const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={},
-                            const std::vector<float>& runRms={}) {
+                            const std::vector<float>& runRms={},
+                             const CancellationToken* cancellation = nullptr) {
   constexpr int frames=589,local=3,dim=256;
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
-  ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
-  for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
+  CheckCancellation(cancellation);
+  ClusterResult result;Matrix train;std::vector<int> acceptedLabels,activity(windows*local);
+  for(int w=0;w<windows;++w){
+    CheckCancellation(cancellation);
+    for(int f=0;f<frames;++f){
+      for(int k=0;k<local;++k) activity[w*local+k]+=segments[(w*frames+f)*local+k];
+    }
   }
   const bool runMode=!runRanges.empty()&&runRanges.size()%4==0&&runEmbeddings.size()==(runRanges.size()/4)*dim;
   if(!runRms.empty()&&(!runMode||runRms.size()!=runRanges.size()/4||
@@ -195,8 +281,11 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   std::vector<bool> shortCandidate;
   std::vector<Vec> shortCandidateVectors;
   if(runMode){
-    for(size_t i=0;i<runRanges.size();i+=4){int w=runRanges[i],k=runRanges[i+1],b=runRanges[i+2],e=runRanges[i+3];
-      if(w<0||w>=windows||k<0||k>=local||b<0||e<=b||e>frames)throw std::runtime_error("invalid Community run range");
+    for(size_t i=0;i<runRanges.size();i+=4){
+      CheckCancellation(cancellation);
+      int w=runRanges[i],k=runRanges[i+1],b=runRanges[i+2],e=runRanges[i+3];
+      if(w<0||w>=windows||k<0||k>=local||b<0||e<=b||e>frames)
+        throw std::runtime_error("invalid Community run range");
       runWindow.push_back(w);runChannel.push_back(k);runBegin.push_back(b);runEnd.push_back(e);
     }
     std::vector<int> cleanRunCount(windows*local);
@@ -237,28 +326,42 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     // speaker cap still has room. This admits an otherwise unrepresented
     // short voice without forcing a count or allowing duplicate short tails
     // to manufacture identities.
-    auto groupCount=[](const Matrix& values){
+    auto groupCount=[&](const Matrix& values,std::vector<int>& labels){
+      CheckCancellation(cancellation);
       if(values.empty())return 0;
-      auto labels=Ahc(values);return *std::max_element(labels.begin(),labels.end())+1;
+      labels=Ahc(values,cancellation);return *std::max_element(labels.begin(),labels.end())+1;
     };
-    int groups=groupCount(train);
+    int groups=groupCount(train,acceptedLabels);
     if(groups>0){
       // Admission requires exactly one additional group within the cap. Once
       // full, no later candidate can change train or groups; avoid refitting
       // the same history for every remaining, necessarily rejected short run.
       for(size_t r=0;r<shortCandidate.size()&&groups<maxSpeakers;++r)if(shortCandidate[r]){
         Matrix proposed=train;proposed.push_back(shortCandidateVectors[r]);
-        const int next=groupCount(proposed);
+        std::vector<int> proposalLabels;
+        const int next=groupCount(proposed,proposalLabels);
         if(next==groups+1&&next<=maxSpeakers){
           train.push_back(std::move(shortCandidateVectors[r]));
+          // A new row can renumber earlier labels; retain the complete fit.
+          acceptedLabels=std::move(proposalLabels);
           result.trainingRunIndices.push_back(static_cast<int>(r));
           ++result.shortRunTrainingCount;groups=next;
         }
       }
     }
   } else {
-    for(int w=0;w<windows;++w){int clean[local]={};for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k)if(count==1&&segments[(w*frames+f)*local+k])clean[k]++;}
-      for(int k=0;k<local;++k){int i=w*local+k;Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}}
+    for(int w=0;w<windows;++w){
+      int clean[local]={};
+      for(int f=0;f<frames;++f){
+        int count=0;
+        for(int k=0;k<local;++k) count+=segments[(w*frames+f)*local+k];
+        for(int k=0;k<local;++k)if(count==1&&segments[(w*frames+f)*local+k])clean[k]++;
+      }
+      for(int k=0;k<local;++k){
+        int i=w*local+k;
+        Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);
+        if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}
+      }
     }
   }
   if(train.empty()){result.hard=std::vector<int>(windows*local,-2);return result;}
@@ -266,7 +369,11 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   // Other active local tracks must not inherit its identity unconditionally.
   if(train.size()==1)result.centroids=Matrix(1,train[0]);
   else {
-    result.ahc=Ahc(train);result.features=plda.Apply(train);result.vbx=Vbx(result.features,plda.phi,result.ahc);
+    if(runMode){
+      CheckCancellation(cancellation);
+      result.ahc=std::move(acceptedLabels);
+    } else result.ahc=Ahc(train,cancellation);
+    result.features=plda.Apply(train,cancellation);result.vbx=Vbx(result.features,plda.phi,result.ahc,cancellation);
     for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
   }
   if(runMode&&result.shortRunTrainingCount>0&&!result.ahc.empty()&&
@@ -322,7 +429,7 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     for(int c:result.retainedClusters)result.centroids.push_back(uncappedCentroids[c]);
   } else if(result.centroids.size()>static_cast<size_t>(maxSpeakers)) {
     // Legacy whole-window callers do not yet carry clean-run PCM levels.
-    auto labels=KMeans(train,maxSpeakers);
+    auto labels=KMeans(train,maxSpeakers,cancellation);
     result.centroids=Matrix(maxSpeakers,Vec(dim));
     for(int c=0;c<maxSpeakers;++c){std::vector<float> mean(dim);int count=0;
       for(size_t i=0;i<train.size();++i)if(labels[i]==c){++count;for(int j=0;j<dim;++j)mean[j]+=static_cast<float>(train[i][j]);}
@@ -374,40 +481,54 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       for(int c=0;c<k;++c)if(std::isfinite(values[c]))runScores[r][c]=values[c];
     }
     result.frame_hard.assign(windows*frames*local,-2);
-    std::vector<int> evidenceHard(windows*frames*local,-2);
-    auto finite=[](const std::vector<double>& values){return std::any_of(values.begin(),values.end(),[](double v){return std::isfinite(v);});};
-    auto assign=[&](const std::vector<std::vector<double>>& options,const std::vector<bool>& candidate,int initialUsed){
-      std::vector<int> current(local,-2),best(local,-2);double bestScore=-std::numeric_limits<double>::infinity();
-      std::function<void(int,int,double)> visit=[&](int row,int used,double score){
+    // Both cap branches above leave at most maxSpeakers <= 4 centroids. The
+    // all-zero RMS case returns with k == 0 before reaching this fixed storage.
+    if(k>4)throw std::runtime_error("Community clustering exceeds assignment capacity");
+    using OptionRows=std::array<std::array<double,4>,local>;
+    using CandidateRows=std::array<bool,local>;
+    const double negativeInfinity=-std::numeric_limits<double>::infinity();
+    auto resetOptions=[&](OptionRows& options,CandidateRows& candidate){
+      for(int row=0;row<local;++row){options[row].fill(negativeInfinity);candidate[row]=false;}
+    };
+    auto finiteRow=[&](const std::array<double,4>& values){
+      for(int c=0;c<k;++c)if(std::isfinite(values[c]))return true;
+      return false;
+    };
+    auto assign=[&](const OptionRows& options,const CandidateRows& candidate,int initialUsed){
+      std::array<int,local> current{},best{};current.fill(-2);best.fill(-2);double bestScore=negativeInfinity;
+      auto visit=[&](auto&& self,int row,int used,double score)->void{
         if(row==local){if(score>bestScore){bestScore=score;best=current;}return;}
-        if(!candidate[row]){current[row]=-2;visit(row+1,used,score);return;}
-        bool assigned=false;for(int c=0;c<k;++c)if(!(used&(1<<c))&&std::isfinite(options[row][c])){assigned=true;current[row]=c;visit(row+1,used|(1<<c),score+options[row][c]);}
-        current[row]=-2;if(!assigned)visit(row+1,used,score);
-      };visit(0,initialUsed,0.);
+        if(!candidate[row]){current[row]=-2;self(self,row+1,used,score);return;}
+        bool assigned=false;for(int c=0;c<k;++c)if(!(used&(1<<c))&&std::isfinite(options[row][c])){assigned=true;current[row]=c;self(self,row+1,used|(1<<c),score+options[row][c]);}
+        current[row]=-2;if(!assigned)self(self,row+1,used,score);
+      };visit(visit,0,initialUsed,0.);
       return best;
     };
+    std::vector<int> evidenceVotes(windows*local*k);
     for(int w=0;w<windows;++w)for(int f=0;f<frames;++f){
-      std::vector<std::vector<double>> options(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
-      std::vector<bool> candidate(local,false);
+      OptionRows options,fallback;CandidateRows candidate,fallbackCandidate;resetOptions(options,candidate);resetOptions(fallback,fallbackCandidate);
       for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]){
         const int run=runFor[(w*frames+f)*local+ch];
-        if(run>=0){if(eligible[run]){options[ch]=runScores[run];candidate[ch]=finite(options[ch]);}}
-        else if(!hasRun[w*local+ch]){options[ch]=scores[w*local+ch];candidate[ch]=finite(options[ch]);}
+        if(run>=0){
+          if(eligible[run]){for(int c=0;c<k;++c)options[ch][c]=runScores[run][c];candidate[ch]=finiteRow(options[ch]);}
+        } else if(!hasRun[w*local+ch]){
+          for(int c=0;c<k;++c)options[ch][c]=scores[w*local+ch][c];candidate[ch]=finiteRow(options[ch]);
+        }
       }
       const auto best=assign(options,candidate,0);
       int used=0;
       for(int ch=0;ch<local;++ch)if(candidate[ch]){
-        evidenceHard[(w*frames+f)*local+ch]=result.frame_hard[(w*frames+f)*local+ch]=best[ch];
-        if(best[ch]>=0)used|=1<<best[ch];
+        result.frame_hard[(w*frames+f)*local+ch]=best[ch];
+        if(best[ch]>=0){used|=1<<best[ch];evidenceVotes[(w*local+ch)*k+best[ch]] += 1;}
       }
       // Speech without assignable run evidence (overlap, short or unadmitted
       // runs) falls back to its channel's full-window vector against the same
       // centroids. It only takes identities still free at this frame, so run
       // evidence is never displaced; overflow voices score -inf and stay anonymous.
-      std::vector<std::vector<double>> fallback(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
-      std::vector<bool> fallbackCandidate(local,false);bool anyFallback=false;
+      bool anyFallback=false;
       for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]&&!candidate[ch]){
-        fallback[ch]=scores[w*local+ch];fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
+        for(int c=0;c<k;++c)fallback[ch][c]=scores[w*local+ch][c];
+        fallbackCandidate[ch]=finiteRow(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
       }
       if(anyFallback){
         const auto extra=assign(fallback,fallbackCandidate,used);
@@ -416,7 +537,11 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     }
     // Window identities (and the public registry) keep using run evidence only.
     result.hard.assign(windows*local,-2);
-    for(int w=0;w<windows;++w)for(int ch=0;ch<local;++ch){std::vector<int> votes(k);for(int f=0;f<frames;++f){int label=evidenceHard[(w*frames+f)*local+ch];if(label>=0)votes[label]++;}int best=0;for(int c=1;c<k;++c)if(votes[c]>votes[best])best=c;if(votes[best]>0)result.hard[w*local+ch]=best;}
+    for(int w=0;w<windows;++w)for(int ch=0;ch<local;++ch){
+      const int* votes=evidenceVotes.data()+(w*local+ch)*k;int best=0;
+      for(int c=1;c<k;++c)if(votes[c]>votes[best])best=c;
+      if(votes[best]>0)result.hard[w*local+ch]=best;
+    }
     return result;
   }
   if(result.usedKMeans) {

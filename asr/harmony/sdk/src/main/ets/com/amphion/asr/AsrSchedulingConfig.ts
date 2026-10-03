@@ -41,10 +41,9 @@ export function asrCpuProvider(disablePrepack: boolean, source?: AsrSchedulingCo
 }
 
 /**
- * The same request without the recognizer's provider prefix, for a second model
- * that owns its own compute pool. Only qos and cpuIds can be honoured there:
- * `allowSpinning` governs the recognizer's ORT pool, while the role encoder runs
- * on XNNPACK's own pthread pool whose idle spin it cannot reach.
+ * The same request without the recognizer's provider prefix. This helper forwards only qos and
+ * cpuIds; `allowSpinning` configures ASR ORT sessions, while diarization backends configure their
+ * encoder CPU and XNNPACK pools separately.
  */
 export function asrSchedulingTokens(source?: AsrSchedulingConfig): string {
   const config = snapshotAsrScheduling(source);

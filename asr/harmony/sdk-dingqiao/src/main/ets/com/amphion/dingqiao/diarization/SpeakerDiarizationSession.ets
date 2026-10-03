@@ -15,6 +15,7 @@ import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerI
 import { PoliceTextProvenance, PoliceTextSpan } from '../PoliceEnhancementPolicy';
 
 const SAMPLE_RATE: number = 16000;
+const PREVIEW_INTERVAL_MS: number = 20000;
 interface DiarizationEvidenceWindow {
   jobId: string;
   windowStartSample: number;
@@ -325,12 +326,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           this.observer.onFinished(result);
           break;
         }
-        // Preview only completed audio snapshots, at most once per 10 s of
+        // Preview only completed audio snapshots, at most once per 20 s of
         // audio. It never advances the public commit clock or enrolls frozen IDs.
-        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / 10000) * 10000;
+        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) /
+          PREVIEW_INTERVAL_MS) * PREVIEW_INTERVAL_MS;
         if (!this.finishRequested && this.degradedReason === SpeakerDiarizationDegradedReason.NONE &&
           this.lastAsrEndMs > this.publishedThrough &&
-          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + 10000) {
+          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + PREVIEW_INTERVAL_MS) {
           this.previewThroughMs = previewEnd;
           await this.updateSpeakers(previewEnd, previewEnd, false, this.publishedThrough, true);
           continue;

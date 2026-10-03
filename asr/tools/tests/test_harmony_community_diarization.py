@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from asr.tools.tests.community_pcm_host import native_normalizer_prelude, production_normalizer_wrapper
 from asr.tools.tests.test_harmony_speaker_diarization_session import (
     ROOT, DIARIZATION, SESSION, TS_LOADER, run_node,
 )
@@ -20,6 +21,7 @@ def run_community_session(body):
     stubs = """
       import assert from 'node:assert/strict';
       const SAMPLE_RATE=16000;
+      const PREVIEW_INTERVAL_MS=20000;
       const ResultAudioTimeline={endSample:r=>r.audioEndSample};
       const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
@@ -99,9 +101,9 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             s.observeAsrFinal({result:'完整原句',beginTime:100,endTime:5000,isLast:false},
               {rawText:'完整原句',tokens:['完','整','原','句'],timestamps:[.1,1,2,3],audioEndSample:6000*16,isLast:false});
             s.asrFinalDelivered({audioEndSample:6000*16,isLast:false});
-            s.onWindow(window(0));s.asrAudioProcessed(10000*16);
+            s.onWindow(window(0));s.onWindow(window(10));s.asrAudioProcessed(20000*16);
             await new Promise(r=>setImmediate(r));
-            assert.equal(updates.length,1,'preview remains at 10 seconds for every commit period');
+            assert.equal(updates.length,1,'preview remains at 20 seconds for every commit period');
             assert.equal(published.length,0);
             s.onWindow(window(period/1000-6));
             s.asrAudioProcessed((period-20)*16);
@@ -180,12 +182,13 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           const updates=[],published=[];
           const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate:u=>updates.push(u),
             onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)});
-          s.totalSamples=160000;
+          s.totalSamples=320000;
           s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
             {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
           s.client.cluster=async(segments,embeddings,cap,starts,begin)=>{
             assert.deepEqual([...starts],[0]);assert.equal(begin,0);return clusterResult(1);};
-          s.onWindow(window(0));s.asrAudioProcessed(160000);
+          const previewWindow=window(0);previewWindow.realEndSample=320000;
+           s.onWindow(previewWindow);s.asrAudioProcessed(320000);
           await new Promise(r=>setImmediate(r));
           assert.equal(updates.length,1);assert.equal(updates[0].speakerIndex,0);
           assert.deepEqual(published,[]);assert.equal(s.finalSpeakerCount,0);
@@ -219,11 +222,12 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
     def test_failed_finish_does_not_publish_a_provisional_identity_as_final(self):
         run_community_session("""
           for(const timeout of [false,true]) {
-            const s=session();s.totalSamples=160000;
+            const s=session();s.totalSamples=320000;
             s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
               {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
             s.client.cluster=async()=>clusterResult(1);
-            s.onWindow(window(0));s.asrAudioProcessed(160000);
+            const previewWindow=window(0);previewWindow.realEndSample=320000;
+            s.onWindow(previewWindow);s.asrAudioProcessed(320000);
             await new Promise(r=>setImmediate(r));
             assert.equal(s.transcript.currentAssignment('u1').speakerId,'S1');
             if(!timeout)s.onDegraded(1,'failed final cluster');
@@ -543,7 +547,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
     def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]
-        stubs = f"""
+        stubs = native_normalizer_prelude() + f"""
           import assert from 'node:assert/strict';
           import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
@@ -557,7 +561,8 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           }}
           class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
           class CommunityDiarizationInference {{
-            calls=0;async load(){{}}close(){{closeCount++;}}
+            {production_normalizer_wrapper()}
+            calls=0;async load(){{}}cancel(){{}}close(){{closeCount++;}}
             async process(samples){{
               if(this.calls++===0&&holdFirst)await new Promise(r=>releaseFirst=r);
               return {{segments:new Float32Array([samples[0],samples.at(-1)]),embeddings:new Float32Array(0)}};
@@ -607,7 +612,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           class DiarizationPcmSpool {close(){} remove(){}}
           class DiarizationEvidenceSpool {close(){} remove(){removeCount++;}}
           class CommunityDiarizationInference {
-            async load(){} close(){closeCount++;}
+            async load(){} cancel(){} close(){closeCount++;}
             cluster(){return new Promise(r=>resolveCluster=r);}
           }
           const fs={accessSync:()=>true,rmdirSync(){}};

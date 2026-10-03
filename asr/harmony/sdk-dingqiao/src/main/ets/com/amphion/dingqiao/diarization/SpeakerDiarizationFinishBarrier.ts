@@ -41,6 +41,17 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
     this.startTimeoutIfReady();
   }
 
+  cancel(): void {
+    if (this.completed) {
+      return;
+    }
+    this.completed = true;
+    if (this.timer !== undefined) {
+      clearTimeout(this.timer);
+      this.timer = undefined;
+    }
+  }
+
   private startTimeoutIfReady(): void {
     // Diarization also waits for the real ASR tail. Its timeout must not include ASR backlog.
     if (!this.started || !this.asrReady || this.speakerReady || this.completed ||

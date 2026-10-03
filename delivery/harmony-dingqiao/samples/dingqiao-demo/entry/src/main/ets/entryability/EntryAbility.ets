@@ -136,6 +136,8 @@ export default class EntryAbility extends UIAbility {
       options.asrNumThreads = this.numberParameter(want, 'stressAsrNumThreads', 4);
       options.asrAllowSpinning = this.stringParameter(want, 'stressAsrAllowSpinning', 'true') === 'true';
       options.asrDisablePrepack = this.stringParameter(want, 'stressAsrDisablePrepack', 'true') === 'true';
+      options.asrUseSdkPrepackDefault =
+        this.stringParameter(want, 'stressAsrUseSdkPrepackDefault', 'false') === 'true';
       options.enrollmentCount = this.numberParameter(want, 'stressEnrollmentCount', 1);
       options.enforceTargetSpeakerBusinessText =
         this.stringParameter(want, 'stressEnforceTargetSpeakerBusinessText', 'true') === 'true';

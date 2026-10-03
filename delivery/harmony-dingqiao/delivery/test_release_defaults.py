@@ -195,7 +195,7 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn(command, device_stress)
         self.assertIn("FINISH_COMPATIBILITY_POSTMORTEM.md", device_stress)
 
-    def test_prepack_is_disabled_by_default_across_public_harmony_layers(self) -> None:
+    def test_prepack_defaults_distinguish_dingqiao_modes_and_core(self) -> None:
         core = (
             REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
         ).read_text(encoding="utf-8")
@@ -210,10 +210,14 @@ class ReleaseDefaultsTest(unittest.TestCase):
 
         self.assertIn("disablePrepack: boolean = true;", core)
         self.assertIn(
-            "compatibleBooleanParam(params.extraParams, 'disablePrepack', true)",
+            "compatibleBooleanParam(params.extraParams, 'disablePrepack', "
+            "endpointRule3.mode !== 'long')",
             recognition_config,
         )
-        self.assertIn("| `disablePrepack` | `boolean/number/string` | `true` |", docs)
+        self.assertIn(
+            "| `disablePrepack` | `boolean/number/string` | `short：true；long：false` |",
+            docs,
+        )
 
     def test_sdk_only_packaging_requires_verified_har_source_identity(self) -> None:
         script = (

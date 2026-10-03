@@ -152,10 +152,16 @@ export class SpeakerDiarizationLocalClient {
   }
 
   cancel(onQuiescent?: () => void): void {
+    if (this.resourcesClosed) {
+      onQuiescent?.();
+      return;
+    }
     if (onQuiescent !== undefined) this.quiescentCallbacks.push(onQuiescent);
     if (!this.closed) {
       this.closed = true;
       this.queue.splice(0, this.queue.length);
+      // Request native exit, but keep its ownership until process/cluster settle.
+      this.inference.cancel();
       this.closeSpool();
     }
     this.closeWhenQuiescent();
@@ -181,11 +187,11 @@ export class SpeakerDiarizationLocalClient {
     runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0),
     runRms: Float32Array = new Float32Array(0),
     includeFrameHard: boolean = true): Promise<CommunityDiarizationCluster> {
-    if (this.closed) throw new Error('speaker diarization client is closed');
+    if (this.closed || this.degraded) throw new Error('speaker diarization client is unavailable');
     this.pendingClusters += 1;
     try {
       await this.inferenceLoad;
-      if (this.closed) throw new Error('speaker diarization client is closed');
+      if (this.closed || this.degraded) throw new Error('speaker diarization client is unavailable');
       return await this.inference.cluster(segments, embeddings, runEmbeddings, runRanges,
         maxSpeakers, windowStartSamples, beginSample, runRms, includeFrameHard);
     } finally {
@@ -261,8 +267,15 @@ export class SpeakerDiarizationLocalClient {
           reject(new Error('speaker diarization inference timed out'));
         }, INFERENCE_TIMEOUT_MS);
       });
-      inferencePromise = this.inferenceLoad.then(
-        (): Promise<CommunityDiarizationWindow> => this.inference.process(samples));
+      inferencePromise = this.inferenceLoad.then((): Promise<CommunityDiarizationWindow> => {
+        // Load may finish after the timeout/cancel. Never enqueue fresh native
+        // work for a job whose public lifetime already ended.
+        if (this.closed || this.degraded || this.activeJob?.jobId !== job.jobId ||
+          this.activeJob?.generation !== job.generation) {
+          throw new Error('speaker diarization job is no longer active');
+        }
+        return this.inference.process(samples, job.windowStartSample, !job.finalWindow);
+      });
       const result = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
@@ -335,6 +348,7 @@ export class SpeakerDiarizationLocalClient {
       // The encoder pool is not the ASR pool; record the budget actually in
       // force so a device run can attribute CPU and heat to this component.
       queueFields['encoderThreads'] = this.encoderThreads;
+      queueFields['encoderModel'] = 'wespeaker-per-channel-int8';
       this.diagnostic('DIARIZATION_QUEUE', queueFields);
       for (let channel = 0; channel < 3; channel++) {
         const active: number[] = [];
@@ -397,10 +411,7 @@ export class SpeakerDiarizationLocalClient {
     let data: ArrayBuffer;
     try { data = this.spool.read(job.offsetBytes, job.sampleCount * 2); }
     catch (error) { throw new SpeakerDiarizationStorageError(`diarization PCM read failed: ${error}`); }
-    const pcm = new Int16Array(data);
-    const result = new Float32Array(WINDOW_SAMPLES);
-    for (let index = 0; index < pcm.length; index++) result[index] = pcm[index] / 32768.0;
-    return result;
+    return CommunityDiarizationInference.normalizePcm16Window(new Int16Array(data));
   }
 
   private fail(reason: SpeakerDiarizationDegradedReason, message: string): void {
@@ -423,6 +434,9 @@ export class SpeakerDiarizationLocalClient {
       } catch (_ignored) {}
     }
     this.queue.splice(0, this.queue.length);
+    // Promise.race only ends the ArkTS wait. Stop the underlying compute too;
+    // execute()/cluster() retain the model lease until native acknowledges exit.
+    this.inference.cancel();
     this.observer.onDegraded(reason, message);
     this.maybeNotifyDrained();
   }

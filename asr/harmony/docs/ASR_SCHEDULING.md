@@ -1,6 +1,6 @@
 # 鸿蒙 ASR 可选调度配置
 
-这些选项用于比较息屏前后的 ASR 性能，默认保持现有行为。设置请求不保证系统提供更多 CPU 资源，也不授予后台运行或录音权限。绑核属于实验能力，必须针对客户机型验证。
+这些调度选项用于比较息屏前后的 ASR 性能，默认保留原有 QoS、affinity 和忙等策略。设置请求不保证系统提供更多 CPU 资源，也不授予后台运行或录音权限。绑核属于实验能力，必须针对客户机型验证。
 
 ## 鼎桥 SDK
 
@@ -17,8 +17,8 @@ scheduling.cpuIds = [];
 scheduling.allowSpinning = true;
 params.scheduling = scheduling;
 params.numThreads = 4;
-// 已有选项：false 启用权重预打包，以加载时间和内存换取推理吞吐。
-params.extraParams['disablePrepack'] = true;
+// 可选引擎级覆盖：true 跳过 prepack，false 启用；省略时由 short/long 模式选择。
+// params.extraParams['disablePrepack'] = true;
 const engine = SpeechRecognizeSdk.createEngine(params);
 ```
 
@@ -30,9 +30,14 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 | `scheduling.cpuIds` | `[]` | 不修改 affinity；非空为允许执行的零起始 CPU 编号集合，不自动推断大核 |
 | `scheduling.allowSpinning` | `true` | 保留 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
 | 鼎桥 `numThreads` | `4` | ASR 推理线程数，含调用线程，整数 1–8；基础 SDK 原默认 2 不变 |
-| `disablePrepack` | `true` | 保留原来偏向低内存、快加载的策略 |
+| 鼎桥 `disablePrepack` | `short：true；long：false` | 按最终解析的 mode 选择；short 跳过 prepack，long 启用；显式引擎级 `true`/`false` 优先 |
+| Core `AsrConfig.disablePrepack` | `true` | Core 默认保持跳过 prepack；可显式设为 `false` |
 
-配置在创建引擎时复制，CPU 数组也会复制。修改原对象不影响正在加载或运行的引擎。切换策略需创建新引擎；不支持通过 `StartParams` 在会话中切换。调度参数参与模型复用判定，防止复用具有另一套策略的模型。
+引擎参数在创建时复制，CPU 数组也会复制。修改原对象不影响正在加载或运行的引擎。切换显式引擎策略需创建新引擎；这些引擎参数不通过 `StartParams` 修改。调度参数参与模型复用判定，防止复用具有另一套策略的模型。
+
+未设置引擎级 `disablePrepack` 时，鼎桥 SDK 根据最终解析的 `recognizerMode` 选择缺省值，包括会话级 mode 覆盖和未显式指定 mode 时的 continuous→long 规则；角色分离开关不参与选择。`prepareRuntime()` 仍预加载 `short`、`disablePrepack=true` 的默认模型，Core 默认值也仍为 `true`。short→long 使用既有模式重建路径；`StartParams.extraParams['disablePrepack']` 不覆盖显式引擎参数，也不覆盖上述缺省选择。
+
+默认 `true` 预热池与 `false` 长模式专用 recognizer 仍可能并存；自定义线程、调度和端点配置也会影响模型复用。显式 `true` 保留跳过 prepack 的策略，不保证整个进程的初始化时延或内存完全恢复旧模式；须对对应配置分别测量，不能仅凭启用 prepack 的既有结果推断缺省路径成本。
 
 ## 作用范围和限制
 
@@ -57,7 +62,7 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --asr-qos user-initiated
 ```
 
-其他对照参数：`--asr-cpu-ids <已验证的CPU集合>`、`--asr-num-threads 1..8`、`--asr-disable-spinning`、`--asr-enable-prepack`。没有指定时保持原默认值。测试载体沿用现有后台录音条件，SDK 自身不负责这一能力。
+其他对照参数：`--asr-cpu-ids <已验证的CPU集合>`、`--asr-num-threads 1..8`、`--asr-disable-spinning`、`--asr-enable-prepack`。未指定时沿用测试载体原有配置；其中载体默认显式传 `disablePrepack=true`，`--asr-enable-prepack` 则显式传 `false`，均不验证 SDK 未设置该键的模式缺省路径。验证缺省路径时必须实际省略该键。测试载体沿用现有后台录音条件，SDK 自身不负责这一能力。
 
 验收须逐 session 检查显式 finish 前没有 last、结束后唯一 last/complete、cancel 后无新增 final/complete、卸载后恢复。比较屏幕状态时，还需区分 PCM 到达间隔、调度等待、推理耗时和回调延迟，不能只用最终识别文本判断性能。USB 供电、调试连接、温度和客户后台运行条件也需保持一致。
 

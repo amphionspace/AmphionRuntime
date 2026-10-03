@@ -97,140 +97,10 @@ int main() {
             subprocess.run([str(binary)], check=True)
 
     def test_ohos_scheduling_scope_parses_and_restores_thread_state(self):
-        # The host slices compile the non-OHOS branch, so the branch that actually
-        # ships is otherwise never built. Compile it against platform stubs and
-        # check the parser rejections plus set/restore of both mask and QoS.
-        compiler = shutil.which('clang++') or shutil.which('g++')
-        if compiler is None:
-            self.skipTest('C++17 compiler unavailable')
-        source_text = (CPP / 'community_diarization.cpp').read_text()
-        # Anchor on the scheduling section itself. The platform includes above it
-        # also sit behind `#if defined(__OHOS__)`, so the first occurrence of that
-        # guard is not this one.
-        marker = source_text.index('// The engine-wide scheduling request')
-        ohos_if = source_text.rindex('#if defined(__OHOS__)', 0, marker)
-        constants = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):ohos_if]
-        ohos_start = source_text.index('namespace {', ohos_if)
-        block = constants + source_text[ohos_start:source_text.index('#else', marker)]
-        program = r'''
-#include <cassert>
-#include <sched.h>
-#include <qos/qos.h>
-#include <sstream>
-#include <stdexcept>
-#include <string>
-#include <vector>
-''' + block + r'''
-int main() {
-  assert(kDefaultEncoderThreads == 4 && kMaxEncoderThreads == 8);
-  CommunityScheduling none;
-  assert(!none.has_thread_policy());
-  CommunityScheduling policy;
-  ParseCommunityScheduling("AmphionQos=user-initiated;AmphionCpuIds=4,5", &policy);
-  assert(policy.qos == QOS_USER_INITIATED && policy.cpu_ids.size() == 2);
-  assert(policy.cpu_ids[0] == 4 && policy.cpu_ids[1] == 5 && policy.has_thread_policy());
-  // An empty request must stay a no-op rather than clearing an earlier one.
-  CommunityScheduling untouched;
-  ParseCommunityScheduling("", &untouched);
-  assert(!untouched.has_thread_policy());
-  for (const char* bad : {"AmphionQos=realtime", "AmphionCpuIds=4,4", "AmphionCpuIds=9999",
-                          "AmphionCpuIds=4,", "AmphionCpuIds=x"}) {
-    CommunityScheduling rejected_policy;
-    bool rejected = false;
-    try { ParseCommunityScheduling(bad, &rejected_policy); }
-    catch (const std::runtime_error&) { rejected = true; }
-    assert(rejected);
-  }
-  // A scope must leave both the mask and the QoS exactly as it found them.
-  StubMask() = cpu_set_t{};
-  CPU_SET(1, &StubMask());
-  StubQos() = QOS_USER_INTERACTIVE;
-  {
-    ScopedCommunityScheduling scope(policy);
-    assert(StubQos() == QOS_USER_INITIATED);
-    assert(CPU_ISSET(4, &StubMask()) && CPU_ISSET(5, &StubMask()));
-    assert(!CPU_ISSET(1, &StubMask()));
-  }
-  assert(StubQos() == QOS_USER_INTERACTIVE);
-  assert(CPU_ISSET(1, &StubMask()) && !CPU_ISSET(4, &StubMask()));
-  // A borrowed thread whose previous QoS cannot be read must be left alone: a
-  // reset on exit would discard a policy this module never learned.
-  StubQos() = QOS_USER_INTERACTIVE;
-  StubQosGetFails() = true;
-  StubQosSetCalls() = 0;
-  {
-    ScopedCommunityScheduling scope(policy);
-    assert(StubQosSetCalls() == 0 && "unknown previous QoS must not be overwritten");
-    assert(StubQos() == QOS_USER_INTERACTIVE);
-  }
-  assert(StubQos() == QOS_USER_INTERACTIVE);
-  assert(StubQosSetCalls() == 0 && "unknown previous QoS must not be reset");
-  StubQosGetFails() = false;
-  // A failed setter must not leave a restore behind either.
-  StubQos() = QOS_USER_INTERACTIVE;
-  StubQosSetFails() = true;
-  {
-    ScopedCommunityScheduling scope(policy);
-    assert(StubQos() == QOS_USER_INTERACTIVE);
-  }
-  assert(StubQos() == QOS_USER_INTERACTIVE);
-  StubQosSetFails() = false;
-  // The same rule applies to the affinity mask.
-  StubMask() = cpu_set_t{};
-  CPU_SET(1, &StubMask());
-  StubMaskGetFails() = true;
-  {
-    ScopedCommunityScheduling scope(policy);
-    assert(CPU_ISSET(1, &StubMask()) && "unreadable mask must not be replaced");
-  }
-  assert(CPU_ISSET(1, &StubMask()));
-  StubMaskGetFails() = false;
-  StubMask() = cpu_set_t{};
-  CPU_SET(1, &StubMask());
-  StubMaskSetFails() = true;
-  {
-    ScopedCommunityScheduling scope(policy);
-    assert(CPU_ISSET(1, &StubMask()));
-  }
-  assert(CPU_ISSET(1, &StubMask()) && "failed set must not restore anything");
-  StubMaskSetFails() = false;
-  return 0;
-}
-'''
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            (root / 'qos').mkdir()
-            (root / 'qos/qos.h').write_text(
-                'typedef enum { QOS_DEFAULT=0, QOS_USER_INITIATED=2, QOS_USER_INTERACTIVE=3 } QoS_Level;\n'
-                'inline QoS_Level& StubQos(){ static QoS_Level v = QOS_DEFAULT; return v; }\n'
-                'inline bool& StubQosGetFails(){ static bool v = false; return v; }\n'
-                'inline bool& StubQosSetFails(){ static bool v = false; return v; }\n'
-                'inline int& StubQosSetCalls(){ static int v = 0; return v; }\n'
-                'inline int OH_QoS_GetThreadQoS(QoS_Level* level){ if (StubQosGetFails()) return -1;'
-                ' *level = StubQos(); return 0; }\n'
-                'inline int OH_QoS_SetThreadQoS(QoS_Level level){ ++StubQosSetCalls();'
-                ' if (StubQosSetFails()) return -1; StubQos() = level; return 0; }\n'
-                'inline int OH_QoS_ResetThreadQoS(){ StubQos() = QOS_DEFAULT; return 0; }\n')
-            (root / 'sched.h').write_text(
-                '#pragma once\n#include <cstddef>\n'
-                '#define CPU_SETSIZE 1024\n'
-                'typedef struct { unsigned char bits[CPU_SETSIZE/8]; } cpu_set_t;\n'
-                'inline void CPU_ZERO(cpu_set_t* s){ for (size_t i=0;i<sizeof(s->bits);++i) s->bits[i]=0; }\n'
-                'inline void CPU_SET(int cpu, cpu_set_t* s){ s->bits[cpu/8] |= (unsigned char)(1u<<(cpu%8)); }\n'
-                'inline int CPU_ISSET(int cpu, const cpu_set_t* s){ return (s->bits[cpu/8]>>(cpu%8))&1u; }\n'
-                'inline cpu_set_t& StubMask(){ static cpu_set_t m{}; return m; }\n'
-                'inline bool& StubMaskGetFails(){ static bool v = false; return v; }\n'
-                'inline bool& StubMaskSetFails(){ static bool v = false; return v; }\n'
-                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ if (StubMaskGetFails()) return -1;'
-                ' *s = StubMask(); return 0; }\n'
-                'inline int sched_setaffinity(int,size_t,const cpu_set_t* s){ if (StubMaskSetFails()) return -1;'
-                ' StubMask() = *s; return 0; }\n')
-            source = root / 'scheduling.cpp'
-            binary = root / 'scheduling'
-            source.write_text(program)
-            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(root),
-                            str(source), '-o', str(binary)], check=True)
-            subprocess.run([str(binary)], check=True)
+        # The full fault-injection executable owns the OHOS scheduling slice.
+        # Keep this entry point for callers of the original native regression.
+        from asr.tools.tests.test_harmony_community_scheduling import HarmonyCommunitySchedulingTest
+        HarmonyCommunitySchedulingTest('test_platform_faults_and_diagnostics').test_platform_faults_and_diagnostics()
 
     def test_load_arguments_parse_threads_and_scheduling_together(self):
         # The caller always passes (resourceManager, threads, scheduling), so a
@@ -254,6 +124,7 @@ int main() {
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cerrno>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -265,6 +136,8 @@ int main() {
 #include <vector>
 #include <sched.h>
 #include <qos/qos.h>
+#define OH_LOG_Print(...) ((void)0)
+#define gettid() 1
 struct Value { int kind = 0; long long integer = 0; const char* text = nullptr; };
 struct CallInfo { Value* const* args = nullptr; size_t count = 0; };
 namespace {
@@ -437,7 +310,10 @@ int main() {
                 'typedef struct { unsigned char bits[CPU_SETSIZE/8]; } cpu_set_t;\n'
                 'inline void CPU_ZERO(cpu_set_t* s){ for (size_t i=0;i<sizeof(s->bits);++i) s->bits[i]=0; }\n'
                 'inline void CPU_SET(int, cpu_set_t*) {}\n'
-                'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ CPU_ZERO(s); return 0; }\n'
+                'inline int CPU_ISSET(int,const cpu_set_t*){ return 0; }\n'
+                 'inline int CPU_COUNT(const cpu_set_t*){ return 0; }\n'
+                 'inline void CPU_AND(cpu_set_t* d,const cpu_set_t*,const cpu_set_t*){ CPU_ZERO(d); }\n'
+                 'inline int sched_getaffinity(int,size_t,cpu_set_t* s){ CPU_ZERO(s); return 0; }\n'
                 'inline int sched_setaffinity(int,size_t,const cpu_set_t*){ return 0; }\n')
             source = root / 'queue.cpp'
             binary = root / 'queue'
@@ -445,6 +321,266 @@ int main() {
             subprocess.run([compiler, '-std=c++17', '-O1', '-I', str(root),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
+
+    def test_model_construction_applies_affinity_and_restores_borrowed_driver(self):
+        from asr.tools.tests.test_harmony_community_scheduling import (
+            FIXTURES, community_scheduling_source)
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        text = (CPP / 'community_diarization.cpp').read_text()
+        marker = text.index('// The engine-wide scheduling request')
+        guard = text.rindex('#if defined(__OHOS__)', 0, marker)
+        budgets = text[text.index('constexpr int kDefaultEncoderThreads'):guard]
+        constructor = text[text.index('  Model(', text.index('class Model {')):
+                           text.index('\n  void Cancel()', text.index('class Model {'))]
+        # Compile the entire production constructor and scheduling scope. Only
+        # OS/ORT boundaries are faked; this does not create real ORT workers or
+        # establish device affinity. All model buffers below are synthetic.
+        program = r'''
+#include <array>
+#include <cassert>
+#include <cerrno>
+#include <cstdint>
+#include <cstring>
+#include <iostream>
+#include <memory>
+#include <mutex>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <unistd.h>
+#include <hilog/log.h>
+#include "platform_stubs.h"
+#include "community_cluster.h"
+''' + budgets + community_scheduling_source() + r'''
+struct Observation { std::string phase; cpu_set_t cpus; QoS_Level qos; };
+std::vector<Observation> observations;
+int fail_at = 0;
+void ObserveConstruction(const char* phase) {
+  observations.push_back({phase, scheduling_test::state.cpus, scheduling_test::state.qos});
+  if (static_cast<int>(observations.size()) == fail_at)
+    throw std::runtime_error("injected ORT construction failure");
+}
+constexpr int ORT_LOGGING_LEVEL_WARNING = 2;
+enum class ExecutionMode { ORT_SEQUENTIAL, ORT_PARALLEL };
+namespace Ort {
+struct Env { Env(int, const char*) {} };
+struct AllocatorWithDefaultOptions {};
+struct Name { const char* get() const { return "synthetic"; } };
+struct SessionOptions {
+  int cpu_threads = -1, inter_threads = -1;
+  std::unordered_map<std::string, std::string> config;
+  SessionOptions& SetExecutionMode(ExecutionMode mode) {
+    assert(mode == ExecutionMode::ORT_SEQUENTIAL); return *this;
+  }
+  SessionOptions& SetInterOpNumThreads(int threads) { inter_threads = threads; return *this; }
+  SessionOptions& SetIntraOpNumThreads(int threads) { cpu_threads = threads; return *this; }
+  SessionOptions& DisableCpuMemArena() { return *this; }
+  SessionOptions& DisableMemPattern() { return *this; }
+  SessionOptions& AddConfigEntry(const char* key, const char* value) {
+    config[key] = value; return *this;
+  }
+  SessionOptions& AppendExecutionProvider(
+      const std::string& name, const std::unordered_map<std::string, std::string>& settings) {
+    assert(name == "XNNPACK" && settings.at("intra_op_num_threads") == "4");
+    ObserveConstruction("XNNPACK"); return *this;
+  }
+};
+struct Session {
+  Session(std::nullptr_t) {}
+  Session(Env&, const uint8_t* data, size_t size, const SessionOptions& options) {
+    assert(size == 1 && options.inter_threads == 1);
+    const int id = data[0];
+    assert(id >= 1 && id <= 3);
+    assert(options.cpu_threads == (id == 1 ? 2 : id == 2 ? 1 : 4));
+    if (id != 2) assert(options.config.at("session.intra_op.allow_spinning") == "0");
+    ObserveConstruction(id == 1 ? "segmentation" : id == 2 ? "pooling" : "encoder");
+  }
+  Name GetInputNameAllocated(int, AllocatorWithDefaultOptions&) { return {}; }
+  Name GetOutputNameAllocated(int, AllocatorWithDefaultOptions&) { return {}; }
+};
+}
+class Model {
+ public:
+''' + constructor + r'''
+ private:
+  // Storage used by the production constructor; Process/Cluster are not part
+  // of this harness and cannot be inferred to have concurrency coverage.
+  Ort::Env env_;
+  Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
+  std::string input_name_, output_name_;
+  std::vector<float> constants_;
+  community::Plda plda_;
+  CommunityScheduling scheduling_;
+};
+int main(int argc, char** argv) {
+  assert(argc == 3);
+  const bool requested = std::stoi(argv[1]) != 0;
+  fail_at = std::stoi(argv[2]);
+  using namespace scheduling_test;
+  Reset();
+  const auto before = Mask({0, 1, 2, 3});
+  const auto wanted = Mask({4, 5, 6, 7, 8, 9, 10, 11});
+  state.cpus = before;
+  state.kernel_allowed = Mask({0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+  // A QoS side effect must not replace the explicit CPU request, and restoring
+  // QoS must not leave that side effect on this borrowed driver after return.
+  state.qos_changes_mask = requested;
+  CommunityScheduling policy;
+  if (requested) {
+    policy.cpu_ids = {4, 5, 6, 7, 8, 9, 10, 11};
+    policy.qos = QOS_USER_INITIATED;
+  }
+  const auto original_ids = policy.cpu_ids;
+  std::vector<uint8_t> feature((400 + 80 * 257) * sizeof(float));
+  constexpr size_t doubles = 256 + 128 + 256 * 128 + 128 + 128 * 128 + 128;
+  std::vector<uint8_t> plda(16 + doubles * sizeof(double));
+  const uint32_t header[4] = {0x434d504c, 1, 256, 128};
+  std::memcpy(plda.data(), header, sizeof(header));
+  bool failed = false;
+  try { Model model({1}, {3}, {2}, feature, plda, 4, policy); }
+  catch (const std::runtime_error& error) {
+    assert(std::string(error.what()) == "injected ORT construction failure");
+    failed = true;
+  }
+  assert(failed == (fail_at > 0));
+  ExpectMask(before);
+  assert(state.qos == QOS_DEFAULT && policy.cpu_ids == original_ids);
+  assert(observations.size() == static_cast<size_t>(fail_at > 0 ? fail_at : 4));
+  const std::array<const char*, 4> phases = {"segmentation", "pooling", "XNNPACK", "encoder"};
+  const auto& expected = requested ? wanted : before;
+  for (size_t i = 0; i < observations.size(); ++i) {
+    const auto& observed = observations[i];
+    assert(observed.phase == phases[i]);
+    assert(observed.qos == (requested ? QOS_USER_INITIATED : QOS_DEFAULT));
+    if (!CPU_EQUAL(&observed.cpus, &expected)) {
+      std::cerr << observed.phase << " expectedMask=" << CommunityCpuMask(expected, true)
+                << " observedMask=" << CommunityCpuMask(observed.cpus, true) << '\n';
+      return 1;
+    }
+  }
+  if (requested) {
+    assert(state.requests.size() == 2);
+    assert(CPU_EQUAL(&state.requests[0], &wanted));
+    assert(CPU_EQUAL(&state.requests[1], &before));
+    assert(state.qos_sets == 2);
+  } else {
+    assert(state.requests.empty() && state.qos_sets == 0);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'constructor.cpp'
+            binary = Path(directory) / 'constructor'
+            source.write_text(program)
+            compiled = subprocess.run(
+                [compiler, '-std=c++17', '-pthread', '-D__OHOS__',
+                 '-I' + str(FIXTURES), '-I' + str(CPP), str(source),
+                 str(FIXTURES / 'platform_stubs.cc'), '-o', str(binary)],
+                capture_output=True, text=True)
+            self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)
+            cases = [(True, stage) for stage in range(5)] + [(False, 0), (False, 2)]
+            for requested, fail_at in cases:
+                with self.subTest(requested=requested, fail_at=fail_at):
+                    run = subprocess.run([str(binary), str(int(requested)), str(fail_at)],
+                                         capture_output=True, text=True, timeout=15)
+                    self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
+    def test_encoder_thread_budget_reaches_each_platform_compute_provider(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source_text = (CPP / 'community_diarization.cpp').read_text()
+        start = source_text.index('    Ort::SessionOptions options;',
+                                  source_text.index('class Model {'))
+        end = source_text.index('    encoder_ = Ort::Session(', start)
+        configuration = source_text[start:end]
+        # Execute the real constructor configuration with a recording ORT API.
+        # The production configuration forwards one encoder budget to each
+        # compute-provider path; the scheduling and spinning settings are part
+        # of the Harmony CPU path. Android retains a serial CPU fallback and
+        # forwards its budget to XNNPACK.
+        program = r'''
+#include <iostream>
+#include <string>
+#include <unordered_map>
+enum class ExecutionMode { ORT_SEQUENTIAL, ORT_PARALLEL };
+namespace Ort {
+struct SessionOptions {
+  int cpu_threads = -1;
+  std::unordered_map<std::string, std::string> config;
+  std::unordered_map<std::string, std::unordered_map<std::string, std::string>> providers;
+  SessionOptions& SetExecutionMode(ExecutionMode) { return *this; }
+  SessionOptions& SetInterOpNumThreads(int) { return *this; }
+  SessionOptions& DisableCpuMemArena() { return *this; }
+  SessionOptions& DisableMemPattern() { return *this; }
+  SessionOptions& SetIntraOpNumThreads(int threads) {
+    cpu_threads = threads;
+    return *this;
+  }
+  SessionOptions& AddConfigEntry(const char* key, const char* value) {
+    config[key] = value;
+    return *this;
+  }
+  SessionOptions& AppendExecutionProvider(
+      const std::string& name,
+      const std::unordered_map<std::string, std::string>& settings) {
+    providers[name] = settings;
+    return *this;
+  }
+};
+}
+Ort::SessionOptions Configure(int encoder_threads) {
+''' + configuration + r'''
+  return options;
+}
+int main(int argc, char** argv) {
+  if (argc != 2) return 2;
+  const auto options = Configure(std::stoi(argv[1]));
+  const auto spin = options.config.find("session.intra_op.allow_spinning");
+  std::string xnnpack_threads = "unset";
+  const auto provider = options.providers.find("XNNPACK");
+  if (provider != options.providers.end()) {
+    const auto budget = provider->second.find("intra_op_num_threads");
+    if (budget != provider->second.end()) xnnpack_threads = budget->second;
+  }
+  std::cout << "cpu=" << options.cpu_threads
+            << " spinning=" << (spin == options.config.end() ? "unset" : spin->second)
+            << " xnnpack=" << xnnpack_threads << '\n';
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'encoder_options.cpp'
+            source.write_text(program)
+            for platform in ('__OHOS__', '__ANDROID__'):
+                binary = Path(directory) / platform
+                compiled = subprocess.run(
+                    [compiler, '-std=c++17', '-O1', f'-D{platform}',
+                     str(source), '-o', str(binary)],
+                    capture_output=True, text=True)
+                self.assertEqual(compiled.returncode, 0,
+                                 f'{platform}: {compiled.stdout}{compiled.stderr}')
+                for budget in (1, 2, 4, 8):
+                    with self.subTest(platform=platform, encoder_threads=budget):
+                        run = subprocess.run([str(binary), str(budget)],
+                                             capture_output=True, text=True)
+                        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+                        observed = dict(field.split('=', 1) for field in run.stdout.split())
+                        if platform == '__OHOS__':
+                            self.assertEqual(
+                                (observed['cpu'], observed['spinning'], observed['xnnpack']),
+                                (str(budget), '0', str(budget)),
+                                'Harmony CPU and XNNPACK paths must receive the encoder budget, '
+                                'with CPU spinning disabled: ' + run.stdout.strip())
+                        else:
+                            self.assertEqual(
+                                (observed['cpu'], observed['xnnpack']),
+                                ('1', str(budget)),
+                                'Android FP32 XNNPACK must retain its budget and serial CPU fallback: '
+                                + run.stdout.strip())
 
     def test_platform_headers_are_included_outside_every_namespace(self):
         # Including <sched.h>/<qos/qos.h> from inside an anonymous namespace is
@@ -486,6 +622,19 @@ struct Value {
   template<class T> const T* GetTensorData() const {return values.data();}
   template<class T> T* GetTensorMutableData() {return values.data();}
 };
+}
+namespace community {
+struct CancellationToken {};
+inline void CheckCancellation(const CancellationToken*) {}
+}
+struct FakeCancellation {
+  const community::CancellationToken* token() const { return nullptr; }
+};
+static FakeCancellation fakeCancellation;
+static FakeCancellation* cancellation_ = &fakeCancellation;
+template <typename Function>
+auto RunCommunityOrt(FakeCancellation*, Function&& function) {
+  return function(Ort::RunOptions{nullptr});
 }
 float MaskValue(const std::vector<float>& mask,int channel,float pcm) {
   float value=pcm;
@@ -574,13 +723,14 @@ int main() {
             self.skipTest('C++17 compiler unavailable')
         source_text = (CPP / 'community_diarization.cpp').read_text()
         copy_array = source_text[source_text.index('template <typename T>'):
-                                 source_text.index('\n#endif', source_text.index('template <typename T>'))]
+                                 source_text.index('\nnapi_value NormalizeCommunityPcm16Window')]
         # Compile the real bridge copy function. Only the platform N-API boundary
         # is substituted; both native length conventions must bound the copy.
         program = r'''
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <vector>
 #include <cassert>
@@ -652,15 +802,25 @@ int main() {
             self.skipTest('C++17 compiler unavailable')
         # Count live allocations in the clustering call, independently of RSS
         # accounting on the host. The previous all-pairs heap exceeds 100 MiB.
+        header = (CPP / 'community_cluster.h').read_text()
+        entry = '  auto distance=[&](int a,int b){'
+        raw = 'double d=0;for(size_t j=0;j<x[0].size();++j)'
+        self.assertEqual(header.count(entry), 1)
+        self.assertEqual(header.count(raw), 1)
+        instrumented = (header.replace(entry, entry + '\n    ++ahcDistanceCalls;')
+                        .replace(raw, '++ahcRawDistances; ' + raw))
         program = r'''
 #include <cstddef>
 #include <cstdlib>
+#include <iostream>
 #include <new>
 struct alignas(std::max_align_t) Allocation { size_t bytes; };
 static size_t liveBytes=0,peakBytes=0;
+static size_t ahcDistanceCalls=0,ahcRawDistances=0,scoreAllocations=0;
 void* operator new(size_t bytes) {
   auto* p=static_cast<Allocation*>(std::malloc(sizeof(Allocation)+bytes));
   if(!p)throw std::bad_alloc();
+  if(bytes==2048u*2047u/2*sizeof(double))++scoreAllocations;
   p->bytes=bytes;liveBytes+=bytes;if(liveBytes>peakBytes)peakBytes=liveBytes;
   return p+1;
 }
@@ -695,8 +855,14 @@ int main() {
     x[i][i%4]=1.;
   }
   size_t before=liveBytes;peakBytes=before;
+  ahcDistanceCalls=0;ahcRawDistances=0;scoreAllocations=0;
   auto labels=community::Ahc(x);
-  assert(peakBytes-before<32u*1024u*1024u);
+  const auto extra=peakBytes-before;
+  std::cout<<"AHC N="<<n<<" scoreAllocations="<<scoreAllocations<<" extraBytes="<<extra
+           <<" distanceQueries="<<ahcDistanceCalls<<" rawDistances="<<ahcRawDistances<<std::endl;
+  assert(extra<32u*1024u*1024u);
+  assert(scoreAllocations==1 && ahcDistanceCalls>ahcRawDistances);
+  assert(ahcRawDistances==static_cast<size_t>(n-1)*(n-1));
   assert(labels.size()==n);
   for(int i=0;i<n;++i)assert(labels[i]==labels[i%4]);
   for(int i=0;i<4;++i)for(int j=i+1;j<4;++j)assert(labels[i]!=labels[j]);
@@ -708,10 +874,11 @@ int main() {
 }
 '''
         with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / 'community_cluster.h').write_text(instrumented)
             source = Path(directory) / 'memory.cpp'
             binary = Path(directory) / 'memory'
             source.write_text(program)
-            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', directory, '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
@@ -1048,7 +1215,7 @@ int main() {
         # a saturated input with evidence that cannot be admitted must preserve
         # identities without repeating the same training for every short tail.
         header = (CPP / 'community_cluster.h').read_text()
-        entry = 'inline std::vector<int> Ahc(const Matrix& x) {'
+        entry = 'inline std::vector<int> Ahc(const Matrix& x, const CancellationToken* cancellation) {'
         self.assertEqual(header.count(entry), 1)
         instrumented = header.replace(entry, 'inline size_t fittedRows=0;\n' + entry +
                                       '\n  fittedRows+=x.size();')
@@ -1077,6 +1244,7 @@ int main() {
     community::fittedRows=0;
     auto before=community::Cluster(segments,embeddings,2,p,4,runs,ranges);
     const auto fitWork=community::fittedRows;
+    assert(fitWork>0);
     assert(before.centroids.size()==4);
     assert(before.shortRunTrainingCount==(initiallyFull?0:1));
     constexpr int windows=34;
@@ -1247,6 +1415,50 @@ int main() {
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / 'features.cpp'
             binary = Path(directory) / 'features'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
+    def test_fbank_cache_is_bitwise_equal_and_rejects_wrong_overlap(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r'''
+#include "community_fbank.h"
+#include <algorithm>
+#include <cassert>
+#include <cstring>
+int main() {
+  std::vector<float> constants(400+80*257,0.f);
+  for(int i=0;i<400;++i)constants[i]=1.f;
+  for(int m=0;m<80;++m)for(int j=0;j<257;++j)constants[400+m*257+j]=(j>=m&&j<m+8)?0.01f:0.f;
+  std::vector<float> first(160000),second(160000);
+  for(int i=0;i<160000;++i)first[i]=((i*37)%1000-500)/32768.f;
+  std::copy(first.begin()+16000,first.end(),second.begin());
+  for(int i=144000;i<160000;++i)second[i]=((i*53)%1000-500)/32768.f;
+  community::FbankCache cache;
+  auto firstCached=community::Fbank(first,constants,nullptr,&cache,0);
+  auto secondFresh=community::Fbank(second,constants);
+  auto secondCached=community::Fbank(second,constants,nullptr,&cache,16000);
+  assert(std::memcmp(secondFresh.data(),secondCached.data(),secondFresh.size()*sizeof(float))==0);
+  auto wrongStart=community::Fbank(second,constants,nullptr,&cache,32000);
+  assert(std::memcmp(secondFresh.data(),wrongStart.data(),secondFresh.size()*sizeof(float))==0);
+  auto changed=second;changed[0]+=1.f;
+  auto changedFresh=community::Fbank(changed,constants);
+  auto changedCached=community::Fbank(changed,constants,nullptr,&cache,48000);
+  assert(std::memcmp(changedFresh.data(),changedCached.data(),changedFresh.size()*sizeof(float))==0);
+  community::FbankCache noPollution;
+  community::Fbank(first,constants,nullptr,&noPollution,0);
+  community::Fbank(second,constants,nullptr,nullptr,16000);
+  assert(noPollution.window_start_sample==0);
+  assert(noPollution.valid);
+  return 0;
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'fbank-cache.cpp'
+            binary = Path(directory) / 'fbank-cache'
             source.write_text(program)
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
@@ -1432,20 +1644,22 @@ int main() {
             subprocess.run([str(binary)], check=True, timeout=30)
 
     def test_encoder_pool_and_scheduling_reach_the_native_model(self):
-        # The encoder builds its own pthread pool, so the ASR threads neither
-        # bound it nor disable its idle spinning. The budget has to travel from
-        # the caller into the XNNPACK provider explicitly, and the engine-wide
-        # scheduling request has to be forwarded for the same reason.
+        # The encoder budget is forwarded through both compute-provider paths;
+        # Harmony also forwards its scheduling request and disables CPU spinning.
+        # The budget regression above validates the concrete CPU/XNNPACK options;
+        # this test checks that the caller and native model retain the forwarding
+        # seam and the scheduling request.
         source = (CPP / 'community_diarization.cpp').read_text()
         self.assertIn('int encoder_threads = kDefaultEncoderThreads', source)
         self.assertIn('{"intra_op_num_threads", std::to_string(encoder_threads)}', source)
         self.assertIn('Community encoder threads must be in [1, 8]', source)
+        self.assertIn('segmentation_options.SetIntraOpNumThreads(2)', source)
+        self.assertIn('segmentation_options.AddConfigEntry("session.intra_op.allow_spinning", "0")', source)
         self.assertIn('bool include_frame_hard = true', source)
         self.assertIn('const CommunityScheduling& scheduling = CommunityScheduling()', source)
         self.assertIn('ScopedCommunityScheduling scope(scheduling_);', source)
-        # The pool is created while the encoder session is built and inherits that
-        # thread's affinity, so the scope has to wrap the session construction.
-        self.assertIn('ScopedCommunityScheduling scope(scheduling_);\n      options.AppendExecutionProvider("XNNPACK"', source)
+        self.assertIn('ScopedCommunityScheduling construction_scope(construction_scheduling);', source)
+        self.assertIn('options.AppendExecutionProvider("XNNPACK"', source)
         self.assertIn('"invalid Community scheduling QoS"', source)
         self.assertIn('"Community scheduling CPU id out of range"', source)
         self.assertIn('if (count == 3) {', source)
@@ -1455,3 +1669,18 @@ int main() {
                       '  encoderThreads?: number, scheduling?: string)', declaration)
         self.assertIn('plda: Uint8Array, encoderThreads?: number,\n  scheduling?: string', declaration)
         self.assertIn('runRms: Float32Array, includeFrameHard?: boolean', declaration)
+        self.assertIn('community-wespeaker-encoder.int8.onnx', source)
+        self.assertNotIn('community-wespeaker-encoder.fp32.onnx', source)
+
+    def test_ohos_process_and_cluster_keep_separate_mutexes(self):
+        source = (CPP / 'community_diarization.cpp').read_text()
+        process = source[source.index('  Window Process('):source.index('  std::string Cluster(')]
+        cluster_start = source.index('  std::string Cluster(')
+        cluster = source[cluster_start:source.index(' private:', cluster_start)]
+        members_start = source.index(' private:', cluster_start)
+        members = source[members_start:source.index('\n};', members_start)]
+        self.assertIn('std::lock_guard<std::mutex> lock(inference_mutex_);', process)
+        self.assertIn('#if defined(__OHOS__)', cluster)
+        self.assertIn('std::lock_guard<std::mutex> lock(cluster_mutex_);', cluster)
+        self.assertIn('#else\n    std::lock_guard<std::mutex> lock(inference_mutex_);', cluster)
+        self.assertIn('#if defined(__OHOS__)\n  mutable std::mutex cluster_mutex_;\n#endif', members)

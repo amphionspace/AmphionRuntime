@@ -258,3 +258,67 @@ class HarmonyCommunityPublicContractTest(unittest.TestCase):
           assert.equal(outputs[0].speakerCount,0);assert.equal(outputs[0].isSessionFinal,true);
           s.onDrained();s.finish();await new Promise(r=>setImmediate(r));assert.equal(outputs.length,1);
         """)
+
+    def test_cancelled_intermediate_boundary_waits_for_late_real_tail(self):
+        run_community_session("""
+          const outputs=[];
+          let rejectCluster, clusterSettled=false, clusterStarted=0;
+          const s=new SpeakerDiarizationSession({},'',4,{
+            onSpeakerDiarizationUpdate(){},
+            onWindowResult:r=>outputs.push(['window',r]),
+            onFinished:r=>{
+              assert.equal(clusterSettled,true,'session final cannot precede cluster exit');
+              outputs.push(['finished',r]);
+            }
+          },undefined,undefined,10000);
+          s.totalSamples=13*16000;
+          s.finish();
+          s.observeAsrFinal({result:'前句',beginTime:0,endTime:9000,isLast:false},
+            {rawText:'前句',tokens:['前','句'],timestamps:[0,8],isLast:false,audioEndSample:9*16000});
+          s.asrFinalDelivered({isLast:false,audioEndSample:9*16000});
+          s.asrAudioProcessed(13*16000);
+          s.client.cluster=()=>{
+            clusterStarted+=1;
+            return new Promise((_resolve,reject)=>{rejectCluster=error=>{
+              clusterSettled=true;reject(error);
+            };});
+          };
+          for(let i=0;i<4;i++)s.onWindow(window(i));
+          await new Promise(r=>setImmediate(r));
+          assert.equal(clusterStarted,1);
+          assert.equal(s.commitClock.beginTime(),9000,'takeReady must consume the boundary before await');
+          assert.deepEqual(outputs,[],'a pending boundary cannot publish early');
+
+          // This is the LocalClient failure callback while the same native model
+          // still owns the pending cluster. Its early drained notification must
+          // not manufacture a final result.
+          s.onDegraded(2,'active process timed out');
+          s.onDrained();
+          await new Promise(r=>setImmediate(r));
+          assert.deepEqual(outputs,[],'onDrained cannot complete without the ASR tail');
+          assert.equal(released,0,'runtime lease remains while cluster is pending');
+
+          rejectCluster(new Error('Community operation cancelled'));
+          await new Promise(r=>setImmediate(r));
+          assert.deepEqual(outputs,[],'cluster rejection still waits for the late tail');
+          assert.equal(s.commitClock.beginTime(),9000,'failed boundary remains consumed without losing text');
+
+          // Deliver the actual terminal ASR callback after the cancelled cluster
+          // has settled; do not set private tail state directly.
+          s.observeAsrFinal({result:'尾句',beginTime:9000,endTime:13000,isLast:true},
+            {rawText:'尾句',tokens:['尾','句'],timestamps:[9,12],isLast:true,audioEndSample:13*16000});
+          await new Promise(r=>setImmediate(r));
+          assert.equal(outputs.length,1,'session must emit one terminal result');
+          assert.equal(outputs[0][0],'finished','no intermediate final was published');
+          const final=outputs[0][1];
+          assert.equal(final.isSessionFinal,true);
+          assert.deepEqual(final.utterances.map(u=>u.text),['前句','尾句'],
+            'consumed commit boundary must not drop either ASR utterance');
+          assert.equal(final.windowBeginTime,0);
+          assert.equal(final.windowEndTime,13000);
+          assert.equal(s.publishedThrough,13000);
+          assert.equal(s.finished,true);
+          assert.equal(released,0,'lease is not released before session cleanup');
+          s.cleanup();
+          assert.equal(released,1,'cleanup releases the lease once cluster is quiescent');
+        """)

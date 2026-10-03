@@ -1,5 +1,6 @@
 import re
 import subprocess
+import tempfile
 import textwrap
 import unittest
 from pathlib import Path
@@ -651,6 +652,245 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
             "await this.drainFinalWithSpeakerScoreAsync(true, suffixTailDecodeMs)", commit
         )
         self.assertIn("await this.feedChunkAndDecodeAsync", replay)
+
+    def test_async_drain_skips_unready_native_decode_and_preserves_result_contract(self) -> None:
+        drain = method_body(self.runtime, "drainAsync")
+        script = textwrap.dedent(
+            """
+            import assert from 'node:assert/strict';
+
+            class Harness {
+              constructor(ready = false) {
+                this.ready = ready;
+                this.closed = false;
+                this.events = [];
+                this.processed = [];
+                this.decodeCalls = 0;
+                this.decodeResult = async () => 0;
+                this.stream = {};
+                this.callbackGate = { isClosed: () => this.closed };
+                this.recognizer = {
+                  isReady: () => this.ready,
+                  decodeAsync: async () => {
+                    this.decodeCalls += 1;
+                    this.events.push('decode-start');
+                    const result = await this.decodeResult();
+                    this.events.push('decode-end');
+                    return result;
+                  },
+                };
+                this.lastDecodeStartedAtMs = -1;
+                this.lastDecodeFinishedAtMs = -1;
+              }
+
+              async processDecodedResultAsync(...args) {
+                this.events.push('process');
+                this.processed.push(args);
+              }
+
+              async drainAsync(isFinal, restartAfterFinal = true,
+                isLastFinal = false, initialDecodeDurationMs = 0) {
+            """
+            + drain
+            + """
+              }
+            }
+
+            // A not-ready stream must not enqueue native work, but drain must
+            // still execute result/endpoint processing with the initial timing.
+            const notReady = new Harness(false);
+            await notReady.drainAsync(true, false, true, 37);
+            assert.equal(notReady.decodeCalls, 0,
+              'not-ready stream must not call native decodeAsync');
+            assert.deepEqual(notReady.events, ['process']);
+            assert.deepEqual(notReady.processed, [[true, false, true, 37]]);
+
+            // Ready work must be awaited before result processing observes it.
+            let releaseDecode;
+            const pendingDecode = new Promise(resolve => { releaseDecode = resolve; });
+            const ready = new Harness(true);
+            ready.decodeResult = () => pendingDecode;
+            const pending = ready.drainAsync(false, true, false, 0);
+            await Promise.resolve();
+            assert.deepEqual(ready.events, ['decode-start']);
+            assert.deepEqual(ready.processed, []);
+            releaseDecode(9);
+            await pending;
+            assert.deepEqual(ready.events, ['decode-start', 'decode-end', 'process']);
+            assert.deepEqual(ready.processed, [[false, true, false, 9]]);
+
+            // A zero native duration must not erase a non-zero caller timing.
+            const timing = new Harness(true);
+            timing.decodeResult = async () => 0;
+            await timing.drainAsync(false, true, false, 23);
+            assert.deepEqual(timing.processed, [[false, true, false, 23]]);
+
+            // Closing/cancelling after native completion suppresses callbacks.
+            const closed = new Harness(true);
+            closed.decodeResult = async () => {
+              closed.closed = true;
+              return 11;
+            };
+            await closed.drainAsync(true, true, true, 5);
+            assert.deepEqual(closed.processed, []);
+
+            // Native errors remain visible to the caller and do not process a result.
+            const failed = new Harness(true);
+            failed.decodeResult = async () => { throw new Error('decode failed'); };
+            await assert.rejects(
+              failed.drainAsync(false, true, false, 0), /decode failed/);
+            assert.deepEqual(failed.processed, []);
+            """
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "drain.mts"
+            harness.write_text(script, encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)],
+                           check=True, cwd=REPO_ROOT)
+
+    def test_async_write_finish_queue_waits_for_ready_decode_and_preserves_last_tail_timing(self) -> None:
+        extracted = "\n".join(
+            [
+                "      schedulePublicOperation(operation) {" +
+                method_body(self.runtime, "schedulePublicOperation") + "}",
+                "      async acceptPcmFloatNowAsync(samples) {" +
+                method_body(self.runtime, "acceptPcmFloatNowAsync") + "}",
+                "      async feedRecognizerAsync(samples, isFinal) {" +
+                method_body(self.runtime, "feedRecognizerAsync") + "}",
+                "      async drainAsync(isFinal, restartAfterFinal = true, "
+                "isLastFinal = false, initialDecodeDurationMs = 0) {" +
+                method_body(self.runtime, "drainAsync") + "}",
+                "      async stopNowAsync() {" +
+                method_body(self.runtime, "stopNowAsync") + "}",
+                "      notifyStopped() {" + method_body(self.runtime, "notifyStopped") + "}",
+            ]
+        )
+        script = textwrap.dedent(
+            """
+            import assert from 'node:assert/strict';
+
+            class Harness {
+              constructor() {
+                this.events = [];
+                this.processed = [];
+                this.ready = true;
+                this.closed = false;
+                this.decodeCalls = 0;
+                this.decodeResults = [];
+                this.publicOperationTail = Promise.resolve();
+                this.streamCallDepth = 0;
+                this.firstPcmMs = -1;
+                this.pcmBytesAccepted = 0;
+                this.totalPcmBytes = 0;
+                this.stablePrefixPcmBytes = 0;
+                this.pendingSpeakerFinals = [];
+                this.stoppedNotified = false;
+                this.stopNotificationPending = false;
+                this.callbackGate = {
+                  isClosed: () => this.closed,
+                  invoke: callback => { callback(); return !this.closed; },
+                };
+                this.callback = {
+                  onSessionStopped: () => this.events.push('stopped'),
+                  onError: error => { throw error; },
+                };
+                this.stream = {
+                  acceptWaveform: wave => this.events.push(`accept:${wave.samples[0]}`),
+                  inputFinished: () => {
+                    this.events.push('input-finished');
+                    this.ready = false;
+                  },
+                };
+                this.recognizer = {
+                  isReady: () => {
+                    this.events.push('isReady');
+                    return this.ready;
+                  },
+                  decodeAsync: async () => {
+                    this.events.push('decode-start');
+                    const result = this.decodeResults[this.decodeCalls] ?? 0;
+                    this.decodeCalls += 1;
+                    const duration = await result;
+                    this.events.push('decode-end');
+                    return duration;
+                  },
+                };
+                this.agcIngress = {
+                  acceptAsync: async (samples, callback) =>
+                    await callback({ raw: samples, processed: samples }),
+                  flushAsync: async () => {},
+                };
+              }
+
+              async feedAndDecodeAsync(frame) {
+                // The production accept method is real; this is only the AGC-to-ASR seam.
+                await this.feedRecognizerAsync(frame.processed, false);
+              }
+
+              isInputTerminated() { return false; }
+              async commitSpeakerTurnAtFinishAsync() { return false; }
+              async flushAdaptiveFinalTailAsync() {
+                this.events.push('tail');
+                return 17;
+              }
+              async drainReentryQueueAsync() {}
+              releaseStreamIfClosed() {}
+
+              async processDecodedResultAsync(...args) {
+                // The public-result method is intentionally stubbed; this test proves Runtime
+                // transfer/order and timing arguments, not public last/complete integration.
+                this.events.push('process');
+                this.processed.push(args);
+              }
+
+            """
+            + extracted
+            + """
+            }
+
+            const tick = async () => {
+              for (let i = 0; i < 8; i += 1) await Promise.resolve();
+            };
+            let releaseDecode;
+            const blockedDecode = new Promise(resolve => { releaseDecode = resolve; });
+            const session = new Harness();
+            session.decodeResults = [blockedDecode, 0];
+
+            const firstWrite = session.schedulePublicOperation(
+              () => session.acceptPcmFloatNowAsync(new Float32Array([1])));
+            await tick();
+            assert.deepEqual(session.events, ['accept:1', 'isReady', 'decode-start']);
+
+            const secondWrite = session.schedulePublicOperation(
+              () => session.acceptPcmFloatNowAsync(new Float32Array([2])));
+            const finish = session.schedulePublicOperation(() => session.stopNowAsync());
+            await tick();
+            assert.deepEqual(
+              session.events,
+              ['accept:1', 'isReady', 'decode-start'],
+              'queued write and finish must wait for the ready decode',
+            );
+
+            releaseDecode(4);
+            await Promise.all([firstWrite, secondWrite, finish]);
+            assert.deepEqual(session.events, [
+              'accept:1', 'isReady', 'decode-start', 'decode-end', 'process',
+              'accept:2', 'isReady', 'decode-start', 'decode-end', 'process',
+              'tail', 'input-finished', 'isReady', 'process', 'stopped',
+            ]);
+            assert.deepEqual(session.processed, [
+              [false, true, false, 4],
+              [false, true, false, 0],
+              [true, false, true, 17],
+            ]);
+            assert.equal(session.events.filter(event => event === 'stopped').length, 1);
+            """
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / "write-finish.mts"
+            harness.write_text(script, encoding="utf-8")
+            subprocess.run(["node", "--experimental-strip-types", str(harness)],
+                           check=True, cwd=REPO_ROOT)
 
 
 if __name__ == "__main__":

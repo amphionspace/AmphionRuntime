@@ -1878,7 +1878,10 @@ export class AsrSession {
   private async drainAsync(isFinal: boolean, restartAfterFinal: boolean = true,
     isLastFinal: boolean = false, initialDecodeDurationMs: number = 0): Promise<void> {
     const decodeStartedAtMs = Date.now();
-    const nativeDecodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    let nativeDecodeDurationMs = 0;
+    if (this.recognizer.isReady(this.stream)) {
+      nativeDecodeDurationMs = await this.recognizer.decodeAsync(this.stream);
+    }
     if (nativeDecodeDurationMs > 0) {
       this.lastDecodeStartedAtMs = decodeStartedAtMs;
       this.lastDecodeFinishedAtMs = Date.now();
