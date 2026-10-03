@@ -367,8 +367,6 @@ struct Index {
     if (hotwords.length > 0) {
       extra['sysGeneralLexicon'] = hotwords;
     }
-    // 默认关闭 prepack；该设置也参与 recognizer 配置键，必须与 prepareRuntime 默认配置保持一致。
-    extra['disablePrepack'] = true;
     params.extraParams = extra;
     return params;
   }
@@ -820,6 +818,7 @@ struct Index {
   private writeSdkCaptureMetadata(): void {
     if (!this.captureReady) return;
     const samples = Math.floor(this.sdkCaptureBytes / 2);
+    const capturedStartParams = this.buildCapturedStartParams('metadata');
     const meta: Record<string, Object> = {};
     meta['wavPath'] = this.sdkCaptureWavPath();
     meta['hdcPullPath'] = SDK_CAPTURE_EXPORT_WAV;
@@ -829,8 +828,7 @@ struct Index {
     meta['audioSource'] = this.audioSourceName(this.capturedAudioSource);
     meta['customerScenario'] = this.capturedCustomerScenario;
     meta['speakerDiarization'] = this.capturedSpeakerDiarization;
-    meta['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
-      this.capturedSpeakerDiarization).extraParams['vadEnd'];
+    meta['vadEnd'] = capturedStartParams.extraParams['vadEnd'];
     meta['softwareGainDb'] = 0;
     meta['frameBytes'] = SDK_FRAME_BYTES;
     meta['frameCount'] = this.sdkCaptureFrames.length;
@@ -850,7 +848,7 @@ struct Index {
     meta['captureLateCallbackCount'] = this.recorderStats.lateCallbackCount;
     meta['captureCallbackGapExcessMs'] = this.recorderStats.callbackGapExcessMs;
     meta['captureMaxCallbackWorkMs'] = this.recorderStats.maxCallbackWorkMs;
-    meta['disablePrepack'] = true;
+    meta['disablePrepack'] = capturedStartParams.extraParams['recognizerMode'] !== 'long';
     meta['hotwords'] = this.capturedHotwords;
     meta['voiceprintId'] = this.capturedVoiceprintId;
     meta['voiceprintVerify'] = this.capturedVoiceprintVerify;

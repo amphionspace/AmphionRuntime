@@ -2,6 +2,7 @@ import subprocess
 import textwrap
 import unittest
 from pathlib import Path
+from asr.tools.tests.community_pcm_host import normalizer_wrapper_prelude
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -292,7 +293,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
         method = client[client.index("  private readWindow("):client.index("  private fail(")]
         method = method.replace("private ", "").replace(": DiarizationLocalJob", "").replace(": Float32Array", "").replace(": ArrayBuffer", "")
-        run_node("class Reader {\n" + method + "}\n" + """
+        run_node(normalizer_wrapper_prelude() + "class Reader {\n" + method + "}\n" + """
           import assert from 'node:assert/strict';
           const WINDOW_SAMPLES=160000;
           const samples=new Int16Array([-32768,16384,0,32767]);
@@ -520,6 +521,99 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             assert.deepEqual(missingAsr, [{{
               asr: 'actual-tail', speaker: 'speakers', degraded: false
             }}]);
+            """
+        )
+
+    def test_finish_barrier_cancel_suppresses_late_asr_speaker_and_queued_timer(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+
+            const timers = [];
+            const cleared = [];
+            globalThis.setTimeout = (fn, ms) => {{
+              const timer = {{ fn, ms }};
+              timers.push(timer);
+              return timer;
+            }};
+            globalThis.clearTimeout = timer => cleared.push(timer);
+
+            // A role result may arrive before ASR's terminal tail. Cancellation
+            // must make a later ASR tail harmless and must not arm a timer.
+            const beforeAsr = [];
+            const beforeAsrBarrier = new SpeakerDiarizationFinishBarrier(
+              100, result => beforeAsr.push(result));
+            beforeAsrBarrier.begin();
+            beforeAsrBarrier.resolveSpeaker({{ degraded: false, value: 'late-speakers' }});
+            beforeAsrBarrier.cancel();
+            beforeAsrBarrier.resolveAsr('late-asr');
+            assert.deepEqual(beforeAsr, []);
+            assert.equal(timers.length, 0);
+
+            // Once ASR is ready, cancellation must clear the watchdog. Calling
+            // an already queued callback still cannot publish a terminal result.
+            const afterAsr = [];
+            const afterAsrBarrier = new SpeakerDiarizationFinishBarrier(
+              100, result => afterAsr.push(result));
+            afterAsrBarrier.begin();
+            afterAsrBarrier.resolveAsr('asr-ready');
+            assert.equal(timers.length, 1);
+            const queuedTimer = timers[0];
+            afterAsrBarrier.cancel();
+            afterAsrBarrier.cancel();
+            assert.deepEqual(cleared, [queuedTimer]);
+            queuedTimer.fn();
+            afterAsrBarrier.resolveSpeaker({{ degraded: false, value: 'late-speakers' }});
+            afterAsrBarrier.resolveAsr('duplicate-asr');
+            assert.deepEqual(afterAsr, []);
+            """
+        )
+
+    def test_reset_session_state_cancels_barrier_before_dropping_it(self) -> None:
+        from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
+
+        reset = method_body(ADAPTER.read_text(encoding="utf-8"), "resetSessionState")
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+
+            class Engine {{
+              sessionStartGate = {{ reset() {{}} }};
+              resetSessionState() {{ {reset} }}
+            }}
+            for (const asrReady of [false, true]) {{
+              const callbacks = [];
+              const timers = [];
+              const cleared = [];
+              const engine = new Engine();
+              const barrier = new SpeakerDiarizationFinishBarrier(
+                100, result => callbacks.push(result));
+              engine.speakerDiarizationFinishBarrier = barrier;
+              globalThis.setTimeout = fn => {{
+                const timer = {{ fn }};
+                timers.push(timer);
+                return timer;
+              }};
+              globalThis.clearTimeout = timer => {{
+                assert.equal(engine.speakerDiarizationFinishBarrier, barrier,
+                  'reset must cancel the owned barrier before dropping its reference');
+                cleared.push(timer);
+              }};
+              barrier.begin();
+              if (asrReady) barrier.resolveAsr('asr-ready');
+              engine.resetSessionState();
+              assert.equal(engine.speakerDiarizationFinishBarrier, undefined);
+              assert.deepEqual(cleared, timers, 'reset left a live finish watchdog');
+              engine.resetSessionState();
+              // Simulate timer work that was queued before reset and workers
+              // delivering both tails after their session lost ownership.
+              for (const timer of timers) timer.fn();
+              barrier.resolveAsr('late-asr');
+              barrier.resolveSpeaker({{ degraded: false, value: 'late-speakers' }});
+              assert.deepEqual(callbacks, [], 'reset barrier emitted a late callback');
+            }}
             """
         )
 

@@ -130,8 +130,8 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
   const endpointRule3 = rule3Policy(params.extraParams, startParams?.extraParams ?? {});
   config.endpointRules.rule3MinUtteranceLengthSec = endpointRule3.minUtteranceSec;
-  // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
-  config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
+  // short 默认跳过 prepack，long 默认启用；显式引擎参数优先。
+  config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', endpointRule3.mode !== 'long');
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
     config.targetSpeaker = buildTargetSpeakerConfig(startParams, speakerModelPath);

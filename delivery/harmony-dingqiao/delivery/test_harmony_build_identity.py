@@ -155,6 +155,13 @@ class OptionalModelIdentityTest(unittest.TestCase):
                 self.assertEqual(hashlib.sha256(name.encode()).hexdigest(), models[name]['sha256'])
                 self.assertEqual(len(name), models[name]['size_bytes'])
 
+    def test_harmony_identity_binds_the_per_channel_int8_encoder(self) -> None:
+        member = MODULE.OPTIONAL_HAP_MODELS["community_speaker_encoder"]
+        self.assertEqual(
+            "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
+            member,
+        )
+
     def test_records_separator_bytes_from_hap(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             hap = Path(directory) / "test.hap"

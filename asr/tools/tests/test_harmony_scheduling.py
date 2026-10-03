@@ -34,7 +34,13 @@ assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }})
 """
         subprocess.run(['node', '--experimental-strip-types', '--input-type=module', '-e', script], check=True)
 
+    def test_native_request_outside_current_mask_reaches_kernel(self):
+        self.run_native_policy('kernel-request')
+
     def test_native_policy_ownership_restoration_and_failure(self):
+        self.run_native_policy()
+
+    def run_native_policy(self, *args):
         with tempfile.TemporaryDirectory() as tmp:
             destination = Path(tmp)
             subprocess.run(['git', 'apply', '--include=sherpa-onnx/csrc/harmony-scheduling.*',
@@ -44,8 +50,9 @@ assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }})
             subprocess.run(['c++', '-std=c++17', '-pthread', '-D__OHOS__',
                             '-I' + str(FIXTURES), '-I' + str(destination),
                             str(destination / 'sherpa-onnx/csrc/harmony-scheduling.cc'),
-                            str(FIXTURES / 'scheduling_test.cc'), '-o', str(binary)], check=True)
-            subprocess.run([str(binary)], check=True, timeout=15)
+                            str(FIXTURES / 'scheduling_test.cc'),
+                            str(FIXTURES / 'platform_stubs.cc'), '-o', str(binary)], check=True)
+            subprocess.run([str(binary), *args], check=True, timeout=15)
 
 
 if __name__ == '__main__':

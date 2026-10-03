@@ -6,10 +6,10 @@ Subject: [PATCH] feat(harmony): add optional ASR thread scheduling
 ---
  sherpa-onnx/c-api/c-api.cc             |  28 ++++-
  sherpa-onnx/csrc/CMakeLists.txt        |   2 +
- sherpa-onnx/csrc/harmony-scheduling.cc | 156 +++++++++++++++++++++++++
- sherpa-onnx/csrc/harmony-scheduling.h  |  50 ++++++++
+ sherpa-onnx/csrc/harmony-scheduling.cc | 221 +++++++++++++++++++++++++
+ sherpa-onnx/csrc/harmony-scheduling.h  |  65 ++++++++
  sherpa-onnx/csrc/session.cc            |   7 ++
- 5 files changed, 237 insertions(+), 6 deletions(-)
+ 5 files changed, 331 insertions(+), 6 deletions(-)
  create mode 100644 sherpa-onnx/csrc/harmony-scheduling.cc
  create mode 100644 sherpa-onnx/csrc/harmony-scheduling.h
 
@@ -112,7 +112,7 @@ new file mode 100644
 index 00000000..458daa3d
 --- /dev/null
 +++ b/sherpa-onnx/csrc/harmony-scheduling.cc
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,221 @@
 +#include "sherpa-onnx/csrc/harmony-scheduling.h"
 +#if defined(__OHOS__)
 +#include <cerrno>
@@ -120,20 +120,29 @@ index 00000000..458daa3d
 +#include <sstream>
 +#include <stdexcept>
 +#include <thread>
++#include <unistd.h>
 +#include <hilog/log.h>
 +
 +namespace sherpa_onnx {
 +namespace {
 +thread_local const HarmonyScheduling *construction_policy = nullptr;
 +
-+// One report per outcome and recognizer, never log PCM or recognition text.
-+void Report(const HarmonyScheduling &policy, unsigned bit, const char *operation,
-+            int result) {
-+  if ((policy.reported.fetch_or(bit) & bit) == 0) {
-+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
-+                 "%{public}s result=%{public}d thread=%{public}lu", operation,
-+                 result, static_cast<unsigned long>(pthread_self()));
++std::string HarmonyCpuMask(const cpu_set_t& cpus, bool known) {
++  if (!known) return "unknown";
++  std::string result;
++  for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
++    if (!CPU_ISSET(cpu, &cpus)) continue;
++    if (!result.empty()) result += ',';
++    result += std::to_string(cpu);
 +  }
++  return result.empty() ? "none" : result;
++}
++
++bool HarmonyCpuMasksEqual(const cpu_set_t& left, const cpu_set_t& right) {
++  for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu) {
++    if (!!CPU_ISSET(cpu, &left) != !!CPU_ISSET(cpu, &right)) return false;
++  }
++  return true;
 +}
 +
 +OrtCustomThreadHandle CreateWorker(void *opaque, OrtThreadWorkerFn work,
@@ -215,57 +224,113 @@ index 00000000..458daa3d
 +  }
 +}
 +
-+ScopedHarmonyScheduling::ScopedHarmonyScheduling(const HarmonyScheduling &policy,
-+                                               bool owned_thread)
-+    : policy_(policy) {
-+  // Snapshot affinity before QoS can change the scheduler's CPU restrictions.
-+  const bool have_cpus = !policy.cpu_ids.empty() &&
-+      sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
-+  const int affinity_read_error = errno;
++ScopedHarmonyScheduling::ScopedHarmonyScheduling(const HarmonyScheduling& policy, bool owned_thread)
++    : policy_(policy), pool_tag_(owned_thread ? "asr-ort-worker" : "asr-driver") {
++  if (!policy.HasThreadPolicy()) return;
++  if (!owned_thread) {
++    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested_cpus_);
++  }
++  // Current affinity is only a snapshot, not the system cpuset limit.
++  // Submit the complete request and let the kernel enforce its restrictions.
++  have_previous_ = sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
++  snapshot_error_ = have_previous_ ? 0 : errno;
++  current_after_qos_cpus_ = previous_cpus_;
++  have_current_after_qos_ = have_previous_;
 +  if (policy.qos >= 0) {
-+    const int before = OH_QoS_GetThreadQoS(&previous_qos_);
-+    // Get failure cannot distinguish an unset QoS from a system error. A
-+    // borrowed libuv/caller thread must never lose an unknown previous policy.
++    qos_result_ = OH_QoS_GetThreadQoS(&previous_qos_);
++    const int before = qos_result_;
 +    if (before == 0 || owned_thread) {
-+      const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
-+      restore_qos_ = result == 0 && before == 0;
-+      reset_qos_ = result == 0 && before != 0;
-+      Report(policy, result == 0 ? 1 : 2, "qos-set", result);
-+      QoS_Level effective;
-+      if (result == 0 && OH_QoS_GetThreadQoS(&effective) == 0)
-+        Report(policy, 4, "qos-effective", static_cast<int>(effective));
++      effective_qos_ = before == 0 ? static_cast<int>(previous_qos_) : -1;
++      qos_result_ = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
++      restore_qos_ = qos_result_ == 0 && before == 0;
++      reset_qos_ = qos_result_ == 0 && before != 0;
++      qos_status_ = qos_result_ == 0 ? "applied" : "set-failed";
++      if (restore_qos_ || reset_qos_) {
++        // QoS itself may change affinity, even when the later CPU request
++        // fails. Restore that side effect as well.
++        restore_cpus_ = have_previous_;
++        have_current_after_qos_ = sched_getaffinity(0, sizeof(current_after_qos_cpus_), &current_after_qos_cpus_) == 0;
++        affinity_error_ = have_current_after_qos_ ? 0 : errno;
++        QoS_Level effective;
++        qos_result_ = OH_QoS_GetThreadQoS(&effective);
++        effective_qos_ = qos_result_ == 0 ? static_cast<int>(effective) : -1;
++        if (qos_result_ != 0) qos_status_ = "readback-failed";
++      }
 +    } else {
-+      Report(policy, 8, "qos-skipped-unknown-borrowed-policy", before);
++      // Never overwrite an unknown policy on a borrowed runtime thread.
++      qos_status_ = "read-failed-skipped";
 +    }
 +  }
-+  if (!policy.cpu_ids.empty()) {
-+    if (!have_cpus) {
-+      Report(policy, 16, "affinity-read-failed", affinity_read_error);
-+      return;
-+    }
-+    cpu_set_t requested;
-+    CPU_ZERO(&requested);
-+    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested);
-+    const int result = sched_setaffinity(0, sizeof(requested), &requested);
-+    restore_cpus_ = result == 0;
-+    Report(policy, result == 0 ? 32 : 64, "affinity-set", result == 0 ? 0 : errno);
-+    if (result == 0) {
-+      cpu_set_t effective;
-+      if (sched_getaffinity(0, sizeof(effective), &effective) == 0) {
-+        Report(policy, CPU_EQUAL(&requested, &effective) ? 128 : 256,
-+               "affinity-exact", CPU_EQUAL(&requested, &effective) ? 1 : 0);
++  effective_cpus_ = current_after_qos_cpus_;
++  have_effective_ = have_current_after_qos_;
++  if (!owned_thread && !policy.cpu_ids.empty()) {
++    if (!have_previous_) {
++      affinity_status_ = "snapshot-read-failed";
++      affinity_error_ = snapshot_error_;
++    } else if (sched_setaffinity(0, sizeof(requested_cpus_), &requested_cpus_) != 0) {
++      affinity_status_ = "set-failed";
++      affinity_error_ = errno;
++    } else {
++      // Own restoration immediately after a successful set, even if the
++      // readback fails. An immediate rollback is retried on scope exit.
++      restore_cpus_ = true;
++      affinity_error_ = 0;
++      have_effective_ = sched_getaffinity(0, sizeof(effective_cpus_), &effective_cpus_) == 0;
++      if (!have_effective_) {
++        affinity_status_ = "readback-failed";
++        affinity_error_ = errno;
++        const int result = sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_);
++        rollback_error_ = result == 0 ? 0 : errno;
++        fallback_ = result == 0 ? "restored-unverified" : "restore-failed";
++      } else if (!HarmonyCpuMasksEqual(requested_cpus_, effective_cpus_)) {
++        affinity_status_ = "readback-adjusted";
++      } else {
++        affinity_status_ = "applied";
 +      }
 +    }
 +  }
++  Report(false);
 +}
 +
 +ScopedHarmonyScheduling::~ScopedHarmonyScheduling() {
-+  if (restore_qos_ && OH_QoS_SetThreadQoS(previous_qos_) != 0)
-+    Report(policy_, 1024, "qos-restore-failed", -1);
-+  if (reset_qos_ && OH_QoS_ResetThreadQoS() != 0)
-+    Report(policy_, 2048, "qos-reset-failed", -1);
-+  if (restore_cpus_ && sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) != 0)
-+    Report(policy_, 512, "affinity-restore-failed", errno);
++  const int qos_result = restore_qos_ ? OH_QoS_SetThreadQoS(previous_qos_) :
++      (reset_qos_ ? OH_QoS_ResetThreadQoS() : 0);
++  // QoS restoration comes first because it can also alter the thread mask.
++  const int affinity_result = restore_cpus_ ? sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) : 0;
++  const int affinity_error = affinity_result == 0 ? 0 : errno;
++  if (policy_.HasThreadPolicy()) Report(true, qos_result, affinity_error);
++}
++
++void ScopedHarmonyScheduling::Report(bool restoring, int qos_restore, int affinity_restore) noexcept {
++  try {
++    const int tid = gettid();
++    auto& reports = policy_.reports;
++    std::lock_guard<std::mutex> lock(reports.mutex);
++    auto& last = reports.last[tid][restoring ? 1 : 0];
++    // Successful scope restoration is quiet unless it recovers from a failure.
++    if (restoring && qos_restore == 0 && affinity_restore == 0 && last.empty()) return;
++    std::ostringstream state;
++    state << "requested=" << HarmonyCpuMask(requested_cpus_, true)
++          << " before=" << HarmonyCpuMask(previous_cpus_, have_previous_)
++          << " currentAfterQos=" << HarmonyCpuMask(current_after_qos_cpus_, have_current_after_qos_)
++          << " effective=" << HarmonyCpuMask(effective_cpus_, have_effective_)
++          << " status=" << affinity_status_ << " errno=" << affinity_error_
++          << " snapshotErrno=" << snapshot_error_
++          << " fallback=" << fallback_ << " rollbackErrno=" << rollback_error_
++          << " qosRequested=" << policy_.qos << " qosEffective=" << effective_qos_
++          << " allowSpinning=" << policy_.allow_spinning
++          << " qosStatus=" << qos_status_ << " qosResult=" << qos_result_;
++    if (restoring) state << " maskPhase=apply qosRestore=" << qos_restore << " affinityRestoreErrno=" << affinity_restore;
++    const auto message = state.str();
++    if (last == message) return;
++    last = message;
++    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
++                 "poolTag=%{public}s tid=%{public}d policy=%{public}p phase=%{public}s %{public}s "
++                 "workers=owned-inherit-system-mask-driver-applies-request",
++                 pool_tag_, tid, static_cast<const void*>(&policy_), restoring ? "restore" : "apply", message.c_str());
++  } catch (...) {
++    // Diagnostics must not break restoration or propagate from a destructor.
++  }
 +}
 +}  // namespace sherpa_onnx
 +#endif
@@ -274,12 +339,14 @@ new file mode 100644
 index 00000000..d7a7fc7b
 --- /dev/null
 +++ b/sherpa-onnx/csrc/harmony-scheduling.h
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,65 @@
 +// Optional Harmony ASR scheduling. No process-wide scheduler changes.
 +#ifndef SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
 +#define SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
 +#if defined(__OHOS__)
-+#include <atomic>
++#include <array>
++#include <mutex>
++#include <unordered_map>
 +#include <string>
 +#include <vector>
 +#include <sched.h>
@@ -287,11 +354,17 @@ index 00000000..d7a7fc7b
 +#include "onnxruntime_cxx_api.h"
 +
 +namespace sherpa_onnx {
++struct HarmonySchedulingReports {
++  std::mutex mutex;
++  std::unordered_map<int, std::array<std::string, 2>> last;
++  // Stable recognizer ownership: ORT worker callbacks retain this address.
++
++};
 +struct HarmonyScheduling {
 +  int qos = -1;
 +  std::vector<int> cpu_ids;
 +  bool allow_spinning = true;
-+  mutable std::atomic<unsigned> reported{0};
++  mutable HarmonySchedulingReports reports;
 +  void Parse(const std::string &provider);
 +  bool HasThreadPolicy() const { return qos >= 0 || !cpu_ids.empty(); }
 +};
@@ -302,6 +375,8 @@ index 00000000..d7a7fc7b
 + public:
 +  explicit HarmonySchedulingConstruction(const HarmonyScheduling *policy);
 +  ~HarmonySchedulingConstruction();
++  HarmonySchedulingConstruction(const HarmonySchedulingConstruction&) = delete;
++  HarmonySchedulingConstruction& operator=(const HarmonySchedulingConstruction&) = delete;
 + private:
 +  const HarmonyScheduling *previous_;
 +};
@@ -315,12 +390,17 @@ index 00000000..d7a7fc7b
 +  ScopedHarmonyScheduling(const ScopedHarmonyScheduling &) = delete;
 +  ScopedHarmonyScheduling &operator=(const ScopedHarmonyScheduling &) = delete;
 + private:
-+  const HarmonyScheduling &policy_;
-+  cpu_set_t previous_cpus_{};
-+  QoS_Level previous_qos_ = QOS_DEFAULT;
-+  bool restore_cpus_ = false;
-+  bool restore_qos_ = false;
-+  bool reset_qos_ = false;
++  void Report(bool restoring, int qos_restore = 0, int affinity_restore = 0) noexcept;
++  const HarmonyScheduling& policy_;
++  const char* pool_tag_;
++  cpu_set_t previous_cpus_{}, requested_cpus_{}, current_after_qos_cpus_{}, effective_cpus_{};
++  QoS_Level previous_qos_{};
++  bool restore_qos_ = false, reset_qos_ = false, restore_cpus_ = false;
++  bool have_previous_ = false, have_current_after_qos_ = false, have_effective_ = false;
++  const char* affinity_status_ = "not-requested";
++  const char* qos_status_ = "not-requested";
++  const char* fallback_ = "none";
++  int snapshot_error_ = 0, affinity_error_ = 0, rollback_error_ = 0, qos_result_ = 0, effective_qos_ = -1;
 +};
 +}  // namespace sherpa_onnx
 +#endif

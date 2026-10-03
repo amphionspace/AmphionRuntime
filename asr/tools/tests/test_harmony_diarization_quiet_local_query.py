@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from asr.tools.tests.test_harmony_speaker_diarization_session import DIARIZATION, ROOT
+from asr.tools.tests.community_pcm_host import normalizer_wrapper_prelude
 
 SOURCE = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarizationInference.ets'
 
@@ -12,7 +13,7 @@ class HarmonyDiarizationQuietLocalQueryTest(unittest.TestCase):
     def test_quiet_pcm_is_preserved_and_only_the_missing_tail_is_padded(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         read = 'private readWindow(' + source.split('private readWindow(', 1)[1].split('\n  private fail(', 1)[0]
-        script = """
+        script = normalizer_wrapper_prelude() + """
           import assert from 'node:assert/strict';
           const WINDOW_SAMPLES=160000;
           class SpeakerDiarizationStorageError extends Error {}

@@ -1,27 +1,10 @@
-#include <cassert>
-#include <cerrno>
 #include <future>
-#include <stdexcept>
+#include <type_traits>
 #include "sherpa-onnx/csrc/harmony-scheduling.h"
+#include "scope_contract.h"
 using namespace sherpa_onnx;
-thread_local QoS_Level qos = QOS_DEFAULT;
-thread_local cpu_set_t cpus{};
-thread_local bool read_qos_fails = false, set_fails = false, read_cpus_fails = false;
-thread_local int writes = 0;
-thread_local bool qos_updates_cpus = false;
-int OH_QoS_GetThreadQoS(QoS_Level *value) { *value = qos; return read_qos_fails ? -1 : 0; }
-int OH_QoS_SetThreadQoS(QoS_Level value) {
-  ++writes; if (set_fails) return -1; qos = value;
-  if (qos_updates_cpus) { CPU_ZERO(&cpus); CPU_SET(0, &cpus); CPU_SET(1, &cpus); CPU_SET(2, &cpus); }
-  return 0;
-}
-int OH_QoS_ResetThreadQoS() { qos = QOS_DEFAULT; return 0; }
-int sched_getaffinity(int, unsigned long, cpu_set_t *value) { *value = cpus; return read_cpus_fails ? -1 : 0; }
-int sched_setaffinity(int, unsigned long, const cpu_set_t *value) {
-  ++writes;
-  if (set_fails) { errno = EPERM; return -1; }
-  cpus = *value; return 0;
-}
+using namespace scheduling_test;
+
 struct Work {
   std::shared_future<void> release;
   int expected_qos;
@@ -31,45 +14,41 @@ struct Work {
 void Run(void *opaque) {
   auto &work = *static_cast<Work *>(opaque);
   work.release.wait();
-  assert(qos == work.expected_qos);
-  assert(CPU_EQUAL(&cpus, &work.expected_cpus));
+  assert(state.qos == work.expected_qos);
+  ExpectMask(work.expected_cpus);
   work.completed = true;
 }
-int main() {
+struct OwnedScope : ScopedHarmonyScheduling {
+  explicit OwnedScope(const HarmonyScheduling& policy) : ScopedHarmonyScheduling(policy, true) {}
+};
+int main(int argc, char**) {
+  FullRequestContract<HarmonyScheduling, ScopedHarmonyScheduling>();
+  OwnedWorkerInheritsCurrentMaskContract<HarmonyScheduling, OwnedScope>("asr-ort-worker");
+  if (argc > 1) return 0;
+  static_assert(!std::is_copy_constructible<HarmonyScheduling>::value, "workers retain the policy address");
+  static_assert(!std::is_move_constructible<HarmonyScheduling>::value, "workers retain the policy address");
+  static_assert(!std::is_copy_constructible<HarmonySchedulingConstruction>::value, "construction scope owns TLS");
+  static_assert(!std::is_copy_constructible<ScopedHarmonyScheduling>::value, "scope owns restoration");
+  BorrowedScopeContract<HarmonyScheduling, ScopedHarmonyScheduling>("asr-driver");
+  Reset();
   HarmonyScheduling defaults;
-  { ScopedHarmonyScheduling scope(defaults); }
-  assert(writes == 0);
   Ort::SessionOptions untouched;
   { HarmonySchedulingConstruction scope(&defaults); ConfigureHarmonyScheduling(&untouched); }
   assert(!untouched.create && untouched.entries.size() == 1);
   assert(untouched.entries.at("session.force_spinning_stop") == "1");
+  HarmonyScheduling spin_only;
+  spin_only.Parse("cpu;AmphionAllowSpinning=0");
+  Ort::SessionOptions idle;
+  { HarmonySchedulingConstruction scope(&spin_only); ConfigureHarmonyScheduling(&idle); }
+  assert(!idle.create && idle.entries.size() == 3);
+  assert(idle.entries.at("session.intra_op.allow_spinning") == "0");
+  assert(idle.entries.at("session.inter_op.allow_spinning") == "0");
+  { ScopedHarmonyScheduling scope(spin_only); }
+  assert(state.sets == 0 && state.qos_sets == 0);  // Spinning remains independent.
+
   HarmonyScheduling a, b;
   a.Parse("cpu;AmphionQos=user-initiated;AmphionCpuIds=2,3;AmphionAllowSpinning=0");
   b.Parse("cpu;AmphionQos=user-interactive;AmphionCpuIds=4");
-  CPU_ZERO(&cpus); CPU_SET(0, &cpus);
-  const auto original = cpus;
-  try {
-    ScopedHarmonyScheduling scope(a);
-    assert(qos == QOS_USER_INITIATED);
-    { ScopedHarmonyScheduling nested(b); assert(qos == QOS_USER_INTERACTIVE); }
-    assert(qos == QOS_USER_INITIATED);
-    throw std::runtime_error("decode error");
-  } catch (const std::runtime_error &) {}
-  assert(qos == QOS_DEFAULT && CPU_EQUAL(&original, &cpus));
-  set_fails = true;
-  { ScopedHarmonyScheduling scope(a); }
-  assert(qos == QOS_DEFAULT && CPU_EQUAL(&original, &cpus));
-  set_fails = false; read_qos_fails = true; read_cpus_fails = true;
-  const int before = writes;
-  { ScopedHarmonyScheduling scope(a); }
-  assert(writes == before);
-  read_qos_fails = false; read_cpus_fails = false;
-  // QoS may affect the scheduler's CPU restrictions. Snapshot all original
-  // state before changing either setting and restore explicit affinity last.
-  qos_updates_cpus = true;
-  { ScopedHarmonyScheduling scope(a); }
-  assert(qos == QOS_DEFAULT && CPU_EQUAL(&original, &cpus));
-  qos_updates_cpus = false;
   Ort::SessionOptions first, second, outside;
   {
     HarmonySchedulingConstruction scope(&a);
@@ -83,17 +62,36 @@ int main() {
   assert(first.entries.size() == 3 && second.entries.size() == 1);
   assert(first.entries.at("session.force_spinning_stop") == "1");
   assert(second.entries.at("session.force_spinning_stop") == "1");
-  // Release in reverse order after construction scopes have ended. Policies
-  // stay attached to their own recognizer, not to the latest global config.
+  // Policies remain alive until their workers join; ORT-owned workers inherit
+  // the system mask so a later screen-state cpuset change remains runnable.
   std::promise<void> release_a, release_b;
-  Work wa{release_a.get_future().share(), QOS_USER_INITIATED, {}},
-       wb{release_b.get_future().share(), QOS_USER_INTERACTIVE, {}};
-  CPU_SET(2, &wa.expected_cpus); CPU_SET(3, &wa.expected_cpus); CPU_SET(4, &wb.expected_cpus);
+  Work wa{release_a.get_future().share(), QOS_USER_INITIATED, Mask({0, 1, 2, 3, 4, 5, 6, 7})},
+       wb{release_b.get_future().share(), QOS_USER_INTERACTIVE, Mask({0, 1, 2, 3, 4, 5, 6, 7})};
   auto ta = first.create(first.context, Run, &wa);
   auto tb = second.create(second.context, Run, &wb);
   assert(ta && tb);
   release_b.set_value(); second.join(tb); assert(wb.completed);
   release_a.set_value(); first.join(ta); assert(wa.completed);
+  ExpectLog("poolTag=asr-ort-worker");
+  {
+    Reset();
+    HarmonyScheduling policy;
+    policy.qos = QOS_USER_INITIATED;
+    state.fail_qos_gets = {1};
+    {
+      ScopedHarmonyScheduling owned(policy, true);
+      assert(state.qos == QOS_USER_INITIATED);
+    }
+    assert(state.qos == QOS_DEFAULT && state.qos_resets == 1);
+  }
+  {
+    Reset();
+    HarmonyScheduling policy;
+    policy.qos = QOS_USER_INITIATED;
+    state.fail_qos_gets = {1}; state.fail_qos_reset = true;
+    { ScopedHarmonyScheduling owned(policy, true); }
+    ExpectLog("qosRestore=-9");
+  }
   for (const std::string &invalid : std::vector<std::string>{
        "cpu;AmphionQos=invalid", "cpu;AmphionCpuIds=2,2",
        "cpu;AmphionCpuIds=" + std::to_string(CPU_SETSIZE),

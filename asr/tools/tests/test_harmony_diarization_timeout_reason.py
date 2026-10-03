@@ -26,7 +26,7 @@ let resolveInference;
 const inferencePromise = new Promise(resolve => {{ resolveInference = resolve; }});
 class Client {{
   inferenceLoad = Promise.resolve();
-  inference = {{ process: () => inferencePromise }};
+  inference = {{ process: () => inferencePromise, cancel() {{}} }};
   closed = false; degraded = false; queue = [];
   activeJob = {{ jobId: 'w1', windowStartSample: 16000, realEndSample: 176000 }};
   activeJobStartedMs = Date.now(); finishing = false;

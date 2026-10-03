@@ -950,6 +950,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.targetSpeakerEnhancer = undefined;
     this.targetSpeakerEnhancementEnabled = false;
     this.speakerDiarizationSession = undefined;
+    this.speakerDiarizationFinishBarrier?.cancel();
     this.speakerDiarizationFinishBarrier = undefined;
     this.sessionStartGate.reset();
   }

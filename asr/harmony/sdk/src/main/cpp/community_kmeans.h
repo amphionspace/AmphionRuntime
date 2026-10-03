@@ -1,4 +1,5 @@
 #pragma once
+#include "community_cancel.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -8,13 +9,16 @@
 namespace community {
 // sklearn KMeans(init=k-means++, n_init=3, random_state=42, algorithm=lloyd).
 // This is the official speaker-count cap branch, not an identity threshold.
-inline std::vector<int> KMeans(const std::vector<std::vector<double>>& input, int k) {
+inline std::vector<int> KMeans(const std::vector<std::vector<double>>& input, int k,
+                               const CancellationToken* cancellation = nullptr) {
   using Row = std::vector<float>;
   using Rows = std::vector<Row>;
-  const int n = input.size(), dim = input[0].size();
+  CheckCancellation(cancellation);
+  const int n=input.size(), dim=input[0].size();
   Rows x(n, Row(dim));
   Row mean(dim);
   for (int i=0; i<n; ++i) {
+    CheckCancellation(cancellation);
     double norm=0; for (double v: input[i]) norm+=v*v;
     norm=std::sqrt(norm);
     for (int d=0; d<dim; ++d) { x[i][d]=input[i][d]/norm; mean[d]+=x[i][d]; }
@@ -28,20 +32,24 @@ inline std::vector<int> KMeans(const std::vector<std::vector<double>>& input, in
   }
   const double tolerance=variance/dim*1e-4;
   auto distance = [&](const Row& a,const Row& b) {
-    double sum=0; for (int d=0; d<dim; ++d) {double v=double(a[d])-b[d];sum+=v*v;}
+    CheckCancellation(cancellation);
+    double sum=0; for (int d=0;d<dim;++d) {double v=double(a[d])-b[d];sum+=v*v;}
     return static_cast<float>(sum);
   };
   std::mt19937 random(42);
   auto uniform = [&]() { uint32_t a=random()>>5,b=random()>>6;return (a*67108864.+b)/9007199254740992.; };
   auto assign = [&](const Rows& centers) {
     std::vector<int> labels(n);
-    for(int i=0;i<n;++i){float best=std::numeric_limits<float>::infinity();
+    for(int i=0;i<n;++i){
+      CheckCancellation(cancellation);
+      float best=std::numeric_limits<float>::infinity();
       for(int c=0;c<k;++c){float value=distance(x[i],centers[c]);if(value<best){best=value;labels[i]=c;}}}
     return labels;
   };
   std::vector<int> best;
   double bestInertia=std::numeric_limits<double>::infinity();
   for(int restart=0;restart<3;++restart){
+    CheckCancellation(cancellation);
     Rows centers;centers.push_back(x[std::min(n-1,static_cast<int>(uniform()*n))]);
     Row closest(n);for(int i=0;i<n;++i)closest[i]=distance(x[i],centers[0]);
     const int trials=2+static_cast<int>(std::log(k));
@@ -59,6 +67,7 @@ inline std::vector<int> KMeans(const std::vector<std::vector<double>>& input, in
     std::vector<int> old(n,-1),labels;
     bool strict=false;
     for(int iteration=0;iteration<300;++iteration){
+      CheckCancellation(cancellation);
       labels=assign(centers);Rows next(k,Row(dim));std::vector<int> count(k);
       for(int i=0;i<n;++i){++count[labels[i]];for(int d=0;d<dim;++d)next[labels[i]][d]+=x[i][d];}
       std::vector<bool> moved(n,false);

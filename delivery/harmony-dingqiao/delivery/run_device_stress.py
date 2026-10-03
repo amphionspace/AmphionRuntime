@@ -178,7 +178,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")
-    parser.add_argument("--asr-enable-prepack", action="store_true")
+    prepack_group = parser.add_mutually_exclusive_group()
+    prepack_group.add_argument("--asr-enable-prepack", action="store_true")
+    prepack_group.add_argument(
+        "--asr-use-sdk-prepack-default",
+        action="store_true",
+        help=(
+            "Omit disablePrepack from engine.extraParams so the SDK mode default is selected; "
+            "mutually exclusive with --asr-enable-prepack."
+        ),
+    )
     parser.add_argument(
         "--diarization-num-threads", type=int, choices=range(1, 9),
         help="Community encoder worker budget. Separate pool from the ASR threads; "
@@ -1271,7 +1280,6 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
         "--ps", "stressAsrAllowSpinning", str(not args.asr_disable_spinning).lower(),
-        "--ps", "stressAsrDisablePrepack", str(not args.asr_enable_prepack).lower(),
         "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
         "--ps", "stressEnforceTargetSpeakerBusinessText",
         # Manifest-driven assertions are evaluated per case after the device run.
@@ -1282,6 +1290,14 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
     ]
+    if args.asr_use_sdk_prepack_default:
+        start_command.extend([
+            "--ps", "stressAsrUseSdkPrepackDefault", "true",
+        ])
+    else:
+        start_command.extend([
+            "--ps", "stressAsrDisablePrepack", str(not args.asr_enable_prepack).lower(),
+        ])
     start_result = hdc.shell(*start_command, check=False)
     start_output = (start_result.stdout + start_result.stderr).lower()
     if (
@@ -1463,7 +1479,13 @@ def run_stress(args: argparse.Namespace) -> Path:
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
             "asr_allow_spinning": not args.asr_disable_spinning,
-            "asr_disable_prepack": not args.asr_enable_prepack,
+            "asr_use_sdk_prepack_default": args.asr_use_sdk_prepack_default,
+            "asr_prepack_source": (
+                "SDK_MODE_DEFAULT" if args.asr_use_sdk_prepack_default else "EXPLICIT_FLAG"
+            ),
+            "asr_disable_prepack": (
+                None if args.asr_use_sdk_prepack_default else not args.asr_enable_prepack
+            ),
             "sample_interval_seconds": args.sample_interval,
             "post_run_observe_seconds": args.post_run_observe,
             "target_content_check_enabled": not args.skip_target_content_check,

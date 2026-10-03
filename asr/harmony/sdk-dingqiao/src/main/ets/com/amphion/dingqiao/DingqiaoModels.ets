@@ -22,9 +22,10 @@ export class SpeakerDiarizationConfig {
   /**
    * On-device Community encoder worker budget in [1, 8]. The encoder owns its
    * own pthread pool, so this is not the ASR `numThreads` and is not bounded by
-   * it; its workers also spin before blocking while no window is running.
-   * Default 4 preserves the measured throughput; lower values trade window
-   * latency for less CPU and heat on thermally constrained devices.
+   * it. Default 4 preserves the measured screen-off throughput. A budget of 2
+   * lowers CPU only in a screen-on workload verified by the caller; it degraded
+   * the role path on the locked-screen reference device and is not a safe
+   * meeting-recording default.
    */
   numThreads: number = 4;
 }

@@ -67,6 +67,7 @@ export class DeviceStressOptions {
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
   asrDisablePrepack: boolean = true;
+  asrUseSdkPrepackDefault: boolean = false;
   runId: string = 'manual';
   manifestPath: string = '';
   resultPath: string = '';
@@ -988,6 +989,7 @@ class CycleResult {
   finishToLastMs: number = -1;
   finishToDiarizationResultMs: number = -1;
   finishToCompleteMs: number = -1;
+  completeAtEpochMs: number = -1;
   nonEmptySpeakerScores: number = 0;
   missingSpeakerScores: number = 0;
   firstNonEmptyFinalHasScore: number = -1;
@@ -1041,6 +1043,7 @@ class CycleResult {
       `|finishToLastMs=${this.finishToLastMs}` +
       `|finishToDiarizationResultMs=${this.finishToDiarizationResultMs}` +
       `|finishToCompleteMs=${this.finishToCompleteMs}` +
+      `|completeAtEpochMs=${this.completeAtEpochMs}` +
       `|nonEmptySpeakerScores=${this.nonEmptySpeakerScores}` +
       `|missingSpeakerScores=${this.missingSpeakerScores}` +
       `|firstNonEmptyFinalHasScore=${this.firstNonEmptyFinalHasScore}` +
@@ -1230,7 +1233,9 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   scheduling.allowSpinning = options.asrAllowSpinning;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
-  params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  if (!options.asrUseSdkPrepackDefault) {
+    params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  }
   params.language = 'zh-CN';
   params.online = 1;
   return SpeechRecognizeSdk.createEngine(params);
@@ -1246,7 +1251,9 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
   params.numThreads = options.asrNumThreads;
   params.language = 'zh-CN';
   params.online = 1;
-  params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  if (!options.asrUseSdkPrepackDefault) {
+    params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  }
   params.extraParams['sysGeneralLexicon'] = COLD_START_HOTWORDS;
   return new Promise<EngineCreateResult>((resolve: (result: EngineCreateResult) => void): void => {
     SpeechRecognizeSdk.createEngineAsync(params, new EngineCreateCb(resolve));
@@ -2545,7 +2552,11 @@ async function runContinuousMaxDurationCycle(baseEngine: SpeechRecognitionEngine
 
   const fed = await feedPcmFile(engine, sessionId, entry.path, 0, paceMs);
   const lastBeforeFinish = events.lastFinals;
-  if (engine.isBusy()) engine.finish(sessionId);
+  let finishRequestedAtMs = -1;
+  if (engine.isBusy()) {
+    finishRequestedAtMs = Date.now();
+    engine.finish(sessionId);
+  }
   const completed = await waitFor((): boolean => events.completes === 1, COMPLETE_TIMEOUT_MS);
   if (!completed && engine.isBusy()) engine.cancel(sessionId);
   let nonEmptyFinals = 0;
@@ -2561,10 +2572,18 @@ async function runContinuousMaxDurationCycle(baseEngine: SpeechRecognitionEngine
     events.errors === 0 && scoreContract && terminalCallbackOrderOk(events, sessionId) && !engine.isBusy();
   const result = finishCycle(index, entry.id, events, startedAt, ok,
     ok ? `${mode}-preserved` : `${mode}-contract`);
+  result.completeAtEpochMs = events.completeAtMs;
   result.requestedMaxAudioDurationMs = MAX_DURATION_TEST_MS;
   result.effectiveMaxAudioDurationMs = -1;
   result.fedFrames = fed;
   result.lastFinalsBeforeFinish = lastBeforeFinish;
+  result.finishToLastMs = finishRequestedAtMs < 0 || events.lastFinalAtMs < 0 ? -1 :
+    events.lastFinalAtMs - finishRequestedAtMs;
+  result.finishToDiarizationResultMs = finishRequestedAtMs < 0 ||
+    events.speakerDiarizationTerminalResults !== 1 || events.speakerDiarizationResultAtMs < 0 ? -1 :
+    events.speakerDiarizationResultAtMs - finishRequestedAtMs;
+  result.finishToCompleteMs = finishRequestedAtMs < 0 || events.completeAtMs < 0 ? -1 :
+    events.completeAtMs - finishRequestedAtMs;
   return result;
 }
 
@@ -2958,6 +2977,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   stressEnableDiarization = options.enableDiarization;
   stressDiarizationNumThreads = options.diarizationNumThreads;
   const startedAt = Date.now();
+  const asrPrepackSource = options.asrUseSdkPrepackDefault ? 'SDK_MODE_DEFAULT' : 'EXPLICIT_FLAG';
   const lines: string[] = [];
   const totals = new StressTotals();
   let entries: CorpusEntry[] = [];
@@ -3152,7 +3172,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     `|requested=${options.cycles}|completed=${totals.completed}|failed=${totals.failed}` +
     `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|partials=${totals.partials}|finals=${totals.finals}` +
     `|completes=${totals.completes}|errors=${totals.errors}|elapsedMs=${Date.now() - startedAt}` +
-    `|fatal=${fatal}`;
+    `|asrPrepackSource=${asrPrepackSource}|fatal=${fatal}`;
   lines.push(summary);
   let resultWritten = false;
   try {
