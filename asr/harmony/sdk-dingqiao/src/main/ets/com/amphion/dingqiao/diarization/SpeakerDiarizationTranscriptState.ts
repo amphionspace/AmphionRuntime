@@ -83,6 +83,8 @@ const UNKNOWN_SPEAKER = 'UNKNOWN';
 // Fixed authorized inference bound (not the model hop). See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
 // measured bounded/unbounded comparison; this is not an identity threshold.
 const MAX_UNKNOWN_BACKFILL_MS = 2_500;
+// Measured streaming ASR token emission lag; not an identity threshold. See the same document.
+const MAX_TOKEN_EMISSION_LAG_MS = 600;
 
 function overlapMs(beginA: number, endA: number, beginB: number, endB: number): number {
   return Math.max(0, Math.min(endA, endB) - Math.max(beginA, beginB));
@@ -804,13 +806,26 @@ export class SpeakerDiarizationTranscriptState {
     };
   }
 
+  // Streaming ASR stamps a token when it is emitted, after its audio. A token in a
+  // non-speech gap therefore belongs to the known speech that ended just before it,
+  // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned, and
+  // so does overlapped speech: several voices end together, so the bounded backfill decides.
   private turnAt(timeMs: number): SpeakerTimelineTurn | undefined {
     for (let i = this.turns.length - 1; i >= 0; i--) {
       if (timeMs >= this.turns[i].beginTime && timeMs < this.turns[i].endTime) {
         return this.turns[i];
       }
     }
-    return undefined;
+    let previousEnd = -Infinity;
+    for (const turn of this.turns) {
+      if (turn.endTime <= timeMs) previousEnd = Math.max(previousEnd, turn.endTime);
+    }
+    if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return undefined;
+    const ending = this.turns.filter(turn => turn.endTime === previousEnd);
+    if (ending.some(turn => (turn.overlap ?? false) || turn.secondarySpeakerIds.length > 0)) return undefined;
+    if (new Set(ending.map(turn => turn.speakerId)).size !== 1) return undefined;
+    const speakerId = ending[0].speakerId;
+    return speakerId === UNKNOWN_SPEAKER || speakerId === 'UNKNOWN_SECONDARY' ? undefined : ending[0];
   }
 
   private splitByTokenSpeaker(utterance: StoredUtterance,

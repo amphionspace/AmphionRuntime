@@ -836,10 +836,18 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
           assert.deepEqual(split([first,second]).map(x=>x.speakerId),['S1']);
           const unknown={{beginTime:500,endTime:1200,speakerId:'UNKNOWN',secondarySpeakerIds:[]}};
           assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1']);
+          // '乙'/'丙' are stamped 100 ms after S1/S2 end: the ASR emission lag keeps each owner.
           assert.deepEqual(split([first,{{...second,speakerId:'S2'}}]).map(x=>x.speakerId),
-            ['S1','UNKNOWN']);
-          // Overlap does not establish a unanimous single speaker for uncovered tokens.
-          assert.deepEqual(split([{{...first,overlap:true,secondarySpeakerIds:['S2']}}])
+            ['S1','S2']);
+          // Beyond the lag, an uncovered token between different speakers is not backfilled.
+          const distant=new SpeakerDiarizationTranscriptState();
+          distant.addUtterance({{rawText:'甲乙丙',text:'甲乙丙。',tokens:['甲','乙','丙'],
+            tokenTimesMs:[100,1200,1500],beginTime:0,endTime:1600}});
+          distant.applySpeakerTurns([first,{{beginTime:1450,endTime:1800,speakerId:'S2',secondarySpeakerIds:[]}}]);
+          assert.deepEqual(distant.finalUtterances().map(x=>x.speakerId),['S1','UNKNOWN','S2']);
+          // Overlap does not establish a unanimous single speaker for uncovered tokens
+          // ('丙' is stamped 700 ms after the turn, beyond the ASR emission lag).
+          assert.deepEqual(split([{{...first,endTime:400,overlap:true,secondarySpeakerIds:['S2']}}])
             .map(x=>x.speakerId),['S1','UNKNOWN']);
           assert.deepEqual(split([]).map(x=>x.speakerId),['UNKNOWN']);
         """)

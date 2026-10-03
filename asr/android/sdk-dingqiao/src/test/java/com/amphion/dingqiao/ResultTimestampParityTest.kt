@@ -37,8 +37,9 @@ class ResultTimestampParityTest {
             val result = state.finalUtterances()
             assertTrue(result.all { it.endTime >= it.beginTime })
             assertEquals(listOf("甲", "这个。"), result.map { it.text })
-            assertTrue(result.last().speakerInferred)
-            assertEquals(0f, result.last().confidence)
+            // '个' is stamped 62 ms after S1's turn: ASR emission lag, i.e. direct attribution.
+            assertEquals("S1", result.last().speakerId)
+            assertFalse(result.last().speakerInferred)
             assertEquals(before, state.allTurns())
             assertFalse(payload.isLast)
 
