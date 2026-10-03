@@ -8,6 +8,7 @@ import java.io.RandomAccessFile
 import java.util.ArrayDeque
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
@@ -56,7 +57,8 @@ internal class SpeakerDiarizationLocalClient(
     // window changes VBx component survival, not just inference cost.
     private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 1_000)
     private val queue = ArrayDeque<DiarizationLocalJob>()
-    private val jobDir = File(File(workPath, "speaker-diarization-jobs"), "job-${System.nanoTime()}")
+    private val jobsRoot = File(workPath, "speaker-diarization-jobs")
+    private val jobDir = File(jobsRoot, "job-${System.nanoTime()}")
     private val spool: DiarizationPcmSpool
     private val evidence: DiarizationEvidenceSpool
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { task ->
@@ -82,6 +84,7 @@ internal class SpeakerDiarizationLocalClient(
     private val quiescentCallbacks = mutableListOf<() -> Unit>()
 
     init {
+        sweepStaleJobs(jobsRoot)
         check(jobDir.mkdirs() || jobDir.isDirectory) { "cannot create ${jobDir.absolutePath}" }
         spool = DiarizationPcmSpool(jobDir)
         evidence = DiarizationEvidenceSpool(jobDir)
@@ -334,5 +337,12 @@ internal class SpeakerDiarizationLocalClient(
         const val SAMPLE_RATE = 16_000
         const val WINDOW_SAMPLES = 160_000
         const val INFERENCE_TIMEOUT_MS = 10_000L
+        private val sweptJobRoots = ConcurrentHashMap.newKeySet<String>()
+
+        // Job files are removed when a client becomes quiescent, which a killed process never
+        // reaches. The first client of a process removes whatever earlier processes left.
+        fun sweepStaleJobs(root: File) {
+            if (sweptJobRoots.add(root.absolutePath)) root.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.amphion.dingqiao.SpeakerDiarizationDegradedReason
 import org.junit.Assert.*
 import org.junit.Test
 import org.mockito.kotlin.*
+import java.io.File
 import java.nio.file.Files
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -79,6 +80,22 @@ class CommunityLocalClientTest {
             verify(observer,never()).onWindow(any())
             verify(observer,never()).onDegraded(any(),any())
         } finally { release.countDown();client.cancel();directory.deleteRecursively() }
+    }
+
+    @Test fun firstClientRemovesJobFilesLeftByAKilledProcess() {
+        val workPath = Files.createTempDirectory("community-stale").toFile()
+        val jobs = File(workPath, "speaker-diarization-jobs")
+        val stale = File(jobs, "job-1").apply { mkdirs(); File(this, "embeddings.f32").writeBytes(ByteArray(16)) }
+        val model = mock<CommunityDiarizationInference>()
+        val first = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
+        try {
+            assertFalse(stale.exists())
+            val live = jobs.listFiles()!!.single()
+            val second = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
+            assertTrue("a later client must not remove a live session's files", live.exists())
+            assertEquals(2, jobs.listFiles()!!.size)
+            second.cancel()
+        } finally { first.cancel();workPath.deleteRecursively() }
     }
 
     @Test fun cancelWaitsForNativeReturnAndSuppressesItsLateWindow() {

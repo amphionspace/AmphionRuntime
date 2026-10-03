@@ -57,6 +57,21 @@ export interface SpeakerDiarizationLocalClientOptions {
  * bounded 10-second window is processed at a time by SDK-bundled models.
  */
 export class SpeakerDiarizationLocalClient {
+  private static readonly sweptJobRoots: Set<string> = new Set<string>();
+
+  // Job files are removed when a client becomes quiescent, which a killed process never
+  // reaches. The first client of a process removes whatever earlier processes left.
+  private static sweepStaleJobs(root: string): void {
+    if (SpeakerDiarizationLocalClient.sweptJobRoots.has(root)) return;
+    SpeakerDiarizationLocalClient.sweptJobRoots.add(root);
+    try {
+      if (!fs.accessSync(root)) return;
+      for (const name of fs.listFileSync(root)) {
+        try { fs.rmdirSync(`${root}/${name}`); } catch (_ignored) {}
+      }
+    } catch (_ignored) {}
+  }
+
   private readonly scheduler: DiarizationWindowScheduler;
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
@@ -95,6 +110,7 @@ export class SpeakerDiarizationLocalClient {
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
+    SpeakerDiarizationLocalClient.sweepStaleJobs(`${workPath}/speaker-diarization-jobs`);
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
