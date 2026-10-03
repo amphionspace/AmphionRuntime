@@ -21,7 +21,7 @@ def run_community_session(body):
       import assert from 'node:assert/strict';
       const SAMPLE_RATE=16000;
       const ResultAudioTimeline={endSample:r=>r.audioEndSample};
-      const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
+      const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1,FINISH_TIMEOUT:4};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
       class DiarizedUtterance {} class SpeakerTurn {} class SpeakerTextSpan {} class SpeakerDiarizationUpdate {}
       class SpeakerDiarizationLocalClient {
@@ -30,7 +30,7 @@ def run_community_session(body):
         readEvidence(n){const segments=new Float32Array(n*589*3),embeddings=new Float32Array(n*3*256);
           for(let i=0;i<n;i++){segments.set(this.evidence[i].segments,i*589*3);embeddings.set(this.evidence[i].embeddings,i*3*256);}
           return {segments,embeddings};}
-        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}
+        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){} stopInference(){this.stopped=true}
       }
       function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
@@ -452,6 +452,44 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.equal(published.length,1,'reentrant or duplicate finish must not republish');
         """)
 
+    def test_finish_timeout_salvage_freezes_inferred_front_and_leaves_tail_unknown(self):
+        run_community_session("""
+          const tick=()=>new Promise(r=>setImmediate(r));
+          for (const drained of [false,true]) {
+            const published=[];
+            const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+              onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)});
+            s.totalSamples=40*16000;s.client.cluster=async()=>clusterResult(1);
+            s.onWindow(window(0));
+            s.observeAsrFinal({result:'你好',beginTime:1000,endTime:9000,isLast:false},
+              {rawText:'你好',tokens:['你','好'],timestamps:[1,8],isLast:false,audioEndSample:9*16000});
+            s.observeAsrFinal({result:'再见',beginTime:21000,endTime:29000,isLast:false},
+              {rawText:'再见',tokens:['再','见'],timestamps:[21,28],isLast:false,audioEndSample:29*16000});
+            s.finish();
+            if (drained) s.onDrained();
+            s.observeAsrFinal({result:'',isLast:true},
+              {rawText:'',tokens:[],timestamps:[],isLast:true,audioEndSample:40*16000});
+            if (!drained) {
+              await tick();
+              assert.equal(published.length,0,'inference has not drained');
+            }
+            s.salvage();
+            s.onWindow(window(1));
+            await tick();
+            assert.equal(s.client.stopped,drained?undefined:true,'a drained final is not salvaged');
+            assert.equal(published.length,1);
+            const out=published[0];
+            assert.equal(out.isSessionFinal,true);
+            assert.equal(out.degradedReason,drained?0:4);
+            assert.deepEqual(out.utterances.map(u=>u.speakerIndex),[0,-1]);
+            assert.ok(out.speakerTurns.length>0);
+            assert.ok(out.speakerTurns.every(t=>t.endTime<=10000&&t.speakerIndex===0),
+              'the dropped in-flight window cannot extend frozen evidence');
+            s.salvage();s.onDrained();await tick();
+            assert.equal(published.length,1);
+          }
+        """)
+
     def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]
@@ -505,6 +543,52 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         """
         with tempfile.TemporaryDirectory() as directory:
             harness=Path(directory)/'cadence.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
+    def test_stopped_inference_drops_in_flight_window_and_starts_no_more(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = f"""
+          import assert from 'node:assert/strict';
+          import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          let nextDiarizationJobId=1,calls=0,releaseFirst;
+          class DiarizationPcmSpool {{
+            pcm=new Uint8Array(31*32000);end=0;
+            append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
+            read(offset,count){{return this.pcm.slice(offset,offset+count).buffer;}}
+            endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
+          }}
+          class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
+          class CommunityDiarizationInference {{
+            async load(){{}}close(){{}}
+            async process(){{
+              if(calls++===0)await new Promise(r=>releaseFirst=r);
+              return {{segments:new Float32Array(0),embeddings:new Float32Array(0)}};
+            }}
+            async cluster(){{return {{speakerCount:0}};}}
+          }}
+          const fs={{accessSync:()=>true,rmdirSync(){{}}}};
+        """
+        body = """
+          const windows=[],errors=[];let done;const drained=new Promise(r=>done=r);
+          const c=new SpeakerDiarizationLocalClient({},'',{onWindow:w=>windows.push(w),
+            onDrained:()=>done(),onDegraded:(_reason,message)=>errors.push(message)});
+          c.append(new Uint8Array(30*32000).buffer);c.finish();
+          while(releaseFirst===undefined)await new Promise(r=>setImmediate(r));
+          c.stopInference();
+          const clustered=c.cluster(new Float32Array(0),new Float32Array(0),4,new Float64Array(0),0);
+          releaseFirst();
+          assert.equal((await clustered).speakerCount,0,'retained evidence can still be clustered');
+          // Drained means no queued or scheduled window is left to start.
+          await drained;await new Promise(r=>setImmediate(r));
+          assert.equal(calls,1);assert.deepEqual(windows,[]);assert.deepEqual(errors,[]);
+          c.cancel();
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'stopped.mts';harness.write_text(stubs+source+body)
             subprocess.run(['node','--experimental-strip-types','--experimental-loader',
                             TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
 

@@ -21,16 +21,27 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
   private timer?: ReturnType<typeof setTimeout>;
   private readonly timeoutMs: number;
   private readonly onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void;
+  private readonly salvageMs: number;
+  private readonly onTimeout?: () => void;
 
+  // On timeout, first ask diarization to freeze what it already inferred, and wait at
+  // most salvageMs for that result before completing without speaker results.
   constructor(
     timeoutMs: number,
     onReady: (result: SpeakerDiarizationFinishOutput<A, S>) => void,
+    salvageMs: number = 0,
+    onTimeout?: () => void,
   ) {
     if (timeoutMs <= 0) {
       throw new Error('timeoutMs must be positive');
     }
+    if (salvageMs < 0) {
+      throw new Error('salvageMs must not be negative');
+    }
     this.timeoutMs = timeoutMs;
     this.onReady = onReady;
+    this.salvageMs = salvageMs;
+    this.onTimeout = onTimeout;
   }
 
   begin(): void {
@@ -49,11 +60,23 @@ export class SpeakerDiarizationFinishBarrier<A, S> {
       if (this.completed || this.speakerReady) {
         return;
       }
-      this.speakerReady = true;
-      this.degraded = true;
-      // Only diarization may degrade on timeout. ASR must drain all accepted audio.
-      this.tryComplete();
+      if (this.salvageMs > 0) {
+        this.timer = setTimeout(() => this.expire(), this.salvageMs);
+        this.onTimeout?.();
+        return;
+      }
+      this.expire();
     }, this.timeoutMs);
+  }
+
+  private expire(): void {
+    if (this.completed || this.speakerReady) {
+      return;
+    }
+    this.speakerReady = true;
+    this.degraded = true;
+    // Only diarization may degrade on timeout. ASR must drain all accepted audio.
+    this.tryComplete();
   }
 
   resolveAsr(value: A): void {

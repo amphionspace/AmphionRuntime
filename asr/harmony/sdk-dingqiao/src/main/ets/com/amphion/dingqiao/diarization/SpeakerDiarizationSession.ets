@@ -34,6 +34,8 @@ export interface SpeakerDiarizationSessionController {
   finish(confirmedInitialSilence?: boolean): void;
   decoratePayload(payload: SpeechRecognitionResult): void;
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult;
+  /** Finish timeout: freeze speakers for audio already inferred instead of discarding them. */
+  salvage(): void;
   cleanup(): void;
 }
 
@@ -65,6 +67,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private asrTailObserved: boolean = false;
   private finished: boolean = false;
   private committing: boolean = false;
+  // Audio end covered by inferred windows when a finish timeout stopped inference.
+  private salvagedThroughMs?: number;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
@@ -240,6 +244,24 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     return this.buildResult(reason ?? this.degradedReason, message ?? this.degradedMessage);
   }
 
+  salvage(): void {
+    // A drained session already owns a complete final commit; let it finish normally.
+    if (this.finished || !this.finishRequested || this.processDrained ||
+      this.salvagedThroughMs !== undefined) return;
+    this.salvagedThroughMs = this.inferenceEndMs;
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['inferenceEndMs'] = this.inferenceEndMs;
+      fields['audioEndSample'] = this.totalSamples;
+      fields['windows'] = this.windows.length;
+      this.recordDecision('DIARIZATION_FINISH_SALVAGE', fields);
+    }
+    this.client.stopInference();
+    this.transcript.limitEvidence(this.inferenceEndMs);
+    this.processDrained = true;
+    this.finalizeIfReady();
+  }
+
   cancel(): void {
     this.finished = true;
     this.client.cancel((): void => { this.releaseRuntimeLease(); });
@@ -251,7 +273,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   }
 
   onWindow(window: DiarizationLocalWindowResult): void {
-    if (this.finished || this.confirmedInitialSilence) return;
+    if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
     this.client.retainEvidence(window.result);
     this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
       realEndSample: window.realEndSample });
@@ -443,7 +465,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     await this.updateSpeakers(endTime, evidenceEndTime, isSessionFinal, beginTime);
     if (this.finished) return this.bestResult();
     if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
-    const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
+    const salvaged = isSessionFinal && this.degradedReason === SpeakerDiarizationDegradedReason.NONE ?
+      this.salvagedThroughMs : undefined;
+    const result = salvaged === undefined ?
+      this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime) :
+      this.buildResult(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+        `speaker diarization finish timeout; speakers cover audio before ${Math.round(salvaged)}ms`,
+        endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
