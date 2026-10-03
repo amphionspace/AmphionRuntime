@@ -946,6 +946,49 @@ int main() {
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_run_capacity_keeps_far_field_speakers_beside_a_near_one(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r"""
+#include "community_cluster.h"
+#include <cassert>
+#include <set>
+int main() {
+  community::Plda p;
+  p.mean1.resize(256);p.mean2.resize(128);p.mu.resize(128);p.phi.resize(128,1.);
+  p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1;p.transform[i][i]=1;}
+  // Far-field meeting (AliMeeting 124 s): one participant beside the microphone is
+  // about 10 dB louder than the four others; five VBx identities over a cap of 4.
+  constexpr int n=50;
+  std::vector<float> segments(n*589*3),embeddings(n*768),runs(n*256),rms(n);
+  std::vector<int32_t> ranges;
+  const float level[5]={.051f,.0163f,.0153f,.0116f,.0111f};
+  for(int w=0;w<n;++w){
+    const int g=w%5;
+    for(int f=0;f<589;++f)segments[(w*589+f)*3]=1;
+    embeddings[w*768+g]=runs[w*256+g]=1.;
+    ranges.insert(ranges.end(),{w,0,0,589});rms[w]=level[g];
+  }
+  auto result=community::Cluster(segments,embeddings,n,p,4,runs,ranges,rms);
+  std::set<int> named;
+  for(int w=0;w<n;++w){
+    const int g=w%5,label=result.hard[w*3];
+    if(g<4){assert(label>=0 && "a far-field participant must keep a slot under capacity");named.insert(label);}
+    else assert(label==-2 && "only the quietest overflow identity stays anonymous");
+  }
+  assert(named.size()==4 && result.retainedClusters.size()==4 && !result.usedKMeans);
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'far_field.cpp'
+            binary = Path(directory) / 'far_field'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_run_capacity_folds_a_split_identity_before_dropping_a_speaker(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
