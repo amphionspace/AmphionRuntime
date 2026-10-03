@@ -299,6 +299,8 @@ internal class DiarizationTranscriptState {
     // so does overlapped speech: several voices end together, so the bounded backfill decides.
     private fun turnAt(timeMs: Int): SpeakerTimelineTurn? {
         turns.asReversed().find { timeMs >= it.beginTime && timeMs < it.endTime }?.let { return it }
+        // A turn cut at the inferred-evidence end did not necessarily end there.
+        if (timeMs > evidenceEndTime) return null
         val previousEnd = turns.filter { it.endTime <= timeMs }.maxOfOrNull { it.endTime } ?: return null
         if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return null
         val ending = turns.filter { it.endTime == previousEnd }

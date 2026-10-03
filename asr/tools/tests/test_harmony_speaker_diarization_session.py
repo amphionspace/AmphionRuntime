@@ -538,10 +538,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         run_node(f"""
           import assert from 'node:assert/strict';
           import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
-          function state(limit) {{
+          function state(limit, tail=21000) {{
             const s=new SpeakerDiarizationTranscriptState();
-            s.addUtterance({{rawText:'你好',text:'你好',tokens:['你','好'],tokenTimesMs:[18000,21000],
-              beginTime:17000,endTime:21500}});
+            s.addUtterance({{rawText:'你好',text:'你好',tokens:['你','好'],tokenTimesMs:[18000,tail],
+              beginTime:17000,endTime:tail+500}});
             s.applySpeakerTurns([{{beginTime:15000,endTime:20000,speakerId:'S1',secondarySpeakerIds:[],confidence:0.9}}]);
             if (limit !== undefined) s.limitEvidence(limit);
             return s.sentenceUtterances()[0];
@@ -550,6 +550,9 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
           const limited=state(20000);
           assert.equal(limited.speakerId,'UNKNOWN','audio never inferred is not evidence of silence');
           assert.equal(limited.confidence,0);
+          // Within the emission lag, a turn cut at the evidence end still cannot claim later tokens.
+          assert.equal(state(undefined,20300).speakerId,'S1');
+          assert.equal(state(20000,20300).speakerId,'UNKNOWN');
         """)
 
     def test_stopped_fallback_preserves_real_tail_waiting_for_speaker_decoration(self) -> None:
