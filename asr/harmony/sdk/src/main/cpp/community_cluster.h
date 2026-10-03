@@ -299,8 +299,8 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   if(result.centroids.size()>static_cast<size_t>(maxSpeakers)&&!runRms.empty()&&!result.usedAhcFallback) {
     // Over capacity, first fold VBx identities that are acoustically the same person
     // (one speaker split across two clusters) so a duplicate cannot take a slot from
-    // a quieter real speaker. Only near-identical centroids qualify; capacity alone
-    // never merges people.
+    // a quieter real speaker. Only identities whose owned training vectors (below) are
+    // near-identical qualify; capacity alone never merges people.
     constexpr double kDuplicateIdentityCosine=.6;
     auto rebuild=[&]{
       result.centroids.clear();
