@@ -111,6 +111,13 @@
 | speaker/PIPELINE.md | TS-ASR 调研期方案与实验记录；不作为当前 SDK 能力或待办清单 |
 | speaker/AIDATATANG_SPEAKER_VAD_EVAL.md | Aidatatang 500 人主说话人 VAD endpoint 评测：指标定义、场景问题、阈值扫描和结论 |
 
+### 角色分离
+
+| 文档 | 说明 |
+| --- | --- |
+| speaker/DIARIZATION_ROUND_SUMMARY_20261003.md | 2026-10-01 至 10-03 角色分离优化总结：合入的 PR 与收益、契约变化、两端真机验收、未解决事项 |
+| speaker/DIARIZATION_SHORT_SESSION_COLLAPSE_20261003.html | 图解：短会话为什么会把人认少，规则为什么修不好，模型层面有哪些出路（浏览器打开） |
+
 ### ASR 功能评测
 
 | 文档 | 说明 |

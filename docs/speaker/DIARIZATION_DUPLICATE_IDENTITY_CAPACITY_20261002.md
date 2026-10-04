@@ -45,6 +45,6 @@
 - 同人拆分的正样本只有这一例，0.6 的阈值依据有限。
 - `0b31` 的参考是 MOSS 辅助标注，不是人工真值。
 - 未超上限时的重复身份（同一人显示为两个编号）不在本次处理范围内。
-- Android 在 run 证据移植（#248）合入后才生效；#248 已在 TECNO KI8 上用包含本修复的 release AAR 完成 11 个输入的真机验证。
-- 没有 Mate80 设备，本次没有 Harmony 真机验收。这是 SDK 运行行为修改，合入前必须在同一提交、同一产物上补做 Harmony USB 真机验收；在此之前本修复不能合入。
+- Android 侧随 run 证据移植（#248）生效，已在 TECNO KI8 上用包含本修复的 release AAR 完成 11 个输入的真机验证。
+- Harmony 真机：Mate80 离线，经用户同意于 2026-10-03 改用 nova 14 Pro，对包含本修复的整合状态 `44d6a2a1` 完成验收，`diarization-windows` 及 5 个开启角色分离的生命周期模式全部 PASS。本修复以 #247 合入（`ab0bbb0d`），验收记录见[本轮总结](DIARIZATION_ROUND_SUMMARY_20261003.md)。
 - embedding 等声纹数据只保存在本机私有目录，不提交。
