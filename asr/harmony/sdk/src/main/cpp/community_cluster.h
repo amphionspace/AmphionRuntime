@@ -337,6 +337,9 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     // Capacity is not evidence that two people are the same. Retain existing
     // VBx identities using the clean PCM level belonging to their training
     // runs; apply no level gate when all inferred identities fit the capacity.
+    // Over capacity, only the quietest overflow identities stay anonymous. A
+    // level relative to the loudest voice cannot tell background from a far-field
+    // participant: one near speaker would otherwise erase everyone else.
     std::vector<int> columns;
     for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7)columns.push_back(c);
     result.capacityRms.assign(columns.size(),0.);Vec weights(columns.size());
@@ -348,8 +351,7 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       }
     }
     for(size_t c=0;c<columns.size();++c)result.capacityRms[c]=weights[c]>0?std::sqrt(result.capacityRms[c]/weights[c]):0.;
-    const double maximum=*std::max_element(result.capacityRms.begin(),result.capacityRms.end());
-    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0&&result.capacityRms[c]>=maximum*.5)
+    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0)
       result.retainedClusters.push_back(static_cast<int>(c));
     std::stable_sort(result.retainedClusters.begin(),result.retainedClusters.end(),[&](int a,int b){return result.capacityRms[a]>result.capacityRms[b];});
     if(result.retainedClusters.size()>static_cast<size_t>(maxSpeakers))result.retainedClusters.resize(maxSpeakers);
