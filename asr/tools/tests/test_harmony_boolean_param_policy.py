@@ -136,7 +136,7 @@ class HarmonyBooleanParamPolicyTest(unittest.TestCase):
             import {{ buildAsrConfig }} from {RECOGNITION_CONFIG.as_uri()!r};
             import {{ CreateEngineParams, StartParams, SpeakerDiarizationConfig }} from {models.as_uri()!r};
             import {{ AsrConfig }} from {(core / 'Types.ets').as_uri()!r};
-            import {{ asrCpuProvider }} from {(core / 'AsrSchedulingConfig.ts').as_uri()!r};
+            import {{ AsrSchedulingConfig, asrCpuProvider }} from {(core / 'AsrSchedulingConfig.ts').as_uri()!r};
             import {{ endpointRecognizerRuntimeConfigKey, endpointRecognizerConfigKey }} from {endpoint.as_uri()!r};
             const context = {{}};
             {body}
@@ -190,7 +190,62 @@ class HarmonyBooleanParamPolicyTest(unittest.TestCase):
               const config = buildAsrConfig(context, params, start);
               assert.equal(config.disablePrepack, false, JSON.stringify([engineExtra, sessionExtra]));
               assert.equal(config.endpointRules.rule3MinUtteranceLengthSec, -1);
-              assert.equal(asrCpuProvider(config.disablePrepack, config.scheduling), 'cpu');
+              // A resolved long mode also gives up ORT busy waiting by default.
+              assert.equal(asrCpuProvider(config.disablePrepack, config.scheduling),
+                'cpu;AmphionAllowSpinning=0', JSON.stringify([engineExtra, sessionExtra]));
+            }
+            """
+        )
+
+    def test_real_builder_spinning_default_follows_resolved_mode(self) -> None:
+        self.run_builder(
+            """
+            // Omitting scheduling is the shipping path: short keeps ORT's busy wait,
+            // a resolved long session gives it up, and nothing else is requested.
+            const shortParams = new CreateEngineParams();
+            const shortConfig = buildAsrConfig(context, shortParams);
+            assert.equal(shortConfig.scheduling.allowSpinning, true);
+            assert.equal(shortConfig.scheduling.qos, 'default');
+            assert.deepEqual(shortConfig.scheduling.cpuIds, []);
+
+            const longParams = new CreateEngineParams();
+            longParams.extraParams = { recognizerMode: 'long' };
+            const longConfig = buildAsrConfig(context, longParams);
+            assert.equal(longConfig.scheduling.allowSpinning, false);
+            assert.equal(longConfig.scheduling.qos, 'default');
+            assert.deepEqual(longConfig.scheduling.cpuIds, []);
+
+            // continuous resolves to long without an explicit mode, so it follows too.
+            const continuous = new CreateEngineParams();
+            const continuousStart = new StartParams();
+            continuousStart.extraParams = { enableContinuousRecognition: true };
+            assert.equal(
+              buildAsrConfig(context, continuous, continuousStart).scheduling.allowSpinning, false);
+            """
+        )
+
+    def test_real_builder_keeps_an_explicit_scheduling_request_verbatim(self) -> None:
+        self.run_builder(
+            """
+            // An explicit request is the caller's; the mode default is not layered on
+            // top of it, in either direction, and the caller's object is not mutated.
+            for (const mode of ['short', 'long']) {
+              for (const spinning of [true, false]) {
+                const params = new CreateEngineParams();
+                params.extraParams = { recognizerMode: mode };
+                const scheduling = new AsrSchedulingConfig();
+                scheduling.qos = 'user-initiated';
+                scheduling.cpuIds = [5, 4];
+                scheduling.allowSpinning = spinning;
+                params.scheduling = scheduling;
+                const config = buildAsrConfig(context, params);
+                assert.equal(config.scheduling.allowSpinning, spinning, mode + ':' + spinning);
+                assert.equal(config.scheduling.qos, 'user-initiated');
+                assert.deepEqual(config.scheduling.cpuIds, [4, 5]);
+                assert.equal(scheduling.allowSpinning, spinning);
+                assert.deepEqual(scheduling.cpuIds, [5, 4]);
+                assert.notEqual(config.scheduling, scheduling);
+              }
             }
             """
         )

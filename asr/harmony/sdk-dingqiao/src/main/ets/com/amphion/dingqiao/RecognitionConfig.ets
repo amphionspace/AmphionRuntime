@@ -1,6 +1,7 @@
 import {
   AsrConfig,
   AsrLanguage,
+  AsrSchedulingConfig,
   SessionConfig,
   SpeakerVadConfig,
   TargetSpeakerConfig
@@ -116,9 +117,6 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
     throw new Error('numThreads must be an integer in [1, 8]');
   }
   config.numThreads = numThreads;
-  if (params.scheduling !== undefined) {
-    config.scheduling = AsrConfig.builder().scheduling(params.scheduling).build().scheduling;
-  }
   config.punctuation = true;
   config.itn = true;
   config.vad = true;
@@ -132,6 +130,14 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   config.endpointRules.rule3MinUtteranceLengthSec = endpointRule3.minUtteranceSec;
   // short 默认跳过 prepack，long 默认启用；显式引擎参数优先。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', endpointRule3.mode !== 'long');
+  // 忙等按占用核收费而不按工作量收费。long（含未显式指定 mode 的 continuous）是持续会话，
+  // 其识别线程与角色链路争用同一批核，因此缺省让出忙等；short 保留 ORT 原忙等。
+  // 调用方显式提供 scheduling 时完全照用，不在其上叠加本缺省，也不改写其对象。
+  const requestedScheduling = params.scheduling ?? new AsrSchedulingConfig();
+  if (params.scheduling === undefined) {
+    requestedScheduling.allowSpinning = endpointRule3.mode !== 'long';
+  }
+  config.scheduling = AsrConfig.builder().scheduling(requestedScheduling).build().scheduling;
   if (withTargetSpeaker) {
     if (speakerModelPath === undefined) throw new Error('voiceprint model path is required');
     config.targetSpeaker = buildTargetSpeakerConfig(startParams, speakerModelPath);
