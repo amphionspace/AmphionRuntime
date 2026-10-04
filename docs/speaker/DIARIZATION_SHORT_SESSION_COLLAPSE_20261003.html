@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>短会话身份塌缩</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@600;900&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+body { margin: 0; }
+/* Layout: one reading column (~70ch) with full-width figure panels; evidence first, conclusions boxed. */
+:root {
+  --bg: #f3f5f7;
+  --panel: #ffffff;
+  --ink: #18212b;
+  --muted: #5b6876;
+  --rule: #d6dde4;
+  --accent: #0f6e78;
+  --accent-soft: #dcefef;
+  --warn: #b5482c;
+  --warn-soft: #f8e4dc;
+  --ok: #2e7d4f;
+  --s1: #3b6fd8;   /* 003-F */
+  --s2: #c4741a;   /* 005-M */
+  --s3: #b23a6b;   /* 004-M */
+  --s4: #7a8794;   /* overlap / other */
+  --font-display: "Noto Serif SC", "Songti SC", "STSong", serif;
+  --font-body: "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #11161c; --panel: #19212a; --ink: #e4eaf0; --muted: #9aa8b6; --rule: #2c3743;
+    --accent: #5cc3c9; --accent-soft: #163a3d; --warn: #ef8a6c; --warn-soft: #3a221b; --ok: #6cc596;
+    --s1: #7aa2f2; --s2: #e7a352; --s3: #e07aa4; --s4: #8f9ca9; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #11161c; --panel: #19212a; --ink: #e4eaf0; --muted: #9aa8b6; --rule: #2c3743;
+  --accent: #5cc3c9; --accent-soft: #163a3d; --warn: #ef8a6c; --warn-soft: #3a221b; --ok: #6cc596;
+  --s1: #7aa2f2; --s2: #e7a352; --s3: #e07aa4; --s4: #8f9ca9; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 15.5px; line-height: 1.75; }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 18px; padding-block: 36px 64px; display: grid; gap: 34px; }
+header { display: grid; gap: 12px; }
+.eyebrow { font-size: 12.5px; letter-spacing: .12em; color: var(--accent); font-weight: 700; }
+h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(28px, 5vw, 40px); line-height: 1.25; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--font-display); font-weight: 600; font-size: 22px; line-height: 1.4; margin: 0; text-wrap: balance; }
+h3 { font-size: 15px; margin: 0; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.lead { font-size: 17px; color: var(--ink); }
+.muted { color: var(--muted); }
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 14px; }
+.step { display: flex; gap: 12px; align-items: baseline; }
+.step .tag { font-family: var(--font-mono); font-size: 12px; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 0 6px; line-height: 20px; flex: none; }
+.answer { background: var(--accent-soft); border-radius: 10px; padding: 18px 20px; display: grid; gap: 10px; }
+.answer p { max-width: none; }
+.panel { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 18px; display: grid; gap: 14px; min-width: 0; }
+.caption { font-size: 13px; color: var(--muted); }
+.callout { border-left: 3px solid var(--warn); background: var(--warn-soft); padding: 12px 16px; border-radius: 0 8px 8px 0; }
+.callout p { max-width: none; }
+
+/* pipeline */
+.pipe { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+.pipe .stage { flex: 1 1 120px; min-width: 0; border: 1px solid var(--rule); border-radius: 8px; padding: 10px 12px; display: grid; gap: 4px; background: var(--bg); }
+.pipe .stage b { font-size: 14px; }
+.pipe .stage span { font-size: 12.5px; color: var(--muted); line-height: 1.5; }
+.pipe .stage.ok { border-color: var(--ok); }
+.pipe .stage.bad { border-color: var(--warn); background: var(--warn-soft); }
+.pipe .stage .flag { font-size: 12px; font-weight: 700; }
+.pipe .stage.ok .flag { color: var(--ok); }
+.pipe .stage.bad .flag { color: var(--warn); }
+
+/* groups figure */
+.groups { display: grid; grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr); gap: 10px; align-items: center; }
+.col { display: grid; gap: 6px; }
+.col h3 { font-size: 13px; color: var(--muted); font-weight: 500; }
+.g { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.g .id { font-family: var(--font-mono); color: var(--muted); width: 3.2em; flex: none; }
+.dots { display: flex; flex-wrap: wrap; gap: 3px; }
+.dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.d1 { background: var(--s1); } .d2 { background: var(--s2); } .d3 { background: var(--s3); } .d4 { background: var(--s4); }
+.g.hit { outline: 2px solid var(--warn); outline-offset: 3px; border-radius: 4px; }
+.arrow { text-align: center; color: var(--muted); font-size: 22px; }
+.survivor { border: 1px solid var(--rule); border-radius: 8px; padding: 10px; display: grid; gap: 6px; }
+.survivor.bad { border-color: var(--warn); }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12.5px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+/* bars */
+.bars { display: grid; gap: 8px; }
+.bar-row { display: grid; grid-template-columns: 7.5em minmax(0, 1fr) 5.5em; gap: 10px; align-items: center; font-size: 13px; }
+.bar-track { height: 16px; background: var(--bg); border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; background: var(--accent); }
+.bar-fill.warn { background: var(--warn); }
+
+/* histogram */
+.hist { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; align-items: end; height: 200px; padding-top: 8px; border-bottom: 1px solid var(--rule); }
+.bin { display: flex; gap: 2px; align-items: flex-end; height: 100%; }
+.bin i { display: block; flex: 1; border-radius: 3px 3px 0 0; min-height: 1px; }
+.bin .same { background: var(--accent); }
+.bin .diff { background: var(--warn); }
+.hist-x { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); text-align: center; }
+.sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* tables */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 520px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
+th { font-size: 12.5px; color: var(--muted); font-weight: 500; }
+td.n, th.n { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+tr.focus td { background: var(--warn-soft); }
+.pill { display: inline-block; font-size: 12px; padding: 0 8px; border-radius: 999px; line-height: 20px; white-space: nowrap; }
+.pill.no { background: var(--warn-soft); color: var(--warn); }
+.pill.yes { background: var(--accent-soft); color: var(--accent); }
+
+/* options */
+.opts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.opt { background: var(--panel); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.opt.rec { border-color: var(--accent); }
+.opt .kind { font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+.opt p { font-size: 14px; }
+.opt ul { margin: 0; padding-left: 1.2em; font-size: 13.5px; color: var(--muted); display: grid; gap: 2px; }
+footer { font-size: 12.5px; color: var(--muted); display: grid; gap: 6px; }
+code { font-family: var(--font-mono); font-size: .92em; }
+@media (max-width: 520px) {
+  .groups { grid-template-columns: minmax(0, 1fr); }
+  .arrow { transform: rotate(90deg); }
+  .bar-row { grid-template-columns: 6em minmax(0, 1fr) 4.5em; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">角色分离 · AISHELL-4 三人／四人 30 秒短会话</div>
+    <h1>为什么短会话把人认少，规则修不好</h1>
+    <p class="lead">准确地说，不是"一定只能动模型"，而是在现有模型给出的信息量下，任何规则改动都只是把错误从一类会话挪到另一类会话。要真正变好，需要更多的有效信息，这只能来自更好的声纹表示，或用标注数据重新标定的合并决策。</p>
+  </header>
+
+  <div class="answer">
+    <h3>一句话结论</h3>
+    <p>出错的那一步（VBx 合并）需要判断"这两组声音是不是同一个人"。我们实测了 5097 次这样的判断：同一人和不同人的相似度大面积重叠，没有任何阈值能把两者分开。规则只能在"把人认少"和"把一个人拆成两个"之间换位置。</p>
+  </div>
+
+  <section>
+    <div class="step"><span class="tag">1</span><h2>错误发生在哪一步</h2></div>
+    <p>角色分离一共六步。我们把 AISHELL-4 四人 30 秒片的每个训练向量都按人工标注打上真实说话人，逐步检查，发现前三步都是对的，第一个错误出现在第四步。</p>
+    <div class="panel">
+      <div class="pipe">
+        <div class="stage ok"><b>分割</b><span>10 秒窗、1 秒步长，找出谁在说话</span><span class="flag">正确</span></div>
+        <div class="stage ok"><b>声纹向量</b><span>每段连续语音算一个 256 维向量</span><span class="flag">正确</span></div>
+        <div class="stage ok"><b>AHC 初分组</b><span>把相近的向量先粗分成 9 组</span><span class="flag">9 组全部纯净</span></div>
+        <div class="stage bad"><b>VBx 合并</b><span>判断哪些组是同一人，合并</span><span class="flag">把两个人并成一个</span></div>
+        <div class="stage"><b>容量筛选</b><span>超过 4 人时保留最响的</span><span class="flag muted">本例未触发</span></div>
+        <div class="stage"><b>分配</b><span>把每段语音分给身份</span><span class="flag muted">沿用上一步结果</span></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="legend">
+        <span><i class="dot d1"></i>003-F</span>
+        <span><i class="dot d2"></i>005-M</span>
+        <span><i class="dot d3"></i>004-M</span>
+        <span><i class="dot d4"></i>重叠语音</span>
+        <span>一个方块 = 一个训练向量</span>
+      </div>
+      <div class="groups">
+        <div class="col">
+          <h3>AHC 初分组（每组只含一个人）</h3>
+          <div class="g hit"><span class="id">组 0</span><span class="dots"><i class="dot d3"></i><i class="dot d3"></i><i class="dot d3"></i></span></div>
+          <div class="g"><span class="id">组 1</span><span class="dots"><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i></span></div>
+          <div class="g"><span class="id">组 2</span><span class="dots"><i class="dot d1"></i></span></div>
+          <div class="g"><span class="id">组 3</span><span class="dots"><i class="dot d1"></i></span></div>
+          <div class="g"><span class="id">组 4</span><span class="dots"><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i></span></div>
+          <div class="g"><span class="id">组 5</span><span class="dots"><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d4"></i><i class="dot d4"></i></span></div>
+          <div class="g"><span class="id">组 6</span><span class="dots"><i class="dot d2"></i><i class="dot d2"></i></span></div>
+          <div class="g"><span class="id">组 7</span><span class="dots"><i class="dot d2"></i><i class="dot d2"></i></span></div>
+          <div class="g"><span class="id">组 8</span><span class="dots"><i class="dot d2"></i></span></div>
+        </div>
+        <div class="arrow" aria-hidden="true">→</div>
+        <div class="col">
+          <h3>VBx 合并后只剩 2 个身份</h3>
+          <div class="survivor">
+            <div class="g"><span class="id">身份 A</span><span class="dots"><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i><i class="dot d1"></i></span></div>
+            <span class="caption">003-F，正确</span>
+          </div>
+          <div class="survivor bad">
+            <div class="g"><span class="id">身份 B</span><span class="dots"><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d2"></i><i class="dot d3"></i><i class="dot d3"></i><i class="dot d3"></i><i class="dot d4"></i><i class="dot d4"></i><i class="dot d1"></i></span></div>
+            <span class="caption">005-M 吞掉了 004-M 的 3 个向量，还混进一个 003-F 的</span>
+          </div>
+        </div>
+      </div>
+      <p class="caption">数据来自真机 KI8 采集、与主机逐值一致的 21 个窗口。参考标注里 4 人各说了：005-M 16.0 秒、003-F 10.4 秒、004-M 6.0 秒、002-F 5.7 秒。002-F 的发言全是零碎短句，没有一段连续满 2 秒，一个训练向量都没形成，所以图里没有她，同样被漏掉。结果：2/4 人，严格 DER 41.50%。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="step"><span class="tag">2</span><h2>为什么 VBx 会把人并掉：证据太少</h2></div>
+    <p>VBx 是一个概率模型。它判断"多出一个人"是否划算：一组向量越少，证明它是独立说话人的证据就越弱，就越容易被并进旁边的大组。004-M 在这 30 秒里只有 3 个向量，005-M 有 13 个；002-F 连一个都没有。会话越长，每个人的证据越多，这个问题就越少见。</p>
+    <div class="panel">
+      <h3>会话越短，越容易把人认少</h3>
+      <div class="bars">
+        <div class="bar-row"><span>30 秒</span><span class="bar-track"><span class="bar-fill warn" style="width:55.6%; display:block"></span></span><span class="num">5 / 9</span></div>
+        <div class="bar-row"><span>60 秒</span><span class="bar-track"><span class="bar-fill" style="width:11.1%; display:block"></span></span><span class="num">1 / 9</span></div>
+        <div class="bar-row"><span>90–120 秒</span><span class="bar-track"><span class="bar-fill" style="width:11.8%; display:block"></span></span><span class="num">2 / 17</span></div>
+        <div class="bar-row"><span>150 秒以上</span><span class="bar-track"><span class="bar-fill" style="width:9.5%; display:block"></span></span><span class="num">2 / 21</span></div>
+      </div>
+      <p class="caption">7 段带官方标注的会议录音，在不同时间点各聚类一次，统计"识别人数少于真实人数"的比例。30 秒时超过一半认少了人，60 秒以后降到一成左右。</p>
+    </div>
+    <p>这也是官方 Community-1 自身的行为：用官方同款整窗向量跑 AliMeeting 四人 30 秒片，同样只认出 2 个人（错误率 56.99%，认错 14.4 秒）。Android 移植 run 路径后，变化的是哪几段短会话出错，而不是"短会话会出错"这件事本身。</p>
+  </section>
+
+  <section>
+    <div class="step"><span class="tag">3</span><h2>为什么加规则修不好：同一人和不同人分不开</h2></div>
+    <p>最直接的想法是：VBx 合并之后检查一下，如果两组声音不够像，就拆回两个人。前提是"像不像"能区分同一人和不同人。我们统计了所有录音、所有时间点上 VBx 的合并，一共 5097 对：</p>
+    <div class="panel">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--accent)"></i>同一人的合并（4851 对，合并正确）</span>
+        <span><i class="sw" style="background:var(--warn)"></i>不同人的合并（246 对，就是要修的错误）</span>
+      </div>
+      <div class="hist" role="img" aria-label="两类合并的相似度分布大面积重叠">
+        <div class="bin"><i class="same" style="height:0.2%"></i><i class="diff" style="height:6%"></i></div>
+        <div class="bin"><i class="same" style="height:0.5%"></i><i class="diff" style="height:20.1%"></i></div>
+        <div class="bin"><i class="same" style="height:3.7%"></i><i class="diff" style="height:45.5%"></i></div>
+        <div class="bin"><i class="same" style="height:21.4%"></i><i class="diff" style="height:100%"></i></div>
+        <div class="bin"><i class="same" style="height:44.5%"></i><i class="diff" style="height:53.5%"></i></div>
+        <div class="bin"><i class="same" style="height:56%"></i><i class="diff" style="height:17.2%"></i></div>
+        <div class="bin"><i class="same" style="height:61.9%"></i><i class="diff" style="height:4%"></i></div>
+        <div class="bin"><i class="same" style="height:43%"></i><i class="diff" style="height:1%"></i></div>
+        <div class="bin"><i class="same" style="height:17.4%"></i><i class="diff" style="height:1%"></i></div>
+        <div class="bin"><i class="same" style="height:0%"></i><i class="diff" style="height:0%"></i></div>
+      </div>
+      <div class="hist-x"><span>0.0</span><span>0.1</span><span>0.2</span><span>0.3</span><span>0.4</span><span>0.5</span><span>0.6</span><span>0.7</span><span>0.8</span><span>0.9</span></div>
+      <p class="caption">横轴：被合并的两组在 VBx 实际使用的 PLDA 空间里的余弦相似度（每格 0.1 宽）。纵轴：落在该区间的合并占本类总数的比例，两类共用同一纵轴（最高一格为不同人合并的 40.2%）。不同人的合并集中在 0.2–0.5，同一人的合并集中在 0.4–0.8，0.3–0.6 一段两类都很多。原始声纹空间里重叠更严重。</p>
+    </div>
+
+    <div class="panel">
+      <h3>无论阈值放在哪里，代价都比收益大</h3>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>拆分阈值</th><th class="n">修好的错误合并</th><th class="n">新拆错的同一人</th><th class="n">每修好 1 处，多拆错</th></tr></thead>
+          <tbody>
+            <tr><td class="num">0.30</td><td class="n">71 对（28.9%）</td><td class="n">87 对（1.8%）</td><td class="n">1.2 处</td></tr>
+            <tr><td class="num">0.35</td><td class="n">126 对（51.2%）</td><td class="n">252 对（5.2%）</td><td class="n">2.0 处</td></tr>
+            <tr class="focus"><td class="num">0.40</td><td class="n">170 对（69.1%）</td><td class="n">504 对（10.4%）</td><td class="n">3.0 处</td></tr>
+            <tr><td class="num">0.45</td><td class="n">194 对（78.9%）</td><td class="n">897 对（18.5%）</td><td class="n">4.6 处</td></tr>
+            <tr><td class="num">0.50</td><td class="n">223 对（90.7%）</td><td class="n">1373 对（28.3%）</td><td class="n">6.2 处</td></tr>
+            <tr><td class="num">0.55</td><td class="n">232 对（94.3%）</td><td class="n">1926 对（39.7%）</td><td class="n">8.3 处</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">"拆错同一人"在用户眼里就是同一个人被拆成两个编号，契约明确不允许。同一段录音的多个时间点会重复计入，表中数字反映趋势，不是独立样本数。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="step"><span class="tag">4</span><h2>我们试过的修法，分别坏在哪里</h2></div>
+    <p>每种修法都事先定好通过标准：原来人数正确的地方不能变少；认错时长不能增加；19.58 秒四人实录保持 4/4；客户原音的身份不变。</p>
+    <div class="panel">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>修法</th><th>好的一面</th><th>坏的一面</th><th>结论</th></tr></thead>
+          <tbody>
+            <tr><td>给"只说零碎短句"的人补整窗向量</td><td>AISHELL 三人 30 秒：1/3 → 2/3 人，52.80% → 31.20%</td><td>19.58 秒四人实录 4/4 → 3/4 人；AISHELL 四人片变差</td><td><span class="pill no">否决</span></td></tr>
+            <tr><td>完全改用整窗向量发现身份（官方做法）</td><td>AISHELL 四人 30 秒：41.50% → 27.12%</td><td>实录锚点 9.99% → 14.10%；客户原音身份构成改变；AliMeeting 四人变差</td><td><span class="pill no">否决</span></td></tr>
+            <tr><td>VBx 合并后按相似度拆回</td><td>—</td><td>见上表，修 1 处至少拆错 1–8 处</td><td><span class="pill no">否决</span></td></tr>
+            <tr><td>调大 VBx 参数 Fa，让它更愿意保留小组</td><td>30 秒切片加权 32.97% → 26.96%</td><td>长会话 11.64% → 15%–26%，认错时长翻倍；单人录音被拆成 2 人</td><td><span class="pill no">否决</span></td></tr>
+            <tr><td>修正容量筛选（#250，已合入）</td><td>AliMeeting 前 124 秒 1/4 → 4/4 人</td><td>其余 63 个评测点不变</td><td><span class="pill yes">已合入</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="caption">#250 能干净地修好，是因为那个问题出在一条写死的规则上（"音量不到最响者一半就匿名"），信息本来就在。短会话的问题不同，缺的是信息本身。</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="step"><span class="tag">5</span><h2>"模型层面"具体指什么</h2></div>
+    <p>需要的不是更巧的规则，而是让"同一人"和"不同人"在数据上真正分得开，或者让合并决策用标注数据学到在证据少时该怎么判。按投入从小到大，有三条路：</p>
+    <div class="opts">
+      <div class="opt rec">
+        <span class="kind">先做 · 投入最小</span>
+        <h3>用标注数据重新标定合并决策</h3>
+        <p>官方的合并参数是按整窗向量标定的。可以用 AISHELL-4 和 AliMeeting 公开训练集（有官方标注、不与评测集重叠），按"每组有多少证据"重新标定，或训练一个很小的合并判别器。</p>
+        <ul>
+          <li>不换声纹模型，端侧计算量几乎不变</li>
+          <li>必须在训练集上标定、在评测集上验收，避免对当前几段录音过拟合</li>
+          <li>上限受限于现有声纹的区分度</li>
+        </ul>
+      </div>
+      <div class="opt">
+        <span class="kind">其次 · 投入中等</span>
+        <h3>换用对短语音更强的声纹表示</h3>
+        <p>问题根源是 2–3 秒的语音算出的向量不够稳定。SDK 已内置用于声纹校验的 ERes2Net，可先离线评测它，或更强的模型，在短片段上能否把两类相似度拉开。</p>
+        <ul>
+          <li>需要满足 Mate80 的 CPU 时延，不能让性能回退</li>
+          <li>当前 CPU 路线不使用 Sortformer</li>
+          <li>两端的模型资源和授权组包都要跟着变</li>
+        </ul>
+      </div>
+      <div class="opt">
+        <span class="kind">兜底 · 不提升精度</span>
+        <h3>短会话如实呈现"待确认"</h3>
+        <p>证据不足时，不急着给出确定的人数。例如会话前 60 秒的身份显示为可修正，到证据足够再定稿。</p>
+        <ul>
+          <li>不改善准确率，只避免把不确定的结果当成确定的</li>
+          <li>涉及公开回调语义，需要调用方配合</li>
+        </ul>
+      </div>
+    </div>
+    <div class="callout">
+      <p>建议顺序：先做第一条，用公开训练集离线标定、用现有评测集验收；达不到目标再评估第二条。两条都只在主机上离线做评测，确认收益后才进 SDK。</p>
+    </div>
+  </section>
+
+  <footer>
+    <span>数据来源：本机排查证据目录（不提交仓库） <code>main-device-diarization-20261001/analysis/</code>（合并审计 <code>diag/merges-A1.jsonl</code>，时间点扫描 <code>host/sweep-W1.jsonl</code>，候选源码 <code>candidates/</code>）。</span>
+    <span>评分统一使用 10 ms 帧、零容差、计入重叠的严格 DER。完整记录见 <a href="DIARIZATION_CAPACITY_FAR_FIELD_20261002.md">远场容量与短会话</a>，本轮总结见 <a href="DIARIZATION_ROUND_SUMMARY_20261003.md">角色分离本轮优化总结</a>。</span>
+  </footer>
+</div>
+</body>
+</html>
