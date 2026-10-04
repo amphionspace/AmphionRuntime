@@ -55,6 +55,15 @@ await flush();
             path.write_text(script)
             subprocess.run(["node", "--experimental-strip-types", str(path)], check=True)
 
+    def test_timeout_does_not_abandon_throttled_background_windows(self):
+        # On a backgrounded app the system throttles CPU; a single-threaded,
+        # low-priority window then took about 24 s on the reference device while
+        # still progressing. Timing out cannot stop native work, it only discards
+        # every later speaker result, so the bound must sit well above that.
+        source = CLIENT.read_text()
+        value = int(source.split("const INFERENCE_TIMEOUT_MS: number = ", 1)[1].split(";", 1)[0])
+        self.assertGreaterEqual(value, 60000)
+
     def test_timeout_reports_timeout_and_waits_for_late_native_work(self):
         self.run_executor("""
 timers[0]();

@@ -7,7 +7,11 @@ import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './Diariz
 
 const SAMPLE_RATE: number = 16000;
 const WINDOW_SAMPLES: number = 160000;
-const INFERENCE_TIMEOUT_MS: number = 10000;
+// A native call cannot be interrupted; timing out only discards its result and
+// every later window. When the system throttles a backgrounded app, a window on
+// its single-threaded, low-priority worker can take tens of seconds while still
+// progressing, so this bound only has to catch work that has stopped.
+const INFERENCE_TIMEOUT_MS: number = 60000;
 // Windows are independent, so up to this many run at once, each on a
 // single-threaded encoder. A four-thread encoder pool busy-waits between
 // operators and, when the system restricts the app to a few cores, starves the
