@@ -151,8 +151,15 @@ class SpeakerDiarizationAlgorithmsTest {
         assertEquals(listOf("S1"), split(listOf(first, second)))
         assertEquals(listOf("S1"), split(listOf(first,
             SpeakerTimelineTurn(500, 1200, "UNKNOWN", emptyList()))))
-        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first, second.copy(speakerId = "S2"))))
-        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first.copy(overlap = true,
+        // '乙'/'丙' are stamped 100 ms after S1/S2 end: the ASR emission lag keeps each owner.
+        assertEquals(listOf("S1", "S2"), split(listOf(first, second.copy(speakerId = "S2"))))
+        // Beyond the lag, an uncovered token between different speakers is not backfilled.
+        val distant = DiarizationTranscriptState()
+        distant.addUtterance("甲乙丙", "甲乙丙。", listOf("甲", "乙", "丙"), listOf(100, 1200, 1500), 0, 1600)
+        distant.applySpeakerTurns(listOf(first, SpeakerTimelineTurn(1450, 1800, "S2", emptyList())))
+        assertEquals(listOf("S1", "UNKNOWN", "S2"), distant.finalUtterances().map { it.speakerId })
+        // '丙' is stamped 700 ms after the overlapping turn, beyond the ASR emission lag.
+        assertEquals(listOf("S1", "UNKNOWN"), split(listOf(first.copy(endTime = 400, overlap = true,
             secondarySpeakerIds = listOf("S2")))))
         assertEquals(listOf("UNKNOWN"), split(emptyList()))
     }
