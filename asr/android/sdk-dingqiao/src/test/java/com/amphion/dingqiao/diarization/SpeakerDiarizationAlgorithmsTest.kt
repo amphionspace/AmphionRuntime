@@ -332,6 +332,53 @@ class SpeakerDiarizationAlgorithmsTest {
     }
 
     @Test
+    fun finishBarrierTimeoutWaitsBoundedlyForSalvagedSpeakers() {
+        val scheduler = Executors.newSingleThreadScheduledExecutor()
+        try {
+            // salvage: null = no answer within the grace period.
+            for (salvage in listOf(DiarizationFinishInput(true, "front-frozen"),
+                DiarizationFinishInput(false, "complete-in-grace"), null)) {
+                val done = CountDownLatch(1)
+                val outputs = mutableListOf<DiarizationFinishOutput<String, String>>()
+                var timeouts = 0
+                lateinit var barrier: SpeakerDiarizationFinishBarrier<String, String>
+                barrier = SpeakerDiarizationFinishBarrier(20, scheduler, { outputs += it; done.countDown() },
+                    salvageMs = 200, onTimeout = { timeouts++; salvage?.let(barrier::resolveSpeaker) })
+                barrier.begin()
+                barrier.resolveAsr("last")
+                assertTrue(done.await(1, TimeUnit.SECONDS))
+                assertEquals(1, timeouts)
+                assertEquals(salvage?.value, outputs.single().speaker)
+                assertEquals(salvage?.degraded ?: true, outputs.single().degraded)
+                barrier.resolveSpeaker(DiarizationFinishInput(false, "late"))
+                scheduler.schedule({}, 250, TimeUnit.MILLISECONDS).get(1, TimeUnit.SECONDS)
+                assertEquals(1, outputs.size)
+            }
+        } finally {
+            scheduler.shutdownNow()
+        }
+    }
+
+    @Test
+    fun unknownTextAfterInferredEvidenceIsNotBackfilled() {
+        fun state(limit: Int?, tail: Int = 21_000): DiarizationTranscriptState = DiarizationTranscriptState().apply {
+            addUtterance("你好", "你好", listOf("你", "好"), listOf(18_000, tail), 17_000, tail + 500)
+            applySpeakerTurns(listOf(SpeakerTimelineTurn(15_000, 20_000, "S1", emptyList(), 0.9f)))
+            limit?.let(::limitEvidence)
+        }
+        // A short gap the model saw as silence keeps the authorized bounded backfill.
+        assertEquals("S1", state(null).sentenceUtterances().single().speakerId)
+        // Audio never inferred is not evidence of silence: the tail stays unknown.
+        val limited = state(20_000).sentenceUtterances().single()
+        assertEquals("UNKNOWN", limited.speakerId)
+        assertEquals(listOf("S1"), limited.secondarySpeakerIds)
+        assertEquals(0f, limited.confidence)
+        // Within the emission lag, a turn cut at the evidence end still cannot claim later tokens.
+        assertEquals("S1", state(null, 20_300).sentenceUtterances().single().speakerId)
+        assertEquals("UNKNOWN", state(20_000, 20_300).sentenceUtterances().single().speakerId)
+    }
+
+    @Test
     fun cancelledFinishBarrierNeverPublishesTerminalOutput() {
         val scheduler = Executors.newSingleThreadScheduledExecutor()
         try {

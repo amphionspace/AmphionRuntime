@@ -62,6 +62,11 @@ internal class DiarizationTranscriptState {
     private val utterances = mutableListOf<StoredUtterance>()
     private var nextUtteranceId = 1
     private val turns = mutableListOf<SpeakerTimelineTurn>()
+    // Audio after this point was never inferred (finish-timeout salvage). Its lack of
+    // turns is not evidence of silence, so UNKNOWN text there is not backfilled.
+    private var evidenceEndTime = Int.MAX_VALUE
+
+    fun limitEvidence(endTime: Int) { evidenceEndTime = minOf(evidenceEndTime, endTime) }
 
     fun addUtterance(
         rawText: String,
@@ -294,6 +299,8 @@ internal class DiarizationTranscriptState {
     // so does overlapped speech: several voices end together, so the bounded backfill decides.
     private fun turnAt(timeMs: Int): SpeakerTimelineTurn? {
         turns.asReversed().find { timeMs >= it.beginTime && timeMs < it.endTime }?.let { return it }
+        // A turn cut at the inferred-evidence end did not necessarily end there.
+        if (timeMs > evidenceEndTime) return null
         val previousEnd = turns.filter { it.endTime <= timeMs }.maxOfOrNull { it.endTime } ?: return null
         if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return null
         val ending = turns.filter { it.endTime == previousEnd }
@@ -412,7 +419,7 @@ internal class DiarizationTranscriptState {
         // delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
         val resolved = parts.mapIndexed { index, part ->
             val duration = part.endTime - part.beginTime
-            if (part.speakerId != "UNKNOWN" || duration !in 0..2_500 ||
+            if (part.speakerId != "UNKNOWN" || duration !in 0..2_500 || part.endTime > evidenceEndTime ||
                 blocksBackfill(part.secondarySpeakerIds, part.overlap)) return@mapIndexed part
             val previous = parts.getOrNull(index - 1)
             val next = parts.getOrNull(index + 1)

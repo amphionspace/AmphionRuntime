@@ -31,6 +31,8 @@ internal interface SpeakerDiarizationController {
         reason: SpeakerDiarizationDegradedReason,
         message: String?,
     ): SpeakerDiarizationResult
+    /** Finish timeout: freeze speakers for audio already inferred instead of discarding them. */
+    fun salvage() {}
     fun cancel(onQuiescent: (() -> Unit)? = null)
 }
 
@@ -73,6 +75,8 @@ internal class SpeakerDiarizationSession(
     private var asrTailObserved = false
     private var finished = false
     private var committing = false
+    // Audio end covered by inferred windows when a finish timeout stopped inference.
+    private var salvagedThroughMs: Int? = null
 
     init { require(maxSpeakers in 1..4) }
 
@@ -163,6 +167,21 @@ internal class SpeakerDiarizationSession(
             message ?: degradedMessage)
     }
 
+    override fun salvage() {
+        synchronized(this) {
+            // A drained session already owns a complete final commit; let it finish normally.
+            if (finished || !finishRequested || processDrained || salvagedThroughMs != null) return
+            salvagedThroughMs = inferenceEndMs
+            if (diagnostic != null) recordDecision("DIARIZATION_FINISH_SALVAGE", mapOf(
+                "inferenceEndMs" to inferenceEndMs, "audioEndSample" to totalSamples, "windows" to windows.size))
+            client.stopInference()
+            transcript.limitEvidence(inferenceEndMs)
+            processDrained = true
+            flushReadyWindowsLocked()
+        }
+        callbacks.drain()
+    }
+
     @Synchronized
     override fun cancel(onQuiescent: (() -> Unit)?) {
         finished = true
@@ -178,7 +197,7 @@ internal class SpeakerDiarizationSession(
 
     override fun onWindow(result: DiarizationLocalWindowResult) {
         synchronized(this) {
-            if (finished || confirmedInitialSilence) return
+            if (finished || confirmedInitialSilence || salvagedThroughMs != null) return
             if (diagnostic != null) recordDecision("DIARIZATION_COMMUNITY_WINDOW", mapOf(
                 "jobId" to result.jobId, "windowStartSample" to result.windowStartSample,
                 "realEndSample" to result.realEndSample, "segmentations" to result.result.segments,
@@ -318,8 +337,11 @@ internal class SpeakerDiarizationSession(
     private fun completeCommitLocked(commit: Commit) {
         if (commit.provisional || finished) return
         terminalPayload?.let { decoratedTerminalPayload = decoratePayloadLocked(it) }
-        val result = buildResultLocked(degradedReason, degradedMessage, commit.end, commit.begin)
-            .copy(isSessionFinal = commit.final)
+        val salvaged = salvagedThroughMs?.takeIf { commit.final && degradedReason == SpeakerDiarizationDegradedReason.NONE }
+        val result = if (salvaged == null) buildResultLocked(degradedReason, degradedMessage, commit.end, commit.begin)
+            else buildResultLocked(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+                "speaker diarization finish timeout; speakers cover audio before ${salvaged}ms", commit.end, commit.begin)
+        val committed = result.copy(isSessionFinal = commit.final)
         transcript.commitThrough(commit.end)
         publishedThrough = commit.end
         // Public commitment freezes display state, not the input distribution of the
@@ -327,11 +349,11 @@ internal class SpeakerDiarizationSession(
         if (commit.final) {
             windows.clear()
             finished = true
-            callbacks.enqueue { observer.onFinished(result) }
+            callbacks.enqueue { observer.onFinished(committed) }
         } else {
-            if (result.utterances.isNotEmpty() || result.speakerTurns.isNotEmpty()) {
+            if (committed.utterances.isNotEmpty() || committed.speakerTurns.isNotEmpty()) {
                 windowIndex++
-                callbacks.enqueue { observer.onWindowResult(result) }
+                callbacks.enqueue { observer.onWindowResult(committed) }
             }
         }
     }
