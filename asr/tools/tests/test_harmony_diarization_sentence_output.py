@@ -24,8 +24,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             assert.deepEqual(owners,['S1','S1','S1','S1','S1','S2','S2','S2','S2'],
               'an uncertain sentence summary must not erase its independently aligned text owners');
             const spans=out.flatMap(u=>u.speakerTextSpans);
-            assert(spans.some(p=>p.speakerInferred));
-            assert(spans.filter(p=>p.speakerInferred).every(p=>p.confidence===0));
+            // The two S2 tail tokens are stamped 110/270 ms after S2's turn: ASR emission lag.
+            assert(spans.every(p=>!p.speakerInferred));
             if(reference)assert.deepEqual(owners,reference);else reference=owners;
             for(const u of out)assert.equal(u.speakerTextSpans.map(p=>u.text.slice(p.textBegin,p.textEnd)).join(''),u.text);
             assert.equal(out.map(u=>u.text).join(''),text);assert.deepEqual(s.allTurns(),before);
@@ -48,7 +48,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const s=new State();s.addUtterance({{rawText:raw,text,tokens:[...raw],
             tokenTimesMs:[...raw].map((_,i)=>100*i),beginTime:0,endTime:1100,
             textNormalization:normalization}});
-          s.applySpeakerTurns([{{beginTime:0,endTime:900,speakerId:'S1',secondarySpeakerIds:[],confidence:.9}}]);
+          // The last token is stamped 700 ms after the turn, beyond the ASR emission lag.
+          s.applySpeakerTurns([{{beginTime:0,endTime:300,speakerId:'S1',secondarySpeakerIds:[],confidence:.9}}]);
           const before=s.allTurns(),out=s.sentenceUtterances();
           assert.equal(out.map(x=>x.text).join(''),text);
           assert.equal(out.map(x=>x.rawText).join(''),raw);
@@ -58,7 +59,7 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           assert.deepEqual(s.allTurns(),before);
         """)
 
-    def test_original_u6_punctuation_cannot_change_bounded_tail_inference(self):
+    def test_original_u6_punctuation_cannot_change_emission_lagged_tail_owner(self):
         run_node(f"""
           import assert from 'node:assert/strict';
           import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
@@ -73,13 +74,66 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             const acoustic=JSON.stringify(s.allTurns());
             const out=s.sentenceUtterances();
             assert.equal(out.map(x=>x.text).join(''),text);
-            assert.ok(out.every(x=>x.speakerId==='S1'),'same raw utterance permits bounded tail inference across punctuation');
-            assert.ok(out.some(x=>x.speakerInferred),'missing acoustic coverage is inference, never direct attribution');
-            assert.ok(out.filter(x=>x.speakerInferred).every(x=>x.confidence===0));
+            assert.ok(out.every(x=>x.speakerId==='S1'),'punctuation cannot change the raw utterance owner');
+            // Streaming ASR stamps tokens at emission, after their audio: tail tokens 8 and
+            // 208 ms after the turn are this turn's speech, not missing acoustic coverage.
+            assert.ok(out.every(x=>!x.speakerInferred&&x.confidence===.9),
+              'tokens within the ASR emission lag keep direct acoustic attribution');
             assert.equal(JSON.stringify(s.allTurns()),acoustic);
             const frozen=s.commitThrough(20860);s.applySpeakerRemap({{S1:'S2'}});
             assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
           }}
+        """)
+
+    def test_emission_lagged_tail_of_a_clean_sentence_is_direct_attribution(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          // Mate80 capture of the 19.58 s four-speaker clip: the final token is stamped
+          // 268 ms after the speech turn, the first one 295 ms after its onset.
+          const s=new State();s.addUtterance({{rawText:'呃我是角色一',text:'呃，我是角色一。',
+            tokens:['▁ƌ','Ĵ','Ĥ','▁ƍĩĴ','▁ƍĻŕ','▁Əōĵ','▁ƏĪŘ','▁ƋŞġ'],
+            tokenTimesMs:[1440,1480,1520,1680,1920,2080,2240,2560],beginTime:1440,endTime:2560}});
+          s.applySpeakerTurns([{{beginTime:1144.71875,endTime:2292.21875,speakerId:'S1',
+            secondarySpeakerIds:[],confidence:.9}}]);
+          const before=s.allTurns(),out=s.sentenceUtterances();
+          assert.equal(out.map(x=>x.text).join(''),'呃，我是角色一。');
+          assert.ok(out.every(x=>x.speakerId==='S1'&&!x.speakerInferred&&x.confidence===.9),
+            'a clean single-speaker sentence must not be reported as inference');
+          assert.deepEqual(s.allTurns(),before);
+        """)
+
+    def test_emission_lag_attribution_is_causal_bounded_and_unambiguous(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId)=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9}});
+          function owners(times,turns) {{
+            const s=new State();s.addUtterance({{rawText:'甲乙',text:'甲乙。',tokens:['甲','乙'],
+              tokenTimesMs:times,beginTime:times[0],endTime:times[1]+100}});
+            s.applySpeakerTurns(turns);
+            return s.sourceAssignments(s.utterances[0]).map(x=>[x.speakerId,!!x.speakerInferred]);
+          }}
+          // Exactly at the measured 600 ms emission lag the tail is still this turn's speech.
+          assert.deepEqual(owners([100,1100],[turn(0,500,'S1')]),[['S1',false]]);
+          // One millisecond beyond it, only the existing bounded backfill may infer the owner.
+          assert.deepEqual(owners([100,1101],[turn(0,500,'S1')]),[['S1',false],['S1',true]]);
+          // UNKNOWN speech and ambiguous simultaneous ends never become direct owners.
+          assert.deepEqual(owners([100,600],[turn(0,500,'UNKNOWN')]).map(x=>x[0]),['UNKNOWN']);
+          const ambiguous=new State();ambiguous.addUtterance({{rawText:'乙',text:'乙。',tokens:['乙'],
+            tokenTimesMs:[600],beginTime:600,endTime:700}});
+          ambiguous.applySpeakerTurns([turn(0,500,'S1'),turn(200,500,'S2')]);
+          assert.deepEqual(ambiguous.finalUtterances().map(x=>x.speakerId),['UNKNOWN']);
+          // Overlapped speech ends several voices at once: a known secondary blocks any owner,
+          // and an unknown secondary leaves only the marked bounded backfill.
+          const overlapped=(secondary)=>({{...turn(0,500,'S1'),overlap:true,secondarySpeakerIds:[secondary]}});
+          assert.deepEqual(owners([100,600],[overlapped('S2')]),[['S1',false],['UNKNOWN',false]]);
+          assert.deepEqual(owners([100,600],[overlapped('UNKNOWN_SECONDARY')]),[['S1',false],['S1',true]]);
+          // Emission is causal: a token before any speech is not given the following speaker.
+          const leading=new State();leading.addUtterance({{rawText:'甲',text:'甲。',tokens:['甲'],
+            tokenTimesMs:[100],beginTime:100,endTime:150}});
+          leading.applySpeakerTurns([turn(300,800,'S1')]);
+          assert.ok(leading.finalUtterances().every(x=>x.speakerId!=='S1'||x.speakerInferred));
         """)
 
     def test_itn_record_cannot_hide_a_short_speaker_change_overlap_or_unknown(self):
@@ -183,8 +237,9 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           }}
           for(const gap of [2500,2501]) {{
             const s=new State();s.addUtterance({{rawText:'甲乙',text:'甲。乙。',tokens:['甲','乙'],
-              tokenTimesMs:[100,500],beginTime:0,endTime:500+gap}});
-            s.applySpeakerTurns([turn(0,499,'S1')]);
+              tokenTimesMs:[100,800],beginTime:0,endTime:800+gap}});
+            // '乙' is stamped 701 ms after the turn, beyond the ASR emission lag.
+            s.applySpeakerTurns([turn(0,99,'S1')]);
             const source=s.sourceAssignments(s.utterances[0]);
             assert.equal(source.at(-1).speakerId,gap===2500?'S1':'UNKNOWN');
             assert.equal(!!source.at(-1).speakerInferred,gap===2500);
@@ -488,7 +543,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           s.observeAsrFinal(payload,{rawText:raw,tokens:[...raw],
             timestamps:[19.7,19.74,19.82,19.9,20.02,20.14,20.3,20.46,20.66,20.86],
             audioEndSample:347520,isLast:false});
-          s.transcript.applySpeakerTurns([{beginTime:19600,endTime:20652.21875,speakerId:'S1',
+          // The last token is stamped 660 ms after the turn, beyond the ASR emission lag.
+          s.transcript.applySpeakerTurns([{beginTime:19600,endTime:20200,speakerId:'S1',
             secondarySpeakerIds:[],confidence:.9}]);
           s.totalSamples=347520;s.finalSpeakerCount=1;
           const out=s.buildResult(0,undefined,21720,0);out.windowIndex=0;out.isSessionFinal=true;
@@ -496,7 +552,7 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           assert.equal(out.utterances.length,1);const part=out.utterances[0];
           assert.equal(part.rawText,raw);assert.equal(part.text,text);assert.equal(part.speakerIndex,0);
           assert.equal(part.speakerInferred,true);assert.equal(part.confidence,0);
-          assert.equal(out.speakerTurns[0].endTime,20652.21875);
+          assert.equal(out.speakerTurns[0].endTime,20200);
           const caller=new Caller();caller.handleSpeakerDiarizationResult('s1',out);
           assert.equal(caller.finalSegments.length,1);
           assert.equal(caller.finalSegments[0].speakerParts[0].speakerInferred,true);
@@ -508,7 +564,8 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           const mixed=session();mixed.transcript.addUtterance({rawText:'先说这件事我来回答',
             text:'先说这件事我来回答。',tokens:[...'先说这件事我来回答'],
             tokenTimesMs:[100,220,300,500,700,2780,3020,3340,3500],beginTime:100,endTime:3500});
-          mixed.transcript.applySpeakerTurns([[0,1458,'S1'],[1458,1475,'S4'],[2420,2437,'S4'],[2437,3230,'S2']]
+          // '回答' are stamped 640/800 ms after S2's turn, beyond the ASR emission lag.
+          mixed.transcript.applySpeakerTurns([[0,1458,'S1'],[1458,1475,'S4'],[2420,2437,'S4'],[2437,2700,'S2']]
             .map(([beginTime,endTime,speakerId])=>({beginTime,endTime,speakerId,secondarySpeakerIds:[],overlap:false})));
           mixed.totalSamples=4000*16;
           const full=mixed.buildResult(0,undefined,4000,0);full.windowIndex=0;full.isSessionFinal=true;
