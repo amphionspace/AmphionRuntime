@@ -16,13 +16,15 @@ class CommunitySessionTest {
         val events = mutableListOf<String>()
         val results = mutableListOf<SpeakerDiarizationResult>()
         val snapshots = mutableListOf<List<Double>>()
+        val runRangeSizes = mutableListOf<Int>()
         var afterUpdate: (() -> Unit)? = null
         val construction = mockConstruction(SpeakerDiarizationLocalClient::class.java) { client, _ ->
             doAnswer { invocation ->
                 val starts = invocation.getArgument<DoubleArray>(3).copyOf()
                 val begin = invocation.getArgument<Double>(4) / 16
-                val complete = invocation.getArgument<(Result<CommunityDiarizationCluster>) -> Unit>(5)
+                val complete = invocation.getArgument<(Result<CommunityDiarizationCluster>) -> Unit>(8)
                 snapshots += starts.toList()
+                runRangeSizes += invocation.getArgument<FloatArray>(6).size
                 val run = {
                     val tracks = starts.map { doubleArrayOf(maxOf(begin, it / 16), it / 16 + 10000,0.0) }
                         .filter { it[1] > it[0] }
@@ -31,7 +33,12 @@ class CommunitySessionTest {
                 }
                 if (delay) pending.add(run) else run()
                 null
-            }.whenever(client).cluster(any(),any(),any(),any(),any(),any())
+            }.whenever(client).cluster(any(),any(),any(),any(),any(),any(),any(),any(),any())
+            doAnswer { invocation ->
+                val windows = invocation.getArgument<Int>(0)
+                DiarizationEvidence(FloatArray(windows*589*3) { if(it%3==0) 1f else 0f },FloatArray(windows*768),
+                    FloatArray(windows*256),FloatArray(windows*4),FloatArray(windows))
+            }.whenever(client).readEvidence(any())
         }
         val directory = Files.createTempDirectory("community-session").toFile()
         val session = SpeakerDiarizationSession(mock<Context>(), directory,4,
@@ -105,6 +112,19 @@ class CommunitySessionTest {
         }
         val immediate = run(true,false)
         assertEquals(immediate,run(false,true))
+    }
+
+    @Test fun commitsKeepFullHistoryAndPassRunEvidenceToClustering() {
+        Harness().use { h ->
+            h.session.append(ByteArray(160000*32))
+            for (end in 10000..160000 step 2000) { h.audio(end); if (end%10000==0) h.asr(end) }
+            h.finish()
+            assertEquals(listOf(false,true),h.results.map { it.isSessionFinal })
+            // A public commit freezes display state only; later clustering still sees every window.
+            assertEquals(76,h.snapshots.last().size)
+            assertEquals(0.0,h.snapshots.last().first(),0.0)
+            assertEquals(h.snapshots.map { it.size*4 },h.runRangeSizes)
+        }
     }
 
     @Test fun confirmedSilenceCompletesWithoutWaitingForPaddedModelTail() {
