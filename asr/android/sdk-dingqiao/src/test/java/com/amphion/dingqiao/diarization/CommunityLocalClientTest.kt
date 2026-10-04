@@ -79,7 +79,7 @@ class CommunityLocalClientTest {
             verify(model,times(1)).process(any())
             verify(observer,never()).onWindow(any())
             verify(observer,never()).onDegraded(any(),any())
-        } finally { release.countDown();client.cancel();directory.deleteRecursively() }
+        } finally { release.countDown();closeThenDelete(directory, client) }
     }
 
     @Test fun firstClientRemovesJobFilesLeftByAKilledProcess() {
@@ -88,14 +88,26 @@ class CommunityLocalClientTest {
         val stale = File(jobs, "job-1").apply { mkdirs(); File(this, "embeddings.f32").writeBytes(ByteArray(16)) }
         val model = mock<CommunityDiarizationInference>()
         val first = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
+        var second: SpeakerDiarizationLocalClient? = null
         try {
             assertFalse(stale.exists())
             val live = jobs.listFiles()!!.single()
-            val second = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
+            second = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
             assertTrue("a later client must not remove a live session's files", live.exists())
             assertEquals(2, jobs.listFiles()!!.size)
-            second.cancel()
-        } finally { first.cancel();workPath.deleteRecursively() }
+        } finally { closeThenDelete(workPath, first, second) }
+    }
+
+    // Cancellation removes job files later on each client's executor. Deleting the temp
+    // tree before that finishes races the walk: with -ea, kotlin-stdlib asserts that a
+    // directory it is entering still exists, and that error would also mask the test's
+    // own failure. Wait first, on every path, without asserting during cleanup.
+    private fun closeThenDelete(directory: File, vararg clients: SpeakerDiarizationLocalClient?) {
+        val live = clients.filterNotNull()
+        val quiescent = CountDownLatch(live.size)
+        live.forEach { it.cancel { quiescent.countDown() } }
+        quiescent.await(3,TimeUnit.SECONDS)
+        directory.deleteRecursively()
     }
 
     @Test fun cancelWaitsForNativeReturnAndSuppressesItsLateWindow() {
