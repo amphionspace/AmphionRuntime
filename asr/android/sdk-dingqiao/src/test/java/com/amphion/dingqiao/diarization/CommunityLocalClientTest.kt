@@ -79,6 +79,7 @@ class CommunityLocalClientTest {
             verify(model,times(1)).process(any())
             verify(observer,never()).onWindow(any())
             verify(observer,never()).onDegraded(any(),any())
+            awaitQuiescent(client)
         } finally { release.countDown();client.cancel();directory.deleteRecursively() }
     }
 
@@ -94,8 +95,17 @@ class CommunityLocalClientTest {
             val second = SpeakerDiarizationLocalClient(mock(), workPath, mock(), { model })
             assertTrue("a later client must not remove a live session's files", live.exists())
             assertEquals(2, jobs.listFiles()!!.size)
-            second.cancel()
+            awaitQuiescent(first, second)
         } finally { first.cancel();workPath.deleteRecursively() }
+    }
+
+    // Cancellation removes job files later on each client's executor. Deleting the temp
+    // tree before that finishes races the walk: with -ea, kotlin-stdlib asserts that a
+    // directory it is entering still exists and throws AssertionError.
+    private fun awaitQuiescent(vararg clients: SpeakerDiarizationLocalClient) {
+        val quiescent = CountDownLatch(clients.size)
+        clients.forEach { it.cancel { quiescent.countDown() } }
+        assertTrue(quiescent.await(3,TimeUnit.SECONDS))
     }
 
     @Test fun cancelWaitsForNativeReturnAndSuppressesItsLateWindow() {
