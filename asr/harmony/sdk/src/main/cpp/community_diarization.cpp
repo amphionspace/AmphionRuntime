@@ -19,6 +19,7 @@
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #if defined(__OHOS__)
 // Platform headers stay outside every namespace; including them from within one
@@ -118,13 +119,20 @@ bool CommunityCpuMasksEqual(const cpu_set_t& left, const cpu_set_t& right) {
   return true;
 }
 
-// This controls the current driver thread. Pools inherit its effective affinity
-// when created; existing ORT/XNNPACK workers are not rebound by later scopes.
+// Two roles. On a borrowed driver thread this applies affinity and QoS for the
+// duration of one call. On an ORT worker this thread created itself, it wraps the
+// whole worker lifetime and carries the QoS that pthread_create does not inherit;
+// the mask already came from the creating thread, so the worker never re-requests
+// one. Existing workers are still not rebound by a later driver scope.
 class ScopedCommunityScheduling {
  public:
-  explicit ScopedCommunityScheduling(const CommunityScheduling& policy) : policy_(policy) {
+  explicit ScopedCommunityScheduling(const CommunityScheduling& policy, bool owned_thread = false)
+      : policy_(policy), owned_thread_(owned_thread),
+        pool_tag_(owned_thread ? "community-ort-worker" : "community-driver") {
     if (!policy.has_thread_policy()) return;
-    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested_cpus_);
+    if (!owned_thread_) {
+      for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested_cpus_);
+    }
     // Current affinity is only a snapshot, not the system cpuset limit.
     // Submit the complete request and let the kernel enforce its restrictions.
     have_previous_ = sched_getaffinity(0, sizeof(previous_cpus_), &previous_cpus_) == 0;
@@ -133,12 +141,17 @@ class ScopedCommunityScheduling {
     have_current_after_qos_ = have_previous_;
     if (policy.qos >= 0) {
       qos_result_ = OH_QoS_GetThreadQoS(&previous_qos_);
-      if (qos_result_ == 0) {
-        effective_qos_ = static_cast<int>(previous_qos_);
+      const int before = qos_result_;
+      // A borrowed runtime thread never loses an unknown previous QoS. An owned
+      // worker has no earlier policy to protect, so an unreadable level is not a
+      // reason to leave it in whatever group the process was demoted to.
+      if (before == 0 || owned_thread_) {
+        effective_qos_ = before == 0 ? static_cast<int>(previous_qos_) : -1;
         qos_result_ = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(policy.qos));
-        restore_qos_ = qos_result_ == 0;
-        qos_status_ = restore_qos_ ? "applied" : "set-failed";
-        if (restore_qos_) {
+        restore_qos_ = qos_result_ == 0 && before == 0;
+        reset_qos_ = qos_result_ == 0 && before != 0;
+        qos_status_ = qos_result_ == 0 ? "applied" : "set-failed";
+        if (restore_qos_ || reset_qos_) {
           // QoS itself may change affinity, even when the later CPU request
           // fails. Restore that side effect as well.
           restore_cpus_ = have_previous_;
@@ -156,7 +169,7 @@ class ScopedCommunityScheduling {
     }
     effective_cpus_ = current_after_qos_cpus_;
     have_effective_ = have_current_after_qos_;
-    if (!policy.cpu_ids.empty()) {
+    if (!owned_thread_ && !policy.cpu_ids.empty()) {
       if (!have_previous_) {
         affinity_status_ = "snapshot-read-failed";
         affinity_error_ = snapshot_error_;
@@ -185,7 +198,8 @@ class ScopedCommunityScheduling {
     Report(false);
   }
   ~ScopedCommunityScheduling() {
-    const int qos_result = restore_qos_ ? OH_QoS_SetThreadQoS(previous_qos_) : 0;
+    const int qos_result = restore_qos_ ? OH_QoS_SetThreadQoS(previous_qos_) :
+        (reset_qos_ ? OH_QoS_ResetThreadQoS() : 0);
     // QoS restoration comes first because it can also alter the thread mask.
     const int affinity_result = restore_cpus_ ? sched_setaffinity(0, sizeof(previous_cpus_), &previous_cpus_) : 0;
     const int affinity_error = affinity_result == 0 ? 0 : errno;
@@ -218,23 +232,66 @@ class ScopedCommunityScheduling {
       if (last == message) return;
       last = message;
       OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
-                   "poolTag=community-driver tid=%{public}d policy=%{public}p phase=%{public}s %{public}s "
-                   "workers=inherit-creator-mask-no-later-driver-rebind",
-                   tid, static_cast<const void*>(&policy_), restoring ? "restore" : "apply", message.c_str());
+                   "poolTag=%{public}s tid=%{public}d policy=%{public}p phase=%{public}s %{public}s "
+                   "workers=own-qos-inherit-creator-mask-no-later-driver-rebind",
+                   pool_tag_, tid, static_cast<const void*>(&policy_),
+                   restoring ? "restore" : "apply", message.c_str());
     } catch (...) {
       // Diagnostics must not break restoration or propagate from a destructor.
     }
   }
   const CommunityScheduling& policy_;
+  const bool owned_thread_ = false;
+  const char* pool_tag_ = "community-driver";
   cpu_set_t previous_cpus_{}, requested_cpus_{}, current_after_qos_cpus_{}, effective_cpus_{};
   QoS_Level previous_qos_{};
-  bool restore_qos_ = false, restore_cpus_ = false;
+  bool restore_qos_ = false, reset_qos_ = false, restore_cpus_ = false;
   bool have_previous_ = false, have_current_after_qos_ = false, have_effective_ = false;
   const char* affinity_status_ = "not-requested";
   const char* qos_status_ = "not-requested";
   const char* fallback_ = "none";
   int snapshot_error_ = 0, affinity_error_ = 0, rollback_error_ = 0, qos_result_ = 0, effective_qos_ = -1;
 };
+
+// ORT creates its intra-op workers through this factory, so each worker can carry
+// the requested QoS itself. pthread_create does not inherit a QoS level, which is
+// why a driver-thread-only request never reached the threads that run the encoder.
+OrtCustomThreadHandle CreateCommunityWorker(void* opaque, OrtThreadWorkerFn work, void* param) {
+  const auto* policy = static_cast<const CommunityScheduling*>(opaque);
+  try {
+    auto* thread = new std::thread([policy, work, param] {
+      // Held for the worker's whole life, not one call: the scope is what keeps
+      // the level applied while ORT reuses this thread across windows.
+      ScopedCommunityScheduling scope(*policy, true);
+      work(param);
+    });
+    return reinterpret_cast<OrtCustomThreadHandle>(thread);
+  } catch (...) {
+    // ORT owns failure handling; never let an exception cross its C callback.
+    return nullptr;
+  }
+}
+
+void JoinCommunityWorker(OrtCustomThreadHandle handle) {
+  auto* thread = reinterpret_cast<std::thread*>(const_cast<OrtCustomHandleType*>(handle));
+  if (thread != nullptr) {
+    thread->join();
+    delete thread;
+  }
+}
+
+// Only for sessions that actually own an intra-op pool; a one-thread session runs
+// on its caller and never reaches this factory. `policy` must outlive every session
+// configured here: ORT joins these workers while a session is destroyed, and each
+// join runs the worker's scope exit. The caller keeps the existing per-session
+// intra-op spinning choice; this adds the inter-op half the recognizer also sets.
+void ConfigureCommunityScheduling(Ort::SessionOptions* options, const CommunityScheduling& policy) {
+  options->AddConfigEntry("session.inter_op.allow_spinning", "0");
+  if (!policy.has_thread_policy()) return;
+  options->SetCustomCreateThreadFn(CreateCommunityWorker);
+  options->SetCustomThreadCreationOptions(const_cast<CommunityScheduling*>(&policy));
+  options->SetCustomJoinThreadFn(JoinCommunityWorker);
+}
 }  // namespace
 #else
 namespace {
@@ -251,8 +308,14 @@ inline void ParseCommunityScheduling(const std::string& provider, CommunitySched
 }
 class ScopedCommunityScheduling {
  public:
-  explicit ScopedCommunityScheduling(const CommunityScheduling&) {}
+  explicit ScopedCommunityScheduling(const CommunityScheduling&, bool = false) {}
 };
+// Android keeps ORT's own worker creation and its existing spinning policy; the
+// QoS and affinity request this mirrors is an OHOS-only capability. Templated so
+// the stub needs no session type of its own: host slices paste this block without
+// an ORT declaration and never call it.
+template <class Options>
+inline void ConfigureCommunityScheduling(Options*, const CommunityScheduling&) {}
 }  // namespace
 #endif
 
@@ -453,6 +516,9 @@ class Model {
     segmentation_options.DisableMemPattern();
     segmentation_options.SetIntraOpNumThreads(2);
     segmentation_options.AddConfigEntry("session.intra_op.allow_spinning", "0");
+    // The policy member, never the construction copy below: these workers outlive
+    // this constructor and are joined when the session is destroyed.
+    ConfigureCommunityScheduling(&segmentation_options, scheduling_);
     CommunityScheduling construction_scheduling = scheduling_;
 #if !defined(__OHOS__)
     construction_scheduling.cpu_ids.clear();
@@ -474,20 +540,25 @@ class Model {
     options.DisableCpuMemArena();
     options.DisableMemPattern();
 #if defined(__OHOS__)
-    // The pinned Harmony INT8 graph uses U8 activations and per-channel S8
-    // weights. ORT 1.16.3 XNNPACK cannot claim those convolutions, so their CPU
-    // kernels must receive the caller's budget instead of a serial fallback.
+    // The pinned Harmony INT8 graph is signed per-channel, which ORT 1.16.3's
+    // XNNPACK does claim (qs8_per_channel). It is deliberately not registered
+    // here: XNNPACK builds its own pthreadpool inside the EP, and that pool
+    // reaches neither the worker factory below nor the spinning switch, so
+    // letting it own the encoder would put the dominant compute back on threads
+    // no scheduling request can describe. On the CPU EP this graph is bitwise
+    // equal to the previous U8/S8 one and invariant to the thread count, so the
+    // choice costs no output change. Keeping the encoder here is what makes the
+    // caller's QoS reach the threads that actually run it.
     options.SetIntraOpNumThreads(encoder_threads);
     options.AddConfigEntry("session.intra_op.allow_spinning", "0");
+    ConfigureCommunityScheduling(&options, scheduling_);
 #else
-    // Android retains the FP32 encoder and its XNNPACK compute pool.
+    // Android retains the FP32 encoder and its XNNPACK compute pool. The
+    // from-buffer API also accepts FP32 encoders, which this provider serves.
     options.SetIntraOpNumThreads(1);
-#endif
-    // Keep XNNPACK registered on both platforms. The from-buffer API also accepts
-    // FP32 encoders; retaining the provider preserves the existing ORT provider /
-    // allocator path without changing the CPU fallback for unsupported INT8 ops.
     options.AppendExecutionProvider("XNNPACK",
       {{"intra_op_num_threads", std::to_string(encoder_threads)}});
+#endif
     encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
@@ -769,12 +840,16 @@ class Model {
  private:
   std::shared_ptr<CommunityCancellation> cancellation_ = std::make_shared<CommunityCancellation>();
   Ort::Env env_;
+  // Declared before the sessions on purpose: ORT joins its custom worker threads
+  // while a session is destroyed, and each worker's scope reports through this
+  // policy on the way out. Reverse member destruction must reach the sessions
+  // first, or those joins would touch a destroyed policy.
+  CommunityScheduling scheduling_;
   Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::FbankCache fbank_cache_;
   community::Plda plda_;
-  CommunityScheduling scheduling_;
   mutable std::mutex inference_mutex_;
 #if defined(__OHOS__)
   mutable std::mutex cluster_mutex_;

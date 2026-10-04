@@ -22,7 +22,7 @@ class HarmonyCommunityNativeTest(unittest.TestCase):
         # restating their values. Keep the trailing newline: the closing #endif
         # must not share a line with the next slice.
         scheduling_end = source_text.index(
-            'explicit ScopedCommunityScheduling(const CommunityScheduling&) {}')
+            'explicit ScopedCommunityScheduling(const CommunityScheduling&, bool = false) {}')
         budget_end = source_text.index('\n', source_text.index('#endif', scheduling_end)) + 1
         budgets = source_text[source_text.index('constexpr int kDefaultEncoderThreads'):budget_end]
         work = source_text[source_text.index('struct Work {'):source_text.index('\nvoid Execute')]
@@ -132,12 +132,29 @@ int main() {
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include <sched.h>
 #include <qos/qos.h>
 #define OH_LOG_Print(...) ((void)0)
 #define gettid() 1
+// The pasted scheduling block configures session options for the worker factory.
+// This slice only exercises Queue() argument parsing, so the session type needs
+// no behaviour; the factory contract is covered by the scheduling test.
+struct OrtCustomHandleType {};
+using OrtCustomThreadHandle = const OrtCustomHandleType*;
+using OrtThreadWorkerFn = void (*)(void*);
+using OrtCustomCreateThreadFn = OrtCustomThreadHandle (*)(void*, OrtThreadWorkerFn, void*);
+using OrtCustomJoinThreadFn = void (*)(OrtCustomThreadHandle);
+namespace Ort {
+struct SessionOptions {
+  void AddConfigEntry(const char*, const char*) {}
+  void SetCustomCreateThreadFn(OrtCustomCreateThreadFn) {}
+  void SetCustomJoinThreadFn(OrtCustomJoinThreadFn) {}
+  void SetCustomThreadCreationOptions(void*) {}
+};
+}
 struct Value { int kind = 0; long long integer = 0; const char* text = nullptr; };
 struct CallInfo { Value* const* args = nullptr; size_t count = 0; };
 namespace {
@@ -349,15 +366,16 @@ int main() {
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include <unistd.h>
 #include <hilog/log.h>
 #include "platform_stubs.h"
 #include "community_cluster.h"
-''' + budgets + community_scheduling_source() + r'''
 struct Observation { std::string phase; cpu_set_t cpus; QoS_Level qos; };
 std::vector<Observation> observations;
+std::vector<const void*> captured_contexts;
 int fail_at = 0;
 void ObserveConstruction(const char* phase) {
   observations.push_back({phase, scheduling_test::state.cpus, scheduling_test::state.qos});
@@ -366,6 +384,13 @@ void ObserveConstruction(const char* phase) {
 }
 constexpr int ORT_LOGGING_LEVEL_WARNING = 2;
 enum class ExecutionMode { ORT_SEQUENTIAL, ORT_PARALLEL };
+// Declared ahead of the production scheduling source: that source configures
+// session options for the custom worker factory and so names these types.
+struct OrtCustomHandleType {};
+using OrtCustomThreadHandle = const OrtCustomHandleType*;
+using OrtThreadWorkerFn = void (*)(void*);
+using OrtCustomCreateThreadFn = OrtCustomThreadHandle (*)(void*, OrtThreadWorkerFn, void*);
+using OrtCustomJoinThreadFn = void (*)(OrtCustomThreadHandle);
 namespace Ort {
 struct Env { Env(int, const char*) {} };
 struct AllocatorWithDefaultOptions {};
@@ -373,6 +398,9 @@ struct Name { const char* get() const { return "synthetic"; } };
 struct SessionOptions {
   int cpu_threads = -1, inter_threads = -1;
   std::unordered_map<std::string, std::string> config;
+  OrtCustomCreateThreadFn create = nullptr;
+  OrtCustomJoinThreadFn join = nullptr;
+  void* context = nullptr;
   SessionOptions& SetExecutionMode(ExecutionMode mode) {
     assert(mode == ExecutionMode::ORT_SEQUENTIAL); return *this;
   }
@@ -383,6 +411,9 @@ struct SessionOptions {
   SessionOptions& AddConfigEntry(const char* key, const char* value) {
     config[key] = value; return *this;
   }
+  SessionOptions& SetCustomCreateThreadFn(OrtCustomCreateThreadFn fn) { create = fn; return *this; }
+  SessionOptions& SetCustomJoinThreadFn(OrtCustomJoinThreadFn fn) { join = fn; return *this; }
+  SessionOptions& SetCustomThreadCreationOptions(void* ptr) { context = ptr; return *this; }
   SessionOptions& AppendExecutionProvider(
       const std::string& name, const std::unordered_map<std::string, std::string>& settings) {
     assert(name == "XNNPACK" && settings.at("intra_op_num_threads") == "4");
@@ -397,24 +428,40 @@ struct Session {
     assert(id >= 1 && id <= 3);
     assert(options.cpu_threads == (id == 1 ? 2 : id == 2 ? 1 : 4));
     if (id != 2) assert(options.config.at("session.intra_op.allow_spinning") == "0");
+    // Only the sessions that own an intra-op pool take over worker creation, and
+    // they must receive the model's own policy rather than the construction copy.
+    if (id != 2) {
+      assert(options.config.at("session.inter_op.allow_spinning") == "0");
+      // Spinning is given up regardless; the factory only appears together with
+      // an actual thread request, and then all three parts must appear together.
+      assert((options.create != nullptr) == (options.context != nullptr));
+      assert((options.join != nullptr) == (options.context != nullptr));
+      captured_contexts.push_back(options.context);
+    } else {
+      assert(options.config.count("session.inter_op.allow_spinning") == 0);
+      assert(options.create == nullptr && options.join == nullptr && options.context == nullptr);
+    }
     ObserveConstruction(id == 1 ? "segmentation" : id == 2 ? "pooling" : "encoder");
   }
   Name GetInputNameAllocated(int, AllocatorWithDefaultOptions&) { return {}; }
   Name GetOutputNameAllocated(int, AllocatorWithDefaultOptions&) { return {}; }
 };
 }
+''' + budgets + community_scheduling_source() + r'''
 class Model {
  public:
 ''' + constructor + r'''
  private:
   // Storage used by the production constructor; Process/Cluster are not part
   // of this harness and cannot be inferred to have concurrency coverage.
+  // Member order mirrors production: the policy outlives the sessions whose
+  // workers are joined while those sessions are destroyed.
   Ort::Env env_;
+  CommunityScheduling scheduling_;
   Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::Plda plda_;
-  CommunityScheduling scheduling_;
 };
 int main(int argc, char** argv) {
   assert(argc == 3);
@@ -441,7 +488,21 @@ int main(int argc, char** argv) {
   const uint32_t header[4] = {0x434d504c, 1, 256, 128};
   std::memcpy(plda.data(), header, sizeof(header));
   bool failed = false;
-  try { Model model({1}, {3}, {2}, feature, plda, 4, policy); }
+  try {
+    Model model({1}, {3}, {2}, feature, plda, 4, policy);
+    // The factory context must point inside the model, never at the caller's
+    // policy or a constructor local: ORT keeps it until the workers are joined
+    // while the sessions are destroyed.
+    const auto* base = reinterpret_cast<const unsigned char*>(&model);
+    assert(captured_contexts.size() == 2);
+    for (const void* context : captured_contexts) {
+      if (!requested) { assert(context == nullptr); continue; }
+      assert(context != nullptr && context != static_cast<const void*>(&policy));
+      const auto* at = static_cast<const unsigned char*>(context);
+      assert(at >= base && at + sizeof(CommunityScheduling) <= base + sizeof(Model));
+    }
+    assert(captured_contexts[0] == captured_contexts[1]);
+  }
   catch (const std::runtime_error& error) {
     assert(std::string(error.what()) == "injected ORT construction failure");
     failed = true;
@@ -449,8 +510,11 @@ int main(int argc, char** argv) {
   assert(failed == (fail_at > 0));
   ExpectMask(before);
   assert(state.qos == QOS_DEFAULT && policy.cpu_ids == original_ids);
-  assert(observations.size() == static_cast<size_t>(fail_at > 0 ? fail_at : 4));
-  const std::array<const char*, 4> phases = {"segmentation", "pooling", "XNNPACK", "encoder"};
+  // Harmony keeps the encoder on the CPU EP so the worker factory governs it, so
+  // no XNNPACK registration happens here. A regression that re-registers it would
+  // add a fourth observation and fail this count.
+  assert(observations.size() == static_cast<size_t>(fail_at > 0 ? fail_at : 3));
+  const std::array<const char*, 3> phases = {"segmentation", "pooling", "encoder"};
   const auto& expected = requested ? wanted : before;
   for (size_t i = 0; i < observations.size(); ++i) {
     const auto& observed = observations[i];
@@ -482,7 +546,8 @@ int main(int argc, char** argv) {
                  str(FIXTURES / 'platform_stubs.cc'), '-o', str(binary)],
                 capture_output=True, text=True)
             self.assertEqual(compiled.returncode, 0, compiled.stdout + compiled.stderr)
-            cases = [(True, stage) for stage in range(5)] + [(False, 0), (False, 2)]
+            # Three construction stages on Harmony: segmentation, pooling, encoder.
+            cases = [(True, stage) for stage in range(4)] + [(False, 0), (False, 2)]
             for requested, fail_at in cases:
                 with self.subTest(requested=requested, fail_at=fail_at):
                     run = subprocess.run([str(binary), str(int(requested)), str(fail_at)],
@@ -533,6 +598,16 @@ struct SessionOptions {
   }
 };
 }
+// The production encoder block also hands these options to the scheduling
+// configuration. This slice only observes that the call is reached on the
+// platform that has it; the scope, factory and spinning contract itself is
+// covered by the community scheduling test against the real definitions.
+struct CommunityScheduling {};
+const CommunityScheduling scheduling_;
+int scheduling_calls = 0;
+void ConfigureCommunityScheduling(Ort::SessionOptions*, const CommunityScheduling&) {
+  ++scheduling_calls;
+}
 Ort::SessionOptions Configure(int encoder_threads) {
 ''' + configuration + r'''
   return options;
@@ -549,7 +624,8 @@ int main(int argc, char** argv) {
   }
   std::cout << "cpu=" << options.cpu_threads
             << " spinning=" << (spin == options.config.end() ? "unset" : spin->second)
-            << " xnnpack=" << xnnpack_threads << '\n';
+            << " xnnpack=" << xnnpack_threads
+            << " scheduling=" << scheduling_calls << '\n';
 }
 '''
         with tempfile.TemporaryDirectory() as directory:
@@ -571,16 +647,20 @@ int main(int argc, char** argv) {
                         observed = dict(field.split('=', 1) for field in run.stdout.split())
                         if platform == '__OHOS__':
                             self.assertEqual(
-                                (observed['cpu'], observed['spinning'], observed['xnnpack']),
-                                (str(budget), '0', str(budget)),
-                                'Harmony CPU and XNNPACK paths must receive the encoder budget, '
-                                'with CPU spinning disabled: ' + run.stdout.strip())
+                                (observed['cpu'], observed['spinning'],
+                                 observed['xnnpack'], observed['scheduling']),
+                                (str(budget), '0', 'unset', '1'),
+                                'Harmony must keep the signed per-channel encoder on the CPU EP '
+                                'with the caller budget, spinning off, and the pool routed through '
+                                'the scheduling configuration. Registering XNNPACK would move the '
+                                'convolutions onto a pthreadpool that the worker factory and the '
+                                'spinning switch cannot reach: ' + run.stdout.strip())
                         else:
                             self.assertEqual(
-                                (observed['cpu'], observed['xnnpack']),
-                                ('1', str(budget)),
-                                'Android FP32 XNNPACK must retain its budget and serial CPU fallback: '
-                                + run.stdout.strip())
+                                (observed['cpu'], observed['xnnpack'], observed['scheduling']),
+                                ('1', str(budget), '0'),
+                                'Android FP32 XNNPACK must retain its budget and serial CPU fallback, '
+                                'and keep ORT-owned worker creation: ' + run.stdout.strip())
 
     def test_platform_headers_are_included_outside_every_namespace(self):
         # Including <sched.h>/<qos/qos.h> from inside an anonymous namespace is

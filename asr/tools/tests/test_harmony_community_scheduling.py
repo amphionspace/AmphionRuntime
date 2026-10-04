@@ -39,12 +39,14 @@ class HarmonyCommunitySchedulingTest(unittest.TestCase):
 #include <sstream>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 #include <sched.h>
 #include <qos/qos.h>
 #include <hilog/log.h>
 #include <unistd.h>
+#include "onnxruntime_cxx_api.h"
 ''' + community_scheduling_source())
             binary = root / 'community-scheduling-test'
             subprocess.run([compiler, '-std=c++17', '-pthread', '-D__OHOS__',
