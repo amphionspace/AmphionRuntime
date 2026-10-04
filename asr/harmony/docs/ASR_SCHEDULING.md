@@ -14,6 +14,7 @@ const scheduling = new AsrSchedulingConfig();
 scheduling.qos = 'user-initiated';
 // 仅在确认客户设备允许使用的 CPU 编号后填写；空数组不绑核。
 scheduling.cpuIds = [];
+// 显式提供 scheduling 即接管全部字段，不再套用下表的 mode 缺省。
 scheduling.allowSpinning = true;
 params.scheduling = scheduling;
 params.numThreads = 4;
@@ -28,7 +29,7 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 |---|---|---|
 | `scheduling.qos` | `default` | 保持系统策略；可选 `user-initiated`、`user-interactive` |
 | `scheduling.cpuIds` | `[]` | 不修改 affinity；非空为允许执行的零起始 CPU 编号集合，不自动推断大核 |
-| `scheduling.allowSpinning` | `true` | 保留 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
+| `scheduling.allowSpinning` | 省略 `scheduling` 时按 mode：`short：true；long：false`；显式 `scheduling` 原样采用 | 保留或让出 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
 | 鼎桥 `numThreads` | `4` | ASR 推理线程数，含调用线程，整数 1–8；基础 SDK 原默认 2 不变 |
 | 鼎桥 `disablePrepack` | `short：true；long：false` | 按最终解析的 mode 选择；short 跳过 prepack，long 启用；显式引擎级 `true`/`false` 优先 |
 | Core `AsrConfig.disablePrepack` | `true` | Core 默认保持跳过 prepack；可显式设为 `false` |
@@ -62,6 +63,8 @@ python3 delivery/harmony-dingqiao/delivery/run_device_stress.py \
   --mode paced --files 1 --cycles 1 --skip-build-install \
   --asr-qos user-initiated
 ```
+
+忙等缺省与 `disablePrepack` 同理：测试载体显式传入 `scheduling`，因此 `--asr-disable-spinning` 等参数验证的是显式路径，不验证省略 `scheduling` 时的 mode 缺省。验证缺省路径必须实际省略该对象。
 
 其他对照参数：`--asr-cpu-ids <已验证的CPU集合>`、`--asr-num-threads 1..8`、`--asr-disable-spinning`、`--asr-enable-prepack`。未指定时沿用测试载体原有配置；其中载体默认显式传 `disablePrepack=true`，`--asr-enable-prepack` 则显式传 `false`，均不验证 SDK 未设置该键的模式缺省路径。验证缺省路径时必须实际省略该键。测试载体沿用现有后台录音条件，SDK 自身不负责这一能力。
 
