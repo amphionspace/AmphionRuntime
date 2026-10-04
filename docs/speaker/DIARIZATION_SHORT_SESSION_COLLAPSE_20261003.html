@@ -139,12 +139,12 @@ code { font-family: var(--font-mono); font-size: .92em; }
   <header>
     <div class="eyebrow">角色分离 · AISHELL-4 三人／四人 30 秒短会话</div>
     <h1>为什么短会话把人认少，规则修不好</h1>
-    <p class="lead">准确地说，不是"一定只能动模型"，而是在现有模型给出的信息量下，任何规则改动都只是把错误从一类会话挪到另一类会话。要真正变好，需要更多的有效信息，这只能来自更好的声纹表示，或用标注数据重新标定的合并决策。</p>
+    <p class="lead">准确地说，不是"一定只能动模型"。我们试过的规则改动，要么只是把错误从一类会话挪到另一类会话，要么收益很小。要真正变好，需要更多的有效信息：更好的声纹表示，或用标注数据重新标定的合并决策。</p>
   </header>
 
   <div class="answer">
     <h3>一句话结论</h3>
-    <p>出错的那一步（VBx 合并）需要判断"这两组声音是不是同一个人"。我们实测了 5097 次这样的判断：同一人和不同人的相似度大面积重叠，没有任何阈值能把两者分开。规则只能在"把人认少"和"把一个人拆成两个"之间换位置。</p>
+    <p>出错的那一步（VBx 合并）需要判断"这两组声音是不是同一个人"。我们统计了 5097 次可由标注判定的这类合并：同一人和不同人的相似度大面积重叠，没有一个阈值能把两者干净分开。在测过的阈值范围内，按相似度拆回要么只能修好一两成错误，要么拆错的同一人比修好的还多。</p>
   </div>
 
   <section>
@@ -205,12 +205,12 @@ code { font-family: var(--font-mono); font-size: .92em; }
     <div class="panel">
       <h3>会话越短，越容易把人认少</h3>
       <div class="bars">
-        <div class="bar-row"><span>30 秒</span><span class="bar-track"><span class="bar-fill warn" style="width:55.6%; display:block"></span></span><span class="num">5 / 9</span></div>
-        <div class="bar-row"><span>60 秒</span><span class="bar-track"><span class="bar-fill" style="width:11.1%; display:block"></span></span><span class="num">1 / 9</span></div>
-        <div class="bar-row"><span>90–120 秒</span><span class="bar-track"><span class="bar-fill" style="width:11.8%; display:block"></span></span><span class="num">2 / 17</span></div>
-        <div class="bar-row"><span>150 秒以上</span><span class="bar-track"><span class="bar-fill" style="width:9.5%; display:block"></span></span><span class="num">2 / 21</span></div>
+        <div class="bar-row"><span>30 秒</span><span class="bar-track"><span class="bar-fill warn" style="width:50%; display:block"></span></span><span class="num">3 / 6</span></div>
+        <div class="bar-row"><span>60 秒</span><span class="bar-track"><span class="bar-fill" style="width:14.3%; display:block"></span></span><span class="num">1 / 7</span></div>
+        <div class="bar-row"><span>90–120 秒</span><span class="bar-track"><span class="bar-fill" style="width:15.4%; display:block"></span></span><span class="num">2 / 13</span></div>
+        <div class="bar-row"><span>150 秒以上</span><span class="bar-track"><span class="bar-fill" style="width:10%; display:block"></span></span><span class="num">2 / 20</span></div>
       </div>
-      <p class="caption">7 段带官方标注的会议录音，在不同时间点各聚类一次，统计"识别人数少于真实人数"的比例。30 秒时超过一半认少了人，60 秒以后降到一成左右。</p>
+      <p class="caption">7 段带官方标注的会议录音（AISHELL-4、AliMeeting 各三段，AMI 一段），在 30 秒、60 秒……和全长处共 46 个时间点各聚类一次，统计"识别人数少于真实人数"的比例。只用官方标注，不含 MOSS 辅助标注的实录。30 秒时一半的时间点认少了人，60 秒以后降到一成到一成半。</p>
     </div>
     <p>这也是官方 Community-1 自身的行为：用官方同款整窗向量跑 AliMeeting 四人 30 秒片，同样只认出 2 个人（错误率 56.99%，认错 14.4 秒）。Android 移植 run 路径后，变化的是哪几段短会话出错，而不是"短会话会出错"这件事本身。</p>
   </section>
@@ -240,21 +240,23 @@ code { font-family: var(--font-mono); font-size: .92em; }
     </div>
 
     <div class="panel">
-      <h3>无论阈值放在哪里，代价都比收益大</h3>
+      <h3>按相似度拆回：阈值低时修得少，阈值高时拆错多</h3>
       <div class="tablewrap">
         <table>
           <thead><tr><th>拆分阈值</th><th class="n">修好的错误合并</th><th class="n">新拆错的同一人</th><th class="n">每修好 1 处，多拆错</th></tr></thead>
           <tbody>
-            <tr><td class="num">0.30</td><td class="n">71 对（28.9%）</td><td class="n">87 对（1.8%）</td><td class="n">1.2 处</td></tr>
-            <tr><td class="num">0.35</td><td class="n">126 对（51.2%）</td><td class="n">252 对（5.2%）</td><td class="n">2.0 处</td></tr>
-            <tr class="focus"><td class="num">0.40</td><td class="n">170 对（69.1%）</td><td class="n">504 对（10.4%）</td><td class="n">3.0 处</td></tr>
+            <tr><td class="num">0.20</td><td class="n">26 对（10.6%）</td><td class="n">15 对（0.3%）</td><td class="n">0.6 处</td></tr>
+            <tr><td class="num">0.25</td><td class="n">42 对（17.1%）</td><td class="n">30 对（0.6%）</td><td class="n">0.7 处</td></tr>
+            <tr><td class="num">0.30</td><td class="n">71 对（28.9%）</td><td class="n">89 对（1.8%）</td><td class="n">1.3 处</td></tr>
+            <tr><td class="num">0.35</td><td class="n">126 对（51.2%）</td><td class="n">254 对（5.2%）</td><td class="n">2.0 处</td></tr>
+            <tr class="focus"><td class="num">0.40</td><td class="n">170 对（69.1%）</td><td class="n">506 对（10.4%）</td><td class="n">3.0 处</td></tr>
             <tr><td class="num">0.45</td><td class="n">194 对（78.9%）</td><td class="n">897 对（18.5%）</td><td class="n">4.6 处</td></tr>
-            <tr><td class="num">0.50</td><td class="n">223 对（90.7%）</td><td class="n">1373 对（28.3%）</td><td class="n">6.2 处</td></tr>
+            <tr><td class="num">0.50</td><td class="n">223 对（90.7%）</td><td class="n">1372 对（28.3%）</td><td class="n">6.2 处</td></tr>
             <tr><td class="num">0.55</td><td class="n">232 对（94.3%）</td><td class="n">1926 对（39.7%）</td><td class="n">8.3 处</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="caption">"拆错同一人"在用户眼里就是同一个人被拆成两个编号，契约明确不允许。同一段录音的多个时间点会重复计入，表中数字反映趋势，不是独立样本数。</p>
+      <p class="caption">表中只列出统计过的阈值。阈值 0.25 以下，拆错的对数少于修好的，但只能修好一两成错误合并；阈值越高修得越多，拆错的同一人增长更快。"拆错同一人"在用户眼里就是同一个人被拆成两个编号，契约明确不允许。这里比较的是分组对的数量，同一段录音的多个时间点会重复计入，不等于会话级结果；这条规则也没有做过端到端验收。</p>
     </div>
   </section>
 
@@ -268,19 +270,19 @@ code { font-family: var(--font-mono); font-size: .92em; }
           <tbody>
             <tr><td>给"只说零碎短句"的人补整窗向量</td><td>AISHELL 三人 30 秒：1/3 → 2/3 人，52.80% → 31.20%</td><td>19.58 秒四人实录 4/4 → 3/4 人；AISHELL 四人片变差</td><td><span class="pill no">否决</span></td></tr>
             <tr><td>完全改用整窗向量发现身份（官方做法）</td><td>AISHELL 四人 30 秒：41.50% → 27.12%</td><td>实录锚点 9.99% → 14.10%；客户原音身份构成改变；AliMeeting 四人变差</td><td><span class="pill no">否决</span></td></tr>
-            <tr><td>VBx 合并后按相似度拆回</td><td>—</td><td>见上表，修 1 处至少拆错 1–8 处</td><td><span class="pill no">否决</span></td></tr>
+            <tr><td>VBx 合并后按相似度拆回</td><td>—</td><td>阈值 0.30–0.55 时修 1 处要拆错 1.3–8.3 处；0.25 以下只能修好一两成错误合并</td><td><span class="pill no">未采用</span></td></tr>
             <tr><td>调大 VBx 参数 Fa，让它更愿意保留小组</td><td>30 秒切片加权 32.97% → 26.96%</td><td>长会话 11.64% → 15%–26%，认错时长翻倍；单人录音被拆成 2 人</td><td><span class="pill no">否决</span></td></tr>
             <tr><td>修正容量筛选（#250，已合入）</td><td>AliMeeting 前 124 秒 1/4 → 4/4 人</td><td>其余 63 个评测点不变</td><td><span class="pill yes">已合入</span></td></tr>
           </tbody>
         </table>
       </div>
-      <p class="caption">#250 能干净地修好，是因为那个问题出在一条写死的规则上（"音量不到最响者一半就匿名"），信息本来就在。短会话的问题不同，缺的是信息本身。</p>
+      <p class="caption">#250 能干净地修好，是因为那个问题出在一条写死的规则上（"音量不到最响者一半就匿名"），信息本来就在。短会话的问题不同：在现有声纹表示下，区分同一人和不同人所需的信息本身就不足。按相似度拆回的结论只来自分组对统计，没有端到端验收；它说明这类规则收益有限，不能证明所有未测试的规则都无效。</p>
     </div>
   </section>
 
   <section>
     <div class="step"><span class="tag">5</span><h2>"模型层面"具体指什么</h2></div>
-    <p>需要的不是更巧的规则，而是让"同一人"和"不同人"在数据上真正分得开，或者让合并决策用标注数据学到在证据少时该怎么判。按投入从小到大，有三条路：</p>
+    <p>已经试过的规则都不成立，更有希望的方向是：让"同一人"和"不同人"在数据上真正分得开，或者让合并决策用标注数据学到证据少时该怎么判。按投入从小到大，有三条路：</p>
     <div class="opts">
       <div class="opt rec">
         <span class="kind">先做 · 投入最小</span>
