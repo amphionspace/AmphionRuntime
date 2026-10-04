@@ -278,7 +278,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
       realEndSample: window.realEndSample });
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
-    this.inferenceMs += window.result.segmentationMs + window.result.featureMs + window.result.embeddingMs;
+    // Lanes run windows in parallel; count each window's share of executor capacity.
+    this.inferenceMs += window.inferenceWallMs;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['jobId'] = window.jobId;
@@ -301,6 +302,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
+      fields['inferenceWallMs'] = window.inferenceWallMs;
       this.recordDecision('DIARIZATION_COMMUNITY_WINDOW', fields);
     }
     this.flushReadyWindows();

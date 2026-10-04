@@ -88,6 +88,108 @@ int main() {
                             '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_lane_executor_runs_windows_concurrently_in_order_below_recognizer_priority(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source = (CPP / 'community_diarization.cpp').read_text()
+        worker = source[source.index('class RoleWorker {'):source.index('\nclass Model {')]
+        batch = source[source.index('  std::vector<Window> ProcessBatch('):source.index('  std::string Cluster(')]
+        # Production worker and batch code with stub encoders: no models needed.
+        program = r'''
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <chrono>
+#include <condition_variable>
+#include <deque>
+#include <exception>
+#include <functional>
+#include <future>
+#include <memory>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
+#include <vector>
+#include <sys/resource.h>
+static std::mutex priorityMutex;
+static std::vector<std::pair<long,int>> priorityCalls;
+static std::atomic<long> nextTid{100};
+thread_local long threadTid=nextTid++;
+long TestGetTid() { return threadTid; }
+int TestSetPriority(int which,id_t who,int value) {
+  assert(which==PRIO_PROCESS);
+  std::lock_guard<std::mutex> lock(priorityMutex);priorityCalls.push_back({static_cast<long>(who),value});return 0;
+}
+#define gettid TestGetTid
+#define setpriority TestSetPriority
+''' + worker + r'''
+struct Window { int value=-1; long tid=0; };
+struct Session { int id; };
+struct Fixture {
+  int lanes_=2;
+  size_t next_lane_=0;
+  std::mutex inference_mutex_;
+  std::vector<Session> encoders_{{0},{1}};
+  std::vector<std::unique_ptr<RoleWorker>> lane_workers_;
+  std::function<Window(Session&,std::vector<float>&)> compute;
+  Fixture() { for(int i=0;i<lanes_;++i) lane_workers_.push_back(std::make_unique<RoleWorker>()); }
+  Window Compute(Session& s,std::vector<float>& pcm) { return compute(s,pcm); }
+''' + batch + r'''
+};
+std::vector<std::vector<float>> Windows(int count) {
+  std::vector<std::vector<float>> pcms;
+  for(int i=0;i<count;++i) pcms.emplace_back(160000,static_cast<float>(i+1));
+  return pcms;
+}
+int main() {
+  const long caller=TestGetTid();
+  {
+    Fixture f;
+    // Both lanes must be inside Compute at the same time for either to finish.
+    std::mutex m;std::condition_variable cv;int inside=0;
+    f.compute=[&](Session& s,std::vector<float>& pcm){
+      std::unique_lock<std::mutex> lock(m);++inside;cv.notify_all();
+      bool both=cv.wait_for(lock,std::chrono::seconds(5),[&]{return inside==2;});
+      assert(both);
+      return Window{static_cast<int>(pcm[0])*10+s.id,TestGetTid()};
+    };
+    auto pcms=Windows(2);
+    auto results=f.ProcessBatch(pcms);
+    assert(results.size()==2&&results[0].value==10&&results[1].value==21);
+    assert(results[0].tid!=caller&&results[1].tid!=caller&&results[0].tid!=results[1].tid);
+    // Lone windows alternate lanes instead of keeping lane 0 saturated.
+    f.compute=[&](Session& s,std::vector<float>& pcm){return Window{s.id,TestGetTid()};};
+    auto one=Windows(1);auto first=f.ProcessBatch(one);
+    auto two=Windows(1);auto second=f.ProcessBatch(two);
+    assert(first[0].value!=second[0].value&&first[0].tid!=second[0].tid);
+    // A lane failure is reported only after every lane has left the batch.
+    std::atomic<bool> slowDone{false};
+    f.compute=[&](Session& s,std::vector<float>&){
+      if(s.id==0) throw std::runtime_error("lane failed");
+      std::this_thread::sleep_for(std::chrono::milliseconds(50));slowDone=true;return Window{};
+    };
+    bool threw=false;
+    // The failing lane is whichever instance has id 0, wherever the rotation starts.
+    try { auto again=Windows(2);f.ProcessBatch(again); } catch(const std::runtime_error&) { threw=true; }
+    assert(threw&&slowDone);
+    bool rejected=false;
+    try { auto many=Windows(3);f.ProcessBatch(many); } catch(const std::runtime_error&) { rejected=true; }
+    assert(rejected);
+  }
+  // Each owned worker lowered only its own priority, below the recognizer's.
+  std::lock_guard<std::mutex> lock(priorityMutex);
+  assert(priorityCalls.size()==2);
+  for(const auto& call:priorityCalls) assert(call.first!=caller&&call.second==10);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'lanes.cpp'
+            binary = Path(directory) / 'lanes'
+            path.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-pthread', str(path), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=60)
+
     def test_encoder_features_and_run_vectors_belong_to_one_window(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
@@ -147,6 +249,7 @@ Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float level
     std::fill(pcm.begin()+496+131*270,pcm.begin()+496+261*270,.5f);
   }
   struct Clock { static int now() {return 0;} };int start=0;
+  auto& encoder_session=encoder_;
 ''' + body + r'''
   return result;
 }
