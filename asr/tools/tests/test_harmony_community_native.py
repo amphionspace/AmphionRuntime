@@ -946,6 +946,52 @@ int main() {
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True)
 
+    def test_run_capacity_folds_a_split_identity_before_dropping_a_speaker(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        program = r"""
+#include "community_cluster.h"
+#include <cassert>
+#include <cmath>
+#include <set>
+int main() {
+  community::Plda p;
+  p.mean1.resize(256);p.mean2.resize(128);p.mu.resize(128);p.phi.resize(128,1.);
+  p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1;p.transform[i][i]=1;}
+  // Four loud speakers, a second VBx identity of speaker 2 (cosine .77, as one real
+  // speaker split by VBx) and a quiet background voice: five VBx identities over a cap of 4.
+  constexpr int n=60;
+  std::vector<float> segments(n*589*3),embeddings(n*768),runs(n*256),rms(n);
+  std::vector<int32_t> ranges;
+  const float level[6]={.7f,.8f,.9f,1.f,.85f,.3f};
+  for(int w=0;w<n;++w){
+    const int g=w%6;
+    for(int f=0;f<589;++f)segments[(w*589+f)*3]=1;
+    auto put=[&](int d,float v){embeddings[w*768+d]=runs[w*256+d]=v;};
+    if(g==4){put(2,.77f);put(4,std::sqrt(1-.77f*.77f));} else put(g==5?5:g,1.f);
+    ranges.insert(ranges.end(),{w,0,0,589});rms[w]=level[g];
+  }
+  auto result=community::Cluster(segments,embeddings,n,p,4,runs,ranges,rms);
+  std::set<int> distinct;
+  for(int w=0;w<n;++w){
+    const int g=w%6,label=result.hard[w*3];
+    if(g<4){assert(label>=0 && "a duplicate identity must not take a loud speaker's slot");distinct.insert(label);}
+    if(g==4)assert(label==result.hard[2*3] && "the split identity folds back into its speaker");
+    if(g==5)assert(label==-2 && "the quiet background voice stays anonymous");
+  }
+  assert(distinct.size()==4 && !result.usedKMeans);
+}
+"""
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'duplicate.cpp'
+            binary = Path(directory) / 'duplicate'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP), str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True)
+
     def test_speaker_cap_uses_unconstrained_kmeans_and_keeps_active_channels(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:

@@ -296,6 +296,43 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   }
   if(maxSpeakers<1||maxSpeakers>4)throw std::runtime_error("invalid speaker cap");
   Matrix uncappedCentroids;
+  if(result.centroids.size()>static_cast<size_t>(maxSpeakers)&&!runRms.empty()&&!result.usedAhcFallback) {
+    // Over capacity, first fold VBx identities that are acoustically the same person
+    // (one speaker split across two clusters) so a duplicate cannot take a slot from
+    // a quieter real speaker. Only identities whose owned training vectors (below) are
+    // near-identical qualify; capacity alone never merges people.
+    constexpr double kDuplicateIdentityCosine=.6;
+    auto rebuild=[&]{
+      result.centroids.clear();
+      for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){
+        Vec centroid(dim);double sum=0;
+        for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}
+        for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));
+      }
+    };
+    auto cosine=[](const Vec& a,const Vec& b){double d=0,x=0,y=0;for(size_t j=0;j<a.size();++j){d+=a[j]*b[j];x+=a[j]*a[j];y+=b[j]*b[j];}return d/std::sqrt(x*y);};
+    while(result.centroids.size()>static_cast<size_t>(maxSpeakers)){
+      std::vector<int> columns;
+      for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7)columns.push_back(c);
+      // Compare identities by the vectors they actually own (argmax posterior), so soft
+      // VBx responsibilities cannot make two different speakers look alike.
+      Matrix owned(columns.size(),Vec(dim));std::vector<int> members(columns.size());
+      for(size_t i=0;i<train.size();++i){
+        size_t best=0;for(size_t c=1;c<columns.size();++c)if(result.vbx.q[i][columns[c]]>result.vbx.q[i][columns[best]])best=c;
+        ++members[best];for(int j=0;j<dim;++j)owned[best][j]+=train[i][j];
+      }
+      int bestA=-1,bestB=-1;double best=kDuplicateIdentityCosine;
+      for(size_t a=0;a<columns.size();++a)for(size_t b=a+1;b<columns.size();++b){
+        if(!members[a]||!members[b])continue;
+        const double value=cosine(owned[a],owned[b]);
+        if(std::isfinite(value)&&value>=best){best=value;bestA=columns[a];bestB=columns[b];}
+      }
+      if(bestA<0)break;
+      for(auto& row:result.vbx.q){row[bestA]+=row[bestB];row[bestB]=0;}
+      result.vbx.priors[bestA]+=result.vbx.priors[bestB];result.vbx.priors[bestB]=0;
+      rebuild();
+    }
+  }
   if(result.centroids.size()>static_cast<size_t>(maxSpeakers)&&!runRms.empty()) {
     // Capacity is not evidence that two people are the same. Retain existing
     // VBx identities using the clean PCM level belonging to their training
