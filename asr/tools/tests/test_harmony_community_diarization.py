@@ -199,6 +199,28 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.deepEqual(updates.map(u=>u.speakerIndex),[0,-1]);
         """)
 
+    def test_expensive_previews_are_spaced_by_their_cost(self):
+        run_community_session("""
+          const tick=()=>new Promise(r=>setImmediate(r));
+          let now=0;Date.now=()=>now;
+          async function previews(costMs) {
+            const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+              onWindowResult(){},onFinished(){}});
+            s.totalSamples=80*16000;
+            s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
+              {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
+            const covered=[];
+            s.client.cluster=async(_segments,_embeddings,_cap,starts)=>{
+              now+=costMs;covered.push((starts.length+9)*1000);return clusterResult(starts.length);};
+            for(let k=0;k<=70;k++){s.onWindow(window(k));s.asrAudioProcessed((k+10)*16000);await tick();}
+            return covered;
+          }
+          // Cheap previews keep the 10 s cadence of short sessions.
+          assert.deepEqual(await previews(100),[10000,20000,30000,40000,50000,60000,70000,80000]);
+          // A 3 s recluster waits for 30 s more audio before the next preview.
+          assert.deepEqual(await previews(3000),[10000,40000,70000]);
+        """)
+
     def test_delayed_preview_is_serial_and_cancel_discards_its_result(self):
         run_community_session("""
           const updates=[],outputs=[];
