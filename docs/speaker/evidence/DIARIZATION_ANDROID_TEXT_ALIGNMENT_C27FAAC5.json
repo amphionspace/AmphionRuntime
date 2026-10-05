@@ -8,31 +8,30 @@
     " 2 files changed, 35 insertions(+), 3 deletions(-)"
   ],
   "device": {
-    "serial": "0945237298000140",
     "model": "TECNO KI8",
     "note": "low-throughput device; per the user, performance acceptance uses Mate80. Inputs longer than ~20 s end in FINISH_TIMEOUT on both builds, so correctness evidence comes from inputs this device completes."
   },
   "apks": {
     "base": {
       "app": {
-        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-src/asr/android/samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk",
+        "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-src/asr/android/samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk",
         "sha256": "bcf31c865c246c1365e200462eb5bf6daad7882ba56715b48a7d06028e0a9c69",
         "bytes": 411134538
       },
       "test": {
-        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-src/asr/android/samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk",
+        "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-src/asr/android/samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk",
         "sha256": "4b566724fbd3b97c6b76cc556858b45fdfbeedafb7bca9a2680c85241d33abd9",
         "bytes": 1067104
       }
     },
     "pr": {
       "app": {
-        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/src/asr/android/samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk",
+        "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/src/asr/android/samples/dingqiao-demo/build/outputs/apk/debug/dingqiao-demo-debug.apk",
         "sha256": "4534c08c7e390ad4405e73254a54d5039b965b29cf5d0a790abb7d7c39952052",
         "bytes": 411134538
       },
       "test": {
-        "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/src/asr/android/samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk",
+        "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/src/asr/android/samples/dingqiao-demo/build/outputs/apk/androidTest/debug/dingqiao-demo-debug-androidTest.apk",
         "sha256": "4b566724fbd3b97c6b76cc556858b45fdfbeedafb7bca9a2680c85241d33abd9",
         "bytes": 1067104
       }
@@ -291,362 +290,362 @@
   },
   "files": [
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/prepare.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/prepare.py",
       "sha256": "12ac9707b59c3c69e78d4cc11294e72e5459d46574235d688fbcc7470883e64a",
       "bytes": 3148
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/prepare_base.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/prepare_base.py",
       "sha256": "4809fa31371fe5ababce8f1e9d76670c82184c2bd82abc4af529d474c97a762c",
       "bytes": 1407
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/snapshot.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/snapshot.json",
       "sha256": "e315a93e6b1f23438a8d3ef72ad6b79892614416490d6f2783c05631270a1e67",
       "bytes": 4629
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-snapshot.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-snapshot.json",
       "sha256": "3b711ffd4dba6f24cc75111d8ec127fe0d18880d85cb85b041e25d71eb924931",
       "bytes": 343
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab.py",
       "sha256": "6ee935498afea16f3131b52970c39e1bf81f1e9a4b7344a80cc79d1e8fe19d25",
       "bytes": 3148
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_clip.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_clip.py",
       "sha256": "25a78fac739a6bd024367eb47fa49a39a98b19d58886ce6ce80ccb74f2cf695c",
       "bytes": 3230
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_targeted.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_targeted.py",
       "sha256": "b6fd35c23a8192361f5086523b37544abcf141f6d53c94a3ef86b515dba65ff1",
       "bytes": 3201
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_split.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device_ab_split.py",
       "sha256": "3e80dc92c6b261a3ed35d0baa95c397581bce548bac5e6280dd3c2c970d0d6e4",
       "bytes": 3222
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/make_clip.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/make_clip.py",
       "sha256": "5e03c8fb330faa725c2425b247875a8c12c3b16fde291f8d4b01d65efd2b0656",
       "bytes": 1010
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/make_targeted.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/make_targeted.py",
       "sha256": "3743b173e1933aae6babc83c8da774335b6e4eab22d30018791575e661665a1d",
       "bytes": 2593
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/pick_items.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/pick_items.py",
       "sha256": "3ee35eacea931b98b009d9d6c194d637e2827d295b46ff46b8e87f61566f7969",
       "bytes": 922
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare.py",
       "sha256": "445e70726d1a63c51eab2e5823dfcc4a41fa322ccb8a9342bc0f2241396c15be",
       "bytes": 2324
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare_split.py",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare_split.py",
       "sha256": "0bdb03cc03904aa5dc144c855b12eeca6db1e69170c3ee15e76090cd3ff5dc42",
       "bytes": 1831
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare-base-pr.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare-base-pr.json",
       "sha256": "53c81234621823931ea545dd3af3d2b0b5681799ac6c5a291c1c4aabd2bfe143",
       "bytes": 460
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare-split.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/compare-split.json",
       "sha256": "10fa8e52418619b9f71db93f4f48714a3e1ba9593e9c9d9eabeb37f63f119d4d",
       "bytes": 1825
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/build.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/build.log",
       "sha256": "3e44ec9d7b9340a880cc06982cd082930c45e6ad1c1d94e459e1a39cdc8a7ea3",
       "bytes": 14640
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-build.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/base-build.log",
       "sha256": "84dbb158e826e1d12a74230ad2dc7c9ae891ac4dee4e449cf5d1a2285048233f",
       "bytes": 12435
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/unit-tests.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/unit-tests.log",
       "sha256": "a76ef312b63bdf1332798d9d2708c1cedf9e9e120d9dfabefe2de9e520161f67",
       "bytes": 16949
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base.log",
       "sha256": "546f17f045eab8a3e77e237a3db645c6f2b2ae048b71923dd120919622fd63e5",
       "bytes": 690
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr.log",
       "sha256": "b67a630e8847187b5a4e79053a4b2cd4a7be34d70d67d82639ca0974ca05a87b",
       "bytes": 686
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-clip.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-clip.log",
       "sha256": "1670882e72f30873c874d61cdafa3eab237f7231b1f40544291a73a1e97fdaad",
       "bytes": 342
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-clip.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-clip.log",
       "sha256": "c4870adb291daf0d4f3bdcbb6990a89127910beee975726c59bafcd7794f08ac",
       "bytes": 340
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-targeted.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-targeted.log",
       "sha256": "9936605fbe3e4881ce082fed4b8cb85585d38c9ef9a5a798dbd873e3c211f9b3",
       "bytes": 348
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-targeted.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-targeted.log",
       "sha256": "107f3793a769cd21dfb33538a6fcd8bafd9d88cb5917aff653652c8528e395d1",
       "bytes": 346
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-split.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-base-split.log",
       "sha256": "4127db4f00aa9ac09988070e23e9bc692cd5f4dd53f736c6d0c46280c0d0ef13",
       "bytes": 1032
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-split.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device-pr-split.log",
       "sha256": "f7ff2efbdb34b64ccf0299dba8b4b34740619d239e36a16a393006a9a5a37af4",
       "bytes": 1026
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/customer-18-34.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/customer-18-34.json",
       "sha256": "756c37b76f942a7d96587cf456d20fe2cad2ab2805f041fbb060443f34262cb1",
       "bytes": 403
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/customer-18-34.wav",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/customer-18-34.wav",
       "sha256": "6848f4c4cd43cecbe6dcd9a58ace8e5d4073d9ad4c5c9c37f2b82a73b3d21a12",
       "bytes": 512044
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-1.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-1.json",
       "sha256": "2cffaf47241ff1b16e1548ccd54c8619b0261d4660bdccba33fc1c30cdf2906f",
       "bytes": 829
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-1.wav",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-1.wav",
       "sha256": "ac39d1afb64e515bcd7ee3f2cdc98329bb99e84159903be8d546b90b8d641180",
       "bytes": 412204
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-2.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-2.json",
       "sha256": "864f2425357847eb23833375c95e2e3212b16eb0367b72c7d52f7a27e9d0cfe9",
       "bytes": 834
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-2.wav",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-2.wav",
       "sha256": "09174d0f5f45211ba0e7192ca843c345763f332c98e8f8a5cad89288f8680bd3",
       "bytes": 471084
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-3.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-3.json",
       "sha256": "7a9f298a1a9b86a709944069b4c44ab6b39d816cd591848a912a47f296cca6a1",
       "bytes": 898
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-3.wav",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-3.wav",
       "sha256": "144b5c3627da2997bc639553e31949906f45a73dd46f6347af57f89f294722cf",
       "bytes": 616364
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-ct-itn.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-ct-itn.json",
       "sha256": "98113e029350bd0c52892d92d6846a5e122838302a99232aaf1170e6bb38b65e",
       "bytes": 2217
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-ct-itn.wav",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/clips/targeted-ct-itn.wav",
       "sha256": "87dc3a17ca840b973a00caeeaec6859bd261e4b8fd4320c3cb90d5401ca70a68",
       "bytes": 1345964
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/record.json",
       "sha256": "a5a858b418338186118b199e7781d0b57329db7d7d7da6738aeb796bd33ab4cf",
       "bytes": 1380
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/record.json",
       "sha256": "4b5e54e4763c175dfe422743fbdb31b62be7f71079d2ad50d40be71aae4af060",
       "bytes": 993
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/record.json",
       "sha256": "2003707cc1807c8fa12e0a07c0538a40e72535bdfd0969025b65037d9c4090cb",
       "bytes": 999
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/record.json",
       "sha256": "b778933fcdd380691dadb22fa375d96aedabe242458cee9e8fad1ab4c01b15dd",
       "bytes": 1761
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/record.json",
       "sha256": "7d3763cc8751d323422dd976a6f9cd2ce032258d0e162256f9f07318171c3f8a",
       "bytes": 1364
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/record.json",
       "sha256": "a5f06d8ff4db64bc14ab2b6aae9bca11c11cfa04339e56e6fe362d0347ac012e",
       "bytes": 979
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/record.json",
       "sha256": "8673e18b99cdf48678367e2787d2508bf1369498f611769ea43809838d7e2ef3",
       "bytes": 985
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/record.json",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/record.json",
       "sha256": "029982a78a8aa438a19c9e756f9c7c771cb1a2a50e420ea0b61a256f15846300",
       "bytes": 1743
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/customer-main-four.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/customer-main-four.jsonl",
       "sha256": "d7cab1da0a65886b234ec3ad324e93248f9c3ad4cc363eea0382cf6d723d93b1",
       "bytes": 19183
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/four-speaker-124s.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/four-speaker-124s.jsonl",
       "sha256": "4efc2318a8ef37ed7efb4fb8e72dc50fab2b8a4ad464cc6c0eb1d56a04cc7e62",
       "bytes": 17808
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/customer-18-34.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/customer-18-34.jsonl",
       "sha256": "df2ffeefa912648ac53683275e7736fdebca7703cb26fbbf1ce21b566aaca388",
       "bytes": 3127
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/targeted-ct-itn.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/targeted-ct-itn.jsonl",
       "sha256": "f94ff2f6a00e68e18d892049bcd9043b224cda4328820160271160862dcdd612",
       "bytes": 6627
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-1.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-1.jsonl",
       "sha256": "0a8e6f9e7fe1dcdc655fbe57276af8c3ef287f464662c783b5da56b3922a5979",
       "bytes": 2874
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-2.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-2.jsonl",
       "sha256": "75c37c8fe55a63e07b518ef30ecad4febc4690f01a7de7ecd2fd23a61155bc2c",
       "bytes": 3282
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-3.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-3.jsonl",
       "sha256": "be9318eca69d9244397e51d363701283d291ea5550c10327de142a9bbe2cdfad",
       "bytes": 3654
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/customer-main-four.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/customer-main-four.jsonl",
       "sha256": "88618498de5d5ae1eefeded753309c8d763a7bc313737b5d5fb32ef4355280af",
       "bytes": 18148
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/four-speaker-124s.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/four-speaker-124s.jsonl",
       "sha256": "35b2a2c068ea26b1661e70d6a1c2b033096988caee285b568a593f50cc630f64",
       "bytes": 16515
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/customer-18-34.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/customer-18-34.jsonl",
       "sha256": "a8735e8323fb80851914d1f386e7d83eb9daabf530dbf0dd90e4c4b21d893dd7",
       "bytes": 3127
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/targeted-ct-itn.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/targeted-ct-itn.jsonl",
       "sha256": "54b84cb1d73a9387af8dccc986a71b176253e9e5f9fdceaef5b66f5f3a39d27e",
       "bytes": 6627
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-1.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-1.jsonl",
       "sha256": "942cb044a59edc0b1f444bf1ee3f0a0f076969810d76134ef8f1149f541cbb91",
       "bytes": 2868
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-2.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-2.jsonl",
       "sha256": "042d5952ac2c0e8e10410addc6efa56afd2116369321488bedf0b3612c36d31c",
       "bytes": 3273
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-3.jsonl",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-3.jsonl",
       "sha256": "a5caffa46a08c6bef11416292a5d45d4910f2dbe84bbd874d55fe3bb12eb0d43",
       "bytes": 3648
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/customer-main-four.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/customer-main-four.instrument.log",
       "sha256": "64e3e3b27ac5482d4fd5b6ff59a0deff26ba2925a96fea54aeaa282e362bf40b",
       "bytes": 795
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/four-speaker-124s.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base/four-speaker-124s.instrument.log",
       "sha256": "6a340b1b395c5e1da138bf8ae20a5e925d5b01075af4bc43dfd126a59c1d6610",
       "bytes": 795
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/customer-18-34.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-clip/customer-18-34.instrument.log",
       "sha256": "6c9b75624027e04cdd582f9ed51c8eae8048fbe847ddd26a227a0f861d678b49",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/targeted-ct-itn.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted/targeted-ct-itn.instrument.log",
       "sha256": "18889bbba52274e5c26eaf51df4dc250652028be17add2125f03b4df6f0fc378",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-1.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-1.instrument.log",
       "sha256": "d16e3a82652b3117a33f245afb2eaaa9beaac7efe00965d7308467b634e0f982",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-2.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-2.instrument.log",
       "sha256": "58f2cbab2becd96bf9196d122399e5a0882302e62e1d3cdec7c1953e1f644395",
       "bytes": 793
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-3.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/base-targeted-split/targeted-3.instrument.log",
       "sha256": "0837ec44aa7e043203f2db4b49ec28e9baba70524dc2fbc94cb31dfe9a851263",
       "bytes": 793
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/customer-main-four.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/customer-main-four.instrument.log",
       "sha256": "c6e5309f490c7455c7480614221080c8881fb2c01552fd5f2fa0a71580bdf953",
       "bytes": 795
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/four-speaker-124s.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr/four-speaker-124s.instrument.log",
       "sha256": "9c5d8981b0f8e07596db802db9f73a681d7164a9a641aefb20701fafd6d0733d",
       "bytes": 795
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/customer-18-34.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-clip/customer-18-34.instrument.log",
       "sha256": "012179576b3607c4bf60de5f65cb646ca269d645f5dca91994faeaae4427dab5",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/targeted-ct-itn.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted/targeted-ct-itn.instrument.log",
       "sha256": "efcb0fa11feab9e1909046ae6d254eb3cfcc8c79e6d43c0e0f19f39ad3f3df2c",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-1.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-1.instrument.log",
       "sha256": "20cb38dd7c2d62dbfd54121b092eedab3be351d12014ed088675cb05f6d12c10",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-2.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-2.instrument.log",
       "sha256": "df5b51c3a57265c768fdc9217c5d0333b8ebc1fdf12b544b4350d8ff4d9a97a0",
       "bytes": 794
     },
     {
-      "path": "/Users/boxp/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-3.instrument.log",
+      "path": "~/.cache/amphion-runtime/diagnostics/pr244-android-20260929/device/pr-targeted-split/targeted-3.instrument.log",
       "sha256": "10a9ab7a0edce791e540987b70b9917aaee8d6d15f98a854c5d2b19be9f93c6f",
       "bytes": 794
     }
