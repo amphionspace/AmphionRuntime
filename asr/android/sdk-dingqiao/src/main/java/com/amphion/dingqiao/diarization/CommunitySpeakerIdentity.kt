@@ -16,23 +16,9 @@ internal class CommunitySpeakerIdentity(private val maxSpeakers: Int) {
         it.nextId = nextId
     }
 
-    fun anchorWindowIds(): Set<String> {
-        val anchors = arrayOfNulls<String>(nextId)
-        val weights = IntArray(nextId) { -1 }
-        committedIds.forEach { (key, id) ->
-            val weight = committedActivity[key] ?: 0
-            if (weight > weights[id]) { weights[id] = weight; anchors[id] = key.substringBeforeLast(':') }
-        }
-        return anchors.filterNotNull().toSet()
-    }
-
-    fun retainWindows(windowIds: Set<String>) {
-        val removed = committedIds.keys.filter { it.substringBeforeLast(':') !in windowIds }
-        removed.forEach { committedIds.remove(it); committedActivity.remove(it) }
-    }
-
     fun assign(windowIds: List<String>, hard: IntArray, clusterCount: Int,
-        publishedActivity: IntArray, visibleClusters: BooleanArray): CommunityIdentityAssignment {
+        publishedActivity: IntArray, visibleClusters: BooleanArray,
+        firstAppearanceTimes: DoubleArray? = null): CommunityIdentityAssignment {
         val before = nextId
         val votes = Array(clusterCount) { IntArray(before) }
         val keys = hard.indices.map { "${windowIds[it / 3]}:${it % 3}" }
@@ -57,7 +43,12 @@ internal class CommunitySpeakerIdentity(private val maxSpeakers: Int) {
             visit(cluster + 1, used, score)
         }
         visit(0, 0, 0)
-        for (cluster in 0 until clusterCount) {
+        // Only allocate new IDs chronologically, as on Harmony. Existing committed
+        // identities keep their IDs even if later evidence moves an earlier boundary.
+        val appearanceOrder = (0 until clusterCount).sortedWith(compareBy<Int> {
+            firstAppearanceTimes?.getOrNull(it) ?: Double.POSITIVE_INFINITY
+        }.thenBy { it })
+        for (cluster in appearanceOrder) {
             val hasActivity = visibleClusters[cluster] && hard.indices.any {
                 hard[it] == cluster && publishedActivity[it] > 0
             }

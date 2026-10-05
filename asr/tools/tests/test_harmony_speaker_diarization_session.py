@@ -504,6 +504,57 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_finish_timeout_waits_boundedly_for_salvaged_speakers(self) -> None:
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+            // undefined: diarization does not answer within the salvage grace period.
+            for (const salvage of [{{ degraded: true, value: 'front-frozen' }},
+              {{ degraded: false, value: 'complete-in-grace' }}, undefined]) {{
+              const outputs = [];
+              let timeouts = 0;
+              const barrier = new SpeakerDiarizationFinishBarrier(20, result => outputs.push(result), 200,
+                () => {{ timeouts++; if (salvage !== undefined) barrier.resolveSpeaker(salvage); }});
+              barrier.begin();
+              barrier.resolveAsr('last');
+              await sleep(60);
+              assert.equal(timeouts, 1);
+              if (salvage === undefined) {{
+                assert.deepEqual(outputs, [], 'the grace period still waits for salvaged speakers');
+                await sleep(240);
+              }}
+              assert.deepEqual(outputs, [{{ asr: 'last', speaker: salvage?.value,
+                degraded: salvage?.degraded ?? true }}]);
+              barrier.resolveSpeaker({{ degraded: false, value: 'late' }});
+              await sleep(240);
+              assert.equal(outputs.length, 1);
+            }}
+            """
+        )
+
+    def test_unknown_text_after_inferred_evidence_is_not_backfilled(self) -> None:
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+          function state(limit, tail=21000) {{
+            const s=new SpeakerDiarizationTranscriptState();
+            s.addUtterance({{rawText:'你好',text:'你好',tokens:['你','好'],tokenTimesMs:[18000,tail],
+              beginTime:17000,endTime:tail+500}});
+            s.applySpeakerTurns([{{beginTime:15000,endTime:20000,speakerId:'S1',secondarySpeakerIds:[],confidence:0.9}}]);
+            if (limit !== undefined) s.limitEvidence(limit);
+            return s.sentenceUtterances()[0];
+          }}
+          assert.equal(state().speakerId,'S1','a gap the model saw keeps the authorized bounded backfill');
+          const limited=state(20000);
+          assert.equal(limited.speakerId,'UNKNOWN','audio never inferred is not evidence of silence');
+          assert.equal(limited.confidence,0);
+          // Within the emission lag, a turn cut at the evidence end still cannot claim later tokens.
+          assert.equal(state(undefined,20300).speakerId,'S1');
+          assert.equal(state(20000,20300).speakerId,'UNKNOWN');
+        """)
+
     def test_stopped_fallback_preserves_real_tail_waiting_for_speaker_decoration(self) -> None:
         from asr.tools.tests.test_harmony_speaker_inference_threading import method_body
 
@@ -788,10 +839,18 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
           assert.deepEqual(split([first,second]).map(x=>x.speakerId),['S1']);
           const unknown={{beginTime:500,endTime:1200,speakerId:'UNKNOWN',secondarySpeakerIds:[]}};
           assert.deepEqual(split([first,unknown]).map(x=>x.speakerId),['S1']);
+          // '乙'/'丙' are stamped 100 ms after S1/S2 end: the ASR emission lag keeps each owner.
           assert.deepEqual(split([first,{{...second,speakerId:'S2'}}]).map(x=>x.speakerId),
-            ['S1','UNKNOWN']);
-          // Overlap does not establish a unanimous single speaker for uncovered tokens.
-          assert.deepEqual(split([{{...first,overlap:true,secondarySpeakerIds:['S2']}}])
+            ['S1','S2']);
+          // Beyond the lag, an uncovered token between different speakers is not backfilled.
+          const distant=new SpeakerDiarizationTranscriptState();
+          distant.addUtterance({{rawText:'甲乙丙',text:'甲乙丙。',tokens:['甲','乙','丙'],
+            tokenTimesMs:[100,1200,1500],beginTime:0,endTime:1600}});
+          distant.applySpeakerTurns([first,{{beginTime:1450,endTime:1800,speakerId:'S2',secondarySpeakerIds:[]}}]);
+          assert.deepEqual(distant.finalUtterances().map(x=>x.speakerId),['S1','UNKNOWN','S2']);
+          // Overlap does not establish a unanimous single speaker for uncovered tokens
+          // ('丙' is stamped 700 ms after the turn, beyond the ASR emission lag).
+          assert.deepEqual(split([{{...first,endTime:400,overlap:true,secondarySpeakerIds:['S2']}}])
             .map(x=>x.speakerId),['S1','UNKNOWN']);
           assert.deepEqual(split([]).map(x=>x.speakerId),['UNKNOWN']);
         """)

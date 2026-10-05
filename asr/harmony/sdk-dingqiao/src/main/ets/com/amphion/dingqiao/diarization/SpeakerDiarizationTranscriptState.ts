@@ -83,6 +83,8 @@ const UNKNOWN_SPEAKER = 'UNKNOWN';
 // Fixed authorized inference bound (not the model hop). See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md for the
 // measured bounded/unbounded comparison; this is not an identity threshold.
 const MAX_UNKNOWN_BACKFILL_MS = 2_500;
+// Measured streaming ASR token emission lag; not an identity threshold. See the same document.
+const MAX_TOKEN_EMISSION_LAG_MS = 600;
 
 function overlapMs(beginA: number, endA: number, beginB: number, endB: number): number {
   return Math.max(0, Math.min(endA, endB) - Math.max(beginA, beginB));
@@ -250,6 +252,9 @@ export class SpeakerDiarizationTranscriptState {
   private readonly utterances: StoredUtterance[] = [];
   private nextUtteranceId: number = 1;
   private readonly turns: SpeakerTimelineTurn[] = [];
+  // Audio after this point was never inferred (finish-timeout salvage). Its lack of
+  // turns is not evidence of silence, so UNKNOWN text there is not backfilled.
+  private evidenceEndTime: number = Number.POSITIVE_INFINITY;
 
   addUtterance(input: DiarizationTranscriptInput): string {
     const decoded = decodedTranscriptTokens(input.rawText, input.tokens, input.tokenTimesMs);
@@ -293,6 +298,8 @@ export class SpeakerDiarizationTranscriptState {
       confidence: this.assignmentFor(utterance.beginTime, utterance.endTime).confidence,
     };
   }
+
+  limitEvidence(endTime: number): void { this.evidenceEndTime = Math.min(this.evidenceEndTime, endTime); }
 
   applySpeakerTurns(newTurns: SpeakerTimelineTurn[], replace: boolean = false): DiarizationTranscriptUpdate[] {
     // Community previews are complete snapshots of the uncommitted range.
@@ -799,13 +806,28 @@ export class SpeakerDiarizationTranscriptState {
     };
   }
 
+  // Streaming ASR stamps a token when it is emitted, after its audio. A token in a
+  // non-speech gap therefore belongs to the known speech that ended just before it,
+  // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned, and
+  // so does overlapped speech: several voices end together, so the bounded backfill decides.
   private turnAt(timeMs: number): SpeakerTimelineTurn | undefined {
     for (let i = this.turns.length - 1; i >= 0; i--) {
       if (timeMs >= this.turns[i].beginTime && timeMs < this.turns[i].endTime) {
         return this.turns[i];
       }
     }
-    return undefined;
+    // A turn cut at the inferred-evidence end did not necessarily end there.
+    if (timeMs > this.evidenceEndTime) return undefined;
+    let previousEnd = -Infinity;
+    for (const turn of this.turns) {
+      if (turn.endTime <= timeMs) previousEnd = Math.max(previousEnd, turn.endTime);
+    }
+    if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return undefined;
+    const ending = this.turns.filter(turn => turn.endTime === previousEnd);
+    if (ending.some(turn => (turn.overlap ?? false) || turn.secondarySpeakerIds.length > 0)) return undefined;
+    if (new Set(ending.map(turn => turn.speakerId)).size !== 1) return undefined;
+    const speakerId = ending[0].speakerId;
+    return speakerId === UNKNOWN_SPEAKER || speakerId === 'UNKNOWN_SECONDARY' ? undefined : ending[0];
   }
 
   private splitByTokenSpeaker(utterance: StoredUtterance,
@@ -858,7 +880,7 @@ export class SpeakerDiarizationTranscriptState {
     const resolved = parts.map((part, index): DiarizedTranscriptUtterance => {
       const duration = part.endTime - part.beginTime;
       if (part.speakerId !== UNKNOWN_SPEAKER || duration < 0 || duration > MAX_UNKNOWN_BACKFILL_MS ||
-        this.blocksBackfill(part)) return part;
+        part.endTime > this.evidenceEndTime || this.blocksBackfill(part)) return part;
       const previous = index > 0 ? parts[index - 1] : undefined;
       const next = index + 1 < parts.length ? parts[index + 1] : undefined;
       if (previous !== undefined && next !== undefined && previous.speakerId !== next.speakerId) return part;

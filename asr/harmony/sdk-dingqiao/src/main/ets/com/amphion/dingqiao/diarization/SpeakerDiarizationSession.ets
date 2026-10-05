@@ -34,6 +34,8 @@ export interface SpeakerDiarizationSessionController {
   finish(confirmedInitialSilence?: boolean): void;
   decoratePayload(payload: SpeechRecognitionResult): void;
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult;
+  /** Finish timeout: freeze speakers for audio already inferred instead of discarding them. */
+  salvage(): void;
   cleanup(): void;
 }
 
@@ -49,7 +51,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
   private inferenceEndMs: number = 0;
   private processedThroughMs: number = 0;
+  private static readonly PREVIEW_INTERVAL_MS: number = 10000;
+  // A preview reclusters every window so far, so its cost grows with the meeting.
+  // Space previews so that their wall time stays within a tenth of the audio they
+  // cover. Short sessions keep a preview every 10 s; commits are unaffected.
+  private static readonly PREVIEW_COST_RATIO: number = 10;
   private previewThroughMs: number = 0;
+  private lastPreviewClusterMs: number = 0;
   private inferenceMs: number = 0;
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
@@ -65,6 +73,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private asrTailObserved: boolean = false;
   private finished: boolean = false;
   private committing: boolean = false;
+  // Audio end covered by inferred windows when a finish timeout stopped inference.
+  private salvagedThroughMs?: number;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
@@ -240,6 +250,24 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     return this.buildResult(reason ?? this.degradedReason, message ?? this.degradedMessage);
   }
 
+  salvage(): void {
+    // A drained session already owns a complete final commit; let it finish normally.
+    if (this.finished || !this.finishRequested || this.processDrained ||
+      this.salvagedThroughMs !== undefined) return;
+    this.salvagedThroughMs = this.inferenceEndMs;
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['inferenceEndMs'] = this.inferenceEndMs;
+      fields['audioEndSample'] = this.totalSamples;
+      fields['windows'] = this.windows.length;
+      this.recordDecision('DIARIZATION_FINISH_SALVAGE', fields);
+    }
+    this.client.stopInference();
+    this.transcript.limitEvidence(this.inferenceEndMs);
+    this.processDrained = true;
+    this.finalizeIfReady();
+  }
+
   cancel(): void {
     this.finished = true;
     this.client.cancel((): void => { this.releaseRuntimeLease(); });
@@ -251,12 +279,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   }
 
   onWindow(window: DiarizationLocalWindowResult): void {
-    if (this.finished || this.confirmedInitialSilence) return;
+    if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
     this.client.retainEvidence(window.result);
     this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
       realEndSample: window.realEndSample });
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
-    this.inferenceMs += window.result.segmentationMs + window.result.featureMs + window.result.embeddingMs;
+    // Lanes run windows in parallel; count each window's share of executor capacity.
+    this.inferenceMs += window.inferenceWallMs;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['jobId'] = window.jobId;
@@ -279,6 +308,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
+      fields['inferenceWallMs'] = window.inferenceWallMs;
       this.recordDecision('DIARIZATION_COMMUNITY_WINDOW', fields);
     }
     this.flushReadyWindows();
@@ -323,12 +353,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           this.observer.onFinished(result);
           break;
         }
-        // Preview only completed audio snapshots, at most once per 10 s of
-        // audio. It never advances the public commit clock or enrolls frozen IDs.
-        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / 10000) * 10000;
+        // Preview only completed audio snapshots, at most once per 10 s of audio
+        // and less often once a preview gets expensive. It never advances the
+        // public commit clock or enrolls frozen IDs.
+        const interval = SpeakerDiarizationSession.PREVIEW_INTERVAL_MS;
+        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / interval) * interval;
+        const previewGap = Math.max(interval,
+          SpeakerDiarizationSession.PREVIEW_COST_RATIO * this.lastPreviewClusterMs);
         if (!this.finishRequested && this.degradedReason === SpeakerDiarizationDegradedReason.NONE &&
           this.lastAsrEndMs > this.publishedThrough &&
-          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + 10000) {
+          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + previewGap) {
           this.previewThroughMs = previewEnd;
           await this.updateSpeakers(previewEnd, previewEnd, false, this.publishedThrough, true);
           continue;
@@ -384,6 +418,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
       this.inferenceMs += clusterElapsedMs;
+      if (provisional) this.lastPreviewClusterMs = clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
       const firstAppearanceTimes: number[] =
         new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);
@@ -443,7 +478,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     await this.updateSpeakers(endTime, evidenceEndTime, isSessionFinal, beginTime);
     if (this.finished) return this.bestResult();
     if (this.terminalPayload !== undefined) this.decoratePayload(this.terminalPayload);
-    const result = this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime);
+    const salvaged = isSessionFinal && this.degradedReason === SpeakerDiarizationDegradedReason.NONE ?
+      this.salvagedThroughMs : undefined;
+    const result = salvaged === undefined ?
+      this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime) :
+      this.buildResult(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
+        `speaker diarization finish timeout; speakers cover audio before ${Math.round(salvaged)}ms`,
+        endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
