@@ -28,6 +28,24 @@ class DiarizationSentenceOutputTest {
         }
     }
 
+    @Test fun ctSpacingChangesKeepTokenOwnersAcrossRealSpeakerChanges() {
+        // CT drops the separators before "report" and "result" and replaces the
+        // others with sentence punctuation; each sits on a real speaker change.
+        val raw = "先讨论 report 张三说明 result 嗯"
+        val text = "先讨论report。张三说明result。嗯。"
+        val state = DiarizationTranscriptState()
+        state.addUtterance(raw, text, raw.map { it.toString() }, raw.indices.map { it * 100 }, 0, 2400)
+        state.applySpeakerTurns(listOf(turn(0, 1050, "S1"), turn(1050, 2250, "S2"), turn(2250, 2400, "S1")))
+        val before = state.allTurns()
+        val result = state.finalUtterances()
+        assertEquals(listOf("先讨论report。" to "S1", "张三说明result。" to "S2", "嗯。" to "S1"),
+            result.map { it.text to it.speakerId })
+        assertEquals(raw, result.joinToString("") { it.rawText })
+        assertEquals(text, result.joinToString("") { it.text })
+        assertTrue(result.none { it.speakerInferred })
+        assertEquals(before, state.allTurns())
+    }
+
     @Test fun punctuationCannotChangeEmissionLaggedTailOwner() {
         val raw = "可以听见我说话吗你好"
         for (text in listOf("可以听见我说话吗？你好。", "可以听见我说话吗你好。")) {
