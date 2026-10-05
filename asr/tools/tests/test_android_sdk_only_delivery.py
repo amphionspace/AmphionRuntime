@@ -40,7 +40,7 @@ class AndroidSdkOnlyDeliveryTest(unittest.TestCase):
             "assets/amphion-models/itn-zh/v1/tagger.fst",
             "assets/amphion-models/vad/v1/vad.onnx",
             "assets/amphion-dingqiao/eres2net.onnx",
-            "assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+            "assets/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
     "assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
     "assets/amphion-dingqiao/community-feature.f32",
     "assets/amphion-dingqiao/community-plda.f64",
