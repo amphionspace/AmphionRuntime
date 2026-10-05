@@ -78,6 +78,7 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
+  holdMicCapture: boolean = false;
 }
 
 class CorpusEntry {

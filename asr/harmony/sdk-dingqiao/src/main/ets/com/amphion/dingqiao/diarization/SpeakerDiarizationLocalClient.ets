@@ -7,7 +7,16 @@ import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './Diariz
 
 const SAMPLE_RATE: number = 16000;
 const WINDOW_SAMPLES: number = 160000;
-const INFERENCE_TIMEOUT_MS: number = 10000;
+// A native call cannot be interrupted; timing out only discards its result and
+// every later window. When the system throttles a backgrounded app, a window on
+// its single-threaded, low-priority worker can take tens of seconds while still
+// progressing, so this bound only has to catch work that has stopped.
+const INFERENCE_TIMEOUT_MS: number = 60000;
+// Windows are independent, so up to this many run at once, each on a
+// single-threaded encoder. A four-thread encoder pool busy-waits between
+// operators and, when the system restricts the app to a few cores, starves the
+// recognizer; two single-threaded windows keep the throughput without it.
+const ENCODER_LANES: number = 2;
 let nextDiarizationJobId: number = 1;
 
 export interface DiarizationLocalWindowResult {
@@ -20,6 +29,12 @@ export interface DiarizationLocalWindowResult {
   stableEndSample: number;
   finalWindow: boolean;
   result: CommunityDiarizationWindow;
+  /**
+   * This window's share of executor capacity: the wall time of its native call
+   * divided by the lanes. Summed over a session, it stays below the audio
+   * duration while the executor keeps up, as it did with one window per call.
+   */
+  inferenceWallMs: number;
 }
 
 export interface SpeakerDiarizationLocalObserver {
@@ -57,13 +72,28 @@ export interface SpeakerDiarizationLocalClientOptions {
  * bounded 10-second window is processed at a time by SDK-bundled models.
  */
 export class SpeakerDiarizationLocalClient {
+  private static readonly sweptJobRoots: Set<string> = new Set<string>();
+
+  // Job files are removed when a client becomes quiescent, which a killed process never
+  // reaches. The first client of a process removes whatever earlier processes left.
+  private static sweepStaleJobs(root: string): void {
+    if (SpeakerDiarizationLocalClient.sweptJobRoots.has(root)) return;
+    SpeakerDiarizationLocalClient.sweptJobRoots.add(root);
+    try {
+      if (!fs.accessSync(root)) return;
+      for (const name of fs.listFileSync(root)) {
+        try { fs.rmdirSync(`${root}/${name}`); } catch (_ignored) {}
+      }
+    } catch (_ignored) {}
+  }
+
   private readonly scheduler: DiarizationWindowScheduler;
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
   private readonly spool: DiarizationPcmSpool;
   private readonly evidence: DiarizationEvidenceSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
-  private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference();
+  private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference(ENCODER_LANES);
   private readonly maxPendingJobs: number;
   private pendingClusters: number = 0;
   private readonly inferenceLoad: Promise<void>;
@@ -72,6 +102,7 @@ export class SpeakerDiarizationLocalClient {
   private activeJob?: DiarizationLocalJob;
   private activeJobStartedMs: number = 0;
   private finishing: boolean = false;
+  private stopped: boolean = false;
   private finishWindowQueued: boolean = false;
   private closed: boolean = false;
   private degraded: boolean = false;
@@ -94,6 +125,7 @@ export class SpeakerDiarizationLocalClient {
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
+    SpeakerDiarizationLocalClient.sweepStaleJobs(`${workPath}/speaker-diarization-jobs`);
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
@@ -148,6 +180,13 @@ export class SpeakerDiarizationLocalClient {
 
   cleanup(onQuiescent?: () => void): void { this.cancel(onQuiescent); }
 
+  /** Finish timeout: keep completed evidence, start no more windows, drop the in-flight one. */
+  stopInference(): void {
+    if (this.closed) return;
+    this.stopped = true;
+    this.queue.splice(0, this.queue.length);
+  }
+
   retainEvidence(window: CommunityDiarizationWindow): void {
     try { this.evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms); }
     catch (error) { throw new SpeakerDiarizationStorageError(`${error}`); }
@@ -201,16 +240,23 @@ export class SpeakerDiarizationLocalClient {
   }
 
   private pump(): void {
-    if (this.closed || this.degraded || this.activeJob !== undefined) return;
+    if (this.closed || this.degraded || this.stopped || this.activeJob !== undefined) return;
     this.fillQueue();
     const job = this.queue.shift();
     if (job === undefined) {
       this.maybeNotifyDrained();
       return;
     }
+    // Consecutive queued windows share one native call; results keep this order.
+    const batch: DiarizationLocalJob[] = [job];
+    while (batch.length < ENCODER_LANES) {
+      const next = this.queue.shift();
+      if (next === undefined) break;
+      batch.push(next);
+    }
     this.activeJob = job;
     this.activeJobStartedMs = Date.now();
-    void this.execute(job);
+    void this.execute(batch);
   }
 
   private fillQueue(): void {
@@ -232,13 +278,14 @@ export class SpeakerDiarizationLocalClient {
     }
   }
 
-  private async execute(job: DiarizationLocalJob): Promise<void> {
+  private async execute(batch: DiarizationLocalJob[]): Promise<void> {
+    const job = batch[0];
     let timeout: number = -1;
     let inferenceTimedOut: boolean = false;
-    let inferencePromise: Promise<CommunityDiarizationWindow> | undefined;
+    let inferencePromise: Promise<CommunityDiarizationWindow[]> | undefined;
     try {
-      const samples = this.readWindow(job);
-      const timeoutPromise = new Promise<CommunityDiarizationWindow>((_resolve,
+      const samples: Float32Array[] = batch.map((item: DiarizationLocalJob): Float32Array => this.readWindow(item));
+      const timeoutPromise = new Promise<CommunityDiarizationWindow[]>((_resolve,
         reject: (reason?: Object) => void): void => {
         timeout = setTimeout((): void => {
           inferenceTimedOut = true;
@@ -246,29 +293,22 @@ export class SpeakerDiarizationLocalClient {
         }, INFERENCE_TIMEOUT_MS);
       });
       inferencePromise = this.inferenceLoad.then(
-        (): Promise<CommunityDiarizationWindow> => this.inference.process(samples));
-      const result = await Promise.race([inferencePromise, timeoutPromise]);
+        (): Promise<CommunityDiarizationWindow[]> => this.inference.processBatch(samples));
+      const results = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
-      if (this.closed || this.degraded || this.activeJob?.jobId !== job.jobId ||
-        this.activeJob?.generation !== job.generation) {
-        await this.settleInference(inferencePromise);
-        return;
+      const wallShareMs = (Date.now() - this.activeJobStartedMs) / ENCODER_LANES;
+      for (let index = 0; index < batch.length; index++) {
+        // Publication can stop or degrade this client; never deliver past that.
+        if (this.closed || this.degraded || this.stopped || this.activeJob?.jobId !== job.jobId ||
+          this.activeJob?.generation !== job.generation) {
+          await this.settleInference(inferencePromise);
+          return;
+        }
+        this.deliver(batch[index], samples[index], results[index], wallShareMs);
       }
-      this.recordWindowSamples(job, samples, result);
-      this.observer.onWindow({
-        jobId: job.jobId,
-        generation: job.generation,
-        windowStartSample: job.windowStartSample,
-        contentStartInWindowSample: job.contentStartInWindowSample,
-        realEndSample: job.realEndSample,
-        commitStartSample: job.commitStartSample,
-        stableEndSample: job.stableEndSample,
-        finalWindow: job.finalWindow,
-        result,
-      });
     } catch (error) {
-      if (!this.closed && !this.degraded && this.activeJob?.jobId === job.jobId) {
+      if (!this.closed && !this.degraded && !this.stopped && this.activeJob?.jobId === job.jobId) {
         const message = `${error}`;
         const reason = error instanceof SpeakerDiarizationStorageError ?
           SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE :
@@ -298,6 +338,23 @@ export class SpeakerDiarizationLocalClient {
         this.maybeNotifyDrained();
       }
     }
+  }
+
+  private deliver(job: DiarizationLocalJob, samples: Float32Array, result: CommunityDiarizationWindow,
+    wallShareMs: number): void {
+    this.recordWindowSamples(job, samples, result);
+    this.observer.onWindow({
+      jobId: job.jobId,
+      generation: job.generation,
+      windowStartSample: job.windowStartSample,
+      contentStartInWindowSample: job.contentStartInWindowSample,
+      realEndSample: job.realEndSample,
+      commitStartSample: job.commitStartSample,
+      stableEndSample: job.stableEndSample,
+      finalWindow: job.finalWindow,
+      result,
+      inferenceWallMs: wallShareMs,
+    });
   }
 
   private async settleInference(promise: Promise<Object>): Promise<void> {

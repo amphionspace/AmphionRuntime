@@ -227,6 +227,7 @@ internal class DingqiaoRecognitionEngine(
                         "speaker diarization initialization failed: ${t.message ?: t.javaClass.simpleName}",
                     )
                 }
+                val diarizationController = speakerDiarizationSession
                 speakerDiarizationFinishBarrier = SpeakerDiarizationFinishBarrier(
                     SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
                     stopFallbackExecutor,
@@ -237,6 +238,8 @@ internal class DingqiaoRecognitionEngine(
                             output,
                         )
                     },
+                    salvageMs = SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS,
+                    onTimeout = { diarizationController?.salvage() },
                 )
             }
             if (DiagnosticsModule.isBuildEnabled()) {
@@ -1114,6 +1117,8 @@ internal class DingqiaoRecognitionEngine(
         private const val STOP_FALLBACK_DELAY_MS = 1_500L
         private const val SHUTDOWN_DRAIN_TIMEOUT_SECONDS = 60L
         private const val SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS = 15_000L
+        // One in-flight window plus one clustering pass on already-inferred evidence.
+        private const val SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS = 3_000L
 
         fun create(
             appContext: Context,

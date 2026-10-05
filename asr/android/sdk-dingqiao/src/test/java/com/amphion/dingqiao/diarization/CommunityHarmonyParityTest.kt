@@ -13,7 +13,6 @@ class CommunityHarmonyParityTest {
             val fields = line.split('|')
             fun ints(index: Int) = fields[index].split(',').map { it.toInt() }.toIntArray()
             val ids = fields[3].split(',')
-            identity.retainWindows(ids.toSet())
             val assignment = identity.assign(ids, ints(4), fields[2].toInt(), ints(5),
                 ints(6).map { it == 1 }.toBooleanArray())
             assertArrayEquals("Harmony mapping at ${fields[0]}..${fields[1]}", ints(7), assignment.mapping)

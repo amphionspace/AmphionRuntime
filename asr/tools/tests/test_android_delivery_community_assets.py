@@ -14,7 +14,7 @@ class CommunityDeliveryAssetsTest(unittest.TestCase):
         models = {
             'eres2net.onnx': 30 * 1024 * 1024,
             'pyannote-segmentation-3.0.onnx': 5 * 1024 * 1024,
-            'community-wespeaker-encoder.fp32.onnx': 21_301_300,
+            'community-wespeaker-encoder.int8.onnx': 5_468_354,
             'community-wespeaker-pool.fp32.onnx': 5_264_664,
             'community-feature.f32': 83_840,
             'community-plda.f64': 398_352,
