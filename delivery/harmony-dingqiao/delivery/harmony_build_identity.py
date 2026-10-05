@@ -43,7 +43,7 @@ OPTIONAL_HAP_MODELS = {
     "speaker_complementary_embedding":
         "resources/rawfile/amphion-dingqiao/campplus.onnx",
     "community_speaker_encoder":
-        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
     "community_speaker_pooling":
         "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
     "community_feature_transform":
