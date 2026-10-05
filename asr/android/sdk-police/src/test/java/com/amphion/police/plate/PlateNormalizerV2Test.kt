@@ -33,6 +33,15 @@ class PlateNormalizerV2Test {
     }
 
     @Test
+    fun spoken_repetition_requires_a_complete_plate_before_rewriting() {
+        for (text in listOf("这这个我理解", "先讨论方案，这这个我理解，然后继续。", "这这。")) {
+            assertEquals(text, norm(text))
+        }
+        assertEquals("车牌号浙J63745", norm("车牌号这这六三七四五"))
+        assertEquals("这这个我理解，车牌号浙J63745。", norm("这这个我理解，车牌号这这63745。"))
+    }
+
+    @Test
     fun shanghai_hu19374_missing_authority_letter() {
         assertEquals("沪F19374", normalizer.normalize("帮我查一下车牌号为沪19374的车辆信息。").primaryPlate)
     }
