@@ -3,6 +3,10 @@ package com.amphion.dingqiao.diarization
 import kotlin.math.max
 import kotlin.math.min
 
+// Measured streaming ASR token emission lag; not an identity threshold.
+// See delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
+private const val MAX_TOKEN_EMISSION_LAG_MS = 600
+
 internal data class SpeakerTimelineTurn(
     val beginTime: Int,
     val endTime: Int,
@@ -58,6 +62,11 @@ internal class DiarizationTranscriptState {
     private val utterances = mutableListOf<StoredUtterance>()
     private var nextUtteranceId = 1
     private val turns = mutableListOf<SpeakerTimelineTurn>()
+    // Audio after this point was never inferred (finish-timeout salvage). Its lack of
+    // turns is not evidence of silence, so UNKNOWN text there is not backfilled.
+    private var evidenceEndTime = Int.MAX_VALUE
+
+    fun limitEvidence(endTime: Int) { evidenceEndTime = minOf(evidenceEndTime, endTime) }
 
     fun addUtterance(
         rawText: String,
@@ -284,8 +293,20 @@ internal class DiarizationTranscriptState {
         confidence,
     )
 
-    private fun turnAt(timeMs: Int): SpeakerTimelineTurn? = turns.asReversed().find {
-        timeMs >= it.beginTime && timeMs < it.endTime
+    // Streaming ASR stamps a token when it is emitted, after its audio. A token in a
+    // non-speech gap therefore belongs to the known speech that ended just before it,
+    // within the measured emission lag. Ambiguous or UNKNOWN speech stays unowned, and
+    // so does overlapped speech: several voices end together, so the bounded backfill decides.
+    private fun turnAt(timeMs: Int): SpeakerTimelineTurn? {
+        turns.asReversed().find { timeMs >= it.beginTime && timeMs < it.endTime }?.let { return it }
+        // A turn cut at the inferred-evidence end did not necessarily end there.
+        if (timeMs > evidenceEndTime) return null
+        val previousEnd = turns.filter { it.endTime <= timeMs }.maxOfOrNull { it.endTime } ?: return null
+        if (timeMs - previousEnd > MAX_TOKEN_EMISSION_LAG_MS) return null
+        val ending = turns.filter { it.endTime == previousEnd }
+        if (ending.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }) return null
+        return ending.distinctBy { it.speakerId }.singleOrNull()
+            ?.takeIf { it.speakerId != "UNKNOWN" && it.speakerId != "UNKNOWN_SECONDARY" }
     }
 
 
@@ -406,7 +427,7 @@ internal class DiarizationTranscriptState {
         // delivery/harmony-dingqiao/docs/UNKNOWN_SPEAKER_BACKFILL.md.
         val resolved = parts.mapIndexed { index, part ->
             val duration = part.endTime - part.beginTime
-            if (part.speakerId != "UNKNOWN" || duration !in 0..2_500 ||
+            if (part.speakerId != "UNKNOWN" || duration !in 0..2_500 || part.endTime > evidenceEndTime ||
                 blocksBackfill(part.secondarySpeakerIds, part.overlap)) return@mapIndexed part
             val previous = parts.getOrNull(index - 1)
             val next = parts.getOrNull(index + 1)

@@ -24,7 +24,7 @@ class CommunityDiarizationTest {
         assertNull(exact.finish())
     }
 
-    @Test fun identitySurvivesPruningAndClusterRenumberingAndPreviewDoesNotEnroll() {
+    @Test fun identitySurvivesClusterRenumberingAndPreviewDoesNotEnroll() {
         val identity = CommunitySpeakerIdentity(4)
         fun assign(registry: CommunitySpeakerIdentity, ids: List<String>, labels: IntArray) =
             registry.assign(ids, labels, 2, IntArray(labels.size) { if (labels[it] >= 0) 10 else 0 }, booleanArrayOf(true, true))
@@ -32,10 +32,21 @@ class CommunityDiarizationTest {
         val first = assign(identity, listOf("a", "b"), intArrayOf(0,-2,-2,1,-2,-2))
         assertEquals(0, first.before)
         assertArrayEquals(intArrayOf(0,1), first.mapping)
-        identity.retainWindows(setOf("a", "b"))
         val swapped = assign(identity, listOf("b", "new", "a"), intArrayOf(0,-2,-2,1,-2,-2,1,-2,-2))
         assertArrayEquals(intArrayOf(1,0), swapped.mapping)
-        assertEquals(setOf("a", "b"), identity.anchorWindowIds())
+    }
+
+    @Test fun newIdentitiesAreNumberedInAppearanceOrderWithoutRenamingCommittedOnes() {
+        val identity = CommunitySpeakerIdentity(4)
+        val activity = IntArray(6) { if (it % 3 == 0) 10 else 0 }
+        // Cluster 1 speaks first on the timeline, so it receives the first public ID.
+        val first = identity.assign(listOf("a", "b"), intArrayOf(0,-2,-2,1,-2,-2), 2, activity,
+            booleanArrayOf(true, true), doubleArrayOf(5000.0, 1000.0))
+        assertArrayEquals(intArrayOf(1, 0), first.mapping)
+        // A later appearance order cannot rename identities that were already committed.
+        val later = identity.assign(listOf("a", "b"), intArrayOf(0,-2,-2,1,-2,-2), 2, activity,
+            booleanArrayOf(true, true), doubleArrayOf(0.0, 9000.0))
+        assertArrayEquals(intArrayOf(1, 0), later.mapping)
     }
 
     @Test fun overlapAndUnknownRemainVisibleOnAbsoluteTimeline() {

@@ -46,7 +46,7 @@ REQUIRED_AAR_PREFIXES = {
     "assets/amphion-models/itn-zh/v1/",
     "assets/amphion-models/vad/v1/",
     "assets/amphion-dingqiao/eres2net.onnx",
-    "assets/amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+    "assets/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
     "assets/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
     "assets/amphion-dingqiao/community-feature.f32",
     "assets/amphion-dingqiao/community-plda.f64",
