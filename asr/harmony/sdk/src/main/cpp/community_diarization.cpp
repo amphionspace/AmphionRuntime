@@ -537,7 +537,7 @@ void Execute(napi_env, void* data) {
       if (task.resource_manager) {
         constexpr const char* names[] = {
           "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
-          "amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+          "amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
           "amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
           "amphion-dingqiao/community-feature.f32", "amphion-dingqiao/community-plda.f64"
         };
