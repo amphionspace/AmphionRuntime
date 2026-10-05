@@ -201,6 +201,29 @@ class CorpusPreconditionsTest(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 MODULE.parse_args()
 
+    def test_screen_off_and_mic_hold_are_wired_end_to_end(self):
+        # The stock carrier holds a keep-screen-on lock and never opens the microphone, so
+        # it can measure neither a sleeping display nor a recording app's background state.
+        script = SCRIPT.read_text()
+        entry = (SCRIPT.parents[1]
+                 / "samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets").read_text()
+        self.assertIn('"--ps", "stressAllowScreenOff"', script)
+        self.assertIn('"--ps", "stressHoldMicCapture"', script)
+        self.assertIn("if (!this.stressFinished && !this.allowScreenOff) this.setStressKeepScreenOn(true);",
+                      entry)
+        self.assertIn("if (options.holdMicCapture) await this.startMicHold();", entry)
+        self.assertIn("await this.stopMicHold();", entry)
+        self.assertIn("holdMicCapture: boolean = false;", CARRIER.read_text())
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst"]):
+            args = MODULE.parse_args()
+            self.assertFalse(args.allow_screen_off)
+            self.assertFalse(args.hold_mic_capture)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--mode", "burst",
+                                            "--allow-screen-off", "--hold-mic-capture"]):
+            args = MODULE.parse_args()
+            self.assertTrue(args.allow_screen_off)
+            self.assertTrue(args.hold_mic_capture)
+
     def test_invalid_corpus_stops_runner_before_build_or_device_write(self):
         with tempfile.TemporaryDirectory() as directory:
             short = self.source(directory, "short.wav", 55 * 320)
