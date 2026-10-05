@@ -51,7 +51,13 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly diagnostic?: (event: string, fields: Record<string, Object>) => void;
   private inferenceEndMs: number = 0;
   private processedThroughMs: number = 0;
+  private static readonly PREVIEW_INTERVAL_MS: number = 10000;
+  // A preview reclusters every window so far, so its cost grows with the meeting.
+  // Space previews so that their wall time stays within a tenth of the audio they
+  // cover. Short sessions keep a preview every 10 s; commits are unaffected.
+  private static readonly PREVIEW_COST_RATIO: number = 10;
   private previewThroughMs: number = 0;
+  private lastPreviewClusterMs: number = 0;
   private inferenceMs: number = 0;
   private totalSamples: number = 0;
   private lastAsrEndMs: number = 0;
@@ -347,12 +353,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
           this.observer.onFinished(result);
           break;
         }
-        // Preview only completed audio snapshots, at most once per 10 s of
-        // audio. It never advances the public commit clock or enrolls frozen IDs.
-        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / 10000) * 10000;
+        // Preview only completed audio snapshots, at most once per 10 s of audio
+        // and less often once a preview gets expensive. It never advances the
+        // public commit clock or enrolls frozen IDs.
+        const interval = SpeakerDiarizationSession.PREVIEW_INTERVAL_MS;
+        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / interval) * interval;
+        const previewGap = Math.max(interval,
+          SpeakerDiarizationSession.PREVIEW_COST_RATIO * this.lastPreviewClusterMs);
         if (!this.finishRequested && this.degradedReason === SpeakerDiarizationDegradedReason.NONE &&
           this.lastAsrEndMs > this.publishedThrough &&
-          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + 10000) {
+          previewEnd >= Math.max(this.previewThroughMs, this.publishedThrough) + previewGap) {
           this.previewThroughMs = previewEnd;
           await this.updateSpeakers(previewEnd, previewEnd, false, this.publishedThrough, true);
           continue;
@@ -408,6 +418,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       if (this.finished || this.confirmedInitialSilence ||
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
       this.inferenceMs += clusterElapsedMs;
+      if (provisional) this.lastPreviewClusterMs = clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
       const firstAppearanceTimes: number[] =
         new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);
