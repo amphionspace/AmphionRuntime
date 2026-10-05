@@ -3,7 +3,7 @@ export interface SpeakerDiarizationConfigValue {
   numThreads?: number;
 }
 
-export const DEFAULT_SPEAKER_DIARIZATION_THREADS: number = 4;
+export const DEFAULT_SPEAKER_DIARIZATION_THREADS: number = 2;
 export const MAX_SPEAKER_DIARIZATION_THREADS: number = 8;
 
 export function validateSpeakerDiarizationConfig(

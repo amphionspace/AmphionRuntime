@@ -41,7 +41,7 @@ double Milliseconds(Clock::time_point start) {
 // Community encoder compute budget, independent of the ASR recognizer pool.
 // Harmony's pinned U8/S8 per-channel INT8 graph uses the ORT CPU pool; Android's
 // FP32 graph uses XNNPACK. Both receive the caller's budget below.
-constexpr int kDefaultEncoderThreads = 4;
+constexpr int kDefaultEncoderThreads = 2;
 constexpr int kMaxEncoderThreads = 8;
 
 #if defined(__OHOS__)

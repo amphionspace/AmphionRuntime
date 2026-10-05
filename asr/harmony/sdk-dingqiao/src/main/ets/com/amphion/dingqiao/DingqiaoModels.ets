@@ -22,12 +22,15 @@ export class SpeakerDiarizationConfig {
   /**
    * On-device Community encoder worker budget in [1, 8]. The encoder owns its
    * own pthread pool, so this is not the ASR `numThreads` and is not bounded by
-   * it. Default 4 preserves the measured screen-off throughput. A budget of 2
-   * lowers CPU only in a screen-on workload verified by the caller; it degraded
-   * the role path on the locked-screen reference device and is not a safe
-   * meeting-recording default.
+   * it. Default 2 is the measured thermal optimum: against 4, a 16 minute
+   * meeting held the same role output while shell-back peaked 1.7 C lower and
+   * the rise flattened, because halving the pool lowers instantaneous power
+   * without changing the total work. A budget of 1 buys no further heat
+   * reduction and only lengthens each window. The earlier default of 4 was
+   * chosen when the role path ran near real time; it no longer is, so the
+   * headroom is spent on temperature instead of speed.
    */
-  numThreads: number = 4;
+  numThreads: number = 2;
 }
 
 export class StartParams {

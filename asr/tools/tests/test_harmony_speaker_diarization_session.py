@@ -126,9 +126,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
               assert.throws(() => validateSpeakerDiarizationConfig({{ maxSpeakers }}));
             }}
 
-            // The encoder budget is independent of the ASR threads and defaults
-            // to the measured value so existing callers keep their throughput.
-            assert.equal(validateSpeakerDiarizationThreads({{ maxSpeakers: 4 }}), 4);
+            // The encoder budget is independent of the ASR threads. It defaults
+            // to the measured thermal optimum rather than the fastest value: a
+            // caller that omits it gets 2, and 1 or 4 only on request.
+            assert.equal(validateSpeakerDiarizationThreads({{ maxSpeakers: 4 }}), 2);
             for (const numThreads of [1, 2, 4, 8]) {{
               assert.equal(validateSpeakerDiarizationThreads({{ maxSpeakers: 4, numThreads }}), numThreads);
             }}
