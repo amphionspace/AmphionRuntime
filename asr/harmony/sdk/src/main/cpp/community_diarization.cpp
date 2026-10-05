@@ -6,12 +6,20 @@
 #endif
 #include <array>
 #include <chrono>
+#include <condition_variable>
 #include <cstring>
+#include <deque>
+#include <exception>
+#include <functional>
+#include <future>
 #include <iomanip>
 #include <memory>
 #include <limits>
+#include <thread>
 #ifndef __ANDROID__
 #include <rawfile/raw_file_manager.h>
+#include <sys/resource.h>
+#include <unistd.h>
 #endif
 #include <mutex>
 #include <sstream>
@@ -87,12 +95,78 @@ std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const ch
 
 #endif
 
+// Role work is optional; the recognizer is not. A model-owned worker runs it
+// below the priority of the threads that drive recognition, so a CPU-starved
+// device delays speaker results instead of the transcript. Callers block on the
+// returned future, exactly as they did while computing inline.
+class RoleWorker {
+ public:
+  RoleWorker() { thread_ = std::thread([this] { Loop(); }); }
+  ~RoleWorker() {
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      stopping_ = true;
+    }
+    ready_.notify_one();
+    thread_.join();
+  }
+  RoleWorker(const RoleWorker&) = delete;
+  RoleWorker& operator=(const RoleWorker&) = delete;
+
+  std::future<void> Post(std::function<void()> task) {
+    std::packaged_task<void()> packaged(std::move(task));
+    auto future = packaged.get_future();
+    {
+      std::lock_guard<std::mutex> lock(mutex_);
+      tasks_.push_back(std::move(packaged));
+    }
+    ready_.notify_one();
+    return future;
+  }
+
+ private:
+  // Recognition threads run at nice 0 (runtime workers) or -10 (the UI thread
+  // and the recognizer pools it creates); 10 keeps role work behind both.
+  static constexpr int kRoleNice = 10;
+
+  void Loop() {
+#ifndef __ANDROID__
+    // Only this owned thread is changed, never a borrowed runtime worker.
+    setpriority(PRIO_PROCESS, static_cast<id_t>(gettid()), kRoleNice);
+#endif
+    for (;;) {
+      std::packaged_task<void()> task;
+      {
+        std::unique_lock<std::mutex> lock(mutex_);
+        ready_.wait(lock, [this] { return stopping_ || !tasks_.empty(); });
+        if (tasks_.empty()) return;
+        task = std::move(tasks_.front());
+        tasks_.pop_front();
+      }
+      task();
+    }
+  }
+
+  std::mutex mutex_;
+  std::condition_variable ready_;
+  std::deque<std::packaged_task<void()>> tasks_;
+  bool stopping_ = false;
+  std::thread thread_;
+};
+
 class Model {
  public:
+  // lanes == 0 keeps the original executor: one window at a time on the
+  // caller's thread, with the encoder split across a four-thread XNNPACK pool.
+  // lanes > 0 runs up to `lanes` independent windows at once, one encoder
+  // instance and one single-threaded worker per window, and clusters on its own
+  // worker. XNNPACK results do not depend on its thread count, so both
+  // executors produce the same windows.
   Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
         const std::vector<uint8_t>& pooling,
-        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda)
+        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda, int lanes = 0)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
+    if (lanes < 0 || lanes > kMaxLanes) throw std::runtime_error("invalid Community executor lanes");
     if (feature.size() != (400 + 80 * 257) * sizeof(float)) {
       throw std::runtime_error("invalid Community feature constants");
     }
@@ -126,18 +200,94 @@ class Model {
     options.SetIntraOpNumThreads(1);
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
     pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
-    // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
-    // a second pool cannot compete with them between convolution operators.
-    options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
-    encoder_ = Ort::Session(env_, encoder.data(), encoder.size(), options);
+    lanes_ = lanes;
+    if (lanes_ == 0) {
+      // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
+      // a second pool cannot compete with them between convolution operators.
+      options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
+      encoders_.push_back(Ort::Session(env_, encoder.data(), encoder.size(), options));
+    } else {
+      // A single-threaded XNNPACK encoder creates no worker pool, so nothing
+      // busy-waits between operators. An XNNPACK session must not run two
+      // windows concurrently; each lane owns its own instance.
+      options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "1"}});
+      for (int lane = 0; lane < lanes_; ++lane) {
+        encoders_.push_back(Ort::Session(env_, encoder.data(), encoder.size(), options));
+        lane_workers_.push_back(std::make_unique<RoleWorker>());
+      }
+      cluster_worker_ = std::make_unique<RoleWorker>();
+    }
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
     output_name_ = segmentation_.GetOutputNameAllocated(0, allocator).get();
   }
 
+  static constexpr int kMaxLanes = 4;
+
+  int lanes() const { return lanes_; }
+
   Window Process(std::vector<float>& pcm) {
-    if (pcm.size() != 160000) throw std::runtime_error("Community requires a 10 second window");
+    std::vector<std::vector<float>> batch;
+    batch.push_back(std::move(pcm));
+    return std::move(ProcessBatch(batch).front());
+  }
+
+  // Windows are independent; results keep the input order.
+  std::vector<Window> ProcessBatch(std::vector<std::vector<float>>& pcms) {
+    if (pcms.empty() || pcms.size() > static_cast<size_t>(std::max(lanes_, 1))) {
+      throw std::runtime_error("invalid Community window batch");
+    }
+    for (const auto& pcm : pcms) {
+      if (pcm.size() != 160000) throw std::runtime_error("Community requires a 10 second window");
+    }
     std::lock_guard<std::mutex> lock(inference_mutex_);
+    std::vector<Window> results(pcms.size());
+    if (lanes_ == 0) {
+      results[0] = Compute(encoders_[0], pcms[0]);
+      return results;
+    }
+    // Rotate the first lane. A lone window would otherwise always land on lane 0,
+    // keeping one thread nearly saturated while the other mostly idles.
+    const size_t first = next_lane_;
+    next_lane_ = (next_lane_ + pcms.size()) % lane_workers_.size();
+    std::vector<std::future<void>> pending;
+    for (size_t i = 0; i < pcms.size(); ++i) {
+      const size_t lane = (first + i) % lane_workers_.size();
+      pending.push_back(lane_workers_[lane]->Post([this, &results, &pcms, i, lane] {
+        results[i] = Compute(encoders_[lane], pcms[i]);
+      }));
+    }
+    // Every lane must finish before its references to this frame go away.
+    std::exception_ptr failure;
+    for (auto& future : pending) {
+      try {
+        future.get();
+      } catch (...) {
+        if (!failure) failure = std::current_exception();
+      }
+    }
+    if (failure) std::rethrow_exception(failure);
+    return results;
+  }
+
+  std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
+                      const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
+                      int max_speakers, const std::vector<double>& starts, double begin_sample,
+                      const std::vector<float>& run_rms = {}) const {
+    if (!cluster_worker_) {
+      return ClusterInline(segments, embeddings, run_embeddings, run_ranges, max_speakers, starts,
+                           begin_sample, run_rms);
+    }
+    std::string result;
+    cluster_worker_->Post([&] {
+      result = ClusterInline(segments, embeddings, run_embeddings, run_ranges, max_speakers, starts,
+                             begin_sample, run_rms);
+    }).get();
+    return result;
+  }
+
+ private:
+  Window Compute(Ort::Session& encoder_session, std::vector<float>& pcm) {
     Window result;
     auto start = Clock::now();
     auto memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -181,7 +331,7 @@ class Model {
     // The split graphs retain the pinned model's weights. Encoded features
     // belong to this Process call and outlive all of its synchronous pooling
     // calls; they are never retained across windows, generations or sessions.
-    auto encoded = encoder_.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
+    auto encoded = encoder_session.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
     if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
       throw std::runtime_error("invalid Community encoder output");
     }
@@ -263,10 +413,10 @@ class Model {
     return result;
   }
 
-  std::string Cluster(const std::vector<float>& segments, const std::vector<float>& embeddings,
-                      const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
-                      int max_speakers, const std::vector<double>& starts, double begin_sample,
-                      const std::vector<float>& run_rms = {}) const {
+  std::string ClusterInline(const std::vector<float>& segments, const std::vector<float>& embeddings,
+                            const std::vector<float>& run_embeddings, const std::vector<float>& run_ranges,
+                            int max_speakers, const std::vector<double>& starts, double begin_sample,
+                            const std::vector<float>& run_rms) const {
     if (segments.empty() || segments.size() % (589 * 3) || max_speakers < 1 || max_speakers > 4) {
       throw std::runtime_error("invalid Community clustering input");
     }
@@ -330,13 +480,20 @@ class Model {
     return json.str();
   }
 
- private:
   Ort::Env env_;
-  Ort::Session segmentation_{nullptr}, encoder_{nullptr}, pooling_{nullptr};
+  // Concurrent Run is safe on the shared CPU-provider sessions; each encoder
+  // instance is used by one lane at a time.
+  Ort::Session segmentation_{nullptr}, pooling_{nullptr};
+  std::vector<Ort::Session> encoders_;
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::Plda plda_;
   std::mutex inference_mutex_;
+  int lanes_ = 0;
+  size_t next_lane_ = 0;  // Guarded by inference_mutex_.
+  // Declared last: workers are joined before the sessions they use are released.
+  std::vector<std::unique_ptr<RoleWorker>> lane_workers_;
+  std::unique_ptr<RoleWorker> cluster_worker_;
 };
 
 #ifndef __ANDROID__
@@ -345,7 +502,7 @@ class Model {
 std::mutex model_mutex;
 std::unordered_map<uint32_t, std::shared_ptr<Model>> models;
 uint32_t next_handle = 1;
-enum class Operation { Load, Process, Cluster };
+enum class Operation { Load, Process, ProcessBatch, Cluster };
 struct Work {
   Operation operation;
   napi_async_work work = nullptr;
@@ -359,6 +516,9 @@ struct Work {
     resource_manager{nullptr, OH_ResourceManager_ReleaseNativeResourceManager};
   std::array<std::vector<uint8_t>, 5> assets;
   std::vector<float> pcm, segments, embeddings, run_embeddings;
+  std::vector<std::vector<float>> pcms;
+  std::vector<Window> windows;
+  int lanes = 0;
   std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
@@ -377,7 +537,7 @@ void Execute(napi_env, void* data) {
       if (task.resource_manager) {
         constexpr const char* names[] = {
           "amphion-dingqiao/pyannote-segmentation-3.0.onnx",
-          "amphion-dingqiao/community-wespeaker-encoder.fp32.onnx",
+          "amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
           "amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
           "amphion-dingqiao/community-feature.f32", "amphion-dingqiao/community-plda.f64"
         };
@@ -385,8 +545,10 @@ void Execute(napi_env, void* data) {
           task.assets[i] = ReadCommunityAsset(task.resource_manager.get(), names[i]);
         }
       }
-      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4]);
+      task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4],
+                                           task.lanes);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
+    else if (task.operation == Operation::ProcessBatch) task.windows = task.model->ProcessBatch(task.pcms);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
                                            task.run_ranges, task.max_speakers, task.window_starts,
                                            task.begin_sample, task.run_rms);
@@ -405,6 +567,19 @@ void NumberProperty(napi_env env, napi_value object, const char* name, double va
   napi_create_double(env, value, &number);
   napi_set_named_property(env, object, name, number);
 }
+napi_value WindowObject(napi_env env, const Window& window) {
+  napi_value value = nullptr;
+  napi_create_object(env, &value);
+  FloatProperty(env, value, "segments", window.segments);
+  FloatProperty(env, value, "embeddings", window.embeddings);
+  FloatProperty(env, value, "runEmbeddings", window.run_embeddings);
+  FloatProperty(env, value, "runRanges", window.run_ranges);
+  FloatProperty(env, value, "runRms", window.run_rms);
+  NumberProperty(env, value, "segmentationMs", window.segmentation_ms);
+  NumberProperty(env, value, "featureMs", window.feature_ms);
+  NumberProperty(env, value, "embeddingMs", window.embedding_ms);
+  return value;
+}
 void Complete(napi_env env, napi_status status, void* data) {
   std::unique_ptr<Work> task(static_cast<Work*>(data));
   if (status != napi_ok && task->error.empty()) task->error = "Community operation cancelled";
@@ -421,15 +596,12 @@ void Complete(napi_env env, napi_status status, void* data) {
       models.emplace(handle, std::move(task->model));
       napi_create_uint32(env, handle, &value);
     } else if (task->operation == Operation::Process) {
-      napi_create_object(env, &value);
-      FloatProperty(env, value, "segments", task->window.segments);
-      FloatProperty(env, value, "embeddings", task->window.embeddings);
-      FloatProperty(env, value, "runEmbeddings", task->window.run_embeddings);
-      FloatProperty(env, value, "runRanges", task->window.run_ranges);
-      FloatProperty(env, value, "runRms", task->window.run_rms);
-      NumberProperty(env, value, "segmentationMs", task->window.segmentation_ms);
-      NumberProperty(env, value, "featureMs", task->window.feature_ms);
-      NumberProperty(env, value, "embeddingMs", task->window.embedding_ms);
+      value = WindowObject(env, task->window);
+    } else if (task->operation == Operation::ProcessBatch) {
+      napi_create_array_with_length(env, task->windows.size(), &value);
+      for (size_t i = 0; i < task->windows.size(); ++i) {
+        napi_set_element(env, value, static_cast<uint32_t>(i), WindowObject(env, task->windows[i]));
+      }
     } else napi_create_string_utf8(env, task->result.c_str(), task->result.size(), &value);
     napi_resolve_deferred(env, task->deferred, value);
   }
@@ -442,7 +614,12 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
   try {
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
     const bool clusterLevels = operation == Operation::Cluster && count == 9;
-    if (count != (from_resources ? 1u : operation == Operation::Process ? 2u : operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 5u)) {
+    // Load takes an optional trailing executor lane count.
+    const bool withLanes = operation == Operation::Load && count == (from_resources ? 2u : 6u);
+    if (count != (from_resources ? (withLanes ? 2u : 1u) :
+                  operation == Operation::Process || operation == Operation::ProcessBatch ? 2u :
+                  operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) :
+                  (withLanes ? 6u : 5u))) {
       throw std::runtime_error("invalid Community arguments");
     }
     auto task = std::make_unique<Work>();
@@ -458,6 +635,12 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
       } else {
         for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
       }
+      if (withLanes) {
+        if (napi_get_value_int32(env, args[from_resources ? 1 : 5], &task->lanes) != napi_ok ||
+            task->lanes < 0 || task->lanes > Model::kMaxLanes) {
+          throw std::runtime_error("invalid Community executor lanes");
+        }
+      }
     } else {
       uint32_t handle = 0;
       if (napi_get_value_uint32(env, args[0], &handle) != napi_ok) throw std::runtime_error("invalid Community handle");
@@ -468,7 +651,20 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         task->model = found->second;
       }
       if (operation == Operation::Process) task->pcm = CopyArray<float>(env, args[1], napi_float32_array);
-      else {
+      else if (operation == Operation::ProcessBatch) {
+        bool is_array = false;
+        uint32_t length = 0;
+        if (napi_is_array(env, args[1], &is_array) != napi_ok || !is_array ||
+            napi_get_array_length(env, args[1], &length) != napi_ok || length == 0 ||
+            length > static_cast<uint32_t>(std::max(task->model->lanes(), 1))) {
+          throw std::runtime_error("invalid Community window batch");
+        }
+        for (uint32_t i = 0; i < length; ++i) {
+          napi_value element = nullptr;
+          if (napi_get_element(env, args[1], i, &element) != napi_ok) throw std::runtime_error("invalid Community window batch");
+          task->pcms.push_back(CopyArray<float>(env, element, napi_float32_array));
+        }
+      } else {
         task->segments = CopyArray<float>(env, args[1], napi_float32_array);
         task->embeddings = CopyArray<float>(env, args[2], napi_float32_array);
         size_t offset = 0;
@@ -500,6 +696,7 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
 napi_value Load(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Load); }
 napi_value LoadResources(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Load, true); }
 napi_value Process(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Process); }
+napi_value ProcessBatch(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::ProcessBatch); }
 napi_value Cluster(napi_env env, napi_callback_info info) { return Queue(env, info, Operation::Cluster); }
 napi_value Close(napi_env env, napi_callback_info info) {
   size_t count = 1;
@@ -520,6 +717,7 @@ void RegisterCommunityDiarization(napi_env env, napi_value exports) {
     {"loadCommunityDiarization", nullptr, Load, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"loadCommunityDiarizationResources", nullptr, LoadResources, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"processCommunityDiarization", nullptr, Process, nullptr, nullptr, nullptr, napi_default, nullptr},
+    {"processCommunityDiarizationBatch", nullptr, ProcessBatch, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"clusterCommunityDiarization", nullptr, Cluster, nullptr, nullptr, nullptr, napi_default, nullptr},
     {"closeCommunityDiarization", nullptr, Close, nullptr, nullptr, nullptr, napi_default, nullptr},
   };

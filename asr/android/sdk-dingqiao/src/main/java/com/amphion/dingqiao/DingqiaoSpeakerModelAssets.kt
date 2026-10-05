@@ -35,9 +35,15 @@ internal object DingqiaoSpeakerModelAssets {
             File(workPath, "campplus.onnx"), 20L * 1024L * 1024L)
 
     @Synchronized
-    fun ensureCommunityInstalled(context: Context, workPath: File): List<File> = listOf(
+    fun ensureCommunityInstalled(context: Context, workPath: File): List<File> {
+        // The INT8 encoder replaced the FP32 one; drop the superseded 21 MB copy.
+        File(workPath, "community-wespeaker-encoder.fp32.onnx").delete()
+        return communityAssets(context, workPath)
+    }
+
+    private fun communityAssets(context: Context, workPath: File): List<File> = listOf(
         SEGMENTATION_FILENAME to SEGMENTATION_MIN_BYTES,
-        "community-wespeaker-encoder.fp32.onnx" to 21_301_300L,
+        "community-wespeaker-encoder.int8.onnx" to 5_468_354L,
         "community-wespeaker-pool.fp32.onnx" to 5_264_664L,
         "community-feature.f32" to 83_840L,
         "community-plda.f64" to 398_352L,

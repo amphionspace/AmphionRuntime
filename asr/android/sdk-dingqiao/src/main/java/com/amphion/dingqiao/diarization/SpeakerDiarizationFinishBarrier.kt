@@ -12,6 +12,10 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
     private val timeoutMs: Long,
     private val scheduler: ScheduledExecutorService,
     private val onReady: (DiarizationFinishOutput<A, S>) -> Unit,
+    // On timeout, first ask diarization to freeze what it already inferred, and wait at
+    // most this long for that result before completing without speaker results.
+    private val salvageMs: Long = 0,
+    private val onTimeout: () -> Unit = {},
 ) {
     private var started = false
     private var completed = false
@@ -22,7 +26,7 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
     private var speakerValue: S? = null
     private var timeout: ScheduledFuture<*>? = null
 
-    init { require(timeoutMs > 0) }
+    init { require(timeoutMs > 0 && salvageMs >= 0) }
 
     @Synchronized
     fun begin() {
@@ -35,14 +39,29 @@ internal class SpeakerDiarizationFinishBarrier<A : Any, S : Any>(
         // Diarization also waits for the real ASR tail. Its timeout must not include ASR backlog.
         if (!started || !asrReady || speakerReady || completed || timeout != null) return
         timeout = scheduler.schedule({
-            synchronized(this) {
-                if (completed || speakerReady) return@synchronized
-                speakerReady = true
-                degraded = true
-                // Only diarization may degrade on timeout. ASR must drain all accepted audio.
-                tryCompleteLocked()
+            val salvage = synchronized(this) {
+                if (completed || speakerReady) return@schedule
+                if (salvageMs > 0) {
+                    timeout = scheduler.schedule({ expire() }, salvageMs, TimeUnit.MILLISECONDS)
+                    true
+                } else {
+                    expireLocked()
+                    false
+                }
             }
+            if (salvage) onTimeout()
         }, timeoutMs, TimeUnit.MILLISECONDS)
+    }
+
+    @Synchronized
+    private fun expire() = expireLocked()
+
+    private fun expireLocked() {
+        if (completed || speakerReady) return
+        speakerReady = true
+        degraded = true
+        // Only diarization may degrade on timeout. ASR must drain all accepted audio.
+        tryCompleteLocked()
     }
 
     @Synchronized

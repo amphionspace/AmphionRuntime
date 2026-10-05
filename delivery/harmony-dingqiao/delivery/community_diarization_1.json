@@ -1,7 +1,7 @@
 {
   "model": "pyannote/speaker-diarization-community-1",
   "status": "candidate-not-delivery-accepted",
-  "implementation": "FP32 WeSpeaker shared encoder + per-mask pooling + PLDA/VBx; unchanged weights and segmentation-3.0",
+  "implementation": "WeSpeaker shared encoder (per-channel INT8 at runtime, derived from the FP32 split graph) + per-mask pooling + PLDA/VBx; segmentation-3.0 unchanged",
   "sampleRate": 16000,
   "windowSamples": 160000,
   "hopSamples": 16000,
@@ -38,6 +38,13 @@
       "file": "community-plda.f64",
       "sizeBytes": 398352,
       "sha256": "b6e0f558d31272e1ed2f00a7c26aa4142602fbabf4cdf97ff251d1c8ab24f50c"
+    },
+    {
+      "file": "community-wespeaker-encoder.int8.onnx",
+      "sizeBytes": 5468354,
+      "sha256": "368629e9bad8277b5249b70eec1879bf293e1be614569c3257fdea937211eedd",
+      "derivedFrom": "community-wespeaker-encoder.fp32.onnx",
+      "restoreFrom": "storagePrefix"
     }
   ],
   "segmentationManifest": "pyannote_segmentation_3_0.json",
@@ -62,5 +69,25 @@
     "encodedBytesPerWindow": 1280000,
     "scope": "single Process call; no cross-window or session cache",
     "exportScript": "asr/tools/export_community_embedding_split.py"
+  },
+  "encoderQuantization": {
+    "runtimeFile": "community-wespeaker-encoder.int8.onnx",
+    "source": {
+      "file": "community-wespeaker-encoder.fp32.onnx",
+      "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f"
+    },
+    "method": "onnxruntime.quantization.quantize_static, QDQ, per-channel QInt8 weights, QUInt8 activations, MinMax calibration",
+    "calibration": {
+      "windows": 21,
+      "digest": "a7f365b413beb8fa1cc767c78133f705f8812c466f1876156c59178a34235e1a",
+      "storage": "private derived features; the quantized graph itself is stored at storagePrefix"
+    },
+    "toolVersions": {
+      "numpy": "1.26.4",
+      "onnx": "1.15.0",
+      "onnxruntime": "1.16.3"
+    },
+    "script": "asr/tools/quantize_community_encoder.py",
+    "provenanceFile": "community-wespeaker-encoder.int8.provenance.json"
   }
 }

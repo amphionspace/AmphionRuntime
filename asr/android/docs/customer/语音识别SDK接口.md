@@ -254,7 +254,9 @@ revision 修订。约每 120 秒在句末发布一批 `onSpeakerDiarizationResul
 `finish` 非阻塞，SDK 仅校准未定稿的尾窗，按固定顺序回调：唯一 last →
 `onSpeakerDiarizationResult(isSessionFinal=true)` → 唯一 complete。分离超时或模型/存储不可用时仍保持 ASR 完整结束，
 最终结果通过 `degraded/degradedReason/degradedMessage` 明确降级；`cancel` 不产生 last、最终分离结果
-或 complete。
+或 complete。收尾超时（`FINISH_TIMEOUT`）时，已推理部分的角色会定稿并保留在尾批中，
+`degradedMessage` 写明覆盖到的音频时间点；之后的文字为 `speakerIndex=-1`，不做补全。
+SDK 最多再等 3,000 ms 取得该结果，超出则返回不含角色的降级尾批。
 
 定稿 `utterances` 的每项完整保留一条原 ASR final，`utteranceId` 与 `sourceUtteranceId` 相同；
 不再按 token 角色拆开文字。同句出现多位已知角色、重叠或未解决的未知时，返回
