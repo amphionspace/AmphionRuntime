@@ -163,6 +163,7 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
 
   finish(): void { this.finishRequested = true; this.finishIfReady(); }
   decoratePayload(_payload: SpeechRecognitionResult): void {}
+  salvage(): void {}
   cleanup(): void { this.finished = true; }
 
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult {
@@ -301,6 +302,8 @@ function mapLicenseErrorCode(asrCode: number): number {
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
 const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15000;
+// One in-flight window plus one clustering pass on already-inferred evidence.
+const SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS: number = 3000;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
@@ -638,12 +641,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
             `speaker diarization initialization failed: ${e}`);
         }
+        const diarizationController = this.speakerDiarizationSession;
         this.speakerDiarizationFinishBarrier = new SpeakerDiarizationFinishBarrier(
           SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
           (output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void => {
             this.completeSpeakerDiarizationSession(
               diarizationGeneration, diarizationSessionId, output);
-          });
+          },
+          SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS,
+          (): void => { diarizationController?.salvage(); });
       }
       if (this.sessionStartGate.publishSession(startGeneration)) {
         this.diagnostic(params.sessionId, 'SESSION_PUBLISHED');

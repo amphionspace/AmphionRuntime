@@ -4,7 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DiarizationSentenceOutputTest {
-    @Test fun punctuationCannotChangeOriginalUtteranceTailInference() {
+    @Test fun punctuationCannotChangeEmissionLaggedTailOwner() {
         val raw = "可以听见我说话吗你好"
         for (text in listOf("可以听见我说话吗？你好。", "可以听见我说话吗你好。")) {
             val state = DiarizationTranscriptState()
@@ -14,8 +14,9 @@ class DiarizationSentenceOutputTest {
             val before = state.allTurns()
             val result = state.sentenceUtterances().single()
             assertEquals("S1", result.speakerId)
-            assertTrue(result.speakerInferred)
-            assertEquals(0f, result.confidence)
+            // Tail tokens 8 and 208 ms after the turn are emission lag, not missing coverage.
+            assertFalse(result.speakerInferred)
+            assertEquals(.8f, result.confidence)
             assertEquals(text, result.text)
             assertEquals(before, state.allTurns())
         }
@@ -33,6 +34,54 @@ class DiarizationSentenceOutputTest {
             assertFalse(result.speakerInferred)
             assertEquals(0f, result.confidence)
         }
+    }
+
+    @Test fun emissionLaggedTailOfACleanSentenceIsDirectAttribution() {
+        // Mate80 capture of the 19.58 s four-speaker clip: the final token is stamped
+        // 268 ms after the speech turn, the first one 295 ms after its onset.
+        val state = DiarizationTranscriptState()
+        state.addUtterance("呃我是角色一", "呃，我是角色一。",
+            listOf("▁ƌ", "Ĵ", "Ĥ", "▁ƍĩĴ", "▁ƍĻŕ", "▁Əōĵ", "▁ƏĪŘ", "▁ƋŞġ"),
+            listOf(1440, 1480, 1520, 1680, 1920, 2080, 2240, 2560), 1440, 2560)
+        state.applySpeakerTurns(listOf(turn(1145, 2292, "S1")))
+        val before = state.allTurns()
+        val result = state.sentenceUtterances().single()
+        assertEquals("呃，我是角色一。", result.text)
+        assertEquals("S1", result.speakerId)
+        assertFalse("a clean single-speaker sentence must not be reported as inference", result.speakerInferred)
+        assertEquals(.8f, result.confidence)
+        assertEquals(before, state.allTurns())
+    }
+
+    @Test fun emissionLagAttributionIsCausalBoundedAndUnambiguous() {
+        fun owners(times: List<Int>, turns: List<SpeakerTimelineTurn>) = DiarizationTranscriptState().run {
+            addUtterance("甲乙", "甲乙。", listOf("甲", "乙"), times, times[0], times[1] + 100)
+            applySpeakerTurns(turns)
+            finalUtterances().map { it.speakerId to it.speakerInferred }
+        }
+        // Exactly at the measured 600 ms emission lag the tail is still this turn's speech.
+        assertEquals(listOf("S1" to false), owners(listOf(100, 1100), listOf(turn(0, 500, "S1"))))
+        // One millisecond beyond it, only the existing bounded backfill may infer the owner.
+        assertEquals(listOf("S1" to true), owners(listOf(100, 1101), listOf(turn(0, 500, "S1"))))
+        // UNKNOWN speech and ambiguous simultaneous ends never become direct owners.
+        assertEquals(listOf("UNKNOWN"), owners(listOf(100, 600), listOf(turn(0, 500, "UNKNOWN"))).map { it.first })
+        val ambiguous = DiarizationTranscriptState().apply {
+            addUtterance("乙", "乙。", listOf("乙"), listOf(600), 600, 700)
+            applySpeakerTurns(listOf(turn(0, 500, "S1"), turn(200, 500, "S2")))
+        }
+        assertEquals(listOf("UNKNOWN"), ambiguous.finalUtterances().map { it.speakerId })
+        // Overlapped speech ends several voices at once: a known secondary blocks any owner,
+        // and an unknown secondary leaves only the marked bounded backfill.
+        assertEquals(listOf("S1" to false, "UNKNOWN" to false),
+            owners(listOf(100, 600), listOf(turn(0, 500, "S1", listOf("S2")))))
+        assertEquals(listOf("S1" to true),
+            owners(listOf(100, 600), listOf(turn(0, 500, "S1", listOf("UNKNOWN_SECONDARY")))))
+        // Emission is causal: a token before any speech is not given the following speaker directly.
+        val leading = DiarizationTranscriptState().apply {
+            addUtterance("甲", "甲。", listOf("甲"), listOf(100), 100, 150)
+            applySpeakerTurns(listOf(turn(300, 800, "S1")))
+        }
+        assertTrue(leading.finalUtterances().all { it.speakerId != "S1" || it.speakerInferred })
     }
 
     private fun turn(begin: Int, end: Int, id: String, secondary: List<String> = emptyList()) =

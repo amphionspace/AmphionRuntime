@@ -53,23 +53,25 @@ extern "C" JNIEXPORT jobject JNICALL COMMUNITY_JNI(nativeProcess)(JNIEnv* env, j
     auto samples = AndroidFloats(env, pcm);
     auto result = AndroidModel(handle)->Process(samples);
     auto type = env->FindClass("com/amphion/dingqiao/diarization/CommunityDiarizationWindow");
-    auto constructor = env->GetMethodID(type, "<init>", "([F[FDDD)V");
+    auto constructor = env->GetMethodID(type, "<init>", "([F[FDDD[F[F[F)V");
     return env->NewObject(type, constructor, AndroidArray(env, result.segments),
-      AndroidArray(env, result.embeddings), result.segmentation_ms, result.feature_ms, result.embedding_ms);
+      AndroidArray(env, result.embeddings), result.segmentation_ms, result.feature_ms, result.embedding_ms,
+      AndroidArray(env, result.run_embeddings), AndroidArray(env, result.run_ranges), AndroidArray(env, result.run_rms));
   } catch (const std::exception& error) { AndroidError(env, error); return nullptr; }
 }
 extern "C" JNIEXPORT jstring JNICALL COMMUNITY_JNI(nativeCluster)(JNIEnv* env, jobject,
     jlong handle, jfloatArray segments, jfloatArray embeddings, jint max_speakers,
-    jdoubleArray starts, jdouble begin_sample) {
+    jdoubleArray starts, jdouble begin_sample, jfloatArray run_embeddings, jfloatArray run_ranges,
+    jfloatArray run_rms) {
   try {
     if (!starts) throw std::runtime_error("Community window positions missing");
     std::vector<double> positions(env->GetArrayLength(starts));
     env->GetDoubleArrayRegion(starts, 0, positions.size(), positions.data());
-    // Android currently submits whole-window evidence. Keep the native legacy
-    // path explicit until the Kotlin window/cluster bridge carries run arrays;
-    // full-window vectors are not interchangeable with per-run vectors.
+    // Same per-run evidence as Harmony: run vectors, [window, channel, begin, end)
+    // ranges and clean-PCM levels for every retained window of this snapshot.
     auto result = AndroidModel(handle)->Cluster(AndroidFloats(env, segments),
-      AndroidFloats(env, embeddings), {}, {}, max_speakers, positions, begin_sample);
+      AndroidFloats(env, embeddings), AndroidFloats(env, run_embeddings), AndroidFloats(env, run_ranges),
+      max_speakers, positions, begin_sample, AndroidFloats(env, run_rms));
     return env->NewStringUTF(result.c_str());
   } catch (const std::exception& error) { AndroidError(env, error); return nullptr; }
 }

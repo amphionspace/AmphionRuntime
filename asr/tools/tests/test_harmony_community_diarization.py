@@ -21,7 +21,7 @@ def run_community_session(body):
       import assert from 'node:assert/strict';
       const SAMPLE_RATE=16000;
       const ResultAudioTimeline={endSample:r=>r.audioEndSample};
-      const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1};
+      const SpeakerDiarizationDegradedReason={NONE:0,INFERENCE_UNAVAILABLE:1,FINISH_TIMEOUT:4};
       class SpeakerDiarizationResult {utterances=[];speakerTurns=[];}
       class DiarizedUtterance {} class SpeakerTurn {} class SpeakerTextSpan {} class SpeakerDiarizationUpdate {}
       class SpeakerDiarizationLocalClient {
@@ -30,7 +30,7 @@ def run_community_session(body):
         readEvidence(n){const segments=new Float32Array(n*589*3),embeddings=new Float32Array(n*3*256);
           for(let i=0;i<n;i++){segments.set(this.evidence[i].segments,i*589*3);embeddings.set(this.evidence[i].embeddings,i*3*256);}
           return {segments,embeddings};}
-        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){}
+        cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){} stopInference(){this.stopped=true}
       }
       function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}
@@ -39,7 +39,8 @@ def run_community_session(body):
       function window(index) {
         const segments=new Float32Array(589*3);for(let f=0;f<589;f++)segments[f*3]=1;
         return {jobId:`w${index}`,windowStartSample:index*16000,realEndSample:(index+10)*16000,
-          result:{segments,embeddings:new Float32Array(3*256),segmentationMs:0,featureMs:0,embeddingMs:0}};
+          result:{segments,embeddings:new Float32Array(3*256),segmentationMs:0,featureMs:0,embeddingMs:0},
+          inferenceWallMs:0};
       }
       function clusterResult(windows) {return {speakerCount:1,hard:Array(windows*3).fill(0),
         trainingIndices:[],ahc:[],priors:[1],turns:[[0,(windows+9)*1000,0]]};}
@@ -196,6 +197,28 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.deepEqual(published[0].speakerTurns,[],'final silence must erase provisional turns');
           assert.ok(published[0].utterances.every(u=>u.speakerIndex===-1));
           assert.deepEqual(updates.map(u=>u.speakerIndex),[0,-1]);
+        """)
+
+    def test_expensive_previews_are_spaced_by_their_cost(self):
+        run_community_session("""
+          const tick=()=>new Promise(r=>setImmediate(r));
+          let now=0;Date.now=()=>now;
+          async function previews(costMs) {
+            const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+              onWindowResult(){},onFinished(){}});
+            s.totalSamples=80*16000;
+            s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:false},
+              {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:false,audioEndSample:16000});
+            const covered=[];
+            s.client.cluster=async(_segments,_embeddings,_cap,starts)=>{
+              now+=costMs;covered.push((starts.length+9)*1000);return clusterResult(starts.length);};
+            for(let k=0;k<=70;k++){s.onWindow(window(k));s.asrAudioProcessed((k+10)*16000);await tick();}
+            return covered;
+          }
+          // Cheap previews keep the 10 s cadence of short sessions.
+          assert.deepEqual(await previews(100),[10000,20000,30000,40000,50000,60000,70000,80000]);
+          // A 3 s recluster waits for 30 s more audio before the next preview.
+          assert.deepEqual(await previews(3000),[10000,40000,70000]);
         """)
 
     def test_delayed_preview_is_serial_and_cancel_discards_its_result(self):
@@ -452,13 +475,74 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           assert.equal(published.length,1,'reentrant or duplicate finish must not republish');
         """)
 
+    def test_public_inference_time_counts_wall_time_of_parallel_windows(self):
+        run_community_session("""
+          const published=[];
+          const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+            onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)});
+          s.totalSamples=176000;
+          // Two windows of one native call: each stage took 900 ms on its own
+          // lane, the call took 800 ms of wall time, shared by both windows.
+          for (const index of [0,1]) {
+            const w=window(index);w.result.segmentationMs=300;w.result.featureMs=100;w.result.embeddingMs=500;
+            w.inferenceWallMs=400;s.onWindow(w);
+          }
+          s.client.cluster=async()=>clusterResult(2);
+          s.finish();s.onDrained();
+          s.observeAsrFinal({result:'你好',beginTime:100,endTime:1000,isLast:true},
+            {rawText:'你好',tokens:['你','好'],timestamps:[.1,.5],isLast:true,audioEndSample:176000});
+          await new Promise(r=>setImmediate(r));
+          assert.equal(published.length,1);
+          const clusterMs=published[0].inferenceMs-800;
+          assert.ok(clusterMs>=0&&clusterMs<100,`inferenceMs=${published[0].inferenceMs}`);
+          assert.equal(published[0].rtf,published[0].inferenceMs/11000);
+        """)
+
+    def test_finish_timeout_salvage_freezes_inferred_front_and_leaves_tail_unknown(self):
+        run_community_session("""
+          const tick=()=>new Promise(r=>setImmediate(r));
+          for (const drained of [false,true]) {
+            const published=[];
+            const s=new SpeakerDiarizationSession({},'',4,{onSpeakerDiarizationUpdate(){},
+              onWindowResult:r=>published.push(r),onFinished:r=>published.push(r)});
+            s.totalSamples=40*16000;s.client.cluster=async()=>clusterResult(1);
+            s.onWindow(window(0));
+            s.observeAsrFinal({result:'你好',beginTime:1000,endTime:9000,isLast:false},
+              {rawText:'你好',tokens:['你','好'],timestamps:[1,8],isLast:false,audioEndSample:9*16000});
+            s.observeAsrFinal({result:'再见',beginTime:21000,endTime:29000,isLast:false},
+              {rawText:'再见',tokens:['再','见'],timestamps:[21,28],isLast:false,audioEndSample:29*16000});
+            s.finish();
+            if (drained) s.onDrained();
+            s.observeAsrFinal({result:'',isLast:true},
+              {rawText:'',tokens:[],timestamps:[],isLast:true,audioEndSample:40*16000});
+            if (!drained) {
+              await tick();
+              assert.equal(published.length,0,'inference has not drained');
+            }
+            s.salvage();
+            s.onWindow(window(1));
+            await tick();
+            assert.equal(s.client.stopped,drained?undefined:true,'a drained final is not salvaged');
+            assert.equal(published.length,1);
+            const out=published[0];
+            assert.equal(out.isSessionFinal,true);
+            assert.equal(out.degradedReason,drained?0:4);
+            assert.deepEqual(out.utterances.map(u=>u.speakerIndex),[0,-1]);
+            assert.ok(out.speakerTurns.length>0);
+            assert.ok(out.speakerTurns.every(t=>t.endTime<=10000&&t.speakerIndex===0),
+              'the dropped in-flight window cannot extend frozen evidence');
+            s.salvage();s.onDrained();await tick();
+            assert.equal(published.length,1);
+          }
+        """)
+
     def test_default_executor_preserves_official_density_across_delay_and_chunking(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]
         stubs = f"""
           import assert from 'node:assert/strict';
           import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
-          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
           const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
           let nextDiarizationJobId=1,closeCount=0,holdFirst=false,releaseFirst;
           class DiarizationPcmSpool {{
@@ -473,6 +557,10 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             async process(samples){{
               if(this.calls++===0&&holdFirst)await new Promise(r=>releaseFirst=r);
               return {{segments:new Float32Array([samples[0],samples.at(-1)]),embeddings:new Float32Array(0)}};
+            }}
+            async processBatch(list){{
+              assert.ok(list.length>=1&&list.length<=ENCODER_LANES);
+              const out=[];for(const samples of list)out.push(await this.process(samples));return out;
             }}
           }}
           const fs={{accessSync:()=>true,rmdirSync(){{}}}};
@@ -508,12 +596,145 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             subprocess.run(['node','--experimental-strip-types','--experimental-loader',
                             TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
 
+    def test_stopped_inference_drops_in_flight_window_and_starts_no_more(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = f"""
+          import assert from 'node:assert/strict';
+          import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
+          const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          let nextDiarizationJobId=1,calls=0,releaseFirst;
+          class DiarizationPcmSpool {{
+            pcm=new Uint8Array(31*32000);end=0;
+            append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
+            read(offset,count){{return this.pcm.slice(offset,offset+count).buffer;}}
+            endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
+          }}
+          class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
+          class CommunityDiarizationInference {{
+            async load(){{}}close(){{}}
+            // Counts native calls: a batch is one call that started before the stop.
+            async processBatch(list){{
+              if(calls++===0)await new Promise(r=>releaseFirst=r);
+              return list.map(()=>({{segments:new Float32Array(0),embeddings:new Float32Array(0)}}));
+            }}
+            async cluster(){{return {{speakerCount:0}};}}
+          }}
+          const fs={{accessSync:()=>true,rmdirSync(){{}}}};
+        """
+        body = """
+          const windows=[],errors=[];let done;const drained=new Promise(r=>done=r);
+          const c=new SpeakerDiarizationLocalClient({},'',{onWindow:w=>windows.push(w),
+            onDrained:()=>done(),onDegraded:(_reason,message)=>errors.push(message)});
+          c.append(new Uint8Array(30*32000).buffer);c.finish();
+          while(releaseFirst===undefined)await new Promise(r=>setImmediate(r));
+          c.stopInference();
+          const clustered=c.cluster(new Float32Array(0),new Float32Array(0),4,new Float64Array(0),0);
+          releaseFirst();
+          assert.equal((await clustered).speakerCount,0,'retained evidence can still be clustered');
+          // Drained means no queued or scheduled window is left to start.
+          await drained;await new Promise(r=>setImmediate(r));
+          assert.equal(calls,1);assert.deepEqual(windows,[]);assert.deepEqual(errors,[]);
+          c.cancel();
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'stopped.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
+    def test_queued_windows_share_one_native_call_and_publish_in_order(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = f"""
+          import assert from 'node:assert/strict';
+          import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
+          const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          let nextDiarizationJobId=1;const batches=[];
+          class DiarizationPcmSpool {{
+            pcm=new Uint8Array(15*32000);end=0;
+            append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
+            read(offset,count){{return this.pcm.slice(offset,offset+count).buffer;}}
+            endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
+          }}
+          class DiarizationEvidenceSpool {{close(){{}}remove(){{}}}}
+          class CommunityDiarizationInference {{
+            constructor(lanes){{assert.equal(lanes,ENCODER_LANES);}}
+            async load(){{}}close(){{}}
+            async processBatch(list){{
+              const release={{}};const done=new Promise(r=>release.resolve=r);
+              batches.push({{starts:list.map(s=>s[0]),release:release.resolve}});await done;
+              // Each result carries its own window's first sample, so order is checkable.
+              return list.map(s=>({{segments:new Float32Array([s[0]]),embeddings:new Float32Array(0),
+                segmentationMs:900,featureMs:20,embeddingMs:900}}));
+            }}
+          }}
+          const fs={{accessSync:()=>true,rmdirSync(){{}}}};
+        """
+        body = """
+          const tick=()=>new Promise(r=>setImmediate(r));
+          // Window k starts at second k; its first PCM sample encodes k+1.
+          const pcm=new Int16Array(12*16000);for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
+          const windows=[],errors=[];let stopOnFirst=false,c;
+          c=new SpeakerDiarizationLocalClient({},'',{
+            onWindow:w=>{windows.push([w.windowStartSample,w.result.segments[0]*32768,w.inferenceWallMs]);
+              if(stopOnFirst)c.stopInference();},
+            onDrained(){},onDegraded:(_r,m)=>errors.push(m)});
+          c.append(pcm.slice(0,10*16000).buffer);await tick();
+          assert.deepEqual(batches.map(b=>b.starts.length),[1],'a lone window is not held back for a partner');
+          c.append(pcm.slice(10*16000).buffer);await tick();
+          assert.equal(batches.length,1,'one native call at a time');
+          batches[0].release();await tick();await tick();
+          assert.equal(batches.length,2);
+          assert.equal(batches[1].starts.length,2,'queued windows share the next native call');
+          assert.deepEqual(batches[1].starts.map(v=>v*32768),[2,3]);
+          stopOnFirst=true;batches[1].release();await tick();await tick();
+          assert.deepEqual(windows.map(w=>w.slice(0,2)),[[0,1],[16000,2]],
+            'results publish in window order and never after the client stopped');
+          assert.equal(batches.length,2,'a stopped client starts no further native call');
+          // Wall time is split across the windows of one call, not summed per window.
+          assert.ok(windows.every(w=>w[2]>=0&&w[2]<900),JSON.stringify(windows));
+          assert.deepEqual(errors,[]);c.cancel();
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'batch.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
+    def test_first_client_removes_job_files_left_by_a_killed_process(self):
+        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        source = source[source.index('export class SpeakerDiarizationStorageError'):]
+        stubs = """
+          import assert from 'node:assert/strict';
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
+          let nextDiarizationJobId=1;const removed=[];
+          const fs={accessSync:()=>true,mkdirSync(){},listFileSync:root=>['job-1-1','job-2-1'],
+            rmdirSync:path=>removed.push(path)};
+          class DiarizationWindowScheduler {} class DiarizationPcmSpool {close(){}remove(){}}
+          class DiarizationEvidenceSpool {close(){}remove(){}}
+          class CommunityDiarizationInference {async load(){}close(){}}
+          const SpeakerDiarizationDegradedReason={};
+        """
+        body = """
+          const observer={onWindow(){},onDrained(){},onDegraded(){}};
+          const first=new SpeakerDiarizationLocalClient({},'/work',observer);
+          assert.deepEqual(removed,['/work/speaker-diarization-jobs/job-1-1','/work/speaker-diarization-jobs/job-2-1']);
+          const second=new SpeakerDiarizationLocalClient({},'/work',observer);
+          assert.equal(removed.length,2,'a later client must not remove live session files');
+          first.cancel();second.cancel();
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness=Path(directory)/'sweep.mts';harness.write_text(stubs+source+body)
+            subprocess.run(['node','--experimental-strip-types','--experimental-loader',
+                            TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
     def test_client_retains_native_lease_until_delayed_cluster_is_quiescent(self):
         source=(DIARIZATION/'SpeakerDiarizationLocalClient.ets').read_text()
         source=source[source.index('export class SpeakerDiarizationStorageError'):]
         stubs="""
           import assert from 'node:assert/strict';
-          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000;
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
           let nextDiarizationJobId=1,closeCount=0,removeCount=0,resolveCluster;
           class DiarizationWindowScheduler {}
           class DiarizationPcmSpool {close(){} remove(){}}

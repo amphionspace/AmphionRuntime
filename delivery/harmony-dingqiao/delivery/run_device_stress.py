@@ -162,6 +162,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pace-ms", type=int, default=20)
     parser.add_argument("--enable-diarization", action="store_true",
                         help="Enable offline diarization through public StartParams in lifecycle modes.")
+    parser.add_argument(
+        "--allow-screen-off", action="store_true",
+        help="Release the carrier's keep-screen-on lock so a run can reproduce a background "
+             "continuous task whose display really sleeps.")
+    parser.add_argument(
+        "--hold-mic-capture", action="store_true",
+        help="Keep a live microphone capture for the whole run, as a customer recording app does. "
+             "Captured frames are discarded; the SDK input stays the deterministic file payload.")
     parser.add_argument("--diarization-vad-end-ms", type=int, choices=[400, 600, 800],
                         help="Meeting-only pause experiment; SDK clamps 400 to 500ms. Omitted keeps the Demo default.")
     parser.add_argument("--speech-end-ms", type=int, default=0,
@@ -1248,6 +1256,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
+        "--ps", "stressAllowScreenOff", str(args.allow_screen_off).lower(),
+        "--ps", "stressHoldMicCapture", str(args.hold_mic_capture).lower(),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1432,6 +1442,8 @@ def run_stress(args: argparse.Namespace) -> Path:
             "speech_end_ms": args.speech_end_ms,
             "diarization_vad_end_ms": args.diarization_vad_end_ms,
             "enable_diarization": args.enable_diarization,
+            "allow_screen_off": args.allow_screen_off,
+            "hold_mic_capture": args.hold_mic_capture,
             "effective_enable_diarization": diarization_enabled,
             "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
                                                if args.diarization_vad_end_ms is not None else None),

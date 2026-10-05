@@ -9,6 +9,10 @@ internal data class CommunityDiarizationWindow(
     val segmentationMs: Double,
     val featureMs: Double,
     val embeddingMs: Double,
+    // [window, channel, begin frame, end frame) per contiguous clean run, its vector and PCM level.
+    val runEmbeddings: FloatArray = FloatArray(0),
+    val runRanges: FloatArray = FloatArray(0),
+    val runRms: FloatArray = FloatArray(0),
 )
 
 internal data class CommunityDiarizationCluster(
@@ -26,8 +30,10 @@ internal class CommunityDiarizationInference(assets: List<File>) : AutoCloseable
     fun process(samples: FloatArray): CommunityDiarizationWindow = nativeProcess(handle, samples)
 
     fun cluster(segments: FloatArray, embeddings: FloatArray, maxSpeakers: Int,
-        starts: DoubleArray, beginSample: Double): CommunityDiarizationCluster {
-        val result = JSONObject(nativeCluster(handle, segments, embeddings, maxSpeakers, starts, beginSample))
+        starts: DoubleArray, beginSample: Double, runEmbeddings: FloatArray = FloatArray(0),
+        runRanges: FloatArray = FloatArray(0), runRms: FloatArray = FloatArray(0)): CommunityDiarizationCluster {
+        val result = JSONObject(nativeCluster(handle, segments, embeddings, maxSpeakers, starts, beginSample,
+            runEmbeddings, runRanges, runRms))
         val hard = result.getJSONArray("hard")
         val turns = result.getJSONArray("turns")
         return CommunityDiarizationCluster(result.getInt("speakerCount"),
@@ -42,7 +48,8 @@ internal class CommunityDiarizationInference(assets: List<File>) : AutoCloseable
     private external fun nativeLoad(segmentation: String, encoder: String, pooling: String, feature: String, plda: String): Long
     private external fun nativeProcess(handle: Long, samples: FloatArray): CommunityDiarizationWindow
     private external fun nativeCluster(handle: Long, segments: FloatArray, embeddings: FloatArray,
-        maxSpeakers: Int, starts: DoubleArray, beginSample: Double): String
+        maxSpeakers: Int, starts: DoubleArray, beginSample: Double, runEmbeddings: FloatArray,
+        runRanges: FloatArray, runRms: FloatArray): String
     private external fun nativeClose(handle: Long)
 
 }
