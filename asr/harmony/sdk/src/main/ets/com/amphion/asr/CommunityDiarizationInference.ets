@@ -24,7 +24,7 @@ export interface CommunityDiarizationCluster {
 
 export class CommunityDiarizationInference {
   /** Encoder worker budget used when the caller does not state one. */
-  static readonly DEFAULT_THREADS: number = 4;
+  static readonly DEFAULT_THREADS: number = 2;
   static readonly MAX_THREADS: number = 8;
 
   /** Normalize one PCM16 view and pad its missing right tail to the model window. */
