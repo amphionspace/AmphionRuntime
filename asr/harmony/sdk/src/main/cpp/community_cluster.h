@@ -1,5 +1,6 @@
 #pragma once
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <functional>
@@ -37,7 +38,49 @@ inline std::vector<int> Ahc(const Matrix& x) {
   int n=x.size();Matrix centers(2*n-1);std::vector<int> count(2*n-1,1),left(2*n-1,-1),right(2*n-1,-1);
   std::vector<bool> alive(2*n-1,false);Vec height(2*n-1);
   for(int i=0;i<n;++i){centers[i]=x[i];double norm=0;for(auto v:x[i])norm+=v*v;norm=std::sqrt(norm);for(auto&v:centers[i])v/=norm;alive[i]=true;}
-  auto distance=[&](int a,int b){double d=0;for(size_t j=0;j<x[0].size();++j){double v=centers[a][j]-centers[b][j];d+=v*v;}return std::sqrt(d);};
+  // Centroid linkage recomputes the same pair distance many times. Cache scores
+  // by live-node slot: slots belong only to this fit, while the merge tree keeps
+  // its own IDs. The budget is private, so larger inputs keep the direct path and
+  // the result is identical either way.
+  constexpr size_t memo_byte_budget = 16u * 1024u * 1024u;
+  Vec memo;
+  std::vector<int> memo_slots;
+  const size_t slot_count = static_cast<size_t>(n);
+  if (slot_count > 1 && slot_count <= std::numeric_limits<size_t>::max() / (slot_count - 1)) {
+    const size_t entries = slot_count * (slot_count - 1) / 2;
+    if (entries <= memo_byte_budget / sizeof(double) && entries <= memo.max_size() &&
+        centers.size() <= memo_slots.max_size()) {
+      try {
+        memo.assign(entries, -1.);
+        memo_slots.assign(centers.size(), -1);
+        std::iota(memo_slots.begin(), memo_slots.begin() + n, 0);
+      } catch (const std::bad_alloc&) {
+        Vec().swap(memo);
+        std::vector<int>().swap(memo_slots);
+      }
+    }
+  }
+  auto memo_index = [&](int a, int b) {
+    assert(a >= 0 && b >= 0 && static_cast<size_t>(a) < memo_slots.size() &&
+           static_cast<size_t>(b) < memo_slots.size());
+    const int sa = memo_slots[a], sb = memo_slots[b];
+    assert(sa >= 0 && sb >= 0 && sa != sb && sa < n && sb < n);
+    const size_t lo = static_cast<size_t>(std::min(sa, sb));
+    const size_t hi = static_cast<size_t>(std::max(sa, sb));
+    // The checked slot_count product above also bounds this index product.
+    const size_t index = hi * (hi - 1) / 2 + lo;
+    assert(index < memo.size());
+    return index;
+  };
+  auto distance=[&](int a,int b){
+    const size_t index = memo.empty() ? 0 : memo_index(a, b);
+    if (!memo.empty() && memo[index] >= 0.) return memo[index];
+    double d=0;for(size_t j=0;j<x[0].size();++j){double v=centers[a][j]-centers[b][j];d+=v*v;}
+    const double score=std::sqrt(d);
+    // Zero and infinity retain their values; NaN is returned but never cached.
+    if (!memo.empty() && score >= 0.) memo[index] = score;
+    return score;
+  };
   using Pair=std::tuple<double,int,int>;
   // Each row keeps a lower bound for its nearest active higher-ID neighbor.
   // Removing that neighbor can only increase the bound. A newly merged center
@@ -63,7 +106,16 @@ inline std::vector<int> Ahc(const Matrix& x) {
     auto [d,a,b]=closest;alive[a]=alive[b]=false;alive[node]=true;
     left[node]=a;right[node]=b;count[node]=count[a]+count[b];height[node]=std::max({d,height[a],height[b]});
     centers[node].resize(x[0].size());for(size_t j=0;j<x[0].size();++j)centers[node][j]=(centers[a][j]*count[a]+centers[b][j]*count[b])/count[node];
-    for(int c=0;c<node;++c)if(alive[c])nearest[c]=std::min(nearest[c],Pair{distance(c,node),c,node});
+    if (!memo.empty()) {
+      // The merged node reuses one retired slot; the other is released.
+      memo_slots[node] = memo_slots[a];
+      memo_slots[a] = memo_slots[b] = -1;
+    }
+    for(int c=0;c<node;++c)if(alive[c]) {
+      // Every pair incident to the reused slot describes a different centre now.
+      if (!memo.empty()) memo[memo_index(c, node)] = -1.;
+      nearest[c]=std::min(nearest[c],Pair{distance(c,node),c,node});
+    }
     nearest[node]=Pair{infinity,node,-1};
   }
   std::vector<int> labels(n,-1);int next=0;
