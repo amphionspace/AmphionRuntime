@@ -4,6 +4,48 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class DiarizationSentenceOutputTest {
+    @Test fun ctSpacingChangesPreserveSpeakerOwnershipWithoutGuessingEnglishWords() {
+        for ((raw, text, speaker) in listOf(
+            Triple("你好 世界", "你好世界。", "S1"),
+            Triple("hello 世界", "hello世界。", "S1"),
+            Triple("你好 world", "你好world。", "S1"),
+            Triple("hello world", "hello，world。", "S1"),
+            Triple(" hello", "hello。", "S1"),
+            Triple("hello world", "helloworld。", "UNKNOWN"),
+            Triple("你好 世界", "你好地球。", "UNKNOWN"),
+        )) {
+            val state = DiarizationTranscriptState()
+            state.addUtterance(raw, text, raw.map { it.toString() },
+                raw.indices.map { it * 100 }, 0, 2000)
+            state.applySpeakerTurns(listOf(turn(0, 2000, "S1")))
+            val before = state.allTurns()
+            val result = state.sentenceUtterances().single()
+            assertEquals(raw, speaker, result.speakerId)
+            assertEquals(text, result.text)
+            assertEquals(raw, result.rawText)
+            assertFalse(result.speakerInferred)
+            assertEquals(before, state.allTurns())
+        }
+    }
+
+    @Test fun ctSpacingChangesKeepTokenOwnersAcrossRealSpeakerChanges() {
+        // CT drops the separators before "report" and "result" and replaces the
+        // others with sentence punctuation; each sits on a real speaker change.
+        val raw = "先讨论 report 张三说明 result 嗯"
+        val text = "先讨论report。张三说明result。嗯。"
+        val state = DiarizationTranscriptState()
+        state.addUtterance(raw, text, raw.map { it.toString() }, raw.indices.map { it * 100 }, 0, 2400)
+        state.applySpeakerTurns(listOf(turn(0, 1050, "S1"), turn(1050, 2250, "S2"), turn(2250, 2400, "S1")))
+        val before = state.allTurns()
+        val result = state.finalUtterances()
+        assertEquals(listOf("先讨论report。" to "S1", "张三说明result。" to "S2", "嗯。" to "S1"),
+            result.map { it.text to it.speakerId })
+        assertEquals(raw, result.joinToString("") { it.rawText })
+        assertEquals(text, result.joinToString("") { it.text })
+        assertTrue(result.none { it.speakerInferred })
+        assertEquals(before, state.allTurns())
+    }
+
     @Test fun punctuationCannotChangeEmissionLaggedTailOwner() {
         val raw = "可以听见我说话吗你好"
         for (text in listOf("可以听见我说话吗？你好。", "可以听见我说话吗你好。")) {
