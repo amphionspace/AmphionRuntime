@@ -540,15 +540,16 @@ class Model {
     options.DisableCpuMemArena();
     options.DisableMemPattern();
 #if defined(__OHOS__)
-    // The pinned Harmony INT8 graph is signed per-channel, which ORT 1.16.3's
-    // XNNPACK does claim (qs8_per_channel). It is deliberately not registered
-    // here: XNNPACK builds its own pthreadpool inside the EP, and that pool
-    // reaches neither the worker factory below nor the spinning switch, so
-    // letting it own the encoder would put the dominant compute back on threads
-    // no scheduling request can describe. On the CPU EP this graph is bitwise
-    // equal to the previous U8/S8 one and invariant to the thread count, so the
-    // choice costs no output change. Keeping the encoder here is what makes the
-    // caller's QoS reach the threads that actually run it.
+    // XNNPACK is deliberately not registered for the Harmony encoder, and the
+    // reason holds for either INT8 representation. The pinned graph pairs UINT8
+    // activations with per-channel INT8 weights, which ORT 1.16.3's XNNPACK
+    // rejects outright (`we do not handle u8s8`), so registering it would only
+    // build a pthreadpool that claims no operator. A signed-activation graph
+    // would be claimed on all of its convolutions instead, which is worse here:
+    // that pool is created inside the EP and reaches neither the worker factory
+    // below nor the spinning switch, so it would put the dominant compute back
+    // on threads no scheduling request can describe. Keeping the encoder on the
+    // CPU EP is what makes the caller's QoS reach the threads that run it.
     options.SetIntraOpNumThreads(encoder_threads);
     options.AddConfigEntry("session.intra_op.allow_spinning", "0");
     ConfigureCommunityScheduling(&options, scheduling_);

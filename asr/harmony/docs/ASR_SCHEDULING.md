@@ -44,7 +44,7 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 
 - HarmonyOS API 12 起的 QoS 接口，与工程原有最低版本一致。仅修改鸿蒙 ASR；Android 不使用这些策略。
 - ASR 模型内部 ORT 工作线程使用所属 recognizer 的固定策略，线程随模型销毁被等待并回收。没有新增进程级线程池。
-- 角色（Community）分离的 segmentation 与 encoder session 在请求非空时也通过 ORT 的自定义线程工厂创建 intra-op worker，由 worker 自身设置 QoS：`pthread_create` 不继承 QoS，只设置驱动线程无法覆盖真正执行 encoder 的线程。mask 仍由创建线程继承，worker 不另发 affinity 请求，已存在的 worker 也不被后续作用域重绑。正因为 XNNPACK 的 pthreadpool 在 EP 内部创建、既不经过该工厂也不受 `allow_spinning` 控制，鸿蒙的 encoder 不注册 XNNPACK：锁定的 signed per-channel INT8 图会被 ORT 1.16.3 的 XNNPACK 全部认领，一旦认领，真正执行卷积的线程就不在任何调度请求的覆盖范围内。该图在 CPU EP 上与此前 U8/S8 图逐位相同、且对线程数逐位不变，因此这一选择不改变输出。Android 仍使用 FP32 encoder 及其 XNNPACK 计算池。请求为空时不接管线程创建。
+- 角色（Community）分离的 segmentation 与 encoder session 在请求非空时也通过 ORT 的自定义线程工厂创建 intra-op worker，由 worker 自身设置 QoS：`pthread_create` 不继承 QoS，只设置驱动线程无法覆盖真正执行 encoder 的线程。mask 仍由创建线程继承，worker 不另发 affinity 请求，已存在的 worker 也不被后续作用域重绑。正因为 XNNPACK 的 pthreadpool 在 EP 内部创建、既不经过该工厂也不受 `allow_spinning` 控制，鸿蒙的 encoder 不注册 XNNPACK。两种 INT8 表示下这个选择都成立：锁定图是 UINT8 激活配逐通道 INT8 权重，ORT 1.16.3 的 XNNPACK 直接拒绝该组合（源码注释 `we do not handle u8s8`），注册它只会建出一个不认领任何算子的线程池；而换成 signed 激活的图会被全部认领，那更糟——真正执行卷积的线程将不在任何调度请求的覆盖范围内。Android 仍使用 FP32 encoder 及其 XNNPACK 计算池。请求为空时不接管线程创建。
 - 同步及异步 ASR native 解码调用在作用域内临时设置调用线程，退出时恢复，异常路径也恢复。若无法读取共享线程原有 QoS，则跳过其 QoS 设置；若无法读取原 affinity，则跳过绑核。设置被系统拒绝时保留识别流程并记录诊断。
 - 不改变 N-API 队列优先级，不调整 ArkTS 主线程；这些配置不承诺降低队列等待。QoS、绑核和忙等选项只作用于 ASR 模型。`numThreads` 沿用基础 SDK 的语义，也用于标点模型构造；声纹和 Speaker VAD 的配置不变。
 - 非空 CPU 集合不表示固定频率或独占 CPU；系统可能拒绝或收窄请求。不要跨机型复制 CPU 编号。
