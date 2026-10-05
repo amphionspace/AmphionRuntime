@@ -58,8 +58,9 @@ const VOICEPRINT_SCENARIOS: string[] = [
 // Test-carrier option only. Every lifecycle mode uses the same public StartParams.
 let stressEnableDiarization: boolean = false;
 // Community encoder worker budget. This is not the ASR `numThreads`: the encoder
-// builds its own XNNPACK pthread pool, so only this value bounds it.
-let stressDiarizationNumThreads: number = 4;
+// builds its own pool, so only this value bounds it. Zero means the run did not
+// request a budget, and the SDK default is left to apply.
+let stressDiarizationNumThreads: number = 0;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -82,7 +83,8 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
-  diarizationNumThreads: number = 4;
+  /** Zero leaves the budget unset so the SDK default applies. */
+  diarizationNumThreads: number = 0;
   /**
    * Hold a live microphone capture for the whole run. A customer recording app
    * keeps an active capture session while the screen is off; this carrier feeds
@@ -1266,7 +1268,11 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   params.audioInfo = new AudioInfo();
   if (stressEnableDiarization) {
     const diarization = new SpeakerDiarizationConfig();
-    diarization.numThreads = stressDiarizationNumThreads;
+    // Only a requested budget is forwarded. Assigning unconditionally would
+    // make the SDK default unreachable from any device run.
+    if (stressDiarizationNumThreads > 0) {
+      diarization.numThreads = stressDiarizationNumThreads;
+    }
     params.speakerDiarization = diarization;
   }
   params.extraParams['enablePartialResult'] = false;
@@ -3156,7 +3162,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   } finally {
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
-    stressDiarizationNumThreads = 4;
+    stressDiarizationNumThreads = 0;
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }

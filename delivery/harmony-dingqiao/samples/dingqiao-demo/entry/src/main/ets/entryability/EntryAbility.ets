@@ -128,7 +128,8 @@ export default class EntryAbility extends UIAbility {
       options.speechEndMs = this.numberParameter(want, 'stressSpeechEndMs', 0);
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
-      options.diarizationNumThreads = this.numberParameter(want, 'stressDiarizationNumThreads', 4);
+      // Absent or zero leaves the budget unset so the SDK default applies.
+      options.diarizationNumThreads = this.numberParameter(want, 'stressDiarizationNumThreads', 0);
       options.holdMicCapture = this.stringParameter(want, 'stressHoldMicCapture', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');

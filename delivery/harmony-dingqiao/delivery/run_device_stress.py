@@ -1274,8 +1274,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
         "--ps", "stressAllowScreenOff", str(args.allow_screen_off).lower(),
         "--ps", "stressHoldMicCapture", str(args.hold_mic_capture).lower(),
-        "--ps", "stressDiarizationNumThreads",
-        str(args.diarization_num_threads if args.diarization_num_threads is not None else 4),
+        # Zero means "not requested" so the carrier leaves the budget unset and
+        # the SDK default applies. The flag itself only accepts 1..8, so the
+        # sentinel cannot collide with a real request.
+        "--ps", "stressDiarizationNumThreads", str(args.diarization_num_threads or 0),
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1471,8 +1473,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             "hold_mic_capture": args.hold_mic_capture,
             "effective_enable_diarization": diarization_enabled,
             "diarization_num_threads": args.diarization_num_threads,
-            "effective_diarization_num_threads": (
-                args.diarization_num_threads if args.diarization_num_threads is not None else 4),
+            # None records that the SDK chose the budget. The carrier does not
+            # report it back, so naming a number here would be an assumption.
+            "effective_diarization_num_threads": args.diarization_num_threads,
             "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
                                                if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,

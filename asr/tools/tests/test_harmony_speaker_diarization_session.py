@@ -32,6 +32,11 @@ ENTRY_ABILITY = ROOT / (
 )
 DEMO_MANIFEST = ROOT / "delivery/harmony-dingqiao/samples/dingqiao-demo/entry/src/main/module.json5"
 PUBLIC_DOC = ROOT / "delivery/harmony-dingqiao/docs/语音识别SDK接口.md"
+CORE_INFERENCE = ROOT / (
+    "asr/harmony/sdk/src/main/ets/com/amphion/asr/CommunityDiarizationInference.ets"
+)
+NATIVE_DIARIZATION = ROOT / "asr/harmony/sdk/src/main/cpp/community_diarization.cpp"
+RUNNER = ROOT / "delivery/harmony-dingqiao/delivery/run_device_stress.py"
 TS_LOADER = ROOT / "asr/tools/tests/ts_extension_loader.mjs"
 
 
@@ -138,6 +143,58 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             }}
             """
         )
+
+    def test_encoder_budget_default_is_single_sourced_and_reachable(self) -> None:
+        # Three places can answer "how many encoder workers" and they must agree,
+        # or a caller gets a different budget depending on which one it reaches.
+        import re
+
+        def sole(pattern: str, text: str, where: str) -> int:
+            found = re.findall(pattern, text)
+            self.assertEqual(len(found), 1, f"{where}: expected one match, got {found}")
+            return int(found[0])
+
+        public_default = sole(
+            r"numThreads: number = (\d+);",
+            PUBLIC_MODELS.read_text(encoding="utf-8")
+            .split("class SpeakerDiarizationConfig")[1],
+            "SpeakerDiarizationConfig.numThreads",
+        )
+        policy_default = sole(
+            r"DEFAULT_SPEAKER_DIARIZATION_THREADS: number = (\d+);",
+            CONFIG_POLICY.read_text(encoding="utf-8"),
+            "DEFAULT_SPEAKER_DIARIZATION_THREADS",
+        )
+        core_default = sole(
+            r"DEFAULT_THREADS: number = (\d+);",
+            CORE_INFERENCE.read_text(encoding="utf-8"),
+            "CommunityDiarizationInference.DEFAULT_THREADS",
+        )
+        native_default = sole(
+            r"kDefaultEncoderThreads = (\d+);",
+            NATIVE_DIARIZATION.read_text(encoding="utf-8"),
+            "kDefaultEncoderThreads",
+        )
+        self.assertEqual(
+            {public_default, policy_default, core_default, native_default},
+            {2},
+            "the public config, the adapter policy, the core fallback and the native "
+            "fallback must all name the measured thermal optimum",
+        )
+
+        # The carrier must not answer it instead: forwarding a budget it invented
+        # is what kept every device run from exercising the SDK default.
+        stress = DEVICE_STRESS.read_text(encoding="utf-8")
+        self.assertIn("if (stressDiarizationNumThreads > 0) {", stress)
+        self.assertNotIn("diarizationNumThreads: number = 4;", stress)
+        self.assertNotIn("let stressDiarizationNumThreads: number = 4;", stress)
+        self.assertIn(
+            "'stressDiarizationNumThreads', 0)",
+            ENTRY_ABILITY.read_text(encoding="utf-8"),
+        )
+        runner = RUNNER.read_text(encoding="utf-8")
+        self.assertIn("str(args.diarization_num_threads or 0)", runner)
+        self.assertNotIn("args.diarization_num_threads is not None else 4", runner)
 
     def test_local_executor_is_sdk_owned_and_has_no_network_or_host_adapter(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
