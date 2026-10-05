@@ -12,7 +12,7 @@ const sharedModelFiles = [
   'eres2net.onnx',
   'campplus.onnx',
   'campplus.LICENSE',
-  'community-wespeaker-encoder.fp32.onnx',
+  'community-wespeaker-encoder.int8.onnx',
   'community-wespeaker-pool.fp32.onnx',
   'community-feature.f32',
   'community-plda.f64',
@@ -33,6 +33,9 @@ function syncSharedModels(): void {
   // graphs below. Do not retain its 26 MB in an incremental HAR build.
   const oldEmbedding = path.join(rawfileModelDir, 'community-wespeaker-masked.fp32.onnx');
   if (fs.existsSync(oldEmbedding)) fs.unlinkSync(oldEmbedding);
+  // The INT8 encoder replaced the FP32 one; an incremental build must not ship both.
+  const oldEncoder = path.join(rawfileModelDir, 'community-wespeaker-encoder.fp32.onnx');
+  if (fs.existsSync(oldEncoder)) fs.unlinkSync(oldEncoder);
   sharedModelFiles.forEach((fileName: string): void => {
     const source = path.join(sharedModelDir, fileName);
     const target = path.join(rawfileModelDir, fileName);

@@ -10,6 +10,7 @@ import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench
 import { runSdkSelfTest } from '../util/SdkSelfTest';
 import { HotwordDeviceEvalOptions, runHotwordDeviceEval } from '../util/HotwordDeviceEval';
 import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
+import { AudioRecorder } from '../util/AudioRecorder';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { util } from '@kit.ArkTS';
 
@@ -29,6 +30,8 @@ export default class EntryAbility extends UIAbility {
   private hotwordEval: boolean = false;
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
+  private allowScreenOff: boolean = false;
+  private micHold?: AudioRecorder;
 
   onCreate(want: Want, launchParam: AbilityConstant.LaunchParam): void {
     // Process-level SDK init + work directory live here (mirrors Android DingqiaoApp) so every page
@@ -140,6 +143,10 @@ export default class EntryAbility extends UIAbility {
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
         this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
+      // Screen-off reproduction: a customer recording app runs as a background continuous
+      // task instead of holding a keep-screen-on lock.
+      this.allowScreenOff = this.stringParameter(want, 'stressAllowScreenOff', 'false') === 'true';
+      options.holdMicCapture = this.stringParameter(want, 'stressHoldMicCapture', 'false') === 'true';
       this.runStressWithBackgroundRecording(options);
     }
   }
@@ -149,7 +156,7 @@ export default class EntryAbility extends UIAbility {
       // A real-time corpus run lasts longer than Harmony's content-less foreground grace period.
       // Keep a minimal window attached so the event runner is not suspended between audio frames.
       this.stressWindow = windowStage.getMainWindowSync();
-      if (!this.stressFinished) this.setStressKeepScreenOn(true);
+      if (!this.stressFinished && !this.allowScreenOff) this.setStressKeepScreenOn(true);
       windowStage.loadContent('pages/DeviceTest', (err: BusinessError): void => {
         if (err.code !== 0) {
           hilog.error(0x0000, 'AmphionAsrDemo', 'Failed to load device test page: %{public}s', JSON.stringify(err));
@@ -201,15 +208,49 @@ export default class EntryAbility extends UIAbility {
     });
   }
 
+  /**
+   * Reproduction helper. A customer recording app keeps a live capture while the screen is
+   * off; this carrier feeds PCM from a file, so without a real capture the system can treat
+   * the process as idle. Captured frames are discarded; the SDK input stays the file payload.
+   */
+  private async startMicHold(): Promise<void> {
+    if (this.micHold !== undefined) return;
+    const hold = new AudioRecorder((_samples: Int16Array): void => {}, (message: string): void => {
+      hilog.warn(0x0000, 'MicHold', 'MIC_HOLD|capture error %{public}s', message);
+    }, 'mic');
+    this.micHold = hold;
+    try {
+      await hold.start();
+      hilog.info(0x0000, 'MicHold', 'MIC_HOLD|started');
+    } catch (e) {
+      this.micHold = undefined;
+      hilog.error(0x0000, 'MicHold', 'MIC_HOLD|start failed %{public}s', `${e}`);
+    }
+  }
+
+  private async stopMicHold(): Promise<void> {
+    const hold = this.micHold;
+    if (hold === undefined) return;
+    this.micHold = undefined;
+    try {
+      await hold.stop();
+      hilog.info(0x0000, 'MicHold', 'MIC_HOLD|stopped');
+    } catch (e) {
+      hilog.error(0x0000, 'MicHold', 'MIC_HOLD|stop failed %{public}s', `${e}`);
+    }
+  }
+
   private async runStressWithBackgroundRecording(options: DeviceStressOptions): Promise<void> {
     try {
       await BackgroundRecordingTask.start(this.context);
+      if (options.holdMicCapture) await this.startMicHold();
       await runDeviceStress(this.context, options);
     } catch (e) {
       hilog.error(0x0000, 'DeviceStressTest', 'stress test crashed: %{public}s', `${e}`);
     } finally {
       this.stressFinished = true;
       this.setStressKeepScreenOn(false);
+      await this.stopMicHold();
       try {
         await BackgroundRecordingTask.stop(this.context);
       } catch (e) {

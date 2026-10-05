@@ -8,6 +8,7 @@ import java.io.RandomAccessFile
 import java.util.ArrayDeque
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 
@@ -56,8 +57,10 @@ internal class SpeakerDiarizationLocalClient(
     // window changes VBx component survival, not just inference cost.
     private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 1_000)
     private val queue = ArrayDeque<DiarizationLocalJob>()
-    private val jobDir = File(File(workPath, "speaker-diarization-jobs"), "job-${System.nanoTime()}")
+    private val jobsRoot = File(workPath, "speaker-diarization-jobs")
+    private val jobDir = File(jobsRoot, "job-${System.nanoTime()}")
     private val spool: DiarizationPcmSpool
+    private val evidence: DiarizationEvidenceSpool
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { task ->
         Thread(task, "amphion-diarization").apply { isDaemon = true }
     }
@@ -73,6 +76,7 @@ internal class SpeakerDiarizationLocalClient(
     private var pendingClusters = 0
     private var finishWindowQueued = false
     private var finishing = false
+    private var stopped = false
     private var closed = false
     private var degraded = false
     private var resourcesClosed = false
@@ -80,8 +84,10 @@ internal class SpeakerDiarizationLocalClient(
     private val quiescentCallbacks = mutableListOf<() -> Unit>()
 
     init {
+        sweepStaleJobs(jobsRoot)
         check(jobDir.mkdirs() || jobDir.isDirectory) { "cannot create ${jobDir.absolutePath}" }
         spool = DiarizationPcmSpool(jobDir)
+        evidence = DiarizationEvidenceSpool(jobDir)
         executor.execute {
             try {
                 val loaded = loadInference()
@@ -135,21 +141,48 @@ internal class SpeakerDiarizationLocalClient(
             closed = true
             queue.clear()
             runCatching { spool.close() }
+            runCatching { evidence.close() }
         }
         closeWhenQuiescentLocked()
     }
 
     fun cleanup(onQuiescent: (() -> Unit)? = null) = cancel(onQuiescent)
 
+    /** Finish timeout: keep completed evidence, start no more windows, drop the in-flight one. */
+    @Synchronized
+    fun stopInference() {
+        if (closed) return
+        stopped = true
+        queue.clear()
+    }
+
+    /** Keeps every completed window's model inputs until cleanup; commits never prune them. */
+    @Synchronized
+    fun retainEvidence(window: CommunityDiarizationWindow) {
+        check(!closed) { "speaker diarization client is closed" }
+        evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms)
+    }
+
+    @Synchronized
+    fun readEvidence(windowCount: Int): DiarizationEvidence = try {
+        evidence.read(windowCount)
+    } catch (t: Throwable) {
+        failLocked(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
+            "diarization evidence read failed: ${t.message ?: t.javaClass.simpleName}")
+        throw t
+    }
+
     fun cluster(segments: FloatArray, embeddings: FloatArray, maxSpeakers: Int,
-        starts: DoubleArray, beginSample: Double, complete: (Result<CommunityDiarizationCluster>) -> Unit) {
+        starts: DoubleArray, beginSample: Double, runEmbeddings: FloatArray, runRanges: FloatArray,
+        runRms: FloatArray, complete: (Result<CommunityDiarizationCluster>) -> Unit) {
         synchronized(this) {
             check(!closed) { "speaker diarization client is closed" }
             pendingClusters++
             executor.execute {
                 val result = runCatching {
                     synchronized(this) { check(!closed) }
-                    checkNotNull(inference).cluster(segments, embeddings, maxSpeakers, starts, beginSample)
+                    checkNotNull(inference).cluster(segments, embeddings, maxSpeakers, starts, beginSample,
+                        runEmbeddings, runRanges, runRms)
                 }
                 try { complete(result) } finally {
                     synchronized(this) { pendingClusters--; closeWhenQuiescentLocked() }
@@ -177,7 +210,7 @@ internal class SpeakerDiarizationLocalClient(
     }
 
     private fun pumpLocked() {
-        if (closed || degraded || active || !loadSettled) return
+        if (closed || degraded || stopped || active || !loadSettled) return
         if (!finishWindowQueued) {
             scheduler.takeAvailable((2 - queue.size).coerceAtLeast(0)).forEach(::submitLocked)
             if (finishing && !scheduler.hasAvailable() && queue.size < 2) {
@@ -198,7 +231,7 @@ internal class SpeakerDiarizationLocalClient(
     private fun execute(job: DiarizationLocalJob) {
         val watchdog = timeoutExecutor.schedule({
             val notify = synchronized(this) {
-                if (!active || activeJobId != job.jobId || closed || degraded) false else {
+                if (!active || activeJobId != job.jobId || closed || degraded || stopped) false else {
                     degraded = true
                     queue.clear()
                     true
@@ -213,7 +246,7 @@ internal class SpeakerDiarizationLocalClient(
             val samples = readWindow(job)
             val result = checkNotNull(inference) { "speaker diarization inference is unavailable" }
                 .process(samples)
-            val deliver = synchronized(this) { !closed && !degraded && activeJobId == job.jobId }
+            val deliver = synchronized(this) { !closed && !degraded && !stopped && activeJobId == job.jobId }
             if (deliver) {
                 observer.onWindow(
                     DiarizationLocalWindowResult(
@@ -230,7 +263,7 @@ internal class SpeakerDiarizationLocalClient(
             }
         } catch (t: Throwable) {
             synchronized(this) {
-                if (!closed && !degraded) failLocked(
+                if (!closed && !degraded && !stopped) failLocked(
                     if (t is java.io.IOException) SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE
                     else SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
                     "speaker diarization inference failed: ${t.message ?: t.javaClass.simpleName}",
@@ -291,6 +324,7 @@ internal class SpeakerDiarizationLocalClient(
         runCatching { inference?.close() }
         inference = null
         runCatching { spool.remove() }
+        runCatching { evidence.remove() }
         jobDir.delete()
         executor.shutdown()
         timeoutExecutor.shutdown()
@@ -303,5 +337,12 @@ internal class SpeakerDiarizationLocalClient(
         const val SAMPLE_RATE = 16_000
         const val WINDOW_SAMPLES = 160_000
         const val INFERENCE_TIMEOUT_MS = 10_000L
+        private val sweptJobRoots = ConcurrentHashMap.newKeySet<String>()
+
+        // Job files are removed when a client becomes quiescent, which a killed process never
+        // reaches. The first client of a process removes whatever earlier processes left.
+        fun sweepStaleJobs(root: File) {
+            if (sweptJobRoots.add(root.absolutePath)) root.listFiles()?.forEach { runCatching { it.deleteRecursively() } }
+        }
     }
 }

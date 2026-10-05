@@ -1,5 +1,5 @@
 import {
-  loadCommunityDiarizationResources, processCommunityDiarization,
+  loadCommunityDiarizationResources, processCommunityDiarization, processCommunityDiarizationBatch,
   clusterCommunityDiarization, closeCommunityDiarization, CommunityDiarizationWindow
 } from 'libamphion_asr.so';
 
@@ -23,10 +23,23 @@ export interface CommunityDiarizationCluster {
 export class CommunityDiarizationInference {
   private handle?: number;
   private closed: boolean = false;
+  private readonly lanes: number;
+
+  /**
+   * lanes == 0 keeps one window per call on a four-thread encoder pool. lanes > 0
+   * lets processBatch run up to `lanes` windows at once on single-threaded
+   * encoders and model-owned low-priority workers; the outputs are identical.
+   */
+  constructor(lanes: number = 0) {
+    if (!Number.isInteger(lanes) || lanes < 0 || lanes > 4) throw new Error('lanes must be an integer in [0, 4]');
+    this.lanes = lanes;
+  }
 
   async load(context: Context): Promise<void> {
     if (this.closed) throw new Error('Community inference is closed');
-    const handle = await loadCommunityDiarizationResources(context.resourceManager);
+    const handle = this.lanes > 0 ?
+      await loadCommunityDiarizationResources(context.resourceManager, this.lanes) :
+      await loadCommunityDiarizationResources(context.resourceManager);
     if (this.closed) { closeCommunityDiarization(handle); return; }
     this.handle = handle;
   }
@@ -34,6 +47,12 @@ export class CommunityDiarizationInference {
   async process(samples: Float32Array): Promise<CommunityDiarizationWindow> {
     if (this.closed || this.handle === undefined) throw new Error('Community model is not loaded');
     return processCommunityDiarization(this.handle, samples);
+  }
+
+  /** Results keep the input order; at most max(lanes, 1) windows per call. */
+  async processBatch(samples: Float32Array[]): Promise<CommunityDiarizationWindow[]> {
+    if (this.closed || this.handle === undefined) throw new Error('Community model is not loaded');
+    return processCommunityDiarizationBatch(this.handle, samples);
   }
 
   async cluster(segments: Float32Array, embeddings: Float32Array, runEmbeddings: Float32Array,
