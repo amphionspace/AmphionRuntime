@@ -381,7 +381,13 @@ export class PlateV2 {
       const rewrite = PlateV2.STRUCTURAL_REWRITES[i];
       const edits: PoliceTextEdit[] = [];
       const next = replaceMatches(output, rewrite.pattern, edits,
-        (_matched: string, _groups: string[], _offset: number): string => rewrite.value);
+        (matched: string, _groups: string[], offset: number): string => {
+          if (matched === '这这') {
+            const candidate = output.substring(0, offset) + rewrite.value + output.substring(offset + matched.length);
+            if (this.tryMatchPlateAt(candidate, offset) === undefined) return matched;
+          }
+          return rewrite.value;
+        });
       trace?.step(output, next, edits);
       output = next;
     }
