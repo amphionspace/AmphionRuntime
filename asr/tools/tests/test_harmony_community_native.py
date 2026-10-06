@@ -121,6 +121,7 @@ int TestSetPriority(int which,id_t who,int value) {
   assert(which==PRIO_PROCESS);
   std::lock_guard<std::mutex> lock(priorityMutex);priorityCalls.push_back({static_cast<long>(who),value});return 0;
 }
+void ApplyRoleQos(int) { assert(!"workers without a requested level leave QoS alone"); }
 #define gettid TestGetTid
 #define setpriority TestSetPriority
 ''' + worker + r'''
@@ -188,6 +189,81 @@ int main() {
             binary = Path(directory) / 'lanes'
             path.write_text(program)
             subprocess.run([compiler, '-std=c++17', '-O2', '-pthread', str(path), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=60)
+
+    def test_role_workers_request_qos_one_level_below_the_recognizer(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        source = (CPP / 'community_diarization.cpp').read_text()
+        policy = source[source.index('int RoleQos('):source.index('void ApplyRoleQos(')]
+        worker = source[source.index('class RoleWorker {'):source.index('\nclass Model {')]
+        # Production mapping and worker with recorded scheduler calls.
+        program = r'''
+#include <atomic>
+#include <cassert>
+#include <condition_variable>
+#include <deque>
+#include <functional>
+#include <future>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <tuple>
+#include <vector>
+#include <sys/resource.h>
+#include <qos/qos.h>
+static std::mutex callMutex;
+static std::vector<std::tuple<long,char,int>> calls;
+static std::atomic<long> nextTid{100};
+thread_local long threadTid=nextTid++;
+long TestGetTid() { return threadTid; }
+int TestSetPriority(int,id_t who,int value) {
+  std::lock_guard<std::mutex> lock(callMutex);calls.emplace_back(static_cast<long>(who),'n',value);return 0;
+}
+void ApplyRoleQos(int qos) {
+  std::lock_guard<std::mutex> lock(callMutex);calls.emplace_back(TestGetTid(),'q',qos);
+}
+#define gettid TestGetTid
+#define setpriority TestSetPriority
+''' + policy + worker + r'''
+std::vector<std::pair<char,int>> CallsOf(long tid) {
+  std::vector<std::pair<char,int>> result;
+  for(const auto& call:calls) if(std::get<0>(call)==tid) result.emplace_back(std::get<1>(call),std::get<2>(call));
+  return result;
+}
+int main() {
+  assert(RoleQos("default")==-1);
+  assert(RoleQos("user-initiated")==QOS_DEFAULT);
+  assert(RoleQos("user-interactive")==QOS_USER_INITIATED);
+  for(const char* invalid:{"","background","user-interactive;x"}) {
+    bool rejected=false;
+    try { RoleQos(invalid); } catch(const std::runtime_error&) { rejected=true; }
+    assert(rejected);
+  }
+  const long caller=TestGetTid();
+  long boosted=0,plain=0;
+  {
+    RoleWorker withQos(QOS_USER_INITIATED),without;
+    withQos.Post([&]{boosted=TestGetTid();}).get();
+    without.Post([&]{plain=TestGetTid();}).get();
+  }
+  std::lock_guard<std::mutex> lock(callMutex);
+  assert(boosted!=caller&&plain!=caller&&boosted!=plain);
+  assert(CallsOf(caller).empty());
+  // The owned worker keeps its nice and then asks for the level, before any task.
+  assert((CallsOf(boosted)==std::vector<std::pair<char,int>>{{'n',10},{'q',QOS_USER_INITIATED}}));
+  assert((CallsOf(plain)==std::vector<std::pair<char,int>>{{'n',10}}));
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'role_qos.cpp'
+            binary = Path(directory) / 'role_qos'
+            path.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-pthread',
+                            '-I' + str(Path(__file__).with_name('harmony_scheduling')),
+                            str(path), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=60)
 
     def test_encoder_features_and_run_vectors_belong_to_one_window(self):
