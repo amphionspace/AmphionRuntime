@@ -29,5 +29,5 @@ add_library(amphion_audio_processing SHARED IMPORTED)
 set_target_properties(amphion_audio_processing PROPERTIES
   IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libs/${OHOS_ARCH}/libamphion_audio_processing.so)
 
-target_link_libraries(amphion_asr PUBLIC libace_napi.z.so libhilog_ndk.z.so librawfile.z.so
+target_link_libraries(amphion_asr PUBLIC libace_napi.z.so libhilog_ndk.z.so librawfile.z.so libqos.so
   sherpa_onnx_c_api onnxruntime amphion_audio_processing)

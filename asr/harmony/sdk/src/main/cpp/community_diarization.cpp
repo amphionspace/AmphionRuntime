@@ -17,6 +17,8 @@
 #include <limits>
 #include <thread>
 #ifndef __ANDROID__
+#include <hilog/log.h>
+#include <qos/qos.h>
 #include <rawfile/raw_file_manager.h>
 #include <sys/resource.h>
 #include <unistd.h>
@@ -95,13 +97,37 @@ std::vector<uint8_t> ReadCommunityAsset(NativeResourceManager* manager, const ch
 
 #endif
 
+#ifndef __ANDROID__
+// Role workers follow the engine's recognizer QoS request one level below it.
+// A caller allowed to raise QoS (a system app recording with the display off)
+// then lifts role work out of the background policy too, while recognition
+// keeps the higher level. "default" leaves the system policy untouched.
+int RoleQos(const std::string& recognizer_qos) {
+  if (recognizer_qos == "default") return -1;
+  if (recognizer_qos == "user-initiated") return QOS_DEFAULT;
+  if (recognizer_qos == "user-interactive") return QOS_USER_INITIATED;
+  throw std::runtime_error("invalid Community recognizer QoS");
+}
+
+// One report per owned worker; it never carries audio or results.
+void ApplyRoleQos(int qos) {
+  const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(qos));
+  QoS_Level effective = QOS_DEFAULT;
+  const bool read = result == 0 && OH_QoS_GetThreadQoS(&effective) == 0;
+  OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
+               "role-qos requested=%{public}d result=%{public}d effective=%{public}d",
+               qos, result, read ? static_cast<int>(effective) : -1);
+}
+#endif
+
 // Role work is optional; the recognizer is not. A model-owned worker runs it
 // below the priority of the threads that drive recognition, so a CPU-starved
 // device delays speaker results instead of the transcript. Callers block on the
 // returned future, exactly as they did while computing inline.
 class RoleWorker {
  public:
-  RoleWorker() { thread_ = std::thread([this] { Loop(); }); }
+  // qos >= 0 also requests that Harmony QoS level for the worker thread.
+  explicit RoleWorker(int qos = -1) : qos_(qos) { thread_ = std::thread([this] { Loop(); }); }
   ~RoleWorker() {
     {
       std::lock_guard<std::mutex> lock(mutex_);
@@ -133,6 +159,9 @@ class RoleWorker {
 #ifndef __ANDROID__
     // Only this owned thread is changed, never a borrowed runtime worker.
     setpriority(PRIO_PROCESS, static_cast<id_t>(gettid()), kRoleNice);
+    // A requested level comes after the nice: where the system honours it, its
+    // policy for that level decides; where it refuses, the nice still applies.
+    if (qos_ >= 0) ApplyRoleQos(qos_);
 #endif
     for (;;) {
       std::packaged_task<void()> task;
@@ -147,6 +176,8 @@ class RoleWorker {
     }
   }
 
+  // Read only on Harmony; Android has no QoS.
+  [[maybe_unused]] const int qos_;
   std::mutex mutex_;
   std::condition_variable ready_;
   std::deque<std::packaged_task<void()>> tasks_;
@@ -161,10 +192,12 @@ class Model {
   // lanes > 0 runs up to `lanes` independent windows at once, one encoder
   // instance and one single-threaded worker per window, and clusters on its own
   // worker. XNNPACK results do not depend on its thread count, so both
-  // executors produce the same windows.
+  // executors produce the same windows. role_qos (from RoleQos) applies to
+  // those owned workers only.
   Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
         const std::vector<uint8_t>& pooling,
-        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda, int lanes = 0)
+        const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda, int lanes = 0,
+        int role_qos = -1)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
     if (lanes < 0 || lanes > kMaxLanes) throw std::runtime_error("invalid Community executor lanes");
     if (feature.size() != (400 + 80 * 257) * sizeof(float)) {
@@ -213,9 +246,9 @@ class Model {
       options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "1"}});
       for (int lane = 0; lane < lanes_; ++lane) {
         encoders_.push_back(Ort::Session(env_, encoder.data(), encoder.size(), options));
-        lane_workers_.push_back(std::make_unique<RoleWorker>());
+        lane_workers_.push_back(std::make_unique<RoleWorker>(role_qos));
       }
-      cluster_worker_ = std::make_unique<RoleWorker>();
+      cluster_worker_ = std::make_unique<RoleWorker>(role_qos);
     }
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
@@ -519,6 +552,7 @@ struct Work {
   std::vector<std::vector<float>> pcms;
   std::vector<Window> windows;
   int lanes = 0;
+  int role_qos = -1;
   std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
@@ -546,7 +580,7 @@ void Execute(napi_env, void* data) {
         }
       }
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4],
-                                           task.lanes);
+                                           task.lanes, task.role_qos);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else if (task.operation == Operation::ProcessBatch) task.windows = task.model->ProcessBatch(task.pcms);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
@@ -614,12 +648,13 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
   try {
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
     const bool clusterLevels = operation == Operation::Cluster && count == 9;
-    // Load takes an optional trailing executor lane count.
-    const bool withLanes = operation == Operation::Load && count == (from_resources ? 2u : 6u);
-    if (count != (from_resources ? (withLanes ? 2u : 1u) :
-                  operation == Operation::Process || operation == Operation::ProcessBatch ? 2u :
-                  operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) :
-                  (withLanes ? 6u : 5u))) {
+    // Load takes an optional trailing executor lane count, then optionally the
+    // recognizer QoS that its owned workers follow.
+    const size_t loadInputs = from_resources ? 1u : 5u;
+    const bool withQos = operation == Operation::Load && count == loadInputs + 2;
+    const bool withLanes = operation == Operation::Load && (withQos || count == loadInputs + 1);
+    if (count != (operation == Operation::Load ? loadInputs + (withQos ? 2u : withLanes ? 1u : 0u) :
+                  operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 2u)) {
       throw std::runtime_error("invalid Community arguments");
     }
     auto task = std::make_unique<Work>();
@@ -636,10 +671,18 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
         for (size_t i = 0; i < task->assets.size(); ++i) task->assets[i] = CopyArray<uint8_t>(env, args[i], napi_uint8_array);
       }
       if (withLanes) {
-        if (napi_get_value_int32(env, args[from_resources ? 1 : 5], &task->lanes) != napi_ok ||
+        if (napi_get_value_int32(env, args[loadInputs], &task->lanes) != napi_ok ||
             task->lanes < 0 || task->lanes > Model::kMaxLanes) {
           throw std::runtime_error("invalid Community executor lanes");
         }
+      }
+      if (withQos) {
+        char qos[32] = {};
+        size_t length = 0;
+        if (napi_get_value_string_utf8(env, args[loadInputs + 1], qos, sizeof(qos), &length) != napi_ok) {
+          throw std::runtime_error("invalid Community recognizer QoS");
+        }
+        task->role_qos = RoleQos(std::string(qos, length));
       }
     } else {
       uint32_t handle = 0;
