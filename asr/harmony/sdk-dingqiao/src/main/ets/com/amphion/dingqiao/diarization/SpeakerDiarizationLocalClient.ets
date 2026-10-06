@@ -115,9 +115,18 @@ export class SpeakerDiarizationLocalClient {
     options?: SpeakerDiarizationLocalClientOptions) {
     this.observer = observer;
     this.diagnostic = diagnostic;
-    // Keep the evidence density of the locked Community-1 pipeline. Decimating
-    // its windows changes VBx component survival even with identical vectors.
-    const hopMs = options?.hopMs ?? 1_000;
+    // The hop sets the evidence density of the Community-1 pipeline, and every
+    // stage costs one pass per window, so it also sets what role separation
+    // burns: segmentation, Fbank and the encoder all scale with the window
+    // count. Upstream hops every second, which spends ten passes over each
+    // second of audio and is what makes the role path heat the device. Measured
+    // on device over the same 960 s AISHELL-4 clip, a 2 s hop against that 1 s
+    // hop cuts diarization RTF 0.3065 -> 0.1601 and the shell rise 6.16 ->
+    // 4.50 C, for DER 3.12% -> 3.23%. The cost lands on boundary precision and
+    // not on identity: the run still reports four speakers with the same
+    // reference mapping. A caller that needs the finer boundaries more than the
+    // power can still ask for a 1 s hop.
+    const hopMs = options?.hopMs ?? 2_000;
     this.maxPendingJobs = options?.maxPendingJobs ?? 2;
     if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
       throw new Error('maxPendingJobs must be a positive integer');
