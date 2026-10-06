@@ -9,6 +9,21 @@ from asr.tools.tests.test_harmony_speaker_diarization_session import (
     ROOT, DIARIZATION, SESSION, TS_LOADER, run_node,
 )
 
+LOCAL_CLIENT = DIARIZATION / 'SpeakerDiarizationLocalClient.ets'
+# The hop decides both the evidence density and what the role path costs, so the
+# cadence guards below read the shipped default instead of restating one. They
+# assert the rule - one complete window per hop, a tail padded once, an exact
+# final window never duplicated - which is what stops the executor from dropping
+# windows the model was given. test_shipped_window_hop_is_the_measured_default
+# is what holds the default itself.
+def shipped_hop_ms():
+    import re
+    match = re.search(r"options\?\.hopMs\s*\?\?\s*([\d_]+)", LOCAL_CLIENT.read_text())
+    assert match, 'SpeakerDiarizationLocalClient must keep a literal default hop'
+    hop = int(match.group(1).replace('_', ''))
+    assert hop % 1000 == 0, f'these guards assume a whole-second hop, found {hop} ms'
+    return hop
+
 
 def run_community_session(body):
     imports = "\n".join(
@@ -544,6 +559,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
           const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          const HOP_SAMPLES={shipped_hop_ms() * 16};
           let nextDiarizationJobId=1,closeCount=0,holdFirst=false,releaseFirst;
           class DiarizationPcmSpool {{
             pcm=new Uint8Array(62*32000);end=0;
@@ -566,6 +582,26 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           const fs={{accessSync:()=>true,rmdirSync(){{}}}};
         """
         body="""
+          // Pick the two durations that exercise both tail rules at this hop, so
+          // the guard keeps its coverage whatever the shipped cadence is.
+          const EXACT_WINDOWS=Math.floor((61000*16-WINDOW_SAMPLES)/HOP_SAMPLES);
+          const EXACT_MS=(WINDOW_SAMPLES+EXACT_WINDOWS*HOP_SAMPLES)/16,PADDED_MS=EXACT_MS+500;
+          // One complete 10 s window per hop, starting at sample zero. An
+          // incomplete tail is padded once; an exact last window must not be
+          // duplicated. Window k's first PCM sample encodes its start second + 1.
+          function expected(durationMs) {
+            const total=durationMs*16,rows=[];
+            let end=WINDOW_SAMPLES;
+            for(;end<=total;end+=HOP_SAMPLES){
+              const second=(end-WINDOW_SAMPLES)/SAMPLE_RATE;
+              rows.push([end-WINDOW_SAMPLES,end,false,(second+1)/32768,(second+10)/32768]);
+            }
+            if(end-HOP_SAMPLES!==total){
+              const start=end-WINDOW_SAMPLES;
+              rows.push([start,total,true,(start/SAMPLE_RATE+1)/32768,0]);
+            }
+            return rows;
+          }
           async function run(durationMs,chunkBytes,delayed) {
             holdFirst=delayed;releaseFirst=undefined;const rows=[],errors=[];
             let done;const drained=new Promise(r=>done=r);
@@ -580,15 +616,15 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             }
             c.finish();await new Promise(r=>setImmediate(r));if(delayed)releaseFirst();await drained;
             assert.deepEqual(errors,[]);c.cancel();await new Promise(r=>setImmediate(r));
-            // Upstream has one complete 10 s window per second. An incomplete
-            // tail is padded once; an exact last window must not be duplicated.
-            const expected=Array.from({length:52},(_,i)=>[i*16000,(i+10)*16000,false,(i+1)/32768,(i+10)/32768]);
-            if(durationMs===61500)expected.push([52*16000,61500*16,true,53/32768,0]);
-            assert.deepEqual(rows,expected,'executor must not silently decimate the model evidence');
+            assert.deepEqual(rows,expected(durationMs),
+              'executor must not silently decimate the model evidence');
             return rows;
           }
-          assert.deepEqual(await run(61000,640,false),await run(61000,61000*32,true));
-          assert.deepEqual(await run(61500,640,false),await run(61500,61500*32,true));
+          assert.equal(expected(EXACT_MS).at(-1)[2],false,'an exact last window is not duplicated');
+          assert.equal(expected(PADDED_MS).at(-1)[2],true,'an incomplete tail is padded once');
+          assert.equal(expected(EXACT_MS).length,EXACT_WINDOWS+1);
+          assert.deepEqual(await run(EXACT_MS,640,false),await run(EXACT_MS,EXACT_MS*32,true));
+          assert.deepEqual(await run(PADDED_MS,640,false),await run(PADDED_MS,PADDED_MS*32,true));
           assert.equal(closeCount,4);
         """
         with tempfile.TemporaryDirectory() as directory:
@@ -643,6 +679,33 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             subprocess.run(['node','--experimental-strip-types','--experimental-loader',
                             TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
 
+    def test_shipped_window_hop_is_the_measured_default(self):
+        """Hold the hop to a number someone measured, not one someone preferred.
+
+        Segmentation, Fbank and the encoder each run once per window, so the hop
+        sets what role separation costs: halving the window count halves the work.
+        It also sets the evidence density, and a coarser hop costs boundary
+        precision. Both sides were measured on device over the same 960 s
+        AISHELL-4 clip, 2000 ms against the 1000 ms the upstream pipeline ships:
+
+          diarization RTF   0.3065 -> 0.1601   (-47.8%)
+          mean CPU           214.3% -> 196.9%
+          shell rise          6.16 C -> 4.50 C (start-normalised)
+          DER                 3.12% -> 3.23%   (confusion 1.23% -> 1.46%)
+
+        The cadence guards above derive their expectations from this default, so
+        they stay silent when it moves. This test is what does not: changing the
+        hop means editing these numbers, which means measuring them again.
+        """
+        self.assertEqual(shipped_hop_ms(), 2_000)
+        # The default is only defensible with the evidence beside it, so the
+        # numbers above have to appear where the hop is chosen. Comment wrapping
+        # is not part of the claim, so compare the unwrapped text.
+        prose = ' '.join(LOCAL_CLIENT.read_text().replace('//', ' ').split())
+        self.assertIn('Measured on device', prose)
+        for figure in ('0.3065 -> 0.1601', '6.16 -> 4.50 C', '3.12% -> 3.23%'):
+            self.assertIn(figure, prose, f'the hop comment must keep {figure}')
+
     def test_queued_windows_share_one_native_call_and_publish_in_order(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
         source = source[source.index('export class SpeakerDiarizationStorageError'):]
@@ -651,9 +714,10 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
           const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          const HOP_SAMPLES={shipped_hop_ms() * 16},HOP_SECONDS={shipped_hop_ms() // 1000};
           let nextDiarizationJobId=1;const batches=[];
           class DiarizationPcmSpool {{
-            pcm=new Uint8Array(15*32000);end=0;
+            pcm=new Uint8Array(40*32000);end=0;
             append(audio){{this.pcm.set(new Uint8Array(audio),this.end);this.end+=audio.byteLength;}}
             read(offset,count){{return this.pcm.slice(offset,offset+count).buffer;}}
             endOffset(){{return this.end;}}discardBefore(){{}}close(){{}}remove(){{}}
@@ -674,8 +738,11 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
         """
         body = """
           const tick=()=>new Promise(r=>setImmediate(r));
-          // Window k starts at second k; its first PCM sample encodes k+1.
-          const pcm=new Int16Array(12*16000);for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
+          // Window k starts at second k*HOP_SECONDS; its first PCM sample encodes
+          // that second + 1. Two hops past the first window give the executor two
+          // windows to queue behind the call in flight, whatever the hop is.
+          const pcm=new Int16Array((10+2*HOP_SECONDS)*16000);
+          for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
           const windows=[],errors=[];let stopOnFirst=false,c;
           c=new SpeakerDiarizationLocalClient({},'',{
             onWindow:w=>{windows.push([w.windowStartSample,w.result.segments[0]*32768,w.inferenceWallMs]);
@@ -688,9 +755,9 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           batches[0].release();await tick();await tick();
           assert.equal(batches.length,2);
           assert.equal(batches[1].starts.length,2,'queued windows share the next native call');
-          assert.deepEqual(batches[1].starts.map(v=>v*32768),[2,3]);
+          assert.deepEqual(batches[1].starts.map(v=>v*32768),[HOP_SECONDS+1,2*HOP_SECONDS+1]);
           stopOnFirst=true;batches[1].release();await tick();await tick();
-          assert.deepEqual(windows.map(w=>w.slice(0,2)),[[0,1],[16000,2]],
+          assert.deepEqual(windows.map(w=>w.slice(0,2)),[[0,1],[HOP_SAMPLES,HOP_SECONDS+1]],
             'results publish in window order and never after the client stopped');
           assert.equal(batches.length,2,'a stopped client starts no further native call');
           // Wall time is split across the windows of one call, not summed per window.
