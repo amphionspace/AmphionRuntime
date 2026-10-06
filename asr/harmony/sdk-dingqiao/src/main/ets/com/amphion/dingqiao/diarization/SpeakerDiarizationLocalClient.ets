@@ -65,6 +65,8 @@ export interface SpeakerDiarizationLocalClientOptions {
   hopMs?: number;
   /** Maximum queued descriptors behind the single native in-flight job. */
   maxPendingJobs?: number;
+  /** The engine's ASR QoS request; role workers run one level below it. */
+  recognizerQos?: string;
 }
 
 /**
@@ -93,7 +95,7 @@ export class SpeakerDiarizationLocalClient {
   private readonly spool: DiarizationPcmSpool;
   private readonly evidence: DiarizationEvidenceSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
-  private readonly inference: CommunityDiarizationInference = new CommunityDiarizationInference(ENCODER_LANES);
+  private readonly inference: CommunityDiarizationInference;
   private readonly maxPendingJobs: number;
   private pendingClusters: number = 0;
   private readonly inferenceLoad: Promise<void>;
@@ -123,6 +125,7 @@ export class SpeakerDiarizationLocalClient {
       throw new Error('maxPendingJobs must be a positive integer');
     }
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
+    this.inference = new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default');
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     SpeakerDiarizationLocalClient.sweepStaleJobs(`${workPath}/speaker-diarization-jobs`);

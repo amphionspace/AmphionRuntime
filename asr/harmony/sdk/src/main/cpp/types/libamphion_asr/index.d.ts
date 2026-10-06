@@ -73,8 +73,10 @@ export interface CommunityDiarizationWindow {
   embeddingMs: number;
 }
 export function loadCommunityDiarization(segmentation: Uint8Array, encoder: Uint8Array,
-  pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, lanes?: number): Promise<number>;
-export function loadCommunityDiarizationResources(resourceManager: Object, lanes?: number): Promise<number>;
+  pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, lanes?: number,
+  recognizerQos?: string): Promise<number>;
+export function loadCommunityDiarizationResources(resourceManager: Object, lanes?: number,
+  recognizerQos?: string): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function processCommunityDiarizationBatch(handle: number,
   pcm: Float32Array[]): Promise<CommunityDiarizationWindow[]>;

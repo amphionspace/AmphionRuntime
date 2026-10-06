@@ -8,7 +8,10 @@ export class AudioInfo {
 }
 
 export class CreateEngineParams {
-  /** Engine-wide; changing these fields after createEngine has no effect. */
+  /**
+   * Engine-wide; changing these fields after createEngine has no effect. With
+   * speaker diarization, its own workers follow scheduling.qos one level lower.
+   */
   scheduling?: AsrSchedulingConfig;
   numThreads?: number;
   language: string = 'zh-CN';
