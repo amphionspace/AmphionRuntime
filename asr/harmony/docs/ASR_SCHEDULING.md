@@ -39,9 +39,10 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 - HarmonyOS API 12 起的 QoS 接口，与工程原有最低版本一致。仅修改鸿蒙 ASR；Android 不使用这些策略。
 - ASR 模型内部 ORT 工作线程使用所属 recognizer 的固定策略，线程随模型销毁被等待并回收。没有新增进程级线程池。
 - 同步及异步 ASR native 解码调用在作用域内临时设置调用线程，退出时恢复，异常路径也恢复。若无法读取共享线程原有 QoS，则跳过其 QoS 设置；若无法读取原 affinity，则跳过绑核。设置被系统拒绝时保留识别流程并记录诊断。
-- 不改变 N-API 队列优先级，不调整 ArkTS 主线程；这些配置不承诺降低队列等待。QoS、绑核和忙等选项只作用于 ASR 模型。`numThreads` 沿用基础 SDK 的语义，也用于标点模型构造；声纹和 Speaker VAD 的配置不变。
+- 不改变 N-API 队列优先级，不调整 ArkTS 主线程；这些配置不承诺降低队列等待。绑核和忙等选项只作用于 ASR 模型。`numThreads` 沿用基础 SDK 的语义，也用于标点模型构造；声纹和 Speaker VAD 的配置不变。
+- 鼎桥 SDK 开启角色分离时，`scheduling.qos` 也作用于角色分离自有的推理和聚类线程，但始终比 ASR 低一级：`user-interactive` 对应角色线程 `QOS_USER_INITIATED`，`user-initiated` 对应 `QOS_DEFAULT`，`default` 不设置。这些线程仍先设为 nice 10；系统接受 QoS 后按该等级的策略调度，拒绝时保持 nice 10。用于系统应用在息屏或后台时，让角色分离与 ASR 一起摆脱后台默认策略，同时转写仍然优先。不调整借用的运行时线程。
 - 非空 CPU 集合不表示固定频率或独占 CPU；系统可能拒绝或收窄请求。不要跨机型复制 CPU 编号。
-- `AmphionScheduling` hilog 记录设置返回码、QoS 读取结果、affinity 是否与请求一致，以及恢复失败；同一 recognizer 的同类结果只记录一次，避免逐帧日志干扰性能。不包含音频或文本。出现恢复失败的运行不能作为非侵入性验收 PASS。
+- `AmphionScheduling` hilog 记录设置返回码、QoS 读取结果、affinity 是否与请求一致，以及恢复失败；同一 recognizer 的同类结果只记录一次，避免逐帧日志干扰性能。角色线程每个线程启动时记录一次 `role-qos requested/result/effective`。不包含音频或文本。出现恢复失败的运行不能作为非侵入性验收 PASS。
 - `allowSpinning=false` 和启用 prepack 都只是可测的取舍，没有预设息屏性能收益。不开启保活、网络请求、自动权限申请或系统省电设置修改。
 
 ## 对照验证

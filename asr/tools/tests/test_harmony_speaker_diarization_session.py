@@ -150,6 +150,13 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertFalse((DIARIZATION / "SpeakerDiarizationRemoteClient.ets").exists())
         self.assertFalse((ROOT / "delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py").exists())
 
+    def test_engine_scheduling_qos_reaches_the_role_executor(self) -> None:
+        adapter = ADAPTER.read_text(encoding="utf-8")
+        construction = adapter[adapter.index("new SpeakerDiarizationSession("):]
+        construction = construction[:construction.index("} catch")]
+        self.assertIn("recognizerQos: this.params.scheduling?.qos", adapter)
+        self.assertIn("diarizationOptions);", construction)
+
     def test_local_model_load_and_inference_are_quiescent_before_runtime_release(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
         inference = CORE_DIARIZATION.read_text(encoding="utf-8")

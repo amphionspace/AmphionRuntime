@@ -24,21 +24,25 @@ export class CommunityDiarizationInference {
   private handle?: number;
   private closed: boolean = false;
   private readonly lanes: number;
+  private readonly recognizerQos: string;
 
   /**
    * lanes == 0 keeps one window per call on a four-thread encoder pool. lanes > 0
    * lets processBatch run up to `lanes` windows at once on single-threaded
    * encoders and model-owned low-priority workers; the outputs are identical.
+   * recognizerQos is the engine's ASR QoS request; those workers run one level
+   * below it.
    */
-  constructor(lanes: number = 0) {
+  constructor(lanes: number = 0, recognizerQos: string = 'default') {
     if (!Number.isInteger(lanes) || lanes < 0 || lanes > 4) throw new Error('lanes must be an integer in [0, 4]');
     this.lanes = lanes;
+    this.recognizerQos = recognizerQos;
   }
 
   async load(context: Context): Promise<void> {
     if (this.closed) throw new Error('Community inference is closed');
     const handle = this.lanes > 0 ?
-      await loadCommunityDiarizationResources(context.resourceManager, this.lanes) :
+      await loadCommunityDiarizationResources(context.resourceManager, this.lanes, this.recognizerQos) :
       await loadCommunityDiarizationResources(context.resourceManager);
     if (this.closed) { closeCommunityDiarization(handle); return; }
     this.handle = handle;
