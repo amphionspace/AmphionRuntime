@@ -1,6 +1,23 @@
 # Amphion HarmonyOS ASR 0.3.20 验收状态（未发布）
 
-**状态：子包已出，完整包未组。** 正式 SDK 与 Diagnostics 两个子包在冻结提交上构建并通过各自门禁；完整 ZIP 未组装，因为 `pack_complete_asr_delivery.sh` 要求 `speaker-vad-turn` 与 `customer-ptt` 两份 PASS 真机报告，而 `speaker-vad-turn` 所需的目标说话人夹具本机没有。`published: false`，不具备正式发布资格。
+**状态：完整包已组并通过最终 ZIP 验收，但带一项记录在案的豁免。** 正式 SDK、Diagnostics、完整 ZIP 与真机证据全部绑定同一冻结提交。`speaker-vad-turn` 经交付负责人指示豁免，清单声明理由、随包的验收摘要同步披露、打包时打印警告。按 `DEFAULT_DELIVERY.md`，缺该模式证据的包**不具备正式发布资格**，登记为未发布候选（`published: false`）。
+
+| 产物 | 值 |
+|---|---|
+| 完整 ZIP | `Amphion-Harmony-ASR-Complete-0.3.20.zip`，1,667,827,806 字节 |
+| SHA-256 | `9a7fd99d36c7e0f9b795f239502dcc7185b042f1dcd0845d1aa13451d33deacf` |
+
+## 最终 ZIP 验收
+
+| 项 | 结果 |
+|---|---|
+| 固定哈希后解包 | PASS，五个目录齐全（`release-sdk`、`diagnostics-sdk`、`diagnostics-demo`、`demo-source`、`docs`）|
+| 安装包内 `-signed.hap` | PASS，精确选取 `amphion_asr_demo-diagnostics-signed.hap` |
+| 包内 demo 复测 | PASS，`customer-ptt` 1 轮，`--installed-package`，sdk=PASS、memory=PASS、空 final 率 0 |
+| 包内源码独立构建 | PASS，依赖 `libs/amphion_dingqiao.har`，只补本地授权与签名，33 个 hvigor 任务 |
+| 源码构建产物复测 | PASS，`customer-ptt` 1 轮，sdk=PASS、memory=PASS、空 final 率 0 |
+
+源码独立构建首次失败于资源路径错误：源码包自身不含 `rawfile` 目录，授权文件须放入该目录后方可加载。
 
 ## 冻结身份
 
