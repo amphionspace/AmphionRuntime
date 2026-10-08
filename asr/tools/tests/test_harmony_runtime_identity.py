@@ -1,7 +1,9 @@
 import json
+import re
 import subprocess
 import textwrap
 import unittest
+from datetime import date, timedelta
 from pathlib import Path
 
 
@@ -9,6 +11,14 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 IDENTITY = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
 RUNTIME = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets"
 LICENSE = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/License.ets"
+# These gates check that the version sources agree with the identity the SDK ships, so they
+# read it instead of pinning a literal that has to be edited in lockstep with each release
+# and whose staleness only shows up as a failed delivery packaging run.
+_IDENTITY_SOURCE = IDENTITY.read_text(encoding="utf-8")
+SDK_VERSION = re.search(r"HARMONY_SDK_VERSION: string = '([^']+)'", _IDENTITY_SOURCE).group(1)
+SDK_RELEASE_DATE = re.search(
+    r"HARMONY_SDK_RELEASE_DATE: string = '([^']+)'", _IDENTITY_SOURCE
+).group(1)
 
 
 class HarmonyRuntimeIdentityTest(unittest.TestCase):
@@ -34,10 +44,10 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
 
     def test_runtime_identity_matches_delivery_version(self) -> None:
         self.run_identity(
-            """
-            assert.equal(HARMONY_SDK_VERSION, '0.3.19');
+            f"""
+            assert.equal(HARMONY_SDK_VERSION, {SDK_VERSION!r});
             assert.equal(HARMONY_SDK_MAJOR, 1);
-            assert.equal(HARMONY_SDK_RELEASE_DATE, '2026-09-28');
+            assert.equal(HARMONY_SDK_RELEASE_DATE, {SDK_RELEASE_DATE!r});
             """
         )
 
@@ -57,26 +67,31 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
         self.assertEqual(harmony_deliveries[-1]["version"], "0.3.17")
 
     def test_license_major_and_maintenance_boundaries_fail_closed(self) -> None:
+        """The boundary sits on the release date, so it moves with every release."""
+        released = date.fromisoformat(SDK_RELEASE_DATE)
+        day_before = (released - timedelta(days=1)).isoformat()
+        day_after = (released + timedelta(days=1)).isoformat()
+        long_expired = (released - timedelta(days=30)).isoformat()
         self.run_identity(
-            """
+            f"""
             assert.equal(
               evaluateLicenseIdentity(2, HARMONY_SDK_MAJOR, '2027-01-01', HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.SDK_MAJOR_MISMATCH,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-08', HARMONY_SDK_RELEASE_DATE),
+              evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, {long_expired!r}, HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.MAINTENANCE_EXPIRED,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-27', HARMONY_SDK_RELEASE_DATE),
+              evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, {day_before!r}, HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.MAINTENANCE_EXPIRED,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-28', HARMONY_SDK_RELEASE_DATE),
+              evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, {SDK_RELEASE_DATE!r}, HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.NONE,
             );
             assert.equal(
-                evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, '2026-09-29', HARMONY_SDK_RELEASE_DATE),
+              evaluateLicenseIdentity(1, HARMONY_SDK_MAJOR, {day_after!r}, HARMONY_SDK_RELEASE_DATE),
               LicenseIdentityFailure.NONE,
             );
             """
@@ -91,7 +106,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5",
         ):
             manifest = json.loads((REPO_ROOT / relative).read_text(encoding="utf-8"))
-            self.assertEqual(manifest["version"], "0.3.19", relative)
+            self.assertEqual(manifest["version"], SDK_VERSION, relative)
 
         # Lockfiles are generated/ignored by ohpm. When present, they must not retain stale native
         # identity, but a clean checkout does not need generated files for this gate to pass.
@@ -111,7 +126,7 @@ class HarmonyRuntimeIdentityTest(unittest.TestCase):
             ]
             self.assertTrue(native_packages, relative)
             self.assertTrue(
-                all(package["version"] == "0.3.19" for package in native_packages),
+                all(package["version"] == SDK_VERSION for package in native_packages),
                 relative,
             )
 
