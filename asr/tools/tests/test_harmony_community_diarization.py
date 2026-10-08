@@ -310,6 +310,42 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
                             TS_LOADER.as_uri(), str(harness)], check=True, cwd=ROOT)
 
+    def test_engine_recognizer_qos_reaches_the_lane_load(self):
+        inference = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/CommunityDiarizationInference.ets'
+        source = inference.read_text().split('export class CommunityDiarizationInference', 1)[1]
+        source = 'export class CommunityDiarizationInference' + source.split('\nexport {', 1)[0]
+        client = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
+        client = client[client.index('export class SpeakerDiarizationStorageError'):]
+        script = """
+          import assert from 'node:assert/strict';
+          const loads=[];
+          async function loadCommunityDiarizationResources(...args){loads.push(args);return loads.length}
+          function closeCommunityDiarization(){}
+        """ + source.replace('export class CommunityDiarizationInference', 'class RealInference') + """
+          const resources={};
+          await new RealInference(2,'user-interactive').load({resourceManager:resources});
+          await new RealInference(2).load({resourceManager:resources});
+          await new RealInference().load({resourceManager:resources});
+          assert.deepEqual(loads,[[resources,2,'user-interactive'],[resources,2,'default'],[resources]]);
+          const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
+          let nextDiarizationJobId=1;const created=[];
+          const fs={accessSync:()=>true,mkdirSync(){},listFileSync:()=>[],rmdirSync(){}};
+          class DiarizationWindowScheduler {} class DiarizationPcmSpool {close(){}remove(){}}
+          class DiarizationEvidenceSpool {close(){}remove(){}}
+          class CommunityDiarizationInference {constructor(...args){created.push(args)} async load(){} close(){}}
+          const SpeakerDiarizationDegradedReason={};
+        """ + client + """
+          const observer={onWindow(){},onDrained(){},onDegraded(){}};
+          new SpeakerDiarizationLocalClient({},'/work',observer,undefined,{recognizerQos:'user-initiated'}).cancel();
+          new SpeakerDiarizationLocalClient({},'/work',observer).cancel();
+          assert.deepEqual(created,[[2,'user-initiated'],[2,'default']]);
+        """
+        with tempfile.TemporaryDirectory() as directory:
+            harness = Path(directory) / 'role-qos.mts'
+            harness.write_text(script)
+            subprocess.run(['node', '--experimental-strip-types', '--experimental-loader',
+                            TS_LOADER.as_uri(), str(harness)], check=True, cwd=ROOT)
+
     def test_silence_placeholder_cannot_enroll_or_consume_a_role(self):
         run_node(f"""
           import assert from 'node:assert/strict';

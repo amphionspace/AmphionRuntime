@@ -58,6 +58,7 @@ import {
   VoiceprintRegisterResult
 } from './DingqiaoModels';
 import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
+import { SpeakerDiarizationLocalClientOptions } from './diarization/SpeakerDiarizationLocalClient';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
@@ -627,6 +628,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
               value: diarizationResult,
             });
           });
+        // Engine-wide ASR QoS also lifts role work, one level below recognition.
+        const diarizationOptions: SpeakerDiarizationLocalClientOptions = {
+          recognizerQos: this.params.scheduling?.qos,
+        };
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
@@ -635,7 +640,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             diarizationObserver,
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);
-            } : undefined);
+            } : undefined,
+            diarizationOptions);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
