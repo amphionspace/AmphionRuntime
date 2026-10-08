@@ -5,7 +5,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
-VERSION="${AMPHION_RUNTIME_VERSION:-0.3.19}"
+VERSION="${AMPHION_RUNTIME_VERSION:-0.3.20}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
@@ -114,7 +114,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/docs/customer/NOTICE
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md
-  delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.19.md
+  delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.20.md
   delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md
   delivery/harmony-dingqiao/docs/PRIVACY.md
   delivery/harmony-dingqiao/docs/语音识别SDK接口.md
@@ -342,8 +342,8 @@ if [[ "$SDK_ONLY" == true ]]; then
     "$OUT_ROOT/docs/INTEGRATION.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md" \
     "$OUT_ROOT/docs/LICENSE_SCHEME.md"
-  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.19.md" \
-    "$OUT_ROOT/docs/UPGRADE_0.3.19.md"
+  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.20.md" \
+    "$OUT_ROOT/docs/UPGRADE_0.3.20.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md"
   python3 - "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md" <<'PY'
 import sys
@@ -384,7 +384,7 @@ path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
 | `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
-| `docs/UPGRADE_0.3.19.md` | 相对 0.3.18 的编译兼容修复和替换说明 |
+| `docs/UPGRADE_0.3.20.md` | 相对 0.3.18 的编译兼容修复和替换说明 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
 | `docs/LICENSE.md` | 商用授权接入 |
 | `docs/TROUBLESHOOTING.md` | 故障排查与日志采集 |

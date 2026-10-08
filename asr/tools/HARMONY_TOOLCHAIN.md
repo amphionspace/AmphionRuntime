@@ -54,7 +54,7 @@ export JAVA_HOME="$(brew --prefix openjdk@17)/libexec/openjdk.jdk/Contents/Home"
 
 ## 日常编译
 
-交付验收还需独立保存 OpenHarmony 6.1 / API 23 SDK 的 `es2abc`。它只检查旧编译器兼容性，不替换日常 CLT，也不从 DevEco Studio 安装目录取工具。0.3.19 使用公开 SDK 6.1.0.31 的 macOS 版本验证；解压 SDK 的 ETS 组件后，保留 `ets/build-tools/ets-loader/bin/ark/build-mac/` 目录及其中的动态库。
+交付验收还需独立保存 OpenHarmony 6.1 / API 23 SDK 的 `es2abc`。它只检查旧编译器兼容性，不替换日常 CLT，也不从 DevEco Studio 安装目录取工具。0.3.19 与 0.3.20 使用公开 SDK 6.1.0.31 的 macOS 版本验证；解压 SDK 的 ETS 组件后，保留 `ets/build-tools/ets-loader/bin/ark/build-mac/` 目录及其中的动态库。
 
 ```bash
 export HARMONY_API23_ES2ABC=/path/to/api23/ets/build-tools/ets-loader/bin/ark/build-mac/bin/es2abc
