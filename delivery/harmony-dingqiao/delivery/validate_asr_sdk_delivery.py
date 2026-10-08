@@ -67,7 +67,6 @@ REQUIRED_FILES = {
     "docs/NOTICE",
     "docs/SDK_LIFECYCLE_PERFORMANCE_SUMMARY_20260713.md",
     "docs/ASR_SDK_API_HARMONY.md",
-    "docs/UPGRADE_0.3.19.md",
     "docs/third-party/ONNX-Runtime-MIT.txt",
     "docs/third-party/Apache-2.0.txt",
     "docs/third-party/WebRTC-BSD-3-Clause.txt",
@@ -157,7 +156,13 @@ def _load_pinned_model_md5() -> dict[str, str]:
     return expected
 
 
-def _validate_layout(root: Path) -> None:
+def _required_files(version: str) -> set[str]:
+    # The upgrade note is named after the release it describes, so derive it rather
+    # than pin a version that goes stale on the next bump and fails the next cut.
+    return REQUIRED_FILES | {f"docs/UPGRADE_{version}.md"}
+
+
+def _validate_layout(root: Path, version: str) -> None:
     if not root.is_dir():
         raise DeliveryValidationError(f"delivery directory does not exist: {root}")
     symlinks = [path for path in root.rglob("*") if path.is_symlink()]
@@ -168,16 +173,17 @@ def _validate_layout(root: Path) -> None:
         for path in root.rglob("*")
         if path.is_file()
     }
-    missing = sorted(REQUIRED_FILES - actual)
-    unexpected = sorted(actual - REQUIRED_FILES)
+    required = _required_files(version)
+    missing = sorted(required - actual)
+    unexpected = sorted(actual - required)
     if missing:
         raise DeliveryValidationError(f"missing required file: {missing[0]}")
     if unexpected:
         raise DeliveryValidationError(f"unexpected file in SDK-only delivery: {unexpected[0]}")
 
 
-def _validate_checksums(root: Path) -> None:
-    expected_files = REQUIRED_FILES - {"docs/checksum.txt"}
+def _validate_checksums(root: Path, version: str) -> None:
+    expected_files = _required_files(version) - {"docs/checksum.txt"}
     checksums = {}
     for line_number, raw_line in enumerate(
         (root / "docs/checksum.txt").read_text(encoding="utf-8").splitlines(), 1
@@ -641,8 +647,8 @@ def validate_delivery(
         raise DeliveryValidationError(
             f"runtime identity source version {expected_identity['version']} != {expected_version}"
         )
-    _validate_layout(root)
-    _validate_checksums(root)
+    _validate_layout(root, expected_version)
+    _validate_checksums(root, expected_version)
     har_evidence = _validate_har(
         root, expected_version, expected_model_md5, expected_identity
     )

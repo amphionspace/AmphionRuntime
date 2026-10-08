@@ -1,9 +1,18 @@
 import json
 from pathlib import Path
+import re
 import unittest
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+RUNTIME_IDENTITY = (
+    REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"
+).read_text(encoding="utf-8")
+# This gate checks that every version source agrees, so it reads the shipped identity
+# rather than pinning a literal that has to be edited in lockstep with each release.
+VERSION = re.search(r"HARMONY_SDK_VERSION: string = '([^']+)'", RUNTIME_IDENTITY).group(1)
+_MINOR, _PATCH = (int(part) for part in VERSION.split(".")[1:3])
+VERSION_CODE = _MINOR * 100 + _PATCH
 
 
 class ReleaseDefaultsTest(unittest.TestCase):
@@ -29,13 +38,12 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("onStart", upgrade)
 
         version_files = {
-            "asr/harmony/oh-package.json5": '"version": "0.3.19"',
-            "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5": '"version": "0.3.19"',
-            "asr/harmony/sdk/oh-package.json5": '"version": "0.3.19"',
-            "asr/harmony/sdk-dingqiao/oh-package.json5": '"version": "0.3.19"',
-            "asr/harmony/sdk-police/oh-package.json5": '"version": "0.3.19"',
-            "delivery/harmony-dingqiao/oh-package.json5": '"version": "0.3.19"',
-            "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts": "'0.3.19'",
+            "asr/harmony/oh-package.json5": f'"version": "{VERSION}"',
+            "asr/harmony/sdk/src/main/cpp/types/libamphion_asr/oh-package.json5": f'"version": "{VERSION}"',
+            "asr/harmony/sdk/oh-package.json5": f'"version": "{VERSION}"',
+            "asr/harmony/sdk-dingqiao/oh-package.json5": f'"version": "{VERSION}"',
+            "asr/harmony/sdk-police/oh-package.json5": f'"version": "{VERSION}"',
+            "delivery/harmony-dingqiao/oh-package.json5": f'"version": "{VERSION}"',
         }
         for relative, expected in version_files.items():
             with self.subTest(relative=relative):
@@ -48,18 +56,22 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn("UPGRADE_0.3.19.md", pack_script)
+        self.assertIn(f"UPGRADE_{VERSION}.md", pack_script)
+        self.assertTrue(
+            (REPO_ROOT / f"delivery/harmony-dingqiao/docs/customer/UPGRADE_{VERSION}.md").is_file()
+        )
         validator = (
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/validate_asr_sdk_delivery.py"
         ).read_text(encoding="utf-8")
-        self.assertIn('"docs/UPGRADE_0.3.19.md"', validator)
+        # The validator derives the note name from the release under validation.
+        self.assertIn('f"docs/UPGRADE_{version}.md"', validator)
 
     def test_usb_carrier_matches_the_current_delivery_version(self) -> None:
         # The test carrier advances with the SDK and replaces the installed HAP without removing data.
         app = json.loads((REPO_ROOT / "delivery/harmony-dingqiao/AppScope/app.json5").read_text())["app"]
-        self.assertEqual("0.3.19", app["versionName"])
-        self.assertEqual(319, app["versionCode"])
+        self.assertEqual(VERSION, app["versionName"])
+        self.assertEqual(VERSION_CODE, app["versionCode"])
 
     def test_039_changelog_limits_the_release_to_public_log_configuration(self) -> None:
         changelog = (
@@ -304,6 +316,32 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("expected one demo module", script)
         self.assertIn("TRANSFORMATIONS.md", script)
         self.assertIn("基于本交付 commit 裁剪并适配", script)
+
+    def test_complete_delivery_waiver_must_be_named_justified_and_disclosed(self) -> None:
+        """A required acceptance mode may be skipped only as a recorded disclosure.
+
+        Dropping a mode from required_modes would let a later package omit the
+        evidence silently, so the gate stays and a waiver has to name the mode,
+        carry a reason, and be repeated in the acceptance summary that ships.
+        """
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('required_modes = {"speaker-vad-turn", "customer-ptt"}', script)
+        self.assertIn('manifest.get("waived_modes", [])', script)
+        self.assertIn("waiver names a mode that is not required", script)
+        self.assertIn("needs a stated reason", script)
+        self.assertIn("does not disclose the", script)
+        self.assertIn("acceptance waivers in effect", script)
+        self.assertIn("if passed_modes | set(waived) != required_modes:", script)
+        # The disclosure check has to read the summary that is hashed into the
+        # manifest, not some other copy of the text.
+        self.assertLess(
+            script.index('manifest.get("summary_sha256") != summary_sha256'),
+            script.index('manifest.get("waived_modes", [])'),
+        )
 
     def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
         script = (
