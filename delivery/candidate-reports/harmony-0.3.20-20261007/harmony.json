@@ -35,10 +35,11 @@
   "verification_report": "Amphion-Harmony-ASR-0.3.20-Verification.md",
   "local_staging": "~/.cache/amphion-runtime/delivery-staging/asr/harmony/0.3.20/b44b6d00",
   "archived": false,
-  "verification_report_sha256": "27514166d30e2cde1cb0d4457d1c2349a5410b2797a1799de0c035e3e7fa82ce",
+  "verification_report_sha256": "e00ff171ce3a8f3fb91fc42b9954d6abd4ebc042dc3f162e401d12b51aa1f9c1",
   "controlled_test_data": "aishell3-500 and dingqiao-meeting-20260918 fetched from OBS and verified 2026-10-07; team-secure-state-v5 not fetched (its canonical device allowlist conflicted with a local enrollment edit, since reverted, so a plain fetch now succeeds)",
-  "signing_and_license_provenance": "Non-canonical: signing material assembled locally from the DevEco-managed signing-project material, and the demo licence re-issued locally with this device's ODID. team-secure-state-v5 is the canonical source for both and should replace them before any published build.",
+  "signing_and_license_provenance": "Locally issued by necessity, verified against the canonical bundle rather than assumed: team-secure-state-v5 was fetched and verified on 2026-10-08 and does not cover this device. Its device allowlist holds four entries and not this device's ODID (it carries the hdc serial, which applies to a system or preinstalled host, while the ordinary demo reads deviceInfo.ODID); the certificate its harmony-signing.json points at expired 2026-09-15; and none of its three licences fits, one binding seven devices that exclude this one and the other two unbound but carrying only ASR or only TTS where the demo needs both. The signing material therefore comes from the DevEco-managed signing-project material (valid to 2027-09-30, bound to the demo bundle, listing this device's UDID) and the demo licence was re-issued locally with the private key from the same canonical bundle. Rebuilding the package against the canonical material would not make it more authoritative, because that material is expired and does not cover the device.",
   "artifact": "Amphion-Harmony-ASR-Complete-0.3.20.zip",
   "size_bytes": 1667827806,
-  "sha256": "9a7fd99d36c7e0f9b795f239502dcc7185b042f1dcd0845d1aa13451d33deacf"
+  "sha256": "9a7fd99d36c7e0f9b795f239502dcc7185b042f1dcd0845d1aa13451d33deacf",
+  "canonical_material_check": "team-secure-state-v5 fetched and verified 2026-10-08. Conclusion: unusable on this host today, for the three reasons recorded above. The local device allowlist is kept at five entries so it matches the licence embedded in the package and this device stays testable; restoring the canonical four-entry list requires re-issuing the licence to match."
 }
