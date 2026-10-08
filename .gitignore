@@ -74,6 +74,12 @@ asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/*.fst
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/tokens.txt
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**/bbpe.vocab
 asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json
+# 角色分离模型与其许可文本，同样由受控制品库准备，不入库。缺这几条时交付组包会把
+# 它们当作未跟踪改动，直接拒绝组包（要求干净工作区）。
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.onnx
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.f32
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.f64
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.LICENSE
 third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/*/
 
 # 客户交付聚合目录中的本地构建、签名和打包输出
