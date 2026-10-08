@@ -93,6 +93,28 @@ if manifest.get("summary_sha256") != summary_sha256:
     raise SystemExit("[ERROR] acceptance summary hash does not match manifest")
 
 required_modes = {"speaker-vad-turn", "customer-ptt"}
+# A required mode may be waived only where the manifest names it and says why, and only
+# where the acceptance summary repeats it, so the requirement survives as a disclosure
+# the package carries instead of quietly disappearing from the gate.
+waived: dict[str, str] = {}
+for item in manifest.get("waived_modes", []):
+    if not isinstance(item, dict):
+        raise SystemExit("[ERROR] waived_modes entries must be objects")
+    waived_mode = item.get("mode")
+    reason = item.get("reason")
+    if waived_mode not in required_modes:
+        raise SystemExit(f"[ERROR] waiver names a mode that is not required: {waived_mode}")
+    if not isinstance(reason, str) or len(reason.strip()) < 20:
+        raise SystemExit(f"[ERROR] waiver for {waived_mode} needs a stated reason")
+    waived[waived_mode] = reason.strip()
+if waived:
+    summary_text = summary_path.read_text(encoding="utf-8")
+    for waived_mode in sorted(waived):
+        if waived_mode not in summary_text:
+            raise SystemExit(
+                f"[ERROR] acceptance summary does not disclose the {waived_mode} waiver"
+            )
+    print("[WARN] acceptance waivers in effect: " + ", ".join(sorted(waived)))
 passed_modes = set()
 for item in manifest.get("reports", []):
     relative = item.get("path")
@@ -117,8 +139,11 @@ for item in manifest.get("reports", []):
         raise SystemExit(f"[ERROR] acceptance report does not match diagnostics SDK: {relative}")
     if mode in required_modes:
         passed_modes.add(mode)
-if passed_modes != required_modes:
-    raise SystemExit("[ERROR] acceptance manifest lacks required crash/recovery modes")
+if passed_modes | set(waived) != required_modes:
+    missing = sorted(required_modes - passed_modes - set(waived))
+    raise SystemExit(
+        f"[ERROR] acceptance manifest lacks required crash/recovery modes: {missing}"
+    )
 PY
 mkdir -p "$PACKAGE_ROOT/release-sdk" "$PACKAGE_ROOT/diagnostics-sdk" \
   "$PACKAGE_ROOT/diagnostics-demo" "$PACKAGE_ROOT/demo-source/libs" "$PACKAGE_ROOT/docs"

@@ -317,6 +317,32 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn("TRANSFORMATIONS.md", script)
         self.assertIn("基于本交付 commit 裁剪并适配", script)
 
+    def test_complete_delivery_waiver_must_be_named_justified_and_disclosed(self) -> None:
+        """A required acceptance mode may be skipped only as a recorded disclosure.
+
+        Dropping a mode from required_modes would let a later package omit the
+        evidence silently, so the gate stays and a waiver has to name the mode,
+        carry a reason, and be repeated in the acceptance summary that ships.
+        """
+        script = (
+            REPO_ROOT
+            / "delivery/harmony-dingqiao/delivery/pack_complete_asr_delivery.sh"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn('required_modes = {"speaker-vad-turn", "customer-ptt"}', script)
+        self.assertIn('manifest.get("waived_modes", [])', script)
+        self.assertIn("waiver names a mode that is not required", script)
+        self.assertIn("needs a stated reason", script)
+        self.assertIn("does not disclose the", script)
+        self.assertIn("acceptance waivers in effect", script)
+        self.assertIn("if passed_modes | set(waived) != required_modes:", script)
+        # The disclosure check has to read the summary that is hashed into the
+        # manifest, not some other copy of the text.
+        self.assertLess(
+            script.index('manifest.get("summary_sha256") != summary_sha256'),
+            script.index('manifest.get("waived_modes", [])'),
+        )
+
     def test_diagnostics_package_can_reuse_the_verified_signed_build(self) -> None:
         script = (
             REPO_ROOT / "delivery/harmony-dingqiao/delivery/pack_diagnostics_sdk.sh"
