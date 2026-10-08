@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
 import sys
 import tarfile
 import tempfile
@@ -24,8 +25,14 @@ SPEC.loader.exec_module(MODULE)
 FIXTURE_MODEL_MD5 = {
     "asset.onnx": hashlib.md5(b"approved source").hexdigest(),
 }
-FIXTURE_VERSION = "0.3.19"
-FIXTURE_RELEASE_DATE = "2026-09-28"
+# validate_delivery reads the repository's own RuntimeIdentity.ts, so a fixture that
+# pinned a version made every test here fail on the release that bumped it. Track the
+# shipped identity instead.
+_IDENTITY = MODULE.RUNTIME_IDENTITY_SOURCE_PATH.read_text(encoding="utf-8")
+FIXTURE_VERSION = re.search(r"HARMONY_SDK_VERSION: string = '([^']+)'", _IDENTITY).group(1)
+FIXTURE_RELEASE_DATE = re.search(
+    r"HARMONY_SDK_RELEASE_DATE: string = '([^']+)'", _IDENTITY
+).group(1)
 FIXTURE_ROOT_NAME = (
     f"amphion-harmony-asr-sdk-v{FIXTURE_VERSION}-{FIXTURE_RELEASE_DATE.replace('-', '')}"
 )
@@ -56,7 +63,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
         release_date: str = FIXTURE_RELEASE_DATE,
         include_agc: bool = True,
     ) -> None:
-        required = set(MODULE.REQUIRED_FILES)
+        required = set(MODULE._required_files(FIXTURE_VERSION))
         required.remove("har/amphion_dingqiao.har")
         required.remove("docs/BUILD_PROVENANCE.json")
         required.remove("docs/checksum.txt")
@@ -66,7 +73,7 @@ class ValidateAsrSdkDeliveryTest(unittest.TestCase):
             path.write_text(f"fixture for {relative}\n", encoding="utf-8")
         (root / "docs/CHANGELOG.md").write_text(
             "# ASR SDK 更新日志\n\n"
-            "## HarmonyOS ASR SDK 0.3.19\n\n"
+            f"## HarmonyOS ASR SDK {FIXTURE_VERSION}\n\n"
             "- 目标说话人增强仅预留接口；本交付不包含所需模型，不能启用。\n\n"
             "## 源码提交明细\n",
             encoding="utf-8",
