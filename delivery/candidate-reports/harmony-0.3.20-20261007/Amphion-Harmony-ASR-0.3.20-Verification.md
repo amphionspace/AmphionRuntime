@@ -73,7 +73,23 @@
 
 `aishell3-500`（500 个 WAV，按说话人目录组织，带 punc+hotwords 转写）与 `dingqiao-meeting-20260918`（五段客户授权会议录音、MOSS 与人工裁定）已于 2026-10-07 从 OBS 拉取并校验通过。两者都不含目标说话人夹具清单。
 
-`team-secure-state-v5` 未拉取：它的权威设备白名单与本机一处临时改动冲突（为给本机 ODID 开白名单，已还原为权威的 128 字节版本），现在直接 fetch 即可。**该 bundle 是签名材料与设备白名单的权威来源**；本轮使用的签名配置与本地重签的 demo 许可都不是权威来源，正式发布前应以它替换。
+`team-secure-state-v5` 已于 2026-10-08 拉取（`--replace-existing`）并校验通过。
+
+## 签名与授权来源
+
+**本轮使用本地签发，且已与权威 bundle 逐项核对确认其必要性，不是未找到权威材料。** 核对结果是权威材料在本机当前不可用：
+
+| 核对项 | 权威材料的状态 |
+|---|---|
+| 设备白名单 | 4 条，**不含**本机 ODID。含 hdc 序列号 `7GK0226326015655`，但该标识适用于系统/预置宿主；普通 demo 固定读 `deviceInfo.ODID` |
+| `harmony-signing.json` 指向的证书 | 文件齐全，但叶子开发证书 **2026-09-15 已过期**（两级 CA 分别有效至 2030 / 2049）|
+| 三份许可 | 均不适用：`amphion-license-bound-generated-20260818.lic` 绑 7 个设备但不含本机；`amphion-harmony-asr-eval-20260818.lic` 与 `tts-harmony-license.lic` 不绑设备，但分别只含 ASR 或只含 TTS，而 demo 需要 ASR+TTS |
+
+因此：签名材料取自 DevEco 托管的 signing-project 材料（有效至 2027-09-30、绑定 demo 包名、设备列表含本机 UDID）；demo 许可以同一权威 bundle 中的私钥本地重签，并加入本机 ODID。
+
+**以权威材料重新组包不会让包更权威**——该材料本身已过期且不覆盖本机设备。恢复权威来源的前提是续签开发证书，或由权威侧将本机 ODID 纳入白名单并重新签发覆盖 ASR+TTS 的许可。
+
+本机 `.secure/amphion_asr_demo_device_ids.txt` 保留为 5 条，与包内嵌入的许可一致，以便该设备继续用于测试；若恢复权威的 4 条清单，须同步重签许可，否则构建会以 `license device hashes do not exactly match the authorized device list` 失败。
 
 ## 关于 `speaker-vad-turn` 的豁免
 
