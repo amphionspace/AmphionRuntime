@@ -634,6 +634,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         };
         // Only a non-default encoder request is forwarded; the CPU path keeps
         // the exact native argument shape it has always had.
+        const diarizationQos = this.params.scheduling?.diarizationQos;
+        if (diarizationQos !== undefined && diarizationQos !== 'inherit') {
+          diarizationOptions.roleQos = diarizationQos;
+        }
         const diarizationEncoder = this.params.scheduling?.diarizationEncoder;
         if (diarizationEncoder !== undefined && diarizationEncoder !== 'cpu') {
           diarizationOptions.encoderBackend = diarizationEncoder;

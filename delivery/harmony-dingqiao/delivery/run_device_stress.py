@@ -177,6 +177,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speech-end-ms", type=int, default=0,
                         help="Native VAD speech-end sample time for speech-end-latency fixture (ms).")
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
+    parser.add_argument("--sample-power", action="store_true",
+                        help="Log battery voltage and current at 1 Hz for the run (diagnostics only).")
+    parser.add_argument("--diarization-qos", choices=["inherit", "utility", "background", "default"],
+                        default="inherit",
+                        help="Role-worker scheduler placement for the diarization burst.")
     parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="cpu",
                         help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
@@ -1335,6 +1340,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressAllowScreenOff", str(args.allow_screen_off).lower(),
         "--ps", "stressHoldMicCapture", str(args.hold_mic_capture).lower(),
         "--ps", "stressAsrQos", args.asr_qos,
+        "--ps", "samplePower", "true" if args.sample_power else "false",
+        "--ps", "stressDiarizationQos", args.diarization_qos,
         "--ps", "stressDiarizationEncoder", args.diarization_encoder,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
@@ -1535,6 +1542,7 @@ def run_stress(args: argparse.Namespace) -> Path:
                                                if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,
             "diarization_encoder": args.diarization_encoder,
+            "diarization_qos": args.diarization_qos,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
             "asr_allow_spinning": not args.asr_disable_spinning,

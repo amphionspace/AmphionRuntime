@@ -89,6 +89,12 @@ export default class EntryAbility extends UIAbility {
       options.backend = this.stringParameter(want, 'mindirProbeBackend', 'cpu');
       options.iterations = this.numberParameter(want, 'mindirProbeIterations', 3);
       options.resultPath = this.stringParameter(want, 'mindirProbeResult', '');
+      options.chainModels = this.stringParameter(want, 'mindirChainModels', '');
+      options.paceMs = this.numberParameter(want, 'mindirChainPaceMs', 640);
+      options.durationMs = this.numberParameter(want, 'mindirChainDurationMs', 60000);
+      options.ortModel = this.stringParameter(want, 'ortProbeModel', '');
+      options.ortThreads = this.numberParameter(want, 'ortProbeThreads', 4);
+      options.samplePower = params !== undefined && params['samplePower'] === 'true';
       runMindirProbe(this.context, options).catch((e: Object): void => {
         hilog.error(0x0000, 'MindirProbe', 'mindir probe crashed: %{public}s', `${e}`);
       });
@@ -143,7 +149,9 @@ export default class EntryAbility extends UIAbility {
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
       options.captureDiagnostics = this.stringParameter(want, 'stressCaptureDiagnostics', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
+      options.samplePower = params !== undefined && params['samplePower'] === 'true';
       options.diarizationEncoder = this.stringParameter(want, 'stressDiarizationEncoder', 'cpu');
+      options.diarizationQos = this.stringParameter(want, 'stressDiarizationQos', 'inherit');
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
       options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));
       options.asrNumThreads = this.numberParameter(want, 'stressAsrNumThreads', 4);
