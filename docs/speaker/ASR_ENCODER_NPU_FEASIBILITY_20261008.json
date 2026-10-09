@@ -344,7 +344,7 @@
    "note": "the four bidirectional LSTMs were never reached, so they remain untested"
   },
   "cpuSideLead": {
-   "observation": "the same graph runs in 35.2 ms median on the MindSpore Lite CPU backend, while the shipped ORT path costs about 99 ms per window (94.4 s over 951 windows)",
+   "observation": "the same graph runs in 35.2 ms median on the MindSpore Lite CPU backend, while the shipped ORT path costs about 97 ms per window (91.8 s over 951 windows in the npu16 arm)",
    "caveat": "not a controlled comparison: the ORT session is deliberately pinned to one thread and the probe used four, and the probe feeds zeros",
    "reading": "segmentation may have CPU headroom worth more than another attempt at the accelerator"
   },
