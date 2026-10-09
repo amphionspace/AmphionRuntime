@@ -274,7 +274,12 @@ ASR encoder 是 zipformer2（`decode_chunk_len=64`、`T=77`、`num_encoder_layer
 ## 8. 待办
 
 - **60 分钟 RSS 增长**：两档都超过载体 64 MB 阈值（cpu60 108.3 MB，npu60 178.6 MB），NPU 档更高。需要带相位对齐证据的内存排查，这是六轮矩阵唯一的 FAIL 原因。对照实验显示仅识别轮的内存判定是 PASS（增长 27.3 MB、峰值 568 MB），两个角色分离轮都是 INCONCLUSIVE，所以这一项由角色分离链引入，与 encoder 后端无关。
-- **把分割模型也迁到 NPU。** 对照实验把剩余热源定位到角色分离仍在 CPU 的部分，其中分割模型最大（94.4 s，占角色分离链 44%）。它是 pyannote 分割网络、输入形状固定，结构比 zipformer 简单得多，HiAI 接受的可能性明显更高；第 7 节用过的转换与设备探针链路可以直接复用来先判可行性。
+- **分割模型上 NPU 已判定：也被拒绝。** 对照实验把剩余热源定位到角色分离仍在 CPU 的部分，其中分割模型最大（94.4 s，占角色分离链 44%，另有聚类 61.0 s、fbank 23.2 s、池化 5.8 s）。它是 pyannote 分割网络（50 节点 / 6 MB，固定 `[1,1,160000]` → `[1,589,7]`），与 ASR encoder 不是同一个模型也不属于同一条链，所以单独测过：
+  - 先把它改造到能转换——内联恒真的 `If`（条件是 `Shape(x)[1]==1`）并删掉 17 节点死分支、去掉 `MaxPool` 的默认 `dilations: [1]`、把 1-D 池化提升成 2-D（NNACL 池化核只接受 4 维），46 节点、3.0 MB MindIR，输出与原图**逐位一致**。
+  - 上机结果：**NPU build 失败**（26.8 ms 即拒绝，且 demo 进程直接崩溃，没有像 ASR encoder 那样干净返回 -1）；MS Lite **CPU 通过**，中位 35.2 ms。
+  - 接受边界定位未完成：前 3 节点（InstanceNorm + Conv + Abs）在 NPU 上可用（25.2 ms），前 8 节点崩溃，嫌疑在提升后的 MaxPool / 第二个 InstanceNormalization / LeakyRelu；4 个双向 LSTM 还没测到。
+  - **一个不依赖 NPU 的线索**：同一张图 MS Lite CPU 只要 35.2 ms，而当前 ORT 路径约 99 ms/窗（94.4 s ÷ 951 窗）。这不是受控对比（ORT 被刻意钉为单线程、探针用 4 线程、输入为零填充），但提示分割这一段在 CPU 侧可能还有两倍以上余量，比继续撞加速器更可能有收益。
+  - 逐步证据见 `ASR_ENCODER_NPU_FEASIBILITY_20261008.json` 的 `segmentationModelProbe`。
 - **角色精度门禁**：帧级一致率只说明两档等价，不等于精度合格。MindIR 仍为 `converted-not-device-accepted`，需要 12 例冻结 RTTM 与人工打分。
 - **`auto` 后端**与 NPU 路径上的完整生命周期（finish/shutdown/relicense）真机验证仍为 PENDING。
 - **断电场景的绝对温度**：本次全程 USB 充电，`charger` 33–37 °C 托底，绝对值不能外推。
