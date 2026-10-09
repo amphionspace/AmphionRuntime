@@ -31,6 +31,19 @@ for (const ids of [[NaN], [Infinity], [-1], [128], [1.5], [2, 2], ['2']]) {{
 }}
 assert.throws(() => snapshotAsrScheduling({{ ...copy, qos: 'cpu;other=1' }}));
 assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }}));
+// The window cadence defaults to one second, survives a snapshot, and never
+// reaches the recognizer provider string: it only drives role separation.
+assert.equal(c.diarizationHopMs, 1000);
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: 2000 }}).diarizationHopMs, 2000);
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: undefined }}).diarizationHopMs, 1000);
+assert.equal(asrCpuProvider(false, {{ ...copy, diarizationHopMs: 2000 }}),
+  'cpu;AmphionQos=user-initiated;AmphionCpuIds=4,6;AmphionAllowSpinning=0');
+for (const hop of [249, 10001, 0, -1000, 1000.5, NaN, Infinity, '2000']) {{
+  assert.throws(() => snapshotAsrScheduling({{ ...copy, diarizationHopMs: hop }}));
+}}
+for (const hop of [250, 1000, 2000, 10000]) {{
+  assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: hop }}).diarizationHopMs, hop);
+}}
 """
         subprocess.run(['node', '--experimental-strip-types', '--input-type=module', '-e', script], check=True)
 

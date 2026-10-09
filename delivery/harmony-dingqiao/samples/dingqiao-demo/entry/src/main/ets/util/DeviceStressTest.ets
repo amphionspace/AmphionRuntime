@@ -68,6 +68,8 @@ export class DeviceStressOptions {
   diarizationEncoder: string = 'cpu';
   /** Role-worker placement: inherit, utility, background or default. */
   diarizationQos: string = 'inherit';
+  /** Role window cadence in ms; 1000 is the SDK default. */
+  diarizationHopMs: number = 1000;
   asrCpuIds: number[] = [];
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
@@ -1207,6 +1209,7 @@ async function exportStressDiagnostics(context: common.UIAbilityContext,
   binding["diagnosticRunId"] = diagnosticRunId;
   binding["diarizationEncoder"] = options.diarizationEncoder;
   binding["diarizationQos"] = options.diarizationQos;
+  binding["diarizationHopMs"] = `${options.diarizationHopMs}`;
   binding["mode"] = options.mode;
   binding["requestedCycles"] = options.cycles;
   binding["completedCycles"] = totals.completed;
@@ -1285,6 +1288,7 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   scheduling.allowSpinning = options.asrAllowSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
   scheduling.diarizationQos = options.diarizationQos;
+  scheduling.diarizationHopMs = options.diarizationHopMs;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.extraParams['disablePrepack'] = options.asrDisablePrepack;
@@ -1301,6 +1305,7 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
   scheduling.allowSpinning = options.asrAllowSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
   scheduling.diarizationQos = options.diarizationQos;
+  scheduling.diarizationHopMs = options.diarizationHopMs;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.language = 'zh-CN';

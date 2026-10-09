@@ -184,6 +184,9 @@ def parse_args() -> argparse.Namespace:
                         help="Role-worker scheduler placement for the diarization burst.")
     parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="cpu",
                         help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
+    parser.add_argument("--diarization-hop-ms", type=int, default=1000,
+                        help="How often role separation opens a 10 s analysis window; the segmentation, "
+                             "feature, encoder and pooling cost scale inversely with it.")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")
@@ -231,6 +234,8 @@ def parse_args() -> argparse.Namespace:
         except ValueError:
             parser.error("--asr-cpu-ids requires unique integer IDs in [0, 127]")
         args.asr_cpu_ids = ",".join(str(cpu) for cpu in sorted(cpu_ids))
+    if not 250 <= args.diarization_hop_ms <= 10000:
+        raise StressFailure("--diarization-hop-ms must be within [250, 10000] milliseconds")
     if args.diarization_vad_end_ms is not None and args.mode not in {"customer-meeting-minutes", "diarization-windows"}:
         parser.error("--diarization-vad-end-ms requires a meeting diarization mode")
     if args.mode == "speech-end-latency" and (args.speech_end_ms <= 0 or args.pace_ms != 20):
@@ -1205,7 +1210,8 @@ def capture_diagnostics(hdc: Hdc, summary: dict[str, str], artifact_dir: Path,
         if manifest.get("runId") != diagnostic_id or diagnostic_summary.get("runId") != diagnostic_id:
             raise ValueError("diagnostic manifest/summary run identity mismatch")
         expected = {"schemaVersion": 1, "runnerRunId": run_id, "diagnosticRunId": diagnostic_id,
-                    "diarizationEncoder": args.diarization_encoder, "mode": args.mode,
+                    "diarizationEncoder": args.diarization_encoder,
+                    "diarizationHopMs": str(args.diarization_hop_ms), "mode": args.mode,
                     "requestedCycles": args.cycles, "completedCycles": int(summary["completed"])}
         if any(binding.get(key) != value for key, value in expected.items()):
             raise ValueError("carrier diagnostic binding mismatch")
@@ -1343,6 +1349,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "samplePower", "true" if args.sample_power else "false",
         "--ps", "stressDiarizationQos", args.diarization_qos,
         "--ps", "stressDiarizationEncoder", args.diarization_encoder,
+        "--pi", "stressDiarizationHopMs", str(args.diarization_hop_ms),
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
         "--ps", "stressAsrAllowSpinning", str(not args.asr_disable_spinning).lower(),
@@ -1543,6 +1550,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "asr_qos": args.asr_qos,
             "diarization_encoder": args.diarization_encoder,
             "diarization_qos": args.diarization_qos,
+            "diarization_hop_ms": args.diarization_hop_ms,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
             "asr_allow_spinning": not args.asr_disable_spinning,
