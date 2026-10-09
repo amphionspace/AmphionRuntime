@@ -412,8 +412,9 @@ def main() -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with args.output.open("x", encoding="utf-8") as stream:
             stream.write(encoded)
-    except (OSError, ValueError, TypeError, KeyError, zipfile.BadZipFile):
+    except (OSError, ValueError, TypeError, KeyError, zipfile.BadZipFile) as error:
         print("[ERROR] invalid, missing, or already existing evidence; output not replaced", file=sys.stderr)
+        print("[ERROR] %s: %s" % (type(error).__name__, error), file=sys.stderr)
         return 1
     print(json.dumps({"status": result["status"], "windowCount": result["windowCount"],
                       "firstErrorIndex": result["firstErrorIndex"], "output": str(args.output)}))
