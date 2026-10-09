@@ -52,6 +52,10 @@ REFUSED_OPERATORS = ("GatherElements", "LessOrEqual")
 # HiAI compiles a static IR. Every such chain in this export is constant once the
 # batch dimension is pinned, so folding removes them instead of substituting.
 SHAPE_ORIGIN = "Shape"
+# Control flow never folds as a plain node: its branches capture outer-scope
+# tensors, so a branch cannot be lifted into a standalone subgraph. A constant
+# condition is resolved by inlining the taken branch instead.
+CONTROL_FLOW = ("If", "Loop", "Scan")
 
 
 class RewriteError(RuntimeError):
@@ -231,6 +235,183 @@ def rewrite_softplus_guards(model) -> dict:
     return {"rewrittenGuards": len(matched)}
 
 
+def lift_pool1d_to_2d(model, shapes: dict) -> dict:
+    """Express 1-D MaxPool as 2-D so MindSpore Lite can infer its shape.
+
+    The NNACL pooling kernel only accepts a 4-D tensor; a 3-D input makes
+    conversion fail with "Unexpected input format 0". Wrapping each pool in
+    reshapes to [N, C, 1, L] and back is the same computation with a layout the
+    converter understands.
+    """
+    graph = model.graph
+    replacements: dict[int, list] = {}
+    added = []
+    lifted = []
+    for index, node in enumerate(graph.node):
+        if node.op_type != "MaxPool":
+            continue
+        source, target = node.input[0], node.output[0]
+        if source not in shapes or target not in shapes:
+            raise RewriteError(f"{node.name}: pooling shapes are not static")
+        in_shape, out_shape = shapes[source], shapes[target]
+        if len(in_shape) != 3 or len(out_shape) != 3:
+            continue
+        stem = node.name or f"max_pool_{index}"
+        names = {key: f"{stem}__{key}" for key in ("in_shape", "out_shape", "lifted", "pooled")}
+        added += [
+            numpy_helper.from_array(
+                np.array([in_shape[0], in_shape[1], 1, in_shape[2]], dtype=np.int64), names["in_shape"]),
+            numpy_helper.from_array(np.array(out_shape, dtype=np.int64), names["out_shape"]),
+        ]
+        attributes = {attribute.name: attribute for attribute in node.attribute}
+        def pair(name, default):
+            attribute = attributes.get(name)
+            values = list(attribute.ints) if attribute is not None else [default]
+            return values
+        kernel = pair("kernel_shape", 1)
+        strides = pair("strides", 1)
+        pads = pair("pads", 0)
+        if len(pads) == 1:
+            pads = [pads[0], pads[0]]
+        replacements[index] = [
+            helper.make_node("Reshape", [source, names["in_shape"]], [names["lifted"]],
+                             name=f"{stem}_lift"),
+            helper.make_node("MaxPool", [names["lifted"]], [names["pooled"]],
+                             kernel_shape=[1] + kernel, strides=[1] + strides,
+                             pads=[0, pads[0], 0, pads[1]],
+                             ceil_mode=attributes["ceil_mode"].i if "ceil_mode" in attributes else 0,
+                             name=f"{stem}_2d"),
+            helper.make_node("Reshape", [names["pooled"], names["out_shape"]], [target],
+                             name=f"{stem}_restore"),
+        ]
+        lifted.append({"node": stem, "in": list(in_shape), "out": list(out_shape),
+                       "kernel": kernel, "strides": strides})
+
+    if not replacements:
+        return {"liftedPools": 0}
+    kept = []
+    for index, node in enumerate(graph.node):
+        kept.extend(replacements.get(index, [node]))
+    del graph.node[:]
+    graph.node.extend(kept)
+    graph.initializer.extend(added)
+    del graph.value_info[:]
+    return {"liftedPools": len(lifted), "pools": lifted}
+
+
+def drop_default_attributes(model) -> dict:
+    """Remove attributes that only restate an ONNX default and block conversion.
+
+    MindSpore Lite 2.7.0 rejects a 1-D MaxPool that carries `dilations: [1]`
+    ("MaxPool op only support dilations=<1, 1> now"), although that value is the
+    spec default. Dropping it changes nothing about the operator and lets the
+    graph through.
+    """
+    removed = []
+    for node in model.graph.node:
+        if node.op_type != "MaxPool":
+            continue
+        for index, attribute in enumerate(list(node.attribute)):
+            if attribute.name == "dilations" and all(value == 1 for value in attribute.ints):
+                del node.attribute[index]
+                removed.append(node.name or node.op_type)
+                break
+    return {"maxPoolDilationsDropped": removed}
+
+
+def consumed_names(nodes) -> set:
+    """Every tensor these nodes read, including from control-flow subgraphs.
+
+    A branch body reads outer-scope tensors directly, so folding must treat
+    those as live or it deletes the constants the branch still needs.
+    """
+    names: set = set()
+    for node in nodes:
+        names.update(value for value in node.input if value)
+        for attribute in node.attribute:
+            if attribute.HasField("g"):
+                names |= consumed_names(attribute.g.node)
+            for graph in attribute.graphs:
+                names |= consumed_names(graph.node)
+    return names
+
+
+def resolve_constant_if(model) -> dict:
+    """Inline the branch a constant-condition `If` always takes.
+
+    HiAI compiles a static graph, and an exported `If` that only exists to pick
+    between a single-channel and a batched convolution path is dead weight once
+    the window shape is pinned. Resolving it removes the control flow and the
+    Shape/Gather/Equal chain that fed it.
+    """
+    graph = model.graph
+    initializer = {item.name: item for item in graph.initializer}
+    replacements: dict[int, list] = {}
+    added = []
+    resolved = []
+    for index, node in enumerate(graph.node):
+        if node.op_type != "If" or not node.input:
+            continue
+        if node.input[0] not in initializer:
+            continue
+        condition = numpy_helper.to_array(initializer[node.input[0]])
+        if condition.size != 1:
+            raise RewriteError(f"{node.name}: If condition is not a single value")
+        taken = "then_branch" if bool(condition.reshape(-1)[0]) else "else_branch"
+        branch = next((attribute.g for attribute in node.attribute if attribute.name == taken), None)
+        if branch is None:
+            raise RewriteError(f"{node.name}: missing {taken}")
+        if len(branch.output) != len(node.output):
+            raise RewriteError(f"{node.name}: {taken} output count does not match the If")
+        stem = node.name or f"if_{index}"
+        produced = {value.name for value in branch.output}
+        produced |= {value for inner in branch.node for value in inner.output}
+        rename = {name: f"{stem}__{name}" for name in produced}
+        for branch_output, if_output in zip(branch.output, node.output):
+            rename[branch_output.name] = if_output
+        for item in branch.initializer:
+            copy = onnx.TensorProto()
+            copy.CopyFrom(item)
+            copy.name = f"{stem}__{item.name}"
+            rename[item.name] = copy.name
+            added.append(copy)
+        inlined = []
+        for inner in branch.node:
+            clone = onnx.NodeProto()
+            clone.CopyFrom(inner)
+            clone.name = f"{stem}__{inner.name}" if inner.name else ""
+            clone.input[:] = [rename.get(value, value) for value in inner.input]
+            clone.output[:] = [rename.get(value, value) for value in inner.output]
+            inlined.append(clone)
+        replacements[index] = inlined
+        resolved.append({"node": stem, "taken": taken, "inlinedNodes": len(inlined)})
+
+    if not replacements:
+        return {"resolvedIfNodes": 0}
+    kept = []
+    for index, node in enumerate(graph.node):
+        kept.extend(replacements.get(index, [node]))
+    del graph.node[:]
+    graph.node.extend(kept)
+    graph.initializer.extend(added)
+    live = {value.name for value in graph.output}
+    while True:
+        consumed = {value for node in graph.node for value in node.input} | live
+        dead = [node for node in graph.node
+                if node.output and not any(output in consumed for output in node.output)]
+        if not dead:
+            break
+        survivors = [node for node in graph.node if node not in dead]
+        del graph.node[:]
+        graph.node.extend(survivors)
+    surviving = {value for node in graph.node for value in node.input}
+    remaining = [item for item in graph.initializer if item.name in surviving]
+    del graph.initializer[:]
+    graph.initializer.extend(remaining)
+    del graph.value_info[:]
+    return {"resolvedIfNodes": len(resolved), "resolved": resolved}
+
+
 def canonicalise_constants(model) -> int:
     """Turn Constant nodes into initializers so folding can see through them."""
     graph = model.graph
@@ -283,6 +464,8 @@ def fold_static_subgraph(model, shapes: dict[str, tuple[int, ...]]) -> dict:
         for node in graph.node:
             if node.op_type == "__folded__" or node in foldable:
                 continue
+            if node.op_type in CONTROL_FLOW:
+                continue
             if node.input and all(value in constant for value in node.input if value):
                 foldable.append(node)
                 for value in node.output:
@@ -290,9 +473,8 @@ def fold_static_subgraph(model, shapes: dict[str, tuple[int, ...]]) -> dict:
                     folded_outputs.add(value)
                 changed = True
 
-    live = {value for node in graph.node
-            if node.op_type != "__folded__" and node not in foldable
-            for value in node.input}
+    live = consumed_names([node for node in graph.node
+                           if node.op_type != "__folded__" and node not in foldable])
     live |= {value.name for value in graph.output}
     wanted = sorted(folded_outputs & live)
     evaluated = {}
@@ -313,7 +495,7 @@ def fold_static_subgraph(model, shapes: dict[str, tuple[int, ...]]) -> dict:
     del graph.node[:]
     graph.node.extend(kept)
     graph.initializer.extend(numpy_helper.from_array(value, name) for name, value in evaluated.items())
-    surviving = {value for node in graph.node for value in node.input}
+    surviving = consumed_names(graph.node)
     remaining = [item for item in graph.initializer if item.name in surviving]
     del graph.initializer[:]
     graph.initializer.extend(remaining)
