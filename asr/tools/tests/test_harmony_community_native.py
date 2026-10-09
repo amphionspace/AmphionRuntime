@@ -709,6 +709,58 @@ int main() {
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
+    def test_fallback_voice_never_takes_an_identity_it_does_not_resemble_most(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Customer issue59: a second voice over the dominant speaker had no run
+        # evidence and resembled that speaker, yet took the only other identity
+        # because it was free in the frame. It must stay anonymous instead; a
+        # fallback voice that resembles the free identity still takes it.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  for(bool resemblesFree:{false,true}) {
+    // Voice A owns 10..300 on channel 0, voice B owns 320..500 on channel 1.
+    // Channel 2 overlaps A at 200..280 with no run vector of its own.
+    std::vector<float> segments(589*3),embeddings(768),runs(3*256);
+    for(int f=10;f<300;++f)segments[f*3]=1;
+    for(int f=320;f<500;++f)segments[f*3+1]=1;
+    for(int f=200;f<280;++f)segments[f*3+2]=1;
+    embeddings[0]=1.;embeddings[256+1]=1.;
+    embeddings[512]=resemblesFree?.1f:.9f;embeddings[512+1]=resemblesFree?.9f:.1f;
+    runs[0]=1.;runs[256+1]=1.;
+    std::fill(runs.begin()+512,runs.end(),std::numeric_limits<float>::quiet_NaN());
+    std::vector<int32_t> ranges={0,0,10,300,0,1,320,500,0,2,200,280};
+    auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
+    assert(result.centroids.size()==2);
+    const int a=result.frame_hard[20*3],b=result.frame_hard[400*3+1];
+    assert(a>=0 && b>=0 && a!=b);
+    for(int f=200;f<280;++f){
+      assert(result.frame_hard[f*3]==a);
+      assert(result.frame_hard[f*3+2]==(resemblesFree?b:-2));
+    }
+    auto turns=community::Reconstruct(segments,result.hard,{0},0,4,result.frame_hard);
+    bool anonymous=false;
+    for(const auto& turn:turns)if(turn.speaker<0&&turn.begin<4.&&turn.end>3.5)anonymous=true;
+    assert(anonymous!=resemblesFree);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'fallback-closest.cpp'
+            binary = Path(directory) / 'fallback-closest'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
     def test_missing_enrollment_keeps_unknown_speech_and_overlap(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
