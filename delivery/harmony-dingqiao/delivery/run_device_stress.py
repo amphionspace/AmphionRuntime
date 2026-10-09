@@ -161,7 +161,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
     parser.add_argument("--enable-diarization", action="store_true",
-                        help="Enable offline diarization through public StartParams in lifecycle modes.")
+                         help="Enable offline diarization through public StartParams in lifecycle modes.")
+    parser.add_argument("--capture-diagnostics", action="store_true",
+                        help="Export and capture the exact diagnostic run returned by this carrier.")
     parser.add_argument(
         "--allow-screen-off", action="store_true",
         help="Release the carrier's keep-screen-on lock so a run can reproduce a background "
@@ -175,6 +177,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--speech-end-ms", type=int, default=0,
                         help="Native VAD speech-end sample time for speech-end-latency fixture (ms).")
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
+    parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="cpu",
+                        help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")
@@ -411,9 +415,10 @@ class Hdc:
         if result.returncode != 0 or "[Fail]" in result.stdout + result.stderr:
             raise StressFailure(f"failed to send stress payload: {(result.stdout + result.stderr).strip()}")
 
-    def app_recv(self, remote: str, local: Path) -> bool:
+    def app_recv(self, remote: str, local: Path, *, directory: bool = False) -> bool:
         result = self.command("file", "recv", "-b", BUNDLE, remote, str(local), check=False)
-        return result.returncode == 0 and "[Fail]" not in result.stdout + result.stderr and local.is_file()
+        present = local.is_dir() if directory else local.is_file()
+        return result.returncode == 0 and "[Fail]" not in result.stdout + result.stderr and present
 
 
 def locate_hdc() -> Path:
@@ -1143,6 +1148,76 @@ def capture_hilog(hdc: Hdc, destination: Path) -> None:
     destination.write_text(result.stdout + result.stderr, encoding="utf-8", errors="replace")
 
 
+def read_device_wall_time_ms(hdc: Hdc) -> int | None:
+    result = hdc.shell("date", "+%s%3N", check=False)
+    value = result.stdout.strip()
+    return int(value) if result.returncode == 0 and value.isdigit() and len(value) >= 13 else None
+
+
+def diagnostic_workload_samples(samples: list[MemorySample], device_times: list[int | None],
+                                summary: dict[str, str]) -> list[MemorySample]:
+    try:
+        finished = int(summary["workloadFinishedAtMs"])
+    except (KeyError, TypeError, ValueError):
+        return []
+    return [sample for sample, measured in zip(samples, device_times)
+            if measured is not None and 0 < measured <= finished]
+
+
+def capture_diagnostics(hdc: Hdc, summary: dict[str, str], artifact_dir: Path,
+                        run_id: str, args: argparse.Namespace) -> dict[str, object]:
+    if not args.capture_diagnostics:
+        return {"status": "NOT_REQUESTED"}
+    result: dict[str, object] = {
+        "status": "FAIL", "scopeStatement": "Explicit same-carrier export binding; not runtime binary hash proof."}
+    diagnostic_id = summary.get("diagnosticsRunId", "")
+    if summary.get("diagnosticsStatus") != "EXPORTED" or not re.fullmatch(r"[A-Za-z0-9_-]+", diagnostic_id):
+        result["reason"] = "carrier did not export an identified diagnostic run"
+        return result
+    destination = artifact_dir / "diagnostics" / diagnostic_id
+    result.update({"run_id": diagnostic_id, "directory": str(destination)})
+    if destination.exists():
+        result["reason"] = "diagnostic capture directory already exists"
+        return result
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    remote = f"/data/storage/el2/base/haps/{MODULE}/files/asr-diagnostics/{diagnostic_id}"
+    if not hdc.app_recv(remote, destination, directory=True):
+        result["reason"] = "failed to receive the explicitly exported diagnostic directory"
+        return result
+    names = ("manifest.json", "summary.json", "effective-config.json", "build-identity.json",
+             "events.ndjson", "callbacks.ndjson", "events.full.ndjson", f"stress-binding-{run_id}.json")
+    result["files"] = {name: {"sha256": sha256_file(destination / name)}
+                       for name in names if (destination / name).is_file()}
+    try:
+        def load(name: str) -> dict:
+            value = json.loads((destination / name).read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("diagnostic metadata must be an object")
+            return value
+        manifest = load("manifest.json")
+        diagnostic_summary = load("summary.json")
+        binding = load(f"stress-binding-{run_id}.json")
+        if manifest.get("runId") != diagnostic_id or diagnostic_summary.get("runId") != diagnostic_id:
+            raise ValueError("diagnostic manifest/summary run identity mismatch")
+        expected = {"schemaVersion": 1, "runnerRunId": run_id, "diagnosticRunId": diagnostic_id,
+                    "diarizationEncoder": args.diarization_encoder, "mode": args.mode,
+                    "requestedCycles": args.cycles, "completedCycles": int(summary["completed"])}
+        if any(binding.get(key) != value for key, value in expected.items()):
+            raise ValueError("carrier diagnostic binding mismatch")
+        sessions = [session["sessionId"] for session in diagnostic_summary["sessions"]]
+        if binding.get("diagnosticSessions") != sessions or len(sessions) != len(set(sessions)):
+            raise ValueError("carrier diagnostic session binding mismatch")
+        if manifest.get("fullEventJournal") != "events.full.ndjson" or manifest.get("fullEventJournalRunId") != diagnostic_id:
+            raise ValueError("missing run-bound full diagnostic journal")
+        if "events.full.ndjson" not in result["files"]:
+            raise ValueError("missing full diagnostic journal file")
+        result.update({"status": "CAPTURED", "marker_status": "MATCHED",
+                       "session_ids": sessions, "binding_file": f"stress-binding-{run_id}.json"})
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError):
+        result["reason"] = "diagnostic metadata or carrier binding is missing or invalid"
+    return result
+
+
 def run_stress(args: argparse.Namespace) -> Path:
     hdc_path = locate_hdc()
     device = select_target(hdc_path, args.device)
@@ -1256,9 +1331,11 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
+        "--ps", "stressCaptureDiagnostics", str(args.capture_diagnostics).lower(),
         "--ps", "stressAllowScreenOff", str(args.allow_screen_off).lower(),
         "--ps", "stressHoldMicCapture", str(args.hold_mic_capture).lower(),
         "--ps", "stressAsrQos", args.asr_qos,
+        "--ps", "stressDiarizationEncoder", args.diarization_encoder,
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
         "--ps", "stressAsrAllowSpinning", str(not args.asr_disable_spinning).lower(),
@@ -1283,6 +1360,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         raise StressFailure(f"failed to start stress ability: {(start_result.stdout + start_result.stderr).strip()}")
 
     samples: list[MemorySample] = []
+    device_sample_times: list[int | None] = []
     started_at = time.monotonic()
     parsed: tuple[dict[str, str], list[dict[str, str]]] | None = None
     process_seen = False
@@ -1297,6 +1375,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         if sample is not None:
             process_seen = True
             samples.append(sample)
+            if args.capture_diagnostics:
+                device_sample_times.append(read_device_wall_time_ms(hdc))
         elif process_seen:
             capture_hilog(hdc, artifact_dir / "hilog.txt")
             write_samples(artifact_dir / "memory.csv", samples)
@@ -1316,7 +1396,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         write_samples(artifact_dir / "memory.csv", samples)
         raise StressFailure(f"timed out after {args.timeout}s waiting for the stress summary")
 
-    workload_samples = list(samples)
+    workload_samples = (diagnostic_workload_samples(samples, device_sample_times, parsed[0])
+                        if args.capture_diagnostics else list(samples))
     observe_until = time.monotonic() + args.post_run_observe
     while time.monotonic() < observe_until:
         sample = read_process_sample(hdc, started_at)
@@ -1327,6 +1408,7 @@ def run_stress(args: argparse.Namespace) -> Path:
     capture_hilog(hdc, artifact_dir / "hilog.txt")
     write_samples(artifact_dir / "memory.csv", samples)
     app_summary, cycle_results = parsed
+    diagnostics = capture_diagnostics(hdc, app_summary, artifact_dir, run_id, args)
     memory = stress_memory_verdict(samples, args)
     realtime_required = args.pace_ms >= 20
     if args.mode == "speaker-vad-turn":
@@ -1370,6 +1452,9 @@ def run_stress(args: argparse.Namespace) -> Path:
 
     overall = "PASS"
     failures: list[str] = []
+    if diagnostics["status"] == "FAIL":
+        overall = "FAIL"
+        failures.append("explicit carrier diagnostic capture failed")
     diarization_enabled = args.enable_diarization or args.mode in DIARIZATION_MODES
     diarization_lifecycle = diarization_lifecycle_verdict(cycle_results) if diarization_enabled else {
         "status": "NOT_APPLICABLE"}
@@ -1442,12 +1527,14 @@ def run_stress(args: argparse.Namespace) -> Path:
             "speech_end_ms": args.speech_end_ms,
             "diarization_vad_end_ms": args.diarization_vad_end_ms,
             "enable_diarization": args.enable_diarization,
+            "capture_diagnostics": args.capture_diagnostics,
             "allow_screen_off": args.allow_screen_off,
             "hold_mic_capture": args.hold_mic_capture,
             "effective_enable_diarization": diarization_enabled,
             "effective_diarization_vad_end_ms": (max(500, args.diarization_vad_end_ms)
                                                if args.diarization_vad_end_ms is not None else None),
             "asr_qos": args.asr_qos,
+            "diarization_encoder": args.diarization_encoder,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
             "asr_allow_spinning": not args.asr_disable_spinning,
@@ -1482,6 +1569,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "memory": memory,
         "cpu": cpu,
         "cycles": cycle_results,
+        "diagnostics": diagnostics,
+        "cpu_sample_scope": "device-wall-clock through workloadFinishedAtMs; diagnostic export excluded"
+                            if args.capture_diagnostics else "before post-run observation",
+        "input_corpus_sha256": sha256_file(payload / "corpus.json"),
     }
     (artifact_dir / "report.json").write_text(json.dumps(report, ensure_ascii=True, indent=2) + "\n")
     print(

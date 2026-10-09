@@ -150,8 +150,40 @@ class EvaluationGateTest(unittest.TestCase):
         self.assertIsNone(result["runs"][0]["captureExitCode"])
         self.assertEqual("FAIL", result["status"])
         self.assertIn("paced", run.call_args.args[0])
+        self.assertEqual("cpu", run.call_args.args[0][run.call_args.args[0].index("--diarization-encoder") + 1])
 
-    def test_longer_anchor_uses_window_carrier_and_collects_failed_run(self):
+    def test_encoder_backend_is_forwarded_and_bound_in_run_summary(self):
+        for backend in ("cpu", "npu", "auto"):
+            with self.subTest(backend=backend):
+                with mock.patch.object(gate.subprocess, "run", return_value=mock.Mock(returncode=2)) as run:
+                    result = gate.run_tier(self.manifest, "public", self.root / backend,
+                                           encoder_backend=backend)
+                command = run.call_args.args[0]
+                self.assertEqual(backend, command[command.index("--diarization-encoder") + 1])
+                self.assertEqual(backend, result["encoderBackend"])
+                self.assertEqual(backend, result["runs"][0]["encoderBackend"])
+                self.assertIn("--capture-diagnostics", command)
+
+    def test_encoder_cli_does_not_override_explicit_npu_or_auto(self):
+        for backend in ("npu", "auto"):
+            with self.subTest(backend=backend):
+                arguments = [gate.__file__, "run", "--manifest", "manifest.json",
+                             "--tier", "public", "--output", "unused",
+                             "--diarization-encoder", backend]
+                with mock.patch.object(sys, "argv", arguments), mock.patch.object(gate, "read", return_value=self.manifest), \
+                        mock.patch.object(gate, "run_tier", return_value={"status": "CAPTURED"}) as run, \
+                        mock.patch("builtins.print"):
+                    self.assertEqual(2, gate.main())
+                self.assertEqual(backend, run.call_args.kwargs["encoder_backend"])
+
+    def test_invalid_encoder_backend_fails_before_device_access_or_output(self):
+        with mock.patch.object(gate.subprocess, "run") as run:
+            with self.assertRaisesRegex(ValueError, "encoder"):
+                gate.run_tier(self.manifest, "public", self.root / "run", encoder_backend="gpu")
+        run.assert_not_called()
+        self.assertFalse((self.root / "run").exists())
+
+    def test_longer_anchor_uses_window_carrier_and_captures_failed_exact_run(self):
         manifest = copy.deepcopy(self.manifest)
         manifest["cases"][0]["durationSeconds"] = 124
         manifest["cases"][0]["tier"] = "anchor"
@@ -160,12 +192,12 @@ class EvaluationGateTest(unittest.TestCase):
             if "--output-root" in command and "--mode" in command:
                 target = Path(command[command.index("--output-root") + 1]) / "run" / "report.json"
                 target.parent.mkdir(parents=True)
-                target.write_text('{}')
+                target.write_text(json.dumps({"diagnostics": {"status": "CAPTURED"}}))
                 return mock.Mock(returncode=1)
             return mock.Mock(returncode=0)
         with mock.patch.object(gate.subprocess, "run", side_effect=execute) as run:
             result = gate.run_tier(manifest, "anchor", self.root / "run")
-        self.assertEqual(2, run.call_count)
+        self.assertEqual(1, run.call_count)
         self.assertIn("diarization-windows", run.call_args_list[0].args[0])
         self.assertEqual("FAIL", result["status"])
         self.assertEqual(0, result["runs"][0]["captureExitCode"])

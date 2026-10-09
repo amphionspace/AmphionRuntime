@@ -27,6 +27,103 @@ sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
 
 
+class DiagnosticCaptureTest(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        with mock.patch.object(sys, "argv", [str(SCRIPT), "--capture-diagnostics",
+                                           "--cycles", "1", "--diarization-encoder", "npu"]):
+            self.args = MODULE.parse_args()
+        self.run_id = "runner-test"
+        self.diagnostic_id = "run-100"
+        self.summary = {"completed": "1", "diagnosticsStatus": "EXPORTED", "diagnosticsRunId": self.diagnostic_id}
+        self.binding = {"schemaVersion": 1, "runnerRunId": self.run_id,
+                        "diagnosticRunId": self.diagnostic_id, "diarizationEncoder": "npu",
+                        "mode": "burst", "requestedCycles": 1, "completedCycles": 1,
+                        "startedAtMs": 100, "finishedAtMs": 200, "diagnosticSessions": ["session-1"]}
+
+    def receive(self, remote, destination, *, directory=False):
+        self.assertTrue(directory)
+        self.assertEqual(f"/data/storage/el2/base/haps/{MODULE.MODULE}/files/asr-diagnostics/{self.diagnostic_id}", remote)
+        destination.mkdir()
+        (destination / "manifest.json").write_text(json.dumps({
+            "runId": self.diagnostic_id, "fullEventJournal": "events.full.ndjson",
+            "fullEventJournalRunId": self.diagnostic_id}))
+        (destination / "summary.json").write_text(json.dumps({
+            "runId": self.diagnostic_id, "sessions": [{"sessionId": "session-1"}]}))
+        (destination / "events.full.ndjson").write_text("")
+        (destination / "build-identity.json").write_text(json.dumps({"binaryHashStatus": "not-available-at-runtime"}))
+        (destination / f"stress-binding-{self.run_id}.json").write_text(json.dumps(self.binding))
+        return True
+
+    def test_capture_is_opt_in_and_disabled_does_not_touch_device(self):
+        with mock.patch.object(sys, "argv", [str(SCRIPT)]):
+            args = MODULE.parse_args()
+        self.assertFalse(args.capture_diagnostics)
+        hdc = mock.Mock()
+        result = MODULE.capture_diagnostics(hdc, {}, Path("unused"), "runner", args)
+        self.assertEqual("NOT_REQUESTED", result["status"])
+        hdc.app_recv.assert_not_called()
+
+    def test_capture_uses_exact_id_and_preserves_original_sdk_identity(self):
+        hdc = mock.Mock()
+        hdc.app_recv.side_effect = self.receive
+        result = MODULE.capture_diagnostics(hdc, self.summary, self.root, self.run_id, self.args)
+        self.assertEqual("CAPTURED", result["status"])
+        self.assertEqual("MATCHED", result["marker_status"])
+        self.assertEqual(["session-1"], result["session_ids"])
+        sdk_identity = Path(result["directory"]) / "build-identity.json"
+        self.assertEqual("not-available-at-runtime", json.loads(sdk_identity.read_text())["binaryHashStatus"])
+        self.assertEqual(MODULE.sha256_file(sdk_identity), result["files"]["build-identity.json"]["sha256"])
+        self.assertEqual("FAIL", MODULE.capture_diagnostics(hdc, self.summary, self.root, self.run_id, self.args)["status"])
+        self.assertEqual(1, hdc.app_recv.call_count)
+
+    def test_foreign_run_encoder_mode_cycles_or_sessions_cannot_match(self):
+        for field, value in (("runnerRunId", "other"), ("diagnosticRunId", "other"),
+                             ("diarizationEncoder", "cpu"), ("mode", "paced"),
+                             ("requestedCycles", 2), ("completedCycles", 0),
+                             ("diagnosticSessions", ["session-other"])):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as directory:
+                original = self.binding[field]
+                self.binding[field] = value
+                hdc = mock.Mock()
+                hdc.app_recv.side_effect = self.receive
+                result = MODULE.capture_diagnostics(hdc, self.summary, Path(directory), self.run_id, self.args)
+                self.assertEqual("FAIL", result["status"])
+                self.assertTrue(Path(result["directory"]).is_dir())
+                self.binding[field] = original
+
+    def test_failed_export_or_invalid_id_cannot_select_an_older_run(self):
+        for status, diagnostic_id in (("ERROR", ""), ("EXPORTED", "../old"), ("EXPORTED", "")):
+            hdc = mock.Mock()
+            summary = {"diagnosticsStatus": status, "diagnosticsRunId": diagnostic_id}
+            result = MODULE.capture_diagnostics(hdc, summary, self.root, self.run_id, self.args)
+            self.assertEqual("FAIL", result["status"])
+            hdc.app_recv.assert_not_called()
+
+    def test_carrier_exports_after_shutdown_even_if_the_run_failed(self):
+        source = CARRIER.read_text()
+        run = source.split("export async function runDeviceStress", 1)[1]
+        self.assertLess(run.index("engine.shutdown()"), run.index("await exportStressDiagnostics"))
+        self.assertLess(run.index("await exportStressDiagnostics"), run.index("const status ="))
+        self.assertIn("captureDiagnostics: boolean = false;", source)
+        self.assertIn("SpeechRecognizeSdk.exportDiagnostics(new StressDiagnosticExportCallback", source)
+        entry = (SCRIPT.parents[1] / "samples/dingqiao-demo/entry/src/main/ets/entryability/EntryAbility.ets").read_text()
+        self.assertIn("options.captureDiagnostics =", entry)
+        self.assertNotIn("build-identity.json", source.split("async function exportStressDiagnostics", 1)[1].split("function cleanupStressInputs", 1)[0])
+
+    def test_capture_time_is_separate_and_device_clock_excludes_export_samples(self):
+        source = CARRIER.read_text()
+        self.assertIn("elapsedMs=${completedAtMs - startedAt}", source)
+        self.assertIn("captureElapsedMs=${captureElapsedMs}", source)
+        samples = [MODULE.MemorySample(i, 7, 1, 1, 1, 0, 1) for i in range(3)]
+        self.assertEqual(samples[:2], MODULE.diagnostic_workload_samples(
+            samples, [100, 200, 300], {"workloadFinishedAtMs": "200"}))
+        self.assertEqual([], MODULE.diagnostic_workload_samples(samples, [None]*3, {"workloadFinishedAtMs": "200"}))
+        self.assertEqual([], MODULE.diagnostic_workload_samples(samples, [100]*3, {}))
+
+
 class DiarizationLifecycleTest(unittest.TestCase):
     def test_recovery_and_normal_sessions_are_checked_independently(self):
         cycle = {"trace": "a:start>a:final-last>a:diarization-result>a:complete",
