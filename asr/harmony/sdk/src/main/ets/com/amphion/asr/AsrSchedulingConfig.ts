@@ -13,6 +13,19 @@ export class AsrSchedulingConfig {
    * Recognition itself is unaffected; this does not join the ASR provider key.
    */
   diarizationEncoder: string = 'cpu';
+  /**
+   * Where the scheduler is allowed to run the role-separation workers.
+   *
+   * On this hardware heat tracks how high the governor is driven, not CPU time
+   * spent: the per-window burst of segmentation, features, encoder and pooling
+   * occupies roughly 150 ms of every second and pushes the big cluster to its
+   * top frequency, while a flat load of the same size costs little. Those stages
+   * have a 1500 ms budget per window and use about a tenth of it, so there is
+   * slack to finish them at a lower operating point. 'inherit' keeps the
+   * historical policy; 'utility' and 'background' trade window latency for a
+   * lower frequency step. Role results are unchanged in every case.
+   */
+  diarizationQos: string = 'inherit';
 }
 
 export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSchedulingConfig()): AsrSchedulingConfig {
@@ -28,8 +41,14 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   if (diarizationEncoder !== 'cpu' && diarizationEncoder !== 'npu' && diarizationEncoder !== 'auto') {
     throw new Error('ASR diarizationEncoder must be cpu, npu, or auto');
   }
+  const diarizationQos = source.diarizationQos ?? 'inherit';
+  if (diarizationQos !== 'inherit' && diarizationQos !== 'background' &&
+    diarizationQos !== 'utility' && diarizationQos !== 'default') {
+    throw new Error('ASR diarizationQos must be inherit, background, utility, or default');
+  }
   const copy = new AsrSchedulingConfig();
   copy.qos = source.qos;
+  copy.diarizationQos = diarizationQos;
   copy.allowSpinning = source.allowSpinning;
   copy.diarizationEncoder = diarizationEncoder;
   for (const cpu of source.cpuIds) {
