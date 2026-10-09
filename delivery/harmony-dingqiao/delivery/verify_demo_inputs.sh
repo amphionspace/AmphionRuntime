@@ -69,6 +69,11 @@ cleanup_verify_dir() {
 source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
 ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
 PYTHON="$LICENSE_VENV/bin/python"
+MINDIR_VERIFY_ARGS=(--repo-root "$REPO_ROOT" --source-only)
+if [[ -n "$HAP" ]]; then
+  MINDIR_VERIFY_ARGS+=(--archive "$HAP")
+fi
+"$PYTHON" "$REPO_ROOT/asr/tools/verify_community_encoder_mindir.py" "${MINDIR_VERIFY_ARGS[@]}"
 require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check

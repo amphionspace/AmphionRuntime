@@ -67,6 +67,11 @@ export interface SpeakerDiarizationLocalClientOptions {
   maxPendingJobs?: number;
   /** The engine's ASR QoS request; role workers run one level below it. */
   recognizerQos?: string;
+  /**
+   * Where the speaker encoder runs: 'cpu' (the default when omitted), 'npu'
+   * for an NNRt accelerator, or 'auto' to prefer one and fall back to the CPU.
+   */
+  encoderBackend?: string;
 }
 
 /**
@@ -125,7 +130,12 @@ export class SpeakerDiarizationLocalClient {
       throw new Error('maxPendingJobs must be a positive integer');
     }
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
-    this.inference = new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default');
+    // The backend is only forwarded when a caller asks for one, so the native
+    // argument shape (and its contract tests) stay unchanged for the default.
+    this.inference = options?.encoderBackend !== undefined ?
+      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default',
+        options.encoderBackend) :
+      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default');
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     SpeakerDiarizationLocalClient.sweepStaleJobs(`${workPath}/speaker-diarization-jobs`);

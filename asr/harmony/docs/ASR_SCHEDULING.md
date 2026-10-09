@@ -29,6 +29,7 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 | `scheduling.qos` | `default` | 保持系统策略；可选 `user-initiated`、`user-interactive` |
 | `scheduling.cpuIds` | `[]` | 不修改 affinity；非空为允许执行的零起始 CPU 编号集合，不自动推断大核 |
 | `scheduling.allowSpinning` | `true` | 保留 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
+| `scheduling.diarizationEncoder` | `cpu` | 角色分离的说话人 encoder 路径：`cpu` 保持 ORT/XNNPACK；`npu` 要求名称包含 `kirin`（大小写不敏感）的 NNRt accelerator 和 HAR 内的 `community-wespeaker-encoder.fp16.ms`，构造失败则加载失败；`auto` 仅在 NPU 构造失败时回退 CPU。两种 NPU 请求的 Run 错误均上报，不在运行中回退。不影响识别本身，也不参与 ASR 模型复用判定 |
 | 鼎桥 `numThreads` | `4` | ASR 推理线程数，含调用线程，整数 1–8；基础 SDK 原默认 2 不变 |
 | `disablePrepack` | `true` | 保留原来偏向低内存、快加载的策略 |
 
@@ -43,6 +44,7 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 - 鼎桥 SDK 开启角色分离时，`scheduling.qos` 也作用于角色分离自有的推理和聚类线程，但始终比 ASR 低一级：`user-interactive` 对应角色线程 `QOS_USER_INITIATED`，`user-initiated` 对应 `QOS_DEFAULT`，`default` 不设置。这些线程仍先设为 nice 10；系统接受 QoS 后按该等级的策略调度，拒绝时保持 nice 10。用于系统应用在息屏或后台时，让角色分离与 ASR 一起摆脱后台默认策略，同时转写仍然优先。不调整借用的运行时线程。
 - 非空 CPU 集合不表示固定频率或独占 CPU；系统可能拒绝或收窄请求。不要跨机型复制 CPU 编号。
 - `AmphionScheduling` hilog 记录设置返回码、QoS 读取结果、affinity 是否与请求一致，以及恢复失败；同一 recognizer 的同类结果只记录一次，避免逐帧日志干扰性能。角色线程每个线程启动时记录一次 `role-qos requested/result/effective`。不包含音频或文本。出现恢复失败的运行不能作为非侵入性验收 PASS。
+- 成功角色窗口的 `encoderBackend`、`encoderDevice` 和 `encoderMs` 分别记录运行路径、所选设备名和仅 `Encoder.Run` 的耗时；`embeddingMs` 仍包含编码和全部 pooling。这些字段以及 NNRt 构建成功日志，不证明全图算子已委托 NPU。MindIR 中 FP16 常量存储不代表全图 FP16 计算；边界输入输出要求 FP32，具体委托和计算精度须有独立系统及硬件证据。
 - `allowSpinning=false` 和启用 prepack 都只是可测的取舍，没有预设息屏性能收益。不开启保活、网络请求、自动权限申请或系统省电设置修改。
 
 ## 对照验证

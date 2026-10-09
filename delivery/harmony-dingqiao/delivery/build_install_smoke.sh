@@ -185,6 +185,27 @@ resolve_built_hap() {
   echo "[INFO] resolved Hvigor HAP output: $(basename "$BUILD_HAP")"
 }
 
+publish_community_mindir() {
+  local generated_root="$BUILD_WORKSPACE/repo/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao"
+  local destination_root="$REPO_ROOT/asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao"
+  local model="community-wespeaker-encoder.fp16.ms"
+  "$LICENSE_PYTHON" "$REPO_ROOT/asr/tools/verify_community_encoder_mindir.py" \
+    --repo-root "$REPO_ROOT" --generated-root "$generated_root" --archive "$BUILD_HAP"
+  mkdir -p "$destination_root"
+  if [[ -f "$generated_root/$model" ]]; then
+    local temporary="$destination_root/.pending.$$.${model}"
+    if ! cp "$generated_root/$model" "$temporary"; then
+      rm -f "$temporary"
+      return 1
+    fi
+    mv -f "$temporary" "$destination_root/$model"
+  else
+    rm -f "$destination_root/$model"
+  fi
+  rm -f "$destination_root/$model.provenance.json"
+  "$LICENSE_PYTHON" "$REPO_ROOT/asr/tools/verify_community_encoder_mindir.py" --repo-root "$REPO_ROOT"
+}
+
 prepare_build_workspace() {
   command -v rsync >/dev/null || { echo "[ERROR] rsync is required" >&2; exit 1; }
   BUILD_WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-harmony-build.XXXXXX")"
@@ -461,6 +482,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
+  publish_community_mindir
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default"
