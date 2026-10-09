@@ -80,9 +80,22 @@ inline std::vector<int> Ahc(const Matrix& x) {
   cut(2*n-2);return labels;
 }
 struct VbxResult { Matrix q;Vec priors;Vec objectives; };
-inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial) {
+// Community-1 calibrated Fb=.8 for one window per second. VBx counts every
+// window as an independent observation, and repeating each observation r times
+// gives exactly the same updates as dividing Fb by r. A coarser hop therefore
+// keeps the calibrated balance only with Fb scaled by the same factor;
+// leaving it at .8 merges the speakers whose evidence was thinned out.
+constexpr double kCommunityFb=.8,kCommunityHopSamples=16000;
+// The windows of one session sit on the scheduler's hop grid, including its
+// padded tail. A single window has no spacing and keeps the calibrated value.
+inline double CommunityHopSamples(const std::vector<double>& starts) {
+  double hop=0;
+  for(size_t i=1;i<starts.size();++i){const double step=starts[i]-starts[i-1];if(step>0&&(hop==0||step<hop))hop=step;}
+  return hop>0?hop:kCommunityHopSamples;
+}
+inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial,double fb=kCommunityFb) {
   const int n=x.size(),d=phi.size(),k=*std::max_element(initial.begin(),initial.end())+1;
-  constexpr double fa=.07,fb=.8;const double smooth=std::exp(7.);
+  constexpr double fa=.07;const double smooth=std::exp(7.);
   VbxResult result;auto& q=result.q;auto& prior=result.priors;
   q=Matrix(n,Vec(k,1./(smooth+k-1)));prior=Vec(k,1./k);
   Matrix rho=x;Vec g(n);for(int i=0;i<n;++i){q[i][initial[i]]=smooth/(smooth+k-1);double s=0;for(int j=0;j<d;++j){rho[i][j]*=std::sqrt(phi[j]);s+=x[i][j]*x[i][j];}g[i]=-.5*(s+d*std::log(2*std::acos(-1.)));}
@@ -189,9 +202,10 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4,
                             const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={},
-                            const std::vector<float>& runRms={}) {
+                            const std::vector<float>& runRms={},double hopSamples=kCommunityHopSamples) {
   constexpr int frames=589,local=3,dim=256;
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
+  if(!std::isfinite(hopSamples)||hopSamples<=0)throw std::runtime_error("invalid Community window hop");
   ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
   for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
   }
@@ -274,7 +288,8 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   // Other active local tracks must not inherit its identity unconditionally.
   if(train.size()==1)result.centroids=Matrix(1,train[0]);
   else {
-    result.ahc=Ahc(train);result.features=plda.Apply(train);result.vbx=Vbx(result.features,plda.phi,result.ahc);
+    result.ahc=Ahc(train);result.features=plda.Apply(train);
+    result.vbx=Vbx(result.features,plda.phi,result.ahc,kCommunityFb*kCommunityHopSamples/hopSamples);
     for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
   }
   if(runMode&&result.shortRunTrainingCount>0&&!result.ahc.empty()&&
