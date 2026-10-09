@@ -26,6 +26,15 @@ export class AsrSchedulingConfig {
    * lower frequency step. Role results are unchanged in every case.
    */
   diarizationQos: string = 'inherit';
+  /**
+   * How often role separation opens a new 10 s analysis window, in
+   * milliseconds. The default 1000 means every second of audio is analysed by
+   * about ten overlapping windows, which is what makes role boundaries precise
+   * and what the segmentation, feature, encoder and pooling cost scale with.
+   * Raising it trades boundary resolution for proportionally less of that work.
+   * Recognition is unaffected: the window cadence never reaches the recognizer.
+   */
+  diarizationHopMs: number = 1000;
 }
 
 export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSchedulingConfig()): AsrSchedulingConfig {
@@ -46,11 +55,16 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
     diarizationQos !== 'utility' && diarizationQos !== 'default') {
     throw new Error('ASR diarizationQos must be inherit, background, utility, or default');
   }
+  const diarizationHopMs = source.diarizationHopMs ?? 1000;
+  if (!Number.isInteger(diarizationHopMs) || diarizationHopMs < 250 || diarizationHopMs > 10000) {
+    throw new Error('ASR diarizationHopMs must be an integer in [250, 10000] milliseconds');
+  }
   const copy = new AsrSchedulingConfig();
   copy.qos = source.qos;
   copy.diarizationQos = diarizationQos;
   copy.allowSpinning = source.allowSpinning;
   copy.diarizationEncoder = diarizationEncoder;
+  copy.diarizationHopMs = diarizationHopMs;
   for (const cpu of source.cpuIds) {
     if (!Number.isInteger(cpu) || cpu < 0 || cpu >= 128 || copy.cpuIds.indexOf(cpu) >= 0) {
       throw new Error('ASR cpuIds must contain unique integer CPU IDs in [0, 127]');

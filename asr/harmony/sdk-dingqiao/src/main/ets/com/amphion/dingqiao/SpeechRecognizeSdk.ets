@@ -642,6 +642,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (diarizationEncoder !== undefined && diarizationEncoder !== 'cpu') {
           diarizationOptions.encoderBackend = diarizationEncoder;
         }
+        // Same rule for the window cadence: only a non-default request travels,
+        // so the default path keeps the scheduler arguments it always had.
+        const diarizationHopMs = this.params.scheduling?.diarizationHopMs;
+        if (diarizationHopMs !== undefined && diarizationHopMs !== 1000) {
+          diarizationOptions.hopMs = diarizationHopMs;
+        }
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,

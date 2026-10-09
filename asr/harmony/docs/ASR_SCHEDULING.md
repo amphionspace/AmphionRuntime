@@ -30,6 +30,7 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 | `scheduling.cpuIds` | `[]` | 不修改 affinity；非空为允许执行的零起始 CPU 编号集合，不自动推断大核 |
 | `scheduling.allowSpinning` | `true` | 保留 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
 | `scheduling.diarizationEncoder` | `cpu` | 角色分离的说话人 encoder 路径：`cpu` 保持 ORT/XNNPACK；`npu` 要求名称包含 `kirin`（大小写不敏感）的 NNRt accelerator 和 HAR 内的 `community-wespeaker-encoder.fp16.ms`，构造失败则加载失败；`auto` 仅在 NPU 构造失败时回退 CPU。两种 NPU 请求的 Run 错误均上报，不在运行中回退。不影响识别本身，也不参与 ASR 模型复用判定 |
+| `scheduling.diarizationHopMs` | `1000` | 角色分离开新分析窗的间隔（毫秒，整数，允许 250–10000）。窗长固定 10 秒，默认 1000 表示每秒音频被约 10 个重叠窗分析一次；分割、fbank、encoder、池化的开销都随该间隔反比缩放，调大换来的是更粗的角色边界分辨率。不影响识别：窗口节奏不会传到 recognizer |
 | 鼎桥 `numThreads` | `4` | ASR 推理线程数，含调用线程，整数 1–8；基础 SDK 原默认 2 不变 |
 | `disablePrepack` | `true` | 保留原来偏向低内存、快加载的策略 |
 
