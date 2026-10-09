@@ -1330,3 +1330,62 @@ int main() {
             source.write_text(program)
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
+
+    def test_run_capacity_keeps_slots_for_components_that_own_evidence(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Five voices exceed the cap of four. VBx also leaves a component that is
+        # no vector's best explanation; its level is borrowed from the loudest
+        # voice through soft responsibilities. It must not take the fourth
+        # voice's slot. The VBx result is injected so the case stays exact.
+        import re
+        header = (CPP / 'community_cluster.h').read_text()
+        call = re.search(r'result\.vbx=Vbx\([^;]*\);', header)
+        self.assertIsNotNone(call)
+        instrumented = header.replace(call.group(0), call.group(0) +
+                                      'if(injectedVbx)result.vbx=*injectedVbx;', 1)
+        entry = 'struct ClusterResult {'
+        self.assertEqual(instrumented.count(entry), 1)
+        instrumented = instrumented.replace(entry, 'struct VbxResult;\n' + entry, 1)
+        instrumented = instrumented.replace('inline ClusterResult Cluster(',
+                                            'inline VbxResult* injectedVbx=nullptr;\ninline ClusterResult Cluster(', 1)
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  const float level[5]={.05f,.04f,.03f,.02f,.01f};
+  std::vector<float> segments(5*589*3),embeddings(5*3*256),runs,rms;std::vector<int32_t> ranges;
+  for(int w=0;w<5;++w){
+    for(int f=0;f<200;++f)segments[(w*589+f)*3]=1;
+    embeddings[(w*3)*256+w]=1;
+    std::vector<float> v(256);v[w]=1;runs.insert(runs.end(),v.begin(),v.end());
+    ranges.insert(ranges.end(),{w,0,0,200});rms.push_back(level[w]);
+  }
+  community::VbxResult vbx;
+  vbx.q=community::Matrix(5,community::Vec(6));
+  for(int i=0;i<5;++i)vbx.q[i][i]=1;
+  vbx.q[0][0]=.8;vbx.q[0][5]=.2;          // component 5 owns no vector
+  vbx.priors={.16,.2,.2,.2,.2,.04};
+  community::injectedVbx=&vbx;
+  auto result=community::Cluster(segments,embeddings,5,p,4,runs,ranges,rms);
+  assert(result.centroids.size()==4);
+  assert(std::find(result.retainedClusters.begin(),result.retainedClusters.end(),5)==result.retainedClusters.end());
+  for(int w=0;w<4;++w)assert(result.frame_hard[(w*589+20)*3]>=0);
+  assert(result.frame_hard[(4*589+20)*3]==-2);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / 'community_cluster.h').write_text(instrumented)
+            (Path(directory) / 'community_kmeans.h').write_text((CPP / 'community_kmeans.h').read_text())
+            source = Path(directory) / 'capacity-owners.cpp'
+            binary = Path(directory) / 'capacity-owners'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', directory,
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
