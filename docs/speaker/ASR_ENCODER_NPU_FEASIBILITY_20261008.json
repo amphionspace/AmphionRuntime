@@ -280,5 +280,74 @@
    "reading": "The refusal and the negative speed-up are properties of the graph and the device, not of the dequantisation."
   },
   "notUsedFor": "The six thermal arms. The ASR encoder cannot run on the NPU at all, so there was nothing to swap in, and replacing the shipped INT8 ASR encoder with an FP32 CPU path would have moved the ASR baseline that both arms share."
+ },
+ "segmentationModelProbe": {
+  "why": "Three different models get confused easily, so: the ASR encoder turns speech into text and belongs to the recognition chain; the speaker encoder and the segmentation model both belong to the diarization chain. After the speaker encoder moved to the accelerator, segmentation became the largest CPU item left in that chain, so it was worth its own test: at 50 nodes against the ASR encoder 12,235, the capacity limit that stopped the encoder cannot apply.",
+  "model": {
+   "file": "pyannote-segmentation-3.0.onnx",
+   "sizeBytes": 5986908,
+   "nodes": 50,
+   "inputs": 1,
+   "outputs": 1,
+   "runtimeShape": "[1, 1, 160000] -> [1, 589, 7]",
+   "opset": 17,
+   "producer": "pytorch 2.3.0",
+   "role": "frame-level speech activity and speaker-change detection inside a ten-second window"
+  },
+  "transformsNeededToConvert": [
+   {
+    "issue": "exported If chooses between a single-channel and a batched convolution path",
+    "resolution": "condition is Shape(x)[1] == 1, constant once the window is pinned; inlined the then_branch Conv and dropped the 17-node else_branch",
+    "note": "folding has to treat tensors read by control-flow bodies as live"
+   },
+   {
+    "issue": "MaxPool carried dilations: [1]",
+    "resolution": "dropped; it restates the ONNX default and the converter only accepts <1, 1>"
+   },
+   {
+    "issue": "1-D MaxPool fails MindSpore Lite shape inference (\"Unexpected input format 0\")",
+    "resolution": "reshaped to [N, C, 1, L] around each pool so the NNACL kernel sees four dimensions"
+   }
+  ],
+  "conversion": {
+   "result": "PASS",
+   "nodes": 46,
+   "msBytes": 3003048,
+   "maxAbsDiffVsExport": 0.0,
+   "note": "bit-exact on a real-shaped random window"
+  },
+  "deviceProbe": {
+   "npu": {
+    "status": "FAIL",
+    "stage": "build",
+    "buildMs": 26.85,
+    "processOutcome": "the demo process died; no error code was returned, unlike the ASR encoder which failed cleanly with -1"
+   },
+   "cpu": {
+    "status": "PASS",
+    "buildMs": 16.4,
+    "minMs": 31.81,
+    "medianMs": 35.16,
+    "maxMs": 74.99
+   }
+  },
+  "acceptanceBoundary": {
+   "largestAcceptedPrefixNodes": 3,
+   "acceptedPrefix": "InstanceNormalization, Conv, Abs (NPU median 25.20 ms)",
+   "firstCrashingPrefixNodes": 8,
+   "suspects": [
+    "the lifted 2-D MaxPool",
+    "the second InstanceNormalization",
+    "LeakyRelu"
+   ],
+   "status": "UNRESOLVED: the per-node bisection between nodes 4 and 7 was not finished",
+   "note": "the four bidirectional LSTMs were never reached, so they remain untested"
+  },
+  "cpuSideLead": {
+   "observation": "the same graph runs in 35.2 ms median on the MindSpore Lite CPU backend, while the shipped ORT path costs about 97 ms per window (91.8 s over 951 windows in the npu16 arm)",
+   "caveat": "not a controlled comparison: the ORT session is deliberately pinned to one thread and the probe used four, and the probe feeds zeros",
+   "reading": "segmentation may have CPU headroom worth more than another attempt at the accelerator"
+  },
+  "conclusion": "Segmentation is refused by this accelerator too, and its refusal is worse behaved than the ASR encoder: the process dies instead of returning an error. Both diarization models and the ASR encoder are therefore CPU-bound on this device except the speaker encoder, which is the only one the accelerator accepts and the only one that gains from it."
  }
 }
