@@ -8,6 +8,7 @@
 #include "lac_person_ner.h"
 
 void RegisterCommunityDiarization(napi_env env, napi_value exports);
+void RegisterMindSporeProbe(napi_env env, napi_value exports);
 
 static napi_value NativeVersion(napi_env env, napi_callback_info info) {
   napi_value value;
@@ -34,6 +35,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   RegisterCommunityDiarization(env, exports);
   RegisterAgcBridge(env, exports);
   RegisterLacPersonNer(env, exports);
+  RegisterMindSporeProbe(env, exports);
   return exports;
 }
 EXTERN_C_END

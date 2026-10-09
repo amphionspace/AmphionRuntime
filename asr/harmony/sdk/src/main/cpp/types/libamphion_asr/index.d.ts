@@ -97,3 +97,12 @@ export function clusterCommunityDiarization(handle: number, segments: Float32Arr
   runRms: Float32Array): Promise<string>;
 export function closeCommunityDiarization(handle: number): void;
 
+/**
+ * Diagnostics-only MindSpore Lite backend probe. Builds the MindIR at
+ * `modelPath` with `backend` ("cpu", "npu", or an NNRt device-name substring),
+ * then runs `iterations` Predict calls on zero-filled inputs and resolves a JSON
+ * report of build and Predict timings. Zero inputs make the outputs meaningless:
+ * this measures backend acceptance and latency, never accuracy.
+ */
+export function probeMindSporeModel(modelPath: string, backend?: string,
+  iterations?: number): Promise<string>;
