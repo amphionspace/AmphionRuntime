@@ -118,6 +118,9 @@
 | speaker/DIARIZATION_ROUND_SUMMARY_20261003.md | 2026-10-01 至 10-03 角色分离优化总结：合入的 PR 与收益、契约变化、两端真机验收、未解决事项 |
 | speaker/DIARIZATION_SHORT_SESSION_COLLAPSE_20261003.html | 图解：短会话为什么会把人认少，规则为什么修不好，模型层面有哪些出路（浏览器打开） |
 | speaker/DIARIZATION_SCREEN_OFF_AND_HEAT_20261004.md | 角色分离息屏变慢与发热：根因（encoder 忙等线程池）、单线程并行路修复、nova 真机前后对比与未解决的平台限制 |
+| speaker/DIARIZATION_NPU_THERMAL_MATRIX_20261008.md | 说话人 encoder 上 Kirin NPU 的 16/30/60 分钟真机发热矩阵，以及 ASR encoder 上 NPU 不可行的完整证据链 |
+| speaker/DIARIZATION_NPU_ENCODER_HEAT_20261008.md | 更早的 16 分钟三臂对比（含冷起点 31 °C 的 CPU 臂），方法学与热矩阵一致 |
+| speaker/DIARIZATION_THREE_ARM_CONTROL_20261009.md | ASR-only / 角色分离 CPU / 角色分离 NPU 三档 16 分钟对照：打开角色分离这条链本身的温升、CPU 与内存代价 |
 
 ### ASR 功能评测
 

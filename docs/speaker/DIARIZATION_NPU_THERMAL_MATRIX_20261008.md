@@ -1,9 +1,10 @@
 # 角色分离 encoder 上 NPU 的发热矩阵：16 / 30 / 60 分钟真机实测（2026-10-08，Mate 80）
 
-本文回答两个问题，全部为同一台 Mate 80 上的真机实测：
+本文回答三个问题，全部为同一台 Mate 80 上的真机实测：
 
-1. 把 Community 说话人 encoder 从 CPU 挪到 Kirin NPU，16 分钟、30 分钟、1 小时连续会议转写各能降多少发热。
-2. 能否把 ASR encoder 也挪上 NPU。**结论是不能，而且就算能也会更慢**——证据链见第 6 节。
+1. 把 Community 说话人 encoder 从 CPU 挪到 Kirin NPU，16 分钟、30 分钟、1 小时连续会议转写各能降多少发热（第 2–4 节，六轮矩阵）。
+2. 角色分离本身在发热里占多少——仅识别与开角色分离的配对对照（第 5 节）。
+3. 能否把 ASR encoder 也挪上 NPU。**结论是不能，而且就算能也会更慢**——证据链见第 7 节。
 
 结论先行（前壳 shell_front，同起点对比）：
 
@@ -176,17 +177,69 @@ NPU 档三个时长的占用率都是 2.7%，加速器余量很大；CPU 档为 
 
 差异只出现在少数语句的文本切分边界（同一段文本被拆成不同条数），不是标签翻转。这不替代人工 RTTM 精度门禁，MindIR 状态仍为 `converted-not-device-accepted`。
 
-## 5. 结论
+## 5. 对照实验：角色分离本身加了多少热
+
+六轮矩阵回答的是"encoder 放哪里"，回答不了"角色分离本身值多少热"。这一节补上该对照：**同一个 HAP（提交 `fac938c0`）、同一段 960 秒音频、同一降温判据**，三轮只差一个变量。
+
+| 轮次 | 配置 | 起点 | 峰值 | 升温 | 后壳峰值 | 电池 | 环境 | 进程 CPU 均值 | p50 / p95 | 占设备算力 | RSS 峰值 | RSS 增长 | 载体门禁 | 内存判定 |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|---|
+| `asronly16` | 仅识别 | 33.91 | 35.96 | **+2.06** | 36.46 | 34 → 36 | 28.23 → 28.21 | **181.0%** | 181.4% / 220.0% | 15.08% | 568 MB | 27.3 MB | PASS | **PASS** |
+| `diarcpu16` | 识别 + 角色分离（encoder CPU） | 33.98 | 40.35 | **+6.37** | 40.85 | 34 → 41 | 28.04 → 27.88 | **234.0%** | 232.6% / 295.2% | 19.50% | 715 MB | 35.9 MB | PASS | INCONCLUSIVE |
+| `diarnpu16` | 识别 + 角色分离（encoder NPU） | 34.70 | 40.06 | **+5.37** | 40.56 | 34 → 41 | 28.34 → 29.69 | **203.7%** | 200.7% / 258.6% | 16.98% | 761 MB | 50.7 MB | PASS | INCONCLUSIVE |
+
+三轮的识别输出完全一致（partial 1309、final 74、errors 0、空 final 率 0），会话时长 962–965 秒。两个角色分离轮的 encoder 逐窗核验均 PASS：`diarcpu16` 951 窗全在 cpu（单窗中位 307.9 ms），`diarnpu16` 951 窗全在 `NPU_…kirin9020_v2_0`（中位 27.6 ms）。
+
+### 5.1 角色分离的增量
+
+| 指标 | 仅识别 | 开角色分离（CPU） | 增量 | 开角色分离（NPU） | 增量 |
+|---|---:|---:|---:|---:|---:|
+| 16 分钟升温 | +2.06 °C | +6.37 °C | **+4.31 °C（3.1 倍）** | +5.37 °C | **+3.31 °C（2.6 倍）** |
+| 进程 CPU 均值 | 181.0% | 234.0% | **+53.0 个百分点** | 203.7% | **+22.7 个百分点** |
+| 占设备总算力 | 15.08% | 19.50% | +4.4 个百分点 | 16.98% | +1.9 个百分点 |
+| RSS 峰值 | 568 MB | 715 MB | +147 MB | 761 MB | +193 MB |
+
+**你的判断是对的，而且可以量化：16 分钟连续转写，仅识别只升 2.06 °C，开了角色分离升到 6.37 °C，即角色分离把温升放大到 3.1 倍。** 把 encoder 迁到 NPU 后，CPU 侧的增量从 +53.0 个百分点降到 +22.7 个百分点，**去掉了角色分离 CPU 代价的 57%**；但温升增量只从 +4.31 降到 +3.31 °C，因为剩下的分割模型、聚类、fbank、池化仍在 CPU 上（见 7.1 的拆分）。
+
+内存上角色分离加约 150–190 MB；NPU 档比 CPU 档再多约 46 MB（MindSpore Lite 运行时与 NNRt 缓冲）。仅识别轮的内存判定是 PASS，两个角色分离轮都是 INCONCLUSIVE——这一项与后端无关，是角色分离本身触发的。
+
+### 5.2 逐分钟曲线
+
+| 分钟 | 仅识别 | Δ 上一刻 | +角色分离 CPU | Δ 上一刻 | +角色分离 NPU | Δ 上一刻 | CPU 档 − 仅识别 | NPU 档 − 仅识别 |
+|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 0 | 33.91 | — | 33.98 | — | 34.70 | — | +0.07 | +0.79 |
+| 2 | 34.31 | +0.41 | 35.75 | +1.77 | 35.62 | +0.92 | +1.43 | +1.31 |
+| 5 | 34.93 | +0.62 | 37.06 | +1.31 | 37.34 | +1.71 | +2.13 | +2.40 |
+| 10 | 35.52 | +0.58 | 38.53 | +1.47 | 38.87 | +1.53 | +3.01 | +3.35 |
+| 16 | 35.92 | +0.41 | 40.22 | +1.69 | 40.01 | +1.14 | +4.29 | +4.08 |
+
+仅识别轮每段增量只有 0.4–0.6 °C 且 5 分钟后基本走平（末段 +0.41），说明 ASR 单跑在这台机器上已接近平衡；两个角色分离轮每段仍有 1.1–1.8 °C，16 分钟内没有收敛。
+
+### 5.3 本轮三臂的降温记录
+
+| 降温 | 状态 | 耗时 | 温度变化 |
+|---|---|---:|---|
+| → `asronly16` | STABLE | 31 s | 33.75 → 33.91 °C（设备此前已空闲） |
+| → `diarcpu16` | STABLE | 954 s | 35.96 → 33.98 °C |
+| → `diarnpu16` | TIMEOUT | 2406 s | 40.20 → 34.67 °C |
+
+### 5.4 这组数据的局限
+
+- **NPU 档的温升被低估。** 它起点高 0.72 °C，而且是三轮里唯一环境读数**上升**的一轮（28.34 → 29.69 °C），同时 CPU 档的环境在下降。所以本组测到的后端差（升温 1.00 °C、峰值 0.29 °C）比六轮矩阵的 16 分钟档（1.95–2.06 °C）明显偏小。**环境无关的指标是 CPU 占用**：−30.3 个百分点，与矩阵的 −31.0 个百分点吻合。
+- 仅识别轮关掉的是整条角色分离链，不是只关 encoder，所以 +4.31 °C 是"分割 + 特征 + encoder + 池化 + 聚类 + 相关线程与日志"的合计。
+- 三轮都在 USB 充电下进行，绝对温度不能外推到断电场景。
+
+## 6. 结论
 
 1. 角色分离 encoder 上 NPU 在三个时长上都稳定降温 2.07–2.79 °C（相对降幅 23–31%），峰值低 2.1–2.3 °C，电池峰值低 2–3 °C，进程 CPU 低 31–36 个百分点。
 2. 降温效果不随时长衰减；30 和 60 分钟都已进入平台期，NPU 档的平台比 CPU 档低约 2–3 °C（60 分钟档的 ambient 起点差 2.4 °C 对 CPU 档不利，解读该档差值时需计入）。
 3. 热降频只打击 CPU 档：60 分钟 CPU 档 encoder 中位耗时从 307.7 升到 326.4 ms、p95 升到 495.4 ms，NPU 档三档中位 27.6–27.7 ms 不变。
 4. 识别结果不变（文本逐字节相同），角色结果 30/60 分钟帧级完全一致。
-5. 发热并未解决，只是缓解：NPU 档 60 分钟仍到 42.59 °C。剩余热源是 ASR——见下一节的归因与尝试。
+5. 角色分离是这次发热的主因，不是 ASR：16 分钟仅识别只升 2.06 °C，开角色分离升到 6.37 °C（3.1 倍）。encoder 迁到 NPU 去掉了角色分离 CPU 增量的 57%（+53.0 → +22.7 个百分点），但温升增量只从 +4.31 降到 +3.31 °C，因为分割模型、聚类、fbank、池化仍在 CPU 上。
+6. 发热并未解决，只是缓解：NPU 档 60 分钟仍到 42.59 °C。继续降的空间在角色分离剩余的 CPU 部分（分割 94.4 s + 聚类 61.0 s，见 7.1），而不在 ASR encoder（见第 7 节）。
 
-## 6. 为什么没有"ASR encoder 也在 NPU"这一档
+## 7. 为什么没有"ASR encoder 也在 NPU"这一档
 
-### 6.1 CPU 消耗归因（16 分钟 NPU 档，951 个窗口的诊断日志）
+### 7.1 CPU 消耗归因（16 分钟 NPU 档，951 个窗口的诊断日志）
 
 整轮约 1940 CPU·秒（均值 204.4% 单核等效）。拆开：
 
@@ -201,7 +254,7 @@ NPU 档三个时长的占用率都是 2.7%，加速器余量很大；CPU 档为 
 
 角色分离链路现在只剩约 11% 的 CPU，继续优化空间很小；大头是 ASR。
 
-### 6.2 尝试把 ASR encoder 搬上 NPU：逐步证据
+### 7.2 尝试把 ASR encoder 搬上 NPU：逐步证据
 
 ASR encoder 是 zipformer2（`decode_chunk_len=64`、`T=77`、`num_encoder_layers=2,2,4,5,4,2`、`encoder_dims=256,384,512,768,512,256`），12,235 节点、117 输入 / 117 输出（116 个 cached state）。
 
@@ -230,34 +283,40 @@ ASR encoder 是 zipformer2（`decode_chunk_len=64`、`T=77`、`num_encoder_layer
 
 需要说明：**六轮发热测试不使用这份 FP32**。ASR encoder 上不了 NPU，没有可替换的对象；而把交付用的 INT8 ASR encoder 换成 FP32/MindIR 的 CPU 路径会移动两档共享的 ASR 基线，那样测的就不再是"分离 encoder 后端"这一个变量。六轮里 ASR 始终是同一套 zh-en INT8 zipformer（ORT CPU，4 线程）。
 
-### 6.3 为什么 zipformer 在 NPU 上更慢，而说话人 encoder 快 11 倍
+### 7.3 为什么 zipformer 在 NPU 上更慢，而说话人 encoder 快 11 倍
 
 说话人 encoder 是一次性的大密集前向：输入 `[1,998,80]` → 输出 `[1,2560,125]`，单次 Predict 把整段 fbank 算完。zipformer 的一个 chunk 只有 T=77 帧，19 层里全是小张量的 matmul、slice、逐元素操作，算子下发与 NPU↔CPU 数据搬运的固定开销盖过算力收益。这也解释了为什么 conv 子采样前端（59 节点）在 NPU 上是 0.80 ms vs CPU 2.58 ms（快），而整层堆叠起来就反过来。
 
-### 6.4 结论
+### 7.4 结论
 
 **这台设备上 ASR encoder 不能也不值得上 NPU**：整图被 HiAI 拒绝（容量上限），而被接受的前 3.7 层在 NPU 上比 CPU 慢 1.70×，拆分执行只会更慢更热，且需要在 sherpa 的 encoder 调用路径里跨两套 runtime 搬运 25 进 32 出的 state，工程代价高、收益为负。MindSpore Lite 的 NNRT delegate 是整模型 offload（`CreateFullModelKernel`），也不会自动做 CPU/NPU 切分。
 
-## 7. 待办
+## 8. 待办
 
-- **60 分钟 RSS 增长**：两档都超过载体 64 MB 阈值（cpu60 108.3 MB，npu60 178.6 MB），NPU 档更高。需要带相位对齐证据的内存排查，这是本次六轮唯一的 FAIL 原因。
+- **60 分钟 RSS 增长**：两档都超过载体 64 MB 阈值（cpu60 108.3 MB，npu60 178.6 MB），NPU 档更高。需要带相位对齐证据的内存排查，这是六轮矩阵唯一的 FAIL 原因。对照实验显示仅识别轮的内存判定是 PASS（增长 27.3 MB、峰值 568 MB），两个角色分离轮都是 INCONCLUSIVE，所以这一项由角色分离链引入，与 encoder 后端无关。
+- **把分割模型也迁到 NPU。** 对照实验把剩余热源定位到角色分离仍在 CPU 的部分，其中分割模型最大（94.4 s，占角色分离链 44%）。它是 pyannote 分割网络、输入形状固定，结构比 zipformer 简单得多，HiAI 接受的可能性明显更高；第 7 节用过的转换与设备探针链路可以直接复用来先判可行性。
 - **角色精度门禁**：帧级一致率只说明两档等价，不等于精度合格。MindIR 仍为 `converted-not-device-accepted`，需要 12 例冻结 RTTM 与人工打分。
 - **`auto` 后端**与 NPU 路径上的完整生命周期（finish/shutdown/relicense）真机验证仍为 PENDING。
 - **断电场景的绝对温度**：本次全程 USB 充电，`charger` 33–37 °C 托底，绝对值不能外推。
+- **缺 ASR-only 基线**：本文六轮只对比 encoder 后端，回答不了“角色分离整条链值不值”。该问题已由
+  [三档对照（ASR-only / 角色分离 CPU / 角色分离 NPU）](DIARIZATION_THREE_ARM_CONTROL_20261009.md)
+  在本文件同日数据之外补齐：16 分钟档上角色分离在识别之上多升 4.31 °C（CPU encoder）/ 3.31 °C（NPU encoder），
+  但该对照只有 16 分钟时长，60 分钟档的 ASR-only 基线仍缺。
 - 若将来设备或 MindSpore Lite 支持按子图 offload，前缀二分的工具与设备探针都已就位，可直接复测。
 
-## 8. 产物
+## 9. 产物
 
 | 文件 | 内容 | 所在分支 |
 |---|---|---|
-| `DIARIZATION_NPU_THERMAL_MATRIX_20261008.json` | 六轮完整 10 s 温度序列（前壳/后壳/电池/环境）、六次降温曲线、载体报告摘要、encoder 逐窗核验摘要 | main |
+| `DIARIZATION_NPU_THERMAL_MATRIX_20261008.json` | 六轮矩阵与三轮对照的完整 10 s 温度序列（前壳/后壳/电池/环境，含逐点增量 `deltaFront`）、九次降温曲线、载体报告摘要、encoder 逐窗核验摘要、encoder 占用率、对照增量（`controlArms`） | main |
 | `ASR_ENCODER_NPU_FEASIBILITY_20261008.json` | ASR encoder 上 NPU 的逐步证据：算子探测全表、改写计数、二分边界、两端耗时、上游 FP32 复核 | main |
 | `DIARIZATION_NPU_ENCODER_HEAT_20261008.md` / `.json` | 当日早先的 16 分钟三臂对比（含冷起点 31 °C 的 CPU 臂），方法学与本文一致 | main |
+| `DIARIZATION_THREE_ARM_CONTROL_20261009.md` / `.json` | 同日之后的三档对照：ASR-only / 角色分离 CPU / 角色分离 NPU，回答“角色分离整条链本身多贵” | main |
 | `asr/tools/convert_community_encoder.py` / `verify_community_encoder_mindir.py` | 说话人 encoder 的 MindIR 转换与校验工具 | main |
 | `delivery/harmony-dingqiao/delivery/verify_community_encoder_execution.py` | encoder 逐窗后端核验（第 4.1 节数据由它产出） | main |
 | `asr/tools/dequantize_asr_encoder.py` / `rewrite_asr_encoder_npu_ops.py` | ASR encoder 的反量化与算子改写工具（各带 10 / 16 个单测） | `feat/harmony-asr-encoder-npu` |
-| `asr/harmony/sdk/src/main/cpp/mindspore_probe.cpp` + `MindSporeProbe.ets` + demo `MindirProbe.ets` | diagnostics-only 的 MindIR 后端探针（`--ps mindirProbe`），第 6 节的 NPU 接受度与延迟数据由它产出 | `feat/harmony-asr-encoder-npu` |
+| `asr/harmony/sdk/src/main/cpp/mindspore_probe.cpp` + `MindSporeProbe.ets` + demo `MindirProbe.ets` | diagnostics-only 的 MindIR 后端探针（`--ps mindirProbe`），第 7 节的 NPU 接受度与延迟数据由它产出 | `feat/harmony-asr-encoder-npu` |
 
-第 6 节的证据由探针产出，而探针与两个图改写工具**未随说话人 encoder 合入 main**：它们只服务于已判定不可行的 ASR encoder 实验，留在 `feat/harmony-asr-encoder-npu` 分支备查。
+第 7 节的证据由探针产出，而探针与两个图改写工具**未随说话人 encoder 合入 main**：它们只服务于已判定不可行的 ASR encoder 实验，留在 `feat/harmony-asr-encoder-npu` 分支备查。
 
-原始运行目录（本机临时区，不入库）：`thermal-pair/out/{cpu16,npu16,cpu30,npu30,cpu60,npu60}/20261008-*-paced-*/`，含 `report.json`、`result.txt`、`memory.csv`、`hilog.txt`、`diagnostics/run-*/`。
+原始运行目录（本机临时区，不入库）：`thermal-pair/out/{cpu16,npu16,cpu30,npu30,cpu60,npu60,asronly16,diarcpu16,diarnpu16}/20261008-*-paced-*/`，含 `report.json`、`result.txt`、`memory.csv`、`hilog.txt`、`diagnostics/run-*/`。
