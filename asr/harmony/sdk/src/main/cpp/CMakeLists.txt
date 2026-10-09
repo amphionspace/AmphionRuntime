@@ -29,5 +29,8 @@ add_library(amphion_audio_processing SHARED IMPORTED)
 set_target_properties(amphion_audio_processing PROPERTIES
   IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/libs/${OHOS_ARCH}/libamphion_audio_processing.so)
 
+# libmindspore_lite_ndk.so is the system MindSpore Lite runtime; it reaches the
+# NNRt accelerators the Community speaker encoder may run on. Linking it adds no
+# model: the ORT session stays the default and the MindIR path is opt-in.
 target_link_libraries(amphion_asr PUBLIC libace_napi.z.so libhilog_ndk.z.so librawfile.z.so libqos.so
-  sherpa_onnx_c_api onnxruntime amphion_audio_processing)
+  libmindspore_lite_ndk.so sherpa_onnx_c_api onnxruntime amphion_audio_processing)

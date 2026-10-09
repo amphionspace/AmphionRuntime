@@ -364,7 +364,10 @@ def compare(baseline: dict, candidate: dict) -> dict:
                              "FAIL" if status == "FAIL" or candidate["releaseStatus"] == "FAIL" else "INCONCLUSIVE"}
 
 
-def run_tier(manifest: dict, tier: str, output: Path, prior: dict | None = None) -> dict:
+def run_tier(manifest: dict, tier: str, output: Path, prior: dict | None = None,
+             encoder_backend: str = "cpu") -> dict:
+    if encoder_backend not in {"cpu", "npu", "auto"}:
+        raise ValueError("invalid diarization encoder backend")
     verify_manifest(manifest)
     required = {"anchor"} if tier == "recordings" else {"anchor", "recordings"} if tier == "long" else set()
     if required:
@@ -397,24 +400,29 @@ def run_tier(manifest: dict, tier: str, output: Path, prior: dict | None = None)
         mode = "diarization-windows" if case["durationSeconds"] > 120 else "paced"
         command = [sys.executable, str(Path(__file__).with_name("run_device_stress.py")),
                    "--data-dir", str(audio), "--mode", mode, "--enable-diarization",
+                   "--diarization-encoder", encoder_backend,
+                   "--capture-diagnostics",
                    "--cycles", "1", "--files", "1", "--pace-ms", "20", "--skip-build-install",
                    "--output-root", str(directory / "device")]
         with (directory / "console.log").open("x") as stream:
             completed = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT)
-        # Capture immediately: later sessions must not overwrite the diagnostic
-        # source. Do this even after a failed carrier run.
-        collect = [sys.executable, str(Path(__file__).with_name("collect_asr_diagnostics.py")),
-                   "--last", "1", "--output-root", str(directory / "diagnostics")]
+        # The carrier exports its exact run even on failure; never select a
+        # diagnostic directory by recency or collect a previous session.
         collected_code = None
-        if list((directory / "device").glob("*/report.json")):
-            with (directory / "collection.log").open("x") as stream:
-                collected_code = subprocess.run(collect, stdout=stream, stderr=subprocess.STDOUT).returncode
+        report_paths = list((directory / "device").glob("*/report.json"))
+        if len(report_paths) == 1:
+            report = read(report_paths[0])
+            collected_code = 0 if report.get("diagnostics", {}).get("status") == "CAPTURED" else 1
         results.append({"id": case["id"], "inputSha256": case["audio"]["sha256"],
-                        "mode": mode, "carrierExitCode": completed.returncode, "captureExitCode": collected_code})
+                        "mode": mode, "encoderBackend": encoder_backend,
+                        "carrierExitCode": completed.returncode, "captureExitCode": collected_code})
+        if len(report_paths) == 1:
+            results[-1]["report"] = file_record(report_paths[0])
         write_new(directory / "run.json", results[-1])
         if completed.returncode or collected_code != 0:
             break
     summary = {"manifestSha256": manifest["manifestSha256"], "tier": tier, "runs": results,
+               "encoderBackend": encoder_backend,
                "status": "CAPTURED" if len(results) == len(selected) and all(
                    r["carrierExitCode"] == r["captureExitCode"] == 0 for r in results) else "FAIL",
                "releaseStatus": "INCONCLUSIVE", "reason": "captured SDK calls still require paired evaluation and real-caller review"}
@@ -438,12 +446,14 @@ def main() -> int:
     p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--tier", choices=("public", "anchor", "recordings", "long"), required=True)
     p.add_argument("--prior-assessment", type=Path)
+    p.add_argument("--diarization-encoder", choices=("cpu", "npu", "auto"), default="cpu")
     for p in commands.choices.values():
         p.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if args.command == "run":
         result = run_tier(read(args.manifest), args.tier, args.output,
-                          read(args.prior_assessment) if args.prior_assessment else None)
+                          read(args.prior_assessment) if args.prior_assessment else None,
+                          encoder_backend=args.diarization_encoder)
         print(json.dumps(result, ensure_ascii=False))
         return 1 if result["status"] == "FAIL" else 2
     if args.command == "freeze":

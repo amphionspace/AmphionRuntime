@@ -1,7 +1,7 @@
 {
   "model": "pyannote/speaker-diarization-community-1",
   "status": "candidate-not-delivery-accepted",
-  "implementation": "WeSpeaker shared encoder (per-channel INT8 at runtime, derived from the FP32 split graph) + per-mask pooling + PLDA/VBx; segmentation-3.0 unchanged",
+  "implementation": "WeSpeaker shared encoder (CPU defaults to per-channel INT8, derived from the FP32 split graph; Harmony has an optional MindIR candidate) + per-mask pooling + PLDA/VBx; segmentation-3.0 unchanged",
   "sampleRate": 16000,
   "windowSamples": 160000,
   "hopSamples": 16000,
@@ -89,5 +89,39 @@
     },
     "script": "asr/tools/quantize_community_encoder.py",
     "provenanceFile": "community-wespeaker-encoder.int8.provenance.json"
+  },
+  "encoderMindIR": {
+    "optional": true,
+    "status": "converted-not-device-accepted",
+    "runtimeFile": "community-wespeaker-encoder.fp16.ms",
+    "provenanceFile": "community-wespeaker-encoder.fp16.ms.provenance.json",
+    "source": {
+      "file": "community-wespeaker-encoder.fp32.onnx",
+      "sha256": "8f8c4619237d023770f5ed18012123771e216c5ec358987b8d3c4e486a74d30f"
+    },
+    "package": {
+      "file": "mindspore-lite-2.7.0-linux-x64.tar.gz",
+      "version": "2.7.0",
+      "sha256": "8bb1097100c9fec12675670ba2d4264a2cd6da3a9be093eb56631d00fc0c455b"
+    },
+    "output": {
+      "file": "community-wespeaker-encoder.fp16.ms",
+      "sizeBytes": 10661176,
+      "sha256": "0adae051047d928a11c2b0641560fd2a3c363d9c0cb4dd07bbc03670f48d83b8"
+    },
+    "flags": [
+      "--fmk=ONNX",
+      "--saveType=MINDIR_LITE",
+      "--fp16=on",
+      "--inputDataType=FLOAT",
+      "--outputDataType=FLOAT",
+      "--inputShape=fbank:1,998,80",
+      "--optimize=general",
+      "--infer=false",
+      "--trainModel=false",
+      "--optimizeTransformer=false"
+    ],
+    "precisionScope": "fp16=on serializes eligible FP32 constants as FP16; public I/O stays FP32. It does not prove FP16 execution or placement of every NPU operator.",
+    "toolPath": "asr/tools/convert_community_encoder.py"
   }
 }

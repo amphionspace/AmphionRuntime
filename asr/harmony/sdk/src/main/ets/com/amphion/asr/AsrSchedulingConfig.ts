@@ -6,6 +6,13 @@ export class AsrSchedulingConfig {
   cpuIds: number[] = [];
   /** Existing ORT default; false trades wake-up latency for less busy waiting. */
   allowSpinning: boolean = true;
+  /**
+   * Where the Community speaker encoder runs when role separation is on:
+   * 'cpu' keeps the ORT session, 'npu' requires an NNRt accelerator and fails
+   * the load without one, 'auto' prefers the accelerator and falls back.
+   * Recognition itself is unaffected; this does not join the ASR provider key.
+   */
+  diarizationEncoder: string = 'cpu';
 }
 
 export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSchedulingConfig()): AsrSchedulingConfig {
@@ -17,9 +24,14 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
     typeof source.allowSpinning !== 'boolean') {
     throw new Error('invalid ASR scheduling configuration');
   }
+  const diarizationEncoder = source.diarizationEncoder ?? 'cpu';
+  if (diarizationEncoder !== 'cpu' && diarizationEncoder !== 'npu' && diarizationEncoder !== 'auto') {
+    throw new Error('ASR diarizationEncoder must be cpu, npu, or auto');
+  }
   const copy = new AsrSchedulingConfig();
   copy.qos = source.qos;
   copy.allowSpinning = source.allowSpinning;
+  copy.diarizationEncoder = diarizationEncoder;
   for (const cpu of source.cpuIds) {
     if (!Number.isInteger(cpu) || cpu < 0 || cpu >= 128 || copy.cpuIds.indexOf(cpu) >= 0) {
       throw new Error('ASR cpuIds must contain unique integer CPU IDs in [0, 127]');

@@ -71,12 +71,23 @@ export interface CommunityDiarizationWindow {
   segmentationMs: number;
   featureMs: number;
   embeddingMs: number;
+  /** Encoder Run only; embeddingMs still includes encoding and all pooling. */
+  encoderMs: number;
+  /** "cpu" or "npu": the backend that produced this window's vectors. */
+  encoderBackend: string;
+  /** Actual selected NNRt device name, or "cpu" for the ORT encoder. */
+  encoderDevice: string;
 }
+/**
+ * encoderBackend: "cpu" (default) keeps the ORT encoder; "npu" requires a
+ * Kirin-named NNRt accelerator and the MindIR encoder asset; "auto" can fall back
+ * to CPU only if NPU construction fails, never after inference has started.
+ */
 export function loadCommunityDiarization(segmentation: Uint8Array, encoder: Uint8Array,
   pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, lanes?: number,
-  recognizerQos?: string): Promise<number>;
+  recognizerQos?: string, encoderBackend?: string): Promise<number>;
 export function loadCommunityDiarizationResources(resourceManager: Object, lanes?: number,
-  recognizerQos?: string): Promise<number>;
+  recognizerQos?: string, encoderBackend?: string): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function processCommunityDiarizationBatch(handle: number,
   pcm: Float32Array[]): Promise<CommunityDiarizationWindow[]>;
@@ -85,3 +96,4 @@ export function clusterCommunityDiarization(handle: number, segments: Float32Arr
   maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
   runRms: Float32Array): Promise<string>;
 export function closeCommunityDiarization(handle: number): void;
+

@@ -8,6 +8,7 @@ import hashlib
 import json
 import subprocess
 import sys
+import tarfile
 import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +16,9 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
+sys.path.insert(0, str(REPO_ROOT))
+from asr.tools import verify_community_encoder_mindir as community_mindir
+
 HAP = SCRIPT_DIR.parent / (
     "samples/dingqiao-demo/entry/build/default/outputs/default/"
     "amphion_asr_demo-default-signed.hap"
@@ -44,6 +48,8 @@ OPTIONAL_HAP_MODELS = {
         "resources/rawfile/amphion-dingqiao/campplus.onnx",
     "community_speaker_encoder":
         "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
+    "community_speaker_encoder_mindir":
+        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp16.ms",
     "community_speaker_pooling":
         "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
     "community_feature_transform":
@@ -62,6 +68,8 @@ TRACKED_BUILD_INPUTS = (
     "asr/tools/04_build_harmony_so.sh",
     "asr/tools/build_harmony_onnxruntime.py",
     "asr/tools/harmony_onnxruntime_flags.cmake",
+    "asr/tools/convert_community_encoder.py",
+    "asr/tools/verify_community_encoder_mindir.py",
     "asr/tools/05_package_har_libs.sh",
     "asr/tools/apply_sherpa_patches.sh",
     "asr/tools/prepare_sherpa_source.sh",
@@ -137,9 +145,14 @@ def sherpa_source_fingerprint(submodule: Path, base_ref: str = "v1.13.1") -> str
 
 def source_fingerprint() -> str:
     digest = hashlib.sha256()
-    tracked = run(["git", "ls-files", "-z", "--", *TRACKED_BUILD_INPUTS])
-    for encoded in sorted(item for item in tracked.split(b"\0") if item):
-        relative = encoded.decode("utf-8")
+    inputs = run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", *TRACKED_BUILD_INPUTS])
+    paths = {item.decode("utf-8") for item in inputs.split(b"\0") if item}
+    # Local-only model/evidence pairs are ignored by Git but change the actual NPU payload.
+    for name in (community_mindir.SOURCE_FILE, community_mindir.MODEL_FILE, community_mindir.PROVENANCE_FILE):
+        path = community_mindir.SHARED_DIR / name
+        if (REPO_ROOT / path).is_file():
+            paths.add(str(path))
+    for relative in sorted(paths):
         path = REPO_ROOT / relative
         if path.is_file():
             add_path(digest, relative, path)
@@ -150,12 +163,20 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
-def optional_hap_models() -> dict[str, dict[str, object]]:
+def optional_hap_models(dingqiao_har: Path | None = None) -> dict[str, dict[str, object]]:
     models: dict[str, dict[str, object]] = {}
+    archives = [HAP] if dingqiao_har is None else [HAP, dingqiao_har]
+    try:
+        mindir = community_mindir.verify_assets(REPO_ROOT, archives=archives)
+    except (community_mindir.VerificationError, OSError, tarfile.TarError, zipfile.BadZipFile, ValueError) as error:
+        raise IdentityFailure(str(error)) from error
     with zipfile.ZipFile(HAP) as archive:
         names = set(archive.namelist())
         for logical_name, member in OPTIONAL_HAP_MODELS.items():
             if member not in names:
+                continue
+            if logical_name == "community_speaker_encoder_mindir":
+                models[logical_name] = {"hap_path": member, **mindir}
                 continue
             digest = hashlib.sha256()
             size = 0
@@ -181,8 +202,11 @@ def current_identity(
             "size_bytes": HAP.stat().st_size,
         }
     }
+    dingqiao_har = None
     for logical_name, directory in artifact_dirs(zh_en_only).items():
         path = sole_har(directory)
+        if logical_name == "amphion_dingqiao.har":
+            dingqiao_har = path
         artifacts[logical_name] = {
             "path": str(path.relative_to(REPO_ROOT)),
             "sha256": sha256_file(path),
@@ -190,7 +214,7 @@ def current_identity(
         }
     return {
         "schema_version": 3,
-        "source_fingerprint_algorithm": "tracked-inputs+isolated-sherpa-v1.13.1-diff-v3",
+        "source_fingerprint_algorithm": "build-inputs+community-mindir+isolated-sherpa-v1.13.1-diff-v3",
         "zh_en_only": zh_en_only,
         "build_mode": build_mode,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),
@@ -199,7 +223,7 @@ def current_identity(
         "native_sha256": {
             name: sha256_file(path) for name, path in sorted(NATIVE_LIBRARIES.items())
         },
-        "optional_models": optional_hap_models(),
+        "optional_models": optional_hap_models(dingqiao_har),
         "artifacts": artifacts,
     }
 

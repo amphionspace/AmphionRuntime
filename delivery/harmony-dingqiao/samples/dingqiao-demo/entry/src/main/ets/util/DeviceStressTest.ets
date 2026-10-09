@@ -6,6 +6,7 @@ import {
   AudioInfo,
   CreateEngineCallback,
   CreateEngineParams,
+  DiagnosticExportCallback,
   DingqiaoErrorCode,
   DingqiaoEventCode,
   LicenseActivationCallback,
@@ -60,6 +61,8 @@ let stressEnableDiarization: boolean = false;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
+  /** Community speaker encoder placement: cpu, npu or auto (carrier A/B knob). */
+  diarizationEncoder: string = 'cpu';
   asrCpuIds: number[] = [];
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
@@ -78,6 +81,7 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
+  captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
 }
 
@@ -1154,6 +1158,61 @@ function writeText(path: string, text: string): void {
   }
 }
 
+class StressDiagnosticExportCallback implements DiagnosticExportCallback {
+  private readonly resolve: (path: string) => void;
+  private readonly reject: (error: Error) => void;
+
+  constructor(resolve: (path: string) => void, reject: (error: Error) => void) {
+    this.resolve = resolve;
+    this.reject = reject;
+  }
+
+  onSuccess(path: string): void { this.resolve(path); }
+  onError(_errorCode: number, _message: string): void {
+    this.reject(new Error("diagnostic export failed"));
+  }
+}
+
+async function exportStressDiagnostics(context: common.UIAbilityContext,
+  options: DeviceStressOptions, totals: StressTotals, startedAtMs: number,
+  finishedAtMs: number): Promise<string> {
+  if (!/^[A-Za-z0-9_-]+$/.test(options.runId)) throw new Error("invalid stress run identity");
+  const runDir = await new Promise<string>((resolve: (path: string) => void,
+    reject: (error: Error) => void): void => {
+    SpeechRecognizeSdk.exportDiagnostics(new StressDiagnosticExportCallback(resolve, reject));
+  });
+  const manifest = JSON.parse(asciiBytesToString(new Uint8Array(readBytes(`${runDir}/manifest.json`)))) as Record<string, Object>;
+  const diagnosticRunId = `${manifest["runId"] ?? ""}`;
+  if (!/^[A-Za-z0-9_-]+$/.test(diagnosticRunId) ||
+    runDir !== `${context.filesDir}/asr-diagnostics/${diagnosticRunId}`) {
+    throw new Error("invalid exported diagnostic identity");
+  }
+  const summary = JSON.parse(asciiBytesToString(new Uint8Array(readBytes(`${runDir}/summary.json`)))) as Record<string, Object>;
+  if (summary["runId"] !== diagnosticRunId) throw new Error("diagnostic summary identity mismatch");
+  const diagnosticSessions: string[] = [];
+  const sessions = summary["sessions"] as Record<string, Object>[];
+  for (let index = 0; index < sessions.length; index++) {
+    const sessionId = `${sessions[index]["sessionId"] ?? ""}`;
+    if (!/^[A-Za-z0-9_-]+$/.test(sessionId)) throw new Error("invalid diagnostic session identity");
+    diagnosticSessions.push(sessionId);
+  }
+  const binding: Record<string, Object> = {};
+  binding["schemaVersion"] = 1;
+  binding["runnerRunId"] = options.runId;
+  binding["diagnosticRunId"] = diagnosticRunId;
+  binding["diarizationEncoder"] = options.diarizationEncoder;
+  binding["mode"] = options.mode;
+  binding["requestedCycles"] = options.cycles;
+  binding["completedCycles"] = totals.completed;
+  binding["startedAtMs"] = startedAtMs;
+  binding["finishedAtMs"] = finishedAtMs;
+  binding["diagnosticSessions"] = diagnosticSessions;
+  const bindingPath = `${runDir}/stress-binding-${options.runId}.json`;
+  if (fs.accessSync(bindingPath)) throw new Error("diagnostic stress binding already exists");
+  writeText(bindingPath, `${JSON.stringify(binding)}\n`);
+  return diagnosticRunId;
+}
+
 function cleanupStressInputs(context: common.UIAbilityContext, manifestPath: string,
   entries: CorpusEntry[]): void {
   const sandboxStressRoot = `${context.filesDir}/asr-stress/`;
@@ -1218,6 +1277,7 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   scheduling.qos = options.asrQos;
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
+  scheduling.diarizationEncoder = options.diarizationEncoder;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.extraParams['disablePrepack'] = options.asrDisablePrepack;
@@ -1232,6 +1292,7 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
   scheduling.qos = options.asrQos;
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
+  scheduling.diarizationEncoder = options.diarizationEncoder;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.language = 'zh-CN';
@@ -3131,12 +3192,26 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     }
   }
 
+  const completedAtMs = Date.now();
+  const captureStartedAtMs = completedAtMs;
+  let diagnosticsStatus = options.captureDiagnostics ? "ERROR" : "DISABLED";
+  let diagnosticsRunId = "";
+  if (options.captureDiagnostics) {
+    try {
+      diagnosticsRunId = await exportStressDiagnostics(context, options, totals, startedAt, completedAtMs);
+      diagnosticsStatus = "EXPORTED";
+    } catch (_error) {
+      if (fatal.length === 0) fatal = "diagnostics-export";
+    }
+  }
+  const captureElapsedMs = options.captureDiagnostics ? Date.now() - captureStartedAtMs : 0;
   const status = fatal.length === 0 && totals.failed === 0 && totals.completed === options.cycles ? 'PASS' : 'FAIL';
   const summary = `SUMMARY|runId=${options.runId}|status=${status}|mode=${options.mode}` +
     `|requested=${options.cycles}|completed=${totals.completed}|failed=${totals.failed}` +
     `|emptyFinals=${totals.emptyFinals}|starts=${totals.starts}|partials=${totals.partials}|finals=${totals.finals}` +
-    `|completes=${totals.completes}|errors=${totals.errors}|elapsedMs=${Date.now() - startedAt}` +
-    `|fatal=${fatal}`;
+    `|completes=${totals.completes}|errors=${totals.errors}|elapsedMs=${completedAtMs - startedAt}` +
+    `|workloadStartedAtMs=${startedAt}|workloadFinishedAtMs=${completedAtMs}|captureElapsedMs=${captureElapsedMs}` +
+    `|fatal=${fatal}|diagnosticsStatus=${diagnosticsStatus}|diagnosticsRunId=${diagnosticsRunId}`;
   lines.push(summary);
   let resultWritten = false;
   try {

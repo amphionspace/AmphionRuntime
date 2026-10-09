@@ -2,14 +2,24 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
+
+from asr.tools import verify_community_encoder_mindir as gate
+from asr.tools.tests.test_verify_community_encoder_mindir import MindirFixture
 
 
 SCRIPT = Path(__file__).with_name("build_install_smoke.sh")
 
 
 class BuildInstallSmokeTest(unittest.TestCase):
+    def test_mindir_source_preflight_does_not_require_unbuilt_rawfile(self) -> None:
+        source = SCRIPT.with_name("verify_demo_inputs.sh").read_text(encoding="utf-8")
+        self.assertIn("--source-only", source)
+        self.assertIn("verify_community_encoder_mindir.py", source)
+        self.assertIn("MINDIR_VERIFY_ARGS+=(--archive", source)
+
     def test_prepare_only_skips_device_and_signing_requirements(self) -> None:
         source = SCRIPT.read_text(encoding="utf-8")
 
@@ -113,6 +123,65 @@ mock_hdc() {
                                         env={"RESPONSE": response}, capture_output=True, text=True)
                 self.assertEqual(result.returncode == 0, succeeds, result.stderr)
                 self.assertEqual(len((Path(directory) / "calls").read_text().splitlines()), expected_calls)
+
+
+class PublishMindirTest(MindirFixture):
+    def setUp(self):
+        super().setUp()
+        self.workspace = self.repo / "isolated workspace"
+        self.isolated = self.workspace / "repo" / gate.GENERATED_DIR
+        self.isolated.mkdir(parents=True)
+        self.generated.mkdir(parents=True)
+        (self.generated / gate.MODEL_FILE).write_bytes(b"previous-target")
+        (self.generated / gate.PROVENANCE_FILE).write_bytes(b"previous-sidecar")
+        self.hap = self.write_archive()
+        # Execute the real verifier in the child process with test-only source pins.
+        verifier = self.repo / "asr/tools/verify_community_encoder_mindir.py"
+        verifier.parent.mkdir(parents=True)
+        source_sha = self.record["source"]["sha256"]
+        verifier.write_text(
+            "import sys\n"
+            f"sys.path.insert(0, {str(gate.ROOT)!r})\n"
+            "from asr.tools import verify_community_encoder_mindir as gate\n"
+            f"gate.converter.EXPECTED_SOURCE_SHA256 = {source_sha!r}\n"
+            f"gate.converter.EXPECTED_SOURCE_BYTES = {self.source.stat().st_size}\n"
+            "raise SystemExit(gate.main())\n"
+        )
+
+    def publish(self, succeeds=True):
+        import shlex
+        source = SCRIPT.read_text(encoding="utf-8")
+        block = source[source.index("publish_community_mindir() {"):source.index("prepare_build_workspace() {")]
+        setup = "set -euo pipefail\n" + "\n".join(
+            f"{name}={shlex.quote(str(value))}" for name, value in {
+                "BUILD_WORKSPACE": self.workspace, "REPO_ROOT": self.repo,
+                "BUILD_HAP": self.hap, "LICENSE_PYTHON": sys.executable,
+            }.items()) + "\n"
+        result = subprocess.run(["bash", "-c", setup + block + "publish_community_mindir\n"],
+                                capture_output=True, text=True)
+        self.assertEqual(succeeds, result.returncode == 0, result.stderr)
+        return result
+
+    def test_verified_isolated_rawfile_is_published_before_identity_without_sidecar(self):
+        (self.isolated / gate.MODEL_FILE).write_bytes(self.output.read_bytes())
+        self.publish()
+        self.assertEqual(self.output.read_bytes(), (self.generated / gate.MODEL_FILE).read_bytes())
+        self.assertFalse((self.generated / gate.PROVENANCE_FILE).exists())
+        gate.verify_assets(self.repo)
+
+    def test_cpu_build_removes_both_stale_generated_model_and_sidecar(self):
+        self.output.unlink()
+        self.provenance.unlink()
+        self.hap = self.write_archive(entries=[])
+        self.publish()
+        self.assertFalse((self.generated / gate.MODEL_FILE).exists())
+        self.assertFalse((self.generated / gate.PROVENANCE_FILE).exists())
+
+    def test_corrupt_isolated_model_fails_without_overwriting_previous_target(self):
+        (self.isolated / gate.MODEL_FILE).write_bytes(self.output.read_bytes()[:-1] + b"!")
+        result = self.publish(succeeds=False)
+        self.assertIn("stale generated", result.stderr)
+        self.assertEqual(b"previous-target", (self.generated / gate.MODEL_FILE).read_bytes())
 
 
 if __name__ == "__main__":

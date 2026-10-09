@@ -5,6 +5,7 @@
 #include <node_api.h>
 #endif
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <condition_variable>
 #include <cstring>
@@ -65,13 +66,20 @@ std::vector<T> CopyArray(napi_env env, napi_value value, napi_typedarray_type ex
 
 #endif
 
+#ifndef __ANDROID__
+#include <mindspore/context.h>
+#include <mindspore/model.h>
+#include <mindspore/tensor.h>
+#include <mindspore/types.h>
+#endif
 struct Window {
   std::vector<float> segments, embeddings;
   // [window, channel, begin frame, end frame) for each contiguous clean run.
   std::vector<float> run_embeddings;
   std::vector<float> run_ranges;
   std::vector<float> run_rms;
-  double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0;
+  double segmentation_ms = 0, feature_ms = 0, embedding_ms = 0, encoder_ms = 0;
+  std::string encoder_backend, encoder_device;
 };
 
 #ifndef __ANDROID__
@@ -120,6 +128,164 @@ void ApplyRoleQos(int qos) {
 }
 #endif
 
+// The speaker encoder is the one Community stage with a fixed-shape,
+// convolution-only graph (fbank [1,998,80] -> [1,2560,125]), so it is the one
+// stage that can leave the CPU. "cpu" keeps the pinned ORT/XNNPACK session.
+// "npu" requires a Kirin-named NNRt accelerator through MindSpore Lite. "auto"
+// may use the CPU only when accelerator construction fails, never after Run.
+// Device names/build status do not establish operator placement or precision.
+class Encoder {
+ public:
+  static constexpr size_t kFeatureCount = 998 * 80;
+  static constexpr size_t kEncodedCount = 2560 * 125;
+  Encoder(Ort::Env& env, const std::vector<uint8_t>& onnx, const Ort::SessionOptions& options)
+      : backend_("cpu"), device_("cpu"), session_(env, onnx.data(), onnx.size(), options) {}
+#ifndef __ANDROID__
+  // Internal comparison only: empty matches "kirin", else a name substring;
+  // both are case-insensitive. No device selector is exposed by the SDK.
+  Encoder(const std::vector<uint8_t>& mindir, const std::string& device) : backend_("npu") {
+    BuildMindSpore(mindir, device);
+  }
+#endif
+  Encoder(Encoder&& other) noexcept
+      : backend_(std::move(other.backend_)), device_(std::move(other.device_)),
+        session_(std::move(other.session_)),
+        encoded_(std::move(other.encoded_)) {
+#ifndef __ANDROID__
+    model_ = other.model_;
+    context_ = other.context_;
+    other.model_ = nullptr;
+    other.context_ = nullptr;
+#endif
+  }
+  Encoder(const Encoder&) = delete;
+  Encoder& operator=(const Encoder&) = delete;
+  Encoder& operator=(Encoder&&) = delete;
+  ~Encoder() {
+#ifndef __ANDROID__
+    if (model_) OH_AI_ModelDestroy(&model_);
+    if (context_) OH_AI_ContextDestroy(&context_);
+#endif
+  }
+  const std::string& backend() const { return backend_; }
+  const std::string& device() const { return device_; }
+  // The returned kEncodedCount floats belong to this encoder until its next Run.
+  float* Run(std::vector<float>& features) {
+    if (features.size() != kFeatureCount) throw std::runtime_error("invalid Community feature count");
+#ifndef __ANDROID__
+    if (model_) return RunMindSpore(features);
+#endif
+    auto memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    std::array<int64_t, 3> shape{1, 998, 80};
+    auto tensor = Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), shape.data(), 3);
+    const char* inputs[] = {"fbank"};
+    const char* outputs[] = {"/resnet/pool/Reshape_output_0"};
+    auto encoded = session_.Run(Ort::RunOptions{nullptr}, inputs, &tensor, 1, outputs, 1);
+    if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != kEncodedCount) {
+      throw std::runtime_error("invalid Community encoder output");
+    }
+    const float* values = encoded[0].GetTensorData<float>();
+    encoded_.assign(values, values + kEncodedCount);
+    return encoded_.data();
+  }
+
+ private:
+#ifndef __ANDROID__
+  static OH_AI_TensorHandle ValidateTensor(const OH_AI_TensorHandleArray& tensors,
+                                          const std::array<int64_t, 3>& expected,
+                                          size_t elements, const char* role) {
+    if (tensors.handle_num != 1 || !tensors.handle_list || !tensors.handle_list[0]) {
+      throw std::runtime_error(std::string("invalid Community encoder ") + role + " tensor list");
+    }
+    const OH_AI_TensorHandle tensor = tensors.handle_list[0];
+    size_t rank = 0;
+    const int64_t* shape = OH_AI_TensorGetShape(tensor, &rank);
+    if (!shape || rank != expected.size() || !std::equal(expected.begin(), expected.end(), shape) ||
+        OH_AI_TensorGetDataType(tensor) != OH_AI_DATATYPE_NUMBERTYPE_FLOAT32 ||
+        OH_AI_TensorGetElementNum(tensor) != static_cast<int64_t>(elements) ||
+        OH_AI_TensorGetDataSize(tensor) != elements * sizeof(float)) {
+      throw std::runtime_error(std::string("invalid Community encoder ") + role + " FP32 signature");
+    }
+    return tensor;
+  }
+  void BuildMindSpore(const std::vector<uint8_t>& mindir, const std::string& device) {
+    if (mindir.empty()) throw std::runtime_error("Community encoder MindIR asset unavailable");
+    // Keep every acquisition local until success: this object's destructor is
+    // not called when its constructor throws. Context owns info after Add.
+    auto destroy_descs = [](NNRTDeviceDesc* value) { OH_AI_DestroyAllNNRTDeviceDescs(&value); };
+    size_t count = 0;
+    std::unique_ptr<NNRTDeviceDesc, decltype(destroy_descs)> descs(
+      OH_AI_GetAllNNRTDeviceDescs(&count), destroy_descs);
+    auto lowercase = [](std::string value) {
+      for (char& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      return value;
+    };
+    const std::string match = lowercase(device.empty() ? "kirin" : device);
+    std::string chosen;
+    for (size_t i = 0; descs && i < count && chosen.empty(); ++i) {
+      NNRTDeviceDesc* desc = OH_AI_GetElementOfNNRTDeviceDescs(descs.get(), i);
+      if (!desc || OH_AI_GetTypeFromNNRTDeviceDesc(desc) != OH_AI_NNRTDEVICE_ACCELERATOR) continue;
+      const char* name = OH_AI_GetNameFromNNRTDeviceDesc(desc);
+      if (name && lowercase(name).find(match) != std::string::npos) chosen = name;
+    }
+    descs.reset();
+    if (chosen.empty()) throw std::runtime_error("no NNRt accelerator matching " + match + " for the Community encoder");
+    auto destroy_context = [](void* value) { OH_AI_ContextDestroy(&value); };
+    std::unique_ptr<void, decltype(destroy_context)> context(OH_AI_ContextCreate(), destroy_context);
+    if (!context) throw std::runtime_error("MindSpore Lite context failed");
+    auto destroy_info = [](void* value) { OH_AI_DeviceInfoDestroy(&value); };
+    std::unique_ptr<void, decltype(destroy_info)> info(
+      OH_AI_CreateNNRTDeviceInfoByName(chosen.c_str()), destroy_info);
+    if (!info) throw std::runtime_error("NNRt device unavailable: " + chosen);
+    OH_AI_DeviceInfoSetPerformanceMode(info.get(), OH_AI_PERFORMANCE_HIGH);
+    OH_AI_ContextAddDeviceInfo(context.get(), info.get());
+    info.release();
+    auto destroy_model = [](void* value) { OH_AI_ModelDestroy(&value); };
+    std::unique_ptr<void, decltype(destroy_model)> model(OH_AI_ModelCreate(), destroy_model);
+    if (!model) throw std::runtime_error("MindSpore Lite model failed");
+    const OH_AI_Status built =
+      OH_AI_ModelBuild(model.get(), mindir.data(), mindir.size(), OH_AI_MODELTYPE_MINDIR, context.get());
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
+                 "community-encoder backend=npu device=%{public}s build=%{public}d",
+                 chosen.c_str(), static_cast<int>(built));
+    if (built != OH_AI_STATUS_SUCCESS) {
+      throw std::runtime_error("MindSpore Lite build failed on " + chosen + ": " + std::to_string(built));
+    }
+    ValidateTensor(OH_AI_ModelGetInputs(model.get()), {1, 998, 80}, kFeatureCount, "input");
+    ValidateTensor(OH_AI_ModelGetOutputs(model.get()), {1, 2560, 125}, kEncodedCount, "output");
+    device_ = chosen;
+    model_ = model.release();
+    context_ = context.release();
+  }
+  float* RunMindSpore(std::vector<float>& features) {
+    const OH_AI_TensorHandleArray inputs = OH_AI_ModelGetInputs(model_);
+    OH_AI_TensorHandleArray outputs = OH_AI_ModelGetOutputs(model_);
+    const OH_AI_TensorHandle input = ValidateTensor(inputs, {1, 998, 80}, kFeatureCount, "input");
+    ValidateTensor(outputs, {1, 2560, 125}, kEncodedCount, "output");
+    // MutableData allocates runtime-owned storage; never bind the caller's
+    // vector, whose lifetime ends before the model/tensor is destroyed.
+    void* input_data = OH_AI_TensorGetMutableData(input);
+    if (!input_data) throw std::runtime_error("Community encoder input buffer unavailable");
+    std::memcpy(input_data, features.data(), kFeatureCount * sizeof(float));
+    const OH_AI_Status status = OH_AI_ModelPredict(model_, inputs, &outputs, nullptr, nullptr);
+    if (status != OH_AI_STATUS_SUCCESS) {
+      throw std::runtime_error("MindSpore Lite predict failed on " + device_ + ": " + std::to_string(status));
+    }
+    const OH_AI_TensorHandle output = ValidateTensor(outputs, {1, 2560, 125}, kEncodedCount, "output");
+    const auto* values = static_cast<const float*>(OH_AI_TensorGetData(output));
+    if (!values || !std::all_of(values, values + kEncodedCount, [](float value) { return std::isfinite(value); })) {
+      throw std::runtime_error("invalid Community encoder output");
+    }
+    encoded_.assign(values, values + kEncodedCount);
+    return encoded_.data();
+  }
+  OH_AI_ModelHandle model_ = nullptr;
+  OH_AI_ContextHandle context_ = nullptr;
+#endif
+  std::string backend_, device_;
+  Ort::Session session_{nullptr};
+  std::vector<float> encoded_;
+};
 // Role work is optional; the recognizer is not. A model-owned worker runs it
 // below the priority of the threads that drive recognition, so a CPU-starved
 // device delays speaker results instead of the transcript. Callers block on the
@@ -197,9 +363,31 @@ class Model {
   Model(const std::vector<uint8_t>& segmentation, const std::vector<uint8_t>& encoder,
         const std::vector<uint8_t>& pooling,
         const std::vector<uint8_t>& feature, const std::vector<uint8_t>& plda, int lanes = 0,
-        int role_qos = -1)
+        int role_qos = -1, const std::vector<uint8_t>& encoder_mindir = {},
+        const std::string& encoder_backend = "cpu")
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-community") {
     if (lanes < 0 || lanes > kMaxLanes) throw std::runtime_error("invalid Community executor lanes");
+    if (encoder_backend != "cpu" && encoder_backend != "npu" && encoder_backend != "auto") {
+      throw std::runtime_error("invalid Community encoder backend");
+    }
+    // "auto" is the only backend that may land on the CPU after asking for the
+    // accelerator, and it says so once; "npu" fails the load instead.
+    auto make_encoder = [&](const Ort::SessionOptions& cpu_options) {
+      if (encoder_backend == "cpu") return Encoder(env_, encoder, cpu_options);
+#ifndef __ANDROID__
+      try {
+        return Encoder(encoder_mindir, "");
+      } catch (const std::exception& error) {
+        if (encoder_backend != "auto") throw;
+        OH_LOG_Print(LOG_APP, LOG_WARN, 0x6666, "AmphionScheduling",
+                     "community-encoder backend=cpu fallback=%{public}s", error.what());
+        return Encoder(env_, encoder, cpu_options);
+      }
+#else
+      if (encoder_backend != "auto") throw std::runtime_error("Community encoder backend unavailable here");
+      return Encoder(env_, encoder, cpu_options);
+#endif
+    };
     if (feature.size() != (400 + 80 * 257) * sizeof(float)) {
       throw std::runtime_error("invalid Community feature constants");
     }
@@ -238,14 +426,14 @@ class Model {
       // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
       // a second pool cannot compete with them between convolution operators.
       options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
-      encoders_.push_back(Ort::Session(env_, encoder.data(), encoder.size(), options));
+      encoders_.push_back(make_encoder(options));
     } else {
       // A single-threaded XNNPACK encoder creates no worker pool, so nothing
       // busy-waits between operators. An XNNPACK session must not run two
       // windows concurrently; each lane owns its own instance.
       options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "1"}});
       for (int lane = 0; lane < lanes_; ++lane) {
-        encoders_.push_back(Ort::Session(env_, encoder.data(), encoder.size(), options));
+        encoders_.push_back(make_encoder(options));
         lane_workers_.push_back(std::make_unique<RoleWorker>(role_qos));
       }
       cluster_worker_ = std::make_unique<RoleWorker>(role_qos);
@@ -320,7 +508,7 @@ class Model {
   }
 
  private:
-  Window Compute(Ort::Session& encoder_session, std::vector<float>& pcm) {
+  Window Compute(Encoder& encoder, std::vector<float>& pcm) {
     Window result;
     auto start = Clock::now();
     auto memory = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
@@ -355,20 +543,17 @@ class Model {
     start = Clock::now();
     auto features = community::Fbank(pcm, constants_);
     result.feature_ms = Milliseconds(start);
-    std::array<int64_t, 3> feature_shape{1, 998, 80}, mask_shape{1, 3, 589};
+    std::array<int64_t, 3> mask_shape{1, 3, 589};
     std::array<int64_t, 3> encoded_shape{1, 2560, 125};
-    auto feature_tensor = Ort::Value::CreateTensor<float>(memory, features.data(), features.size(), feature_shape.data(), 3);
-    const char* encoder_inputs[] = {"fbank"};
-    const char* encoder_outputs[] = {"/resnet/pool/Reshape_output_0"};
     start = Clock::now();
     // The split graphs retain the pinned model's weights. Encoded features
     // belong to this Process call and outlive all of its synchronous pooling
     // calls; they are never retained across windows, generations or sessions.
-    auto encoded = encoder_session.Run(Ort::RunOptions{nullptr}, encoder_inputs, &feature_tensor, 1, encoder_outputs, 1);
-    if (encoded[0].GetTensorTypeAndShapeInfo().GetElementCount() != 2560 * 125) {
-      throw std::runtime_error("invalid Community encoder output");
-    }
-    auto* encoded_values = encoded[0].GetTensorMutableData<float>();
+    const auto encoder_start = Clock::now();
+    float* encoded_values = encoder.Run(features);
+    result.encoder_ms = Milliseconds(encoder_start);
+    result.encoder_backend = encoder.backend();
+    result.encoder_device = encoder.device();
     std::vector<Ort::Value> tensors;
     tensors.push_back(Ort::Value::CreateTensor<float>(memory, encoded_values, 2560 * 125, encoded_shape.data(), 3));
     tensors.push_back(Ort::Value::CreateTensor<float>(memory, masks.data(), masks.size(), mask_shape.data(), 3));
@@ -517,7 +702,7 @@ class Model {
   // Concurrent Run is safe on the shared CPU-provider sessions; each encoder
   // instance is used by one lane at a time.
   Ort::Session segmentation_{nullptr}, pooling_{nullptr};
-  std::vector<Ort::Session> encoders_;
+  std::vector<Encoder> encoders_;
   std::string input_name_, output_name_;
   std::vector<float> constants_;
   community::Plda plda_;
@@ -553,6 +738,8 @@ struct Work {
   std::vector<Window> windows;
   int lanes = 0;
   int role_qos = -1;
+  std::string encoder_backend = "cpu";
+  std::vector<uint8_t> encoder_mindir;
   std::vector<float> run_ranges, run_rms;
   std::vector<double> window_starts;
   double begin_sample = 0;
@@ -578,9 +765,19 @@ void Execute(napi_env, void* data) {
         for (size_t i = 0; i < task.assets.size(); ++i) {
           task.assets[i] = ReadCommunityAsset(task.resource_manager.get(), names[i]);
         }
+        if (task.encoder_backend != "cpu") {
+          // The MindIR export ships only where an accelerator build is meant
+          // to run; "auto" treats its absence as the CPU answer.
+          try {
+            task.encoder_mindir = ReadCommunityAsset(task.resource_manager.get(),
+              "amphion-dingqiao/community-wespeaker-encoder.fp16.ms");
+          } catch (const std::exception&) {
+            if (task.encoder_backend != "auto") throw;
+          }
+        }
       }
       task.model = std::make_shared<Model>(task.assets[0], task.assets[1], task.assets[2], task.assets[3], task.assets[4],
-                                           task.lanes, task.role_qos);
+                                           task.lanes, task.role_qos, task.encoder_mindir, task.encoder_backend);
     } else if (task.operation == Operation::Process) task.window = task.model->Process(task.pcm);
     else if (task.operation == Operation::ProcessBatch) task.windows = task.model->ProcessBatch(task.pcms);
     else task.result = task.model->Cluster(task.segments, task.embeddings, task.run_embeddings,
@@ -595,6 +792,11 @@ void FloatProperty(napi_env env, napi_value object, const char* name, const std:
   if (!values.empty()) std::memcpy(bytes, values.data(), values.size() * sizeof(float));
   napi_create_typedarray(env, napi_float32_array, values.size(), buffer, 0, &array);
   napi_set_named_property(env, object, name, array);
+}
+void StringProperty(napi_env env, napi_value object, const char* name, const std::string& text) {
+  napi_value value;
+  napi_create_string_utf8(env, text.c_str(), text.size(), &value);
+  napi_set_named_property(env, object, name, value);
 }
 void NumberProperty(napi_env env, napi_value object, const char* name, double value) {
   napi_value number;
@@ -612,6 +814,9 @@ napi_value WindowObject(napi_env env, const Window& window) {
   NumberProperty(env, value, "segmentationMs", window.segmentation_ms);
   NumberProperty(env, value, "featureMs", window.feature_ms);
   NumberProperty(env, value, "embeddingMs", window.embedding_ms);
+  NumberProperty(env, value, "encoderMs", window.encoder_ms);
+  StringProperty(env, value, "encoderBackend", window.encoder_backend);
+  StringProperty(env, value, "encoderDevice", window.encoder_device);
   return value;
 }
 void Complete(napi_env env, napi_status status, void* data) {
@@ -649,11 +854,14 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
     const bool legacyCluster = operation == Operation::Cluster && count == 6;
     const bool clusterLevels = operation == Operation::Cluster && count == 9;
     // Load takes an optional trailing executor lane count, then optionally the
-    // recognizer QoS that its owned workers follow.
+    // recognizer QoS that its owned workers follow, then optionally the
+    // encoder backend ("cpu", "npu" or "auto").
     const size_t loadInputs = from_resources ? 1u : 5u;
-    const bool withQos = operation == Operation::Load && count == loadInputs + 2;
+    const bool withEncoder = operation == Operation::Load && count == loadInputs + 3;
+    const bool withQos = operation == Operation::Load && (withEncoder || count == loadInputs + 2);
     const bool withLanes = operation == Operation::Load && (withQos || count == loadInputs + 1);
-    if (count != (operation == Operation::Load ? loadInputs + (withQos ? 2u : withLanes ? 1u : 0u) :
+    if (count != (operation == Operation::Load ?
+                    loadInputs + (withEncoder ? 3u : withQos ? 2u : withLanes ? 1u : 0u) :
                   operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 2u)) {
       throw std::runtime_error("invalid Community arguments");
     }
@@ -683,6 +891,17 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           throw std::runtime_error("invalid Community recognizer QoS");
         }
         task->role_qos = RoleQos(std::string(qos, length));
+      }
+      if (withEncoder) {
+        char backend[16] = {};
+        size_t length = 0;
+        if (napi_get_value_string_utf8(env, args[loadInputs + 2], backend, sizeof(backend), &length) != napi_ok) {
+          throw std::runtime_error("invalid Community encoder backend");
+        }
+        task->encoder_backend = std::string(backend, length);
+        if (task->encoder_backend != "cpu" && task->encoder_backend != "npu" && task->encoder_backend != "auto") {
+          throw std::runtime_error("invalid Community encoder backend");
+        }
       }
     } else {
       uint32_t handle = 0;

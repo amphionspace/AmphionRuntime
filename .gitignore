@@ -79,6 +79,8 @@ asr/harmony/sdk/src/main/resources/rawfile/amphion-models/manifest.json
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.onnx
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.f32
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.f64
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.ms
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.ms.provenance.json
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.LICENSE
 third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/*/
 
@@ -248,6 +250,8 @@ tts/harmony/build-ohos-tn/
 # Community-1 global model statistics are restored with the pinned private asset manifest.
 shared/models/asr/dingqiao/community-feature.f32
 shared/models/asr/dingqiao/community-plda.f64
+shared/models/asr/dingqiao/*.ms
+shared/models/asr/dingqiao/*.ms.provenance.json
 
 # Stable lock for delivery archive index updates
 /delivery/.archive-delivery.lock
