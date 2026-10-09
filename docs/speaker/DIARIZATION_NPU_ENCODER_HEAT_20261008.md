@@ -72,7 +72,7 @@
 | RSS 首 / 尾 / 峰值 | 621 / 653 / 781 MiB | 618 / 652 / 718 MiB | 623 / 659 / 711 MiB |
 | encoder 窗口数（诊断导出） | 951 | 951 | 951 |
 | encoder 后端 / 设备 | cpu / cpu ×951 | cpu / cpu ×951 | npu / `NPU_ohos.boot.hardware.kirin9020_v2_0` ×951 |
-| encoder 单窗耗时 min / 中位 / p95 / max | 303.1 / 309.4 / 457.1 / 608.8 ms | 302.9 / 308.0 / 456.3 / 645.4 ms | 25.7 / 27.7 / 30.7 / 107.0 ms |
+| encoder 单窗耗时 min / 中位 / p95 / max | 303.1 / 309.4 / 457.1 / 608.8 ms | 302.6 / 308.0 / 456.3 / 645.4 ms | 25.7 / 27.7 / 30.7 / 107.0 ms |
 | `verify_community_encoder_execution.py` | PASS | PASS | PASS |
 
 951 个窗口 × 约 281 ms 的 encoder 节省，折合约 267 s 的 CPU 时间从 16 分钟会话里移走；进程 CPU 下降约 33 个百分点与此吻合。剩余的约 200% CPU 来自 ASR 流式解码、分割模型、fbank 特征与聚类。
