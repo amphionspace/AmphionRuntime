@@ -351,7 +351,12 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       }
     }
     for(size_t c=0;c<columns.size();++c)result.capacityRms[c]=weights[c]>0?std::sqrt(result.capacityRms[c]/weights[c]):0.;
-    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0)
+    // A component that is no training vector's best explanation has no voice
+    // of its own; its level is borrowed from soft responsibilities. It must not
+    // take a slot from a speaker that owns evidence.
+    std::vector<int> owners(result.vbx.priors.size());
+    for(const auto& row:result.vbx.q)++owners[std::max_element(row.begin(),row.end())-row.begin()];
+    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0&&owners[columns[c]]>0)
       result.retainedClusters.push_back(static_cast<int>(c));
     std::stable_sort(result.retainedClusters.begin(),result.retainedClusters.end(),[&](int a,int b){return result.capacityRms[a]>result.capacityRms[b];});
     if(result.retainedClusters.size()>static_cast<size_t>(maxSpeakers))result.retainedClusters.resize(maxSpeakers);
