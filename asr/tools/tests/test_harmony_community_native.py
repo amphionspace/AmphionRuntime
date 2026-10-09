@@ -1389,3 +1389,40 @@ int main() {
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', directory,
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_tied_frame_votes_follow_the_window_that_sees_the_frame_from_inside(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Four-speaker short session at a 2 s hop: the first speaker's last
+        # 0.25 s was covered by two windows. The earlier window named her; the
+        # next one, where those frames are its first ones, named another voice.
+        # The tie went to the lower index and split her word. A tie now follows
+        # the window that sees the frames away from its edge.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  constexpr int frames=589,local=3;
+  std::vector<float> segments(2*frames*local);std::vector<int> frameHard(2*frames*local,-2);
+  auto label=[&](int w,int ch,int begin,int end,int id){
+    for(int f=begin;f<end;++f){segments[(w*frames+f)*local+ch]=1;frameHard[(w*frames+f)*local+ch]=id;}
+  };
+  label(0,0,0,300,1);            // window 0: the first speaker, id 1
+  label(1,0,0,20,0);             // window 1 starts 2 s later; its edge names id 0
+  label(1,1,200,400,0);          // id 0 is a real voice elsewhere in window 1
+  auto turns=community::Reconstruct(segments,{1,-2,-2,0,0,-2},{0,32000},0,4,frameHard);
+  // Window 1's frames 0..20 are window 0's frames ~118..138, deep inside it.
+  const double inside=(32000+495.5+10*270)/16000.;
+  bool firstSpeaker=false,other=false;
+  for(const auto& turn:turns)if(turn.begin<=inside&&turn.end>inside){firstSpeaker|=turn.speaker==1;other|=turn.speaker==0;}
+  assert(firstSpeaker&&!other);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'tie-depth.cpp'
+            binary = Path(directory) / 'tie-depth'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)

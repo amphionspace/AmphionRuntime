@@ -140,7 +140,12 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   const int total=static_cast<int>(std::nearbyint(endSample/270.)-firstFrame)+1;
   int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
   if(!frameHard.empty())knownClusters=std::max(knownClusters,*std::max_element(frameHard.begin(),frameHard.end())+1);
-  Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
+  // Votes are tied when as many windows name one identity as another; with
+  // fewer windows over each frame (a coarser hop, or the start and end of a
+  // session) that happens more often. A window is least informed at its edges,
+  // so a tie goes to the identity voted from deeper inside its windows rather
+  // than to the lower index.
+  Matrix activation(total,Vec(knownClusters)),depth(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
     const int64_t start=static_cast<int64_t>(std::nearbyint(windowStartSamples[w]/270.))-firstFrame;
     for(int f=0;f<frames;++f){
@@ -148,7 +153,7 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
       Vec active(knownClusters);int n=0;
       for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=frameHard.empty()?hard[w*local+k]:frameHard[(w*frames+f)*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
       counts[t]+=n;weights[t]+=1;
-      for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
+      for(int k=0;k<knownClusters;++k){activation[t][k]+=active[k];if(active[k]>0)depth[t][k]+=std::min(f,frames-1-f);}
     }
   }
   // Voice count is evidence of speech, not of a particular identity. Reserve
@@ -161,10 +166,13 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   }
   const int clusters=knownClusters+anonymousTracks;
   for(auto& row:activation)row.resize(clusters);
+  for(auto& row:depth)row.resize(clusters);
   std::vector<Turn> turns;std::vector<int> start(clusters,-1);
   for(int t=0;t<total;++t){
     int count=static_cast<int>(counts[t]);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
-    std::stable_sort(order.begin(),order.end(),[&](int a,int b){return activation[t][a]>activation[t][b];});
+    std::stable_sort(order.begin(),order.end(),[&](int a,int b){
+      if(activation[t][a]!=activation[t][b])return activation[t][a]>activation[t][b];
+      return depth[t][a]>depth[t][b];});
     std::vector<bool> on(clusters,false);int anonymous=knownClusters;
     for(int j=0;j<count;++j){
       const int candidate=order[j];
