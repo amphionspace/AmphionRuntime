@@ -443,10 +443,16 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       // runs) falls back to its channel's full-window vector against the same
       // centroids. It only takes identities still free at this frame, so run
       // evidence is never displaced; overflow voices score -inf and stay anonymous.
+      // It may only take the identity it resembles most: when that identity is
+      // already speaking in this frame, the voice stays anonymous instead of
+      // inheriting whichever identity happens to be free.
       std::vector<std::vector<double>> fallback(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
       std::vector<bool> fallbackCandidate(local,false);bool anyFallback=false;
       for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]&&!candidate[ch]){
-        fallback[ch]=scores[w*local+ch];fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
+        const auto& own=scores[w*local+ch];int closest=-1;
+        for(int c=0;c<k;++c)if(std::isfinite(own[c])&&(closest<0||own[c]>own[closest]))closest=c;
+        if(closest>=0)fallback[ch][closest]=own[closest];
+        fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
       }
       if(anyFallback){
         const auto extra=assign(fallback,fallbackCandidate,used);
