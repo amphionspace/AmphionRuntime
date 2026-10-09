@@ -5,6 +5,7 @@ import hilog from '@ohos.hilog';
 import deviceInfo from '@ohos.deviceInfo';
 import { AmphionLogLevel, LicenseDeviceIdProvider, SpeechRecognizeSdk } from 'amphion_dingqiao';
 import { DeviceStressOptions, runDeviceStress } from '../util/DeviceStressTest';
+import { MindirProbeOptions, runMindirProbe } from '../util/MindirProbe';
 import { ModelLoadBenchOptions, runModelLoadBench } from '../util/ModelLoadBench';
 import { LifecycleBenchOptions, runLifecycleBench } from '../util/LifecycleBench';
 import { runSdkSelfTest } from '../util/SdkSelfTest';
@@ -28,6 +29,7 @@ export default class EntryAbility extends UIAbility {
   private loadBench: boolean = false;
   private lifecycleBench: boolean = false;
   private hotwordEval: boolean = false;
+  private mindirProbe: boolean = false;
   private stressWindow?: window.Window;
   private stressFinished: boolean = false;
   private allowScreenOff: boolean = false;
@@ -79,7 +81,18 @@ export default class EntryAbility extends UIAbility {
     this.loadBench = params !== undefined && params['loadbench'] === 'true';
     this.lifecycleBench = params !== undefined && params['lifecycle'] === 'true';
     this.hotwordEval = params !== undefined && params['hotwordEval'] === 'true';
-    if (this.hotwordEval) {
+    this.mindirProbe = params !== undefined && params['mindirProbe'] === 'true';
+    if (this.mindirProbe) {
+      const options = new MindirProbeOptions();
+      options.runId = this.stringParameter(want, 'mindirProbeRunId', 'manual');
+      options.modelPath = this.stringParameter(want, 'mindirProbeModel', '');
+      options.backend = this.stringParameter(want, 'mindirProbeBackend', 'cpu');
+      options.iterations = this.numberParameter(want, 'mindirProbeIterations', 3);
+      options.resultPath = this.stringParameter(want, 'mindirProbeResult', '');
+      runMindirProbe(this.context, options).catch((e: Object): void => {
+        hilog.error(0x0000, 'MindirProbe', 'mindir probe crashed: %{public}s', `${e}`);
+      });
+    } else if (this.hotwordEval) {
       const options = new HotwordDeviceEvalOptions();
       options.manifestPath = this.stringParameter(want, 'hotwordEvalManifest', '');
       options.resultPath = this.stringParameter(want, 'hotwordEvalResult', '');
