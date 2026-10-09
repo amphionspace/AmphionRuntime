@@ -25093,5 +25093,6 @@
    }
   },
   "scope": null
- }
+ },
+ "namingConvention": "\"CPU arm\" and \"NPU arm\" refer only to where the diarization speaker encoder runs. ASR runs on the CPU in every arm of every group (ORT, four threads, QoS default); no run in this report puts ASR on the accelerator. Whether it could is answered separately in section 8, and the answer is no. So a delta such as \"diarization NPU minus recognition only\" means the arm with diarization enabled and its encoder on the accelerator, minus the arm with diarization switched off."
 }
