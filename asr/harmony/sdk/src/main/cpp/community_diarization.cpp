@@ -648,7 +648,8 @@ class Model {
       native_ranges.push_back(static_cast<int32_t>(value));
     }
     auto result = community::Cluster(segments, embeddings, windows, plda_, max_speakers,
-                                     run_embeddings, native_ranges, run_rms);
+                                     run_embeddings, native_ranges, run_rms,
+                                     community::CommunityHopSamples(starts));
     auto turns = community::Reconstruct(segments, result.hard, starts, begin_sample, max_speakers,
                                         result.frame_hard);
     std::ostringstream json;

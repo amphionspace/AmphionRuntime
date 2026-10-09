@@ -1426,3 +1426,59 @@ int main() {
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_window_hop_keeps_the_calibrated_vbx_evidence_balance(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # VBx counts every window as one observation, and Community-1 set Fb for
+        # one window per second. With a 2 s hop the same speech yields half the
+        # observations; at a fixed Fb the minority voice below merges into the
+        # majority (the four-speaker short-session collapse). Fb scaled with the
+        # window spacing must keep it, exactly as the 1 s density does.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <cmath>
+static community::ClusterResult run(int copies,double hop){
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  // Four windows of voice A, three of voice B (cosine .1 to A).
+  const int voices=7,windows=voices*copies;
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runs;
+  std::vector<int32_t> ranges;
+  for(int w=0;w<windows;++w){
+    const int i=w%voices;std::vector<float> v(256);
+    if(i>=4){v[0]=.1f;v[1]=std::sqrt(.99f);}else v[0]=1;
+    v[2+(i%7)]+=.05f;
+    for(int f=0;f<200;++f)segments[(w*589+f)*3]=1;
+    for(int d=0;d<256;++d)embeddings[(w*3)*256+d]=v[d];
+    runs.insert(runs.end(),v.begin(),v.end());ranges.insert(ranges.end(),{w,0,0,200});
+  }
+  return community::Cluster(segments,embeddings,windows,p,4,runs,ranges,{},hop);
+}
+int main(){
+  // The spacing comes from the window starts, padded tail included.
+  assert(community::CommunityHopSamples({})==16000);
+  assert(community::CommunityHopSamples({0})==16000);
+  assert(community::CommunityHopSamples({0,16000,32000})==16000);
+  assert(community::CommunityHopSamples({0,32000,64000,96000})==32000);
+  const auto thin=run(1,16000),scaled=run(1,32000),dense=run(2,16000);
+  assert(thin.centroids.size()==1);
+  assert(scaled.centroids.size()==2);
+  assert(dense.centroids.size()==2);
+  // Duplicating every observation and halving Fb are the same VBx update.
+  for(size_t c=0;c<scaled.vbx.priors.size();++c)
+    assert(std::fabs(scaled.vbx.priors[c]-dense.vbx.priors[c])<1e-6);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'hop-density.cpp'
+            binary = Path(directory) / 'hop-density'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=60)
