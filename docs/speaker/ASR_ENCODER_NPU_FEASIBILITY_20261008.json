@@ -1,0 +1,353 @@
+{
+ "schemaVersion": 1,
+ "kind": "asr-encoder-npu-feasibility",
+ "date": "2026-10-08",
+ "device": {
+  "model": "HUAWEI Mate 80 VYG-AL30",
+  "serial": "7GK0226326015655",
+  "nnrtAccelerator": "NPU_ohos.boot.hardware.kirin9020_v2_0"
+ },
+ "hap": {
+  "buildMode": "diagnostics",
+  "probeApi": "probeMindSporeModel (diagnostics-only)"
+ },
+ "sourceModel": {
+  "file": "encoder.int8.onnx",
+  "precision": "int8-dynamic",
+  "sha256": "04b89ee63a7f850b281db67d9a1aa05fd5112a8c748b8edcb398b744490178b0",
+  "sizeBytes": 161135709,
+  "nodes": 12235,
+  "inputs": 117,
+  "outputs": 117,
+  "metadata": {
+   "model_type": "zipformer2",
+   "decode_chunk_len": 64,
+   "T": 77,
+   "num_encoder_layers": "2,2,4,5,4,2",
+   "encoder_dims": "256,384,512,768,512,256"
+  }
+ },
+ "findings": [
+  {
+   "step": "convert delivered int8 encoder",
+   "result": "FAIL",
+   "evidence": "converter_lite: UNSUPPORTED OP LIST: ONNX DynamicQuantizeLinear, MatMulInteger",
+   "meaning": "MindSpore Lite 2.7.0 cannot parse ORT dynamic quantisation at all."
+  },
+  {
+   "step": "dequantise int8 -> fp32 graph (asr/tools/dequantize_asr_encoder.py)",
+   "result": "PASS",
+   "evidence": {
+    "groups": 344,
+    "outputBytes": 617234820,
+    "encoderOutCosineVsInt8": 0.9999279399431846,
+    "maxAbsDiff": 0.1812434196472168
+   }
+  },
+  {
+   "step": "convert dequantised fp32 encoder to MindIR (fp16 storage, fixed N=1)",
+   "result": "PASS",
+   "evidence": {
+    "msBytes": 308056912,
+    "sha256": "f32fc7e5893c4334bd343fe28089f7f101214a739efd5640a870d709f3c96de2"
+   }
+  },
+  {
+   "step": "build full encoder MindIR on Kirin NNRt",
+   "result": "FAIL",
+   "evidence": {
+    "stage": "build",
+    "code": -1,
+    "buildMs": 248.96,
+    "deviceLog": [
+     "NNRt: Authentication failed, input model cannot run by npu.",
+     "NNRt: OH_NNCompilation_Build failed, fail to create compiler.",
+     "MS_LITE: BuildKirinNPUModel# Create full model kernel failed"
+    ]
+   },
+   "meaning": "HiAI rejects the whole zipformer graph at compile time. The MindSpore Lite NNRT delegate offloads whole models only (CreateFullModelKernel), so there is no automatic CPU/NPU partition."
+  },
+  {
+   "step": "build conv subsampling front-end subgraph (59 nodes) on Kirin NNRt",
+   "result": "PASS",
+   "evidence": {
+    "npu": {
+     "buildMs": 180.23,
+     "medianMs": 0.798906,
+     "minMs": 0.715157,
+     "maxMs": 2.484531
+    },
+    "cpu": {
+     "buildMs": 11.58,
+     "medianMs": 2.576719
+    }
+   },
+   "meaning": "Conv-only subgraphs from this model are accepted, so rejection is specific to the zipformer layers, not to the model's provenance. The front-end is ~1.8 ms of the per-chunk cost, so offloading it alone is worth about 0.2% of process CPU."
+  },
+  {
+   "step": "extract one zipformer layer as a sub-model and convert",
+   "result": "BLOCKED",
+   "evidence": "converter_lite: Export to meta graph return nullptr (after onnx.utils.extract_model)",
+   "meaning": "Graph surgery on an extracted layer does not round-trip through this converter; a native sub-model export from the training pipeline is required to test whether HiAI accepts a zipformer stack."
+  },
+  {
+   "step": "probe each zipformer2 operator family as a fixed-shape micro-model on Kirin NNRt",
+   "result": "MIXED",
+   "accepted": [
+    "MatMul (2-D and batched)",
+    "Softmax",
+    "scaled dot-product attention with a bool mask",
+    "BiasNorm (ReduceMean/Pow/Sqrt/Div)",
+    "SwooshL/R chain",
+    "Sigmoid",
+    "Tanh",
+    "ReduceSum",
+    "Conv (2-D and depthwise 1-D)",
+    "Transpose",
+    "Reshape",
+    "Concat",
+    "Slice",
+    "Gather",
+    "Range",
+    "Tile",
+    "Expand",
+    "ConstantOfShape",
+    "Where",
+    "Equal on int32",
+    "Greater on int64",
+    "bool Unsqueeze/Expand/Slice/Concat"
+   ],
+   "refused": [
+    "GatherElements (any index dtype)",
+    "Equal on float operands",
+    "LessOrEqual on float",
+    "Cast whose target type equals its source type (bool to bool)"
+   ],
+   "note": "A single-node graph with no constant weight is also refused; that is a probe artefact, not a model constraint."
+  },
+  {
+   "step": "rewrite the four refused constructs (asr/tools/rewrite_asr_encoder_npu_ops.py)",
+   "result": "PASS",
+   "evidence": {
+    "gatherElementsRewritten": 19,
+    "softplusOverflowGuardsRewritten": 95,
+    "identityCastsDropped": 107,
+    "lessOrEqualRewritten": 1,
+    "shapeNodesFolded": 574,
+    "constantNodesFolded": 2632,
+    "nodes": "10891 -> 3823",
+    "maxAbsDiffAcrossAll117Outputs": 0.0007781982421875
+   },
+   "note": "The softplus guard was `where(log1p(exp(z)) == +inf, z, .)`; the stable form max(z,0)+log1p(exp(-|z|)) removes the float comparison without changing the function."
+  },
+  {
+   "step": "build the fully rewritten encoder on Kirin NNRt",
+   "result": "FAIL",
+   "evidence": {
+    "stage": "build",
+    "code": -1,
+    "buildMs": 237.9
+   },
+   "meaning": "Still refused, but no longer for an operator reason."
+  },
+  {
+   "step": "bisect the rewritten graph by topological prefix",
+   "result": "BOUNDARY FOUND",
+   "evidence": {
+    "largestAcceptedPrefixNodes": 749,
+    "firstRefusedNodeIndex": 749,
+    "firstRefusedNode": "Conv /causal_conv_6/Conv (depthwise, group=384, kernel=16)",
+    "identicalConvsAccepted": [
+     "/causal_conv_4/Conv at index 559",
+     "/causal_conv_5/Conv at index 621"
+    ],
+    "acceptedPrefixCoverage": "about 3.7 of the 19 zipformer layers"
+   },
+   "meaning": "The refusal is a capacity limit, not an operator limit: the same depthwise convolution is accepted earlier in the same graph and refused once the model grows past roughly 750 nodes."
+  },
+  {
+   "step": "measure the largest accepted prefix on both backends",
+   "result": "NPU IS SLOWER",
+   "evidence": {
+    "nodes": 749,
+    "msBytes": 20670200,
+    "npu": {
+     "buildMs": 1153.5,
+     "minMs": 33.96,
+     "medianMs": 38.32,
+     "maxMs": 68.7
+    },
+    "cpu": {
+     "buildMs": 60.0,
+     "minMs": 18.77,
+     "medianMs": 24.16,
+     "maxMs": 47.88
+    },
+    "ratioNpuOverCpu": 1.59
+   },
+   "meaning": "Even the part the accelerator accepts runs 1.6x slower there than on the MindSpore Lite CPU backend. The zipformer chunk is many small tensors (T=77), so per-operator dispatch dominates; the Community speaker encoder is one dense pass over 998x80, which is why that one gains 11x."
+  }
+ ],
+ "controlProbe": {
+  "model": "community-wespeaker-encoder.fp16.ms",
+  "npu": {
+   "buildMs": 297.7,
+   "medianMs": 25.125625
+  },
+  "cpu": {
+   "buildMs": 116.9,
+   "medianMs": 176.172031
+  },
+  "meaning": "The probe itself is sound: it reproduces the shipped Community encoder's NPU/CPU ratio."
+ },
+ "scope": "Zero-filled inputs; backend acceptance and latency only. No accuracy claim, no operator placement proof, and the dequantised graph is an experiment input, not a delivery artifact.",
+ "openItems": [
+  "FP32 police-179m v1.3 encoder from COS was unreachable from this host (Clash Verge TUN with fake-ip DNS and no working exit node; every TCP connect failed, including from Docker). It would only remove the dequantisation step from the record; it cannot change the capacity limit or the measured NPU/CPU ratio.",
+  "If a future device or MindSpore Lite release offloads per-subgraph instead of whole-model, re-run the prefix bisection: the tooling and the probe are in place."
+ ],
+ "conclusion": "On this device the ASR encoder cannot be moved to the NPU, and would not pay off if it could. Four real operator refusals were found and fixed, after which the graph still hits a HiAI capacity limit at about 3.7 of 19 zipformer layers, and that accepted prefix measures 1.6x slower on the NPU than on the CPU backend. Splitting the encoder is therefore not worth integrating either. The diarization speaker encoder remains the one profitable offload on this hardware.",
+ "upstreamFp32Replication": {
+  "purpose": "Repeat every device conclusion on the genuine upstream FP32 export instead of the dequantised stand-in.",
+  "model": {
+   "file": "encoder.upstream.fp32.onnx",
+   "sizeBytes": 616801465,
+   "sha256": "8c2e6368e778b7eaefba27a95a7c4cac272caad22aefc78e6182f4f5a0e474ed",
+   "producer": "pytorch 2.5.1",
+   "sourceUri": "cos://icefall-checkpoints-1373259071/icefall/amphion/zh_en/checkpoints/stable/police-179m-v1.3/onnx/chunk32-lc256/1.3.0/build/models/transducer/fp32/encoder.onnx",
+   "fetchedBy": "the user, mirrored through the OBS benchmark bucket; multipart ETag re-derived and matched"
+  },
+  "structuralComparisonWithDequantised": {
+   "nodes": "10891 vs 10891",
+   "graphInputs": "117 vs 117",
+   "graphOutputs": "117 vs 117",
+   "operatorCensus": "identical for every operator kind and count",
+   "encoderOutCosine": 0.9998534348419781,
+   "reading": "The shipped INT8 1.4.0 encoder is a quantisation of this same export, so the dequantised stand-in was structurally exact."
+  },
+  "rewrite": {
+   "gatherElements": 19,
+   "lessOrEqual": 1,
+   "softplusGuards": 95,
+   "identityCasts": 107,
+   "shapeNodesFolded": 574,
+   "constantNodesFolded": 2582,
+   "nodes": "10891 -> 3766",
+   "maxAbsDiffAcrossAll117Outputs": 0.000789642333984375
+  },
+  "mindir": {
+   "sizeBytes": 308088480,
+   "converter": "MindSpore Lite 2.7.0, fp16=on, fixed batch 1"
+  },
+  "deviceProbes": {
+   "fullGraphNpu": {
+    "status": "FAIL",
+    "stage": "build",
+    "code": -1,
+    "buildMs": 287.25
+   },
+   "acceptanceBoundary": {
+    "largestAcceptedPrefixNodes": 741,
+    "firstRefusedNodeIndex": 741,
+    "firstRefusedNode": "Conv /causal_conv_6/Conv (depthwise, group=384, kernel=16)",
+    "identicalConvsAcceptedAt": [
+     559,
+     621
+    ],
+    "prefix741BuildMs": 851.94,
+    "prefix742BuildMs": 450.08
+   },
+   "boundaryPrefixBothBackends": {
+    "msBytes": 20663984,
+    "npu": {
+     "buildMs": 888.77,
+     "minMs": 36.409375,
+     "medianMs": 39.581406,
+     "maxMs": 65.130781
+    },
+    "cpu": {
+     "buildMs": 55.927968,
+     "minMs": 18.822813,
+     "medianMs": 23.280156,
+     "maxMs": 41.940938
+    },
+    "ratioNpuOverCpu": 1.7
+   }
+  },
+  "agreementWithDequantisedRun": {
+   "boundaryNodes": "749 (dequantised) vs 741 (upstream)",
+   "firstRefusedNode": "the same /causal_conv_6/Conv in both",
+   "ratioNpuOverCpu": "1.59 (dequantised) vs 1.70 (upstream)",
+   "reading": "The refusal and the negative speed-up are properties of the graph and the device, not of the dequantisation."
+  },
+  "notUsedFor": "The six thermal arms. The ASR encoder cannot run on the NPU at all, so there was nothing to swap in, and replacing the shipped INT8 ASR encoder with an FP32 CPU path would have moved the ASR baseline that both arms share."
+ },
+ "segmentationModelProbe": {
+  "why": "Three different models get confused easily, so: the ASR encoder turns speech into text and belongs to the recognition chain; the speaker encoder and the segmentation model both belong to the diarization chain. After the speaker encoder moved to the accelerator, segmentation became the largest CPU item left in that chain, so it was worth its own test: at 50 nodes against the ASR encoder 12,235, the capacity limit that stopped the encoder cannot apply.",
+  "model": {
+   "file": "pyannote-segmentation-3.0.onnx",
+   "sizeBytes": 5986908,
+   "nodes": 50,
+   "inputs": 1,
+   "outputs": 1,
+   "runtimeShape": "[1, 1, 160000] -> [1, 589, 7]",
+   "opset": 17,
+   "producer": "pytorch 2.3.0",
+   "role": "frame-level speech activity and speaker-change detection inside a ten-second window"
+  },
+  "transformsNeededToConvert": [
+   {
+    "issue": "exported If chooses between a single-channel and a batched convolution path",
+    "resolution": "condition is Shape(x)[1] == 1, constant once the window is pinned; inlined the then_branch Conv and dropped the 17-node else_branch",
+    "note": "folding has to treat tensors read by control-flow bodies as live"
+   },
+   {
+    "issue": "MaxPool carried dilations: [1]",
+    "resolution": "dropped; it restates the ONNX default and the converter only accepts <1, 1>"
+   },
+   {
+    "issue": "1-D MaxPool fails MindSpore Lite shape inference (\"Unexpected input format 0\")",
+    "resolution": "reshaped to [N, C, 1, L] around each pool so the NNACL kernel sees four dimensions"
+   }
+  ],
+  "conversion": {
+   "result": "PASS",
+   "nodes": 46,
+   "msBytes": 3003048,
+   "maxAbsDiffVsExport": 0.0,
+   "note": "bit-exact on a real-shaped random window"
+  },
+  "deviceProbe": {
+   "npu": {
+    "status": "FAIL",
+    "stage": "build",
+    "buildMs": 26.85,
+    "processOutcome": "the demo process died; no error code was returned, unlike the ASR encoder which failed cleanly with -1"
+   },
+   "cpu": {
+    "status": "PASS",
+    "buildMs": 16.4,
+    "minMs": 31.81,
+    "medianMs": 35.16,
+    "maxMs": 74.99
+   }
+  },
+  "acceptanceBoundary": {
+   "largestAcceptedPrefixNodes": 3,
+   "acceptedPrefix": "InstanceNormalization, Conv, Abs (NPU median 25.20 ms)",
+   "firstCrashingPrefixNodes": 8,
+   "suspects": [
+    "the lifted 2-D MaxPool",
+    "the second InstanceNormalization",
+    "LeakyRelu"
+   ],
+   "status": "UNRESOLVED: the per-node bisection between nodes 4 and 7 was not finished",
+   "note": "the four bidirectional LSTMs were never reached, so they remain untested"
+  },
+  "cpuSideLead": {
+   "observation": "the same graph runs in 35.2 ms median on the MindSpore Lite CPU backend, while the shipped ORT path costs about 97 ms per window (91.8 s over 951 windows in the npu16 arm)",
+   "caveat": "not a controlled comparison: the ORT session is deliberately pinned to one thread and the probe used four, and the probe feeds zeros",
+   "reading": "segmentation may have CPU headroom worth more than another attempt at the accelerator"
+  },
+  "conclusion": "Segmentation is refused by this accelerator too, and its refusal is worse behaved than the ASR encoder: the process dies instead of returning an error. Both diarization models and the ASR encoder are therefore CPU-bound on this device except the speaker encoder, which is the only one the accelerator accepts and the only one that gains from it."
+ }
+}

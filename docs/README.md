@@ -118,6 +118,7 @@
 | speaker/DIARIZATION_ROUND_SUMMARY_20261003.md | 2026-10-01 至 10-03 角色分离优化总结：合入的 PR 与收益、契约变化、两端真机验收、未解决事项 |
 | speaker/DIARIZATION_SHORT_SESSION_COLLAPSE_20261003.html | 图解：短会话为什么会把人认少，规则为什么修不好，模型层面有哪些出路（浏览器打开） |
 | speaker/DIARIZATION_SCREEN_OFF_AND_HEAT_20261004.md | 角色分离息屏变慢与发热：根因（encoder 忙等线程池）、单线程并行路修复、nova 真机前后对比与未解决的平台限制 |
+| speaker/DIARIZATION_NPU_THERMAL_MATRIX_20261008.md | 角色分离发热真机实测总报告：encoder 后端矩阵（16/30/60 分钟）、角色分离本身的增量、冷起点三臂，以及 ASR encoder 与分割模型上 NPU 均不可行的证据链 |
 
 ### ASR 功能评测
 

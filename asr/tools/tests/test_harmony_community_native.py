@@ -271,8 +271,9 @@ int main() {
         if compiler is None:
             self.skipTest('C++17 compiler unavailable')
         source = (CPP / 'community_diarization.cpp').read_text()
-        body = source[source.index('    std::array<int64_t, 3> feature_shape'):
-                      source.index('    result.embedding_ms = Milliseconds(start);')]
+        timing = '    result.embedding_ms = Milliseconds(start);'
+        body = source[source.index('    std::array<int64_t, 3> mask_shape{1, 3, 589};'):
+                      source.index(timing) + len(timing)]
         # Execute production run extraction with a mask-independent model stub.
         # The pinned ONNX graph pools each mask channel independently as well.
         program = r'''
@@ -283,7 +284,10 @@ int main() {
 #include <cstdint>
 #include <limits>
 #include <stdexcept>
+#include <string>
 #include <vector>
+struct Clock { static inline int tick=0;static int now() {return tick;} };
+double Milliseconds(int start) { return Clock::now()-start; }
 namespace Ort {
 struct RunOptions { RunOptions(std::nullptr_t) {} };
 struct Value {
@@ -306,7 +310,7 @@ static int encoderCalls=0;
 struct Encoder {
   int calls=0;bool encoderOnly=false;
   std::vector<Ort::Value> Run(Ort::RunOptions,const char** names,Ort::Value* inputs,size_t,const char**,size_t) {
-    ++calls;Ort::Value out;
+    ++calls;Clock::tick+=11;Ort::Value out;
     if(std::string(names[0])=="fbank")++encoderCalls;
     if(encoderOnly) {out.values.assign(2560*125,inputs[0].values[0]);return {out};}
     out.values.resize(768);
@@ -314,8 +318,23 @@ struct Encoder {
       MaskValue(inputs[1].values,c,inputs[0].values[0]));
     return {out};
   }
-} embedding_, encoder_{0,true}, pooling_;
-struct Window {std::vector<float> embeddings,run_embeddings,run_ranges,run_rms;};
+} embedding_, pooling_;
+// The encoder is reached through the Encoder wrapper in production; this stub
+// keeps the one-window contract the body is checked for: one Run per window,
+// whose buffer every pooling call of that window reads.
+struct EncoderStub {
+  std::vector<float> encoded;
+  float* Run(std::vector<float>& features) {
+    ++encoderCalls;Clock::tick+=7;encoded.assign(2560*125, features[0]);return encoded.data();
+  }
+  const std::string& backend() const { static const std::string name="cpu"; return name; }
+  const std::string& device() const { static const std::string name="cpu"; return name; }
+} encoder_;
+struct Window {
+  std::vector<float> embeddings,run_embeddings,run_ranges,run_rms;
+  std::string encoder_backend,encoder_device;
+  double encoder_ms=0,embedding_ms=0;
+};
 Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float level,bool varied=false) {
   Window result;
   std::vector<float> features{level},pcm(160000,level);int memory=0;
@@ -324,8 +343,8 @@ Window ProcessRuns(std::vector<float> masks,std::vector<float> clean,float level
     std::fill(pcm.begin()+496,pcm.begin()+496+130*270,.125f);
     std::fill(pcm.begin()+496+131*270,pcm.begin()+496+261*270,.5f);
   }
-  struct Clock { static int now() {return 0;} };int start=0;
-  auto& encoder_session=encoder_;
+  int start=0;
+  auto& encoder=encoder_;
 ''' + body + r'''
   return result;
 }
@@ -338,6 +357,8 @@ int main() {
   assert(same.run_ranges==std::vector<float>({0,0,0,180,0,1,200,340}));
   assert(same.run_embeddings.size()==512);
   assert(same.run_rms==std::vector<float>({3,3}));
+  assert(same.encoder_ms==7&&same.embedding_ms==18&&"encoder timing excludes pooling; embedding timing includes both");
+  assert(same.encoder_backend=="cpu"&&same.encoder_device=="cpu");
   for(int i=0;i<256;++i) {
     assert(same.run_embeddings[i]==same.embeddings[i]);
     assert(same.run_embeddings[256+i]==same.embeddings[256+i]);
@@ -348,6 +369,7 @@ int main() {
   assert(next.run_rms==std::vector<float>({7,7}));
   std::vector<float> mixed(1767);On(mixed,0,0,130);On(mixed,0,131,261);
   auto split=ProcessRuns(mixed,mixed,3);
+  assert(split.encoder_ms==7&&split.embedding_ms==40&&"run pooling cannot inflate encoder timing");
   assert(encoderCalls==3 && "disconnected runs share only this window encoder");
   assert(split.run_ranges==std::vector<float>({0,0,0,130,0,0,131,261}));
   std::vector<float> left(1767),right(1767);On(left,0,0,130);On(right,0,131,261);

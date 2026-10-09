@@ -308,6 +308,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       fields['segmentationMs'] = window.result.segmentationMs;
       fields['featureMs'] = window.result.featureMs;
       fields['embeddingMs'] = window.result.embeddingMs;
+      // Older test doubles predate encoder diagnostics; production supplies them.
+      fields['encoderMs'] = window.result.encoderMs ?? 0;
+      fields['encoderBackend'] = window.result.encoderBackend ?? 'cpu';
+      fields['encoderDevice'] = window.result.encoderDevice ?? 'cpu';
       fields['inferenceWallMs'] = window.inferenceWallMs;
       this.recordDecision('DIARIZATION_COMMUNITY_WINDOW', fields);
     }

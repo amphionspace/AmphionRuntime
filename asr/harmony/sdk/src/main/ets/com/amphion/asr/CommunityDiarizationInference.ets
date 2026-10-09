@@ -25,23 +25,36 @@ export class CommunityDiarizationInference {
   private closed: boolean = false;
   private readonly lanes: number;
   private readonly recognizerQos: string;
+  private readonly encoderBackend?: string;
 
   /**
    * lanes == 0 keeps one window per call on a four-thread encoder pool. lanes > 0
    * lets processBatch run up to `lanes` windows at once on single-threaded
    * encoders and model-owned low-priority workers; the outputs are identical.
    * recognizerQos is the engine's ASR QoS request; those workers run one level
-   * below it.
+   * below it. encoderBackend selects where the speaker encoder runs: undefined
+   * or 'cpu' keeps the ORT session, 'npu' requires an NNRt accelerator, 'auto'
+   * prefers it and falls back to the CPU. Windows report the backend used.
    */
-  constructor(lanes: number = 0, recognizerQos: string = 'default') {
+  constructor(lanes: number = 0, recognizerQos: string = 'default', encoderBackend?: string) {
     if (!Number.isInteger(lanes) || lanes < 0 || lanes > 4) throw new Error('lanes must be an integer in [0, 4]');
+    if (encoderBackend !== undefined && encoderBackend !== 'cpu' && encoderBackend !== 'npu' &&
+      encoderBackend !== 'auto') {
+      throw new Error('encoderBackend must be cpu, npu, or auto');
+    }
     this.lanes = lanes;
     this.recognizerQos = recognizerQos;
+    this.encoderBackend = encoderBackend;
   }
 
   async load(context: Context): Promise<void> {
     if (this.closed) throw new Error('Community inference is closed');
-    const handle = this.lanes > 0 ?
+    // The native binding reads trailing arguments by position, so a backend
+    // request always carries the lanes and QoS ahead of it.
+    const handle = this.encoderBackend !== undefined ?
+      await loadCommunityDiarizationResources(context.resourceManager, this.lanes, this.recognizerQos,
+        this.encoderBackend) :
+      this.lanes > 0 ?
       await loadCommunityDiarizationResources(context.resourceManager, this.lanes, this.recognizerQos) :
       await loadCommunityDiarizationResources(context.resourceManager);
     if (this.closed) { closeCommunityDiarization(handle); return; }
