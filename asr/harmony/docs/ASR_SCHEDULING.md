@@ -30,7 +30,8 @@ const engine = SpeechRecognizeSdk.createEngine(params);
 | `scheduling.cpuIds` | `[]` | 不修改 affinity；非空为允许执行的零起始 CPU 编号集合，不自动推断大核 |
 | `scheduling.allowSpinning` | `true` | 保留 ORT 的忙等；设为 false 减少空转，可能增加唤醒延迟 |
 | `scheduling.diarizationEncoder` | `cpu` | 角色分离的说话人 encoder 路径：`cpu` 保持 ORT/XNNPACK；`npu` 要求名称包含 `kirin`（大小写不敏感）的 NNRt accelerator 和 HAR 内的 `community-wespeaker-encoder.fp16.ms`，构造失败则加载失败；`auto` 仅在 NPU 构造失败时回退 CPU。两种 NPU 请求的 Run 错误均上报，不在运行中回退。不影响识别本身，也不参与 ASR 模型复用判定 |
-| `scheduling.diarizationHopMs` | `1000` | 角色分离开新分析窗的间隔（毫秒，整数，允许 250–10000）。窗长固定 10 秒，默认 1000 表示每秒音频被约 10 个重叠窗分析一次；分割、fbank、encoder、池化的开销都随该间隔反比缩放，调大换来的是更粗的角色边界分辨率。不影响识别：窗口节奏不会传到 recognizer |
+| `scheduling.diarizationHopMs` | `2000` | 角色分离开新分析窗的间隔（毫秒，整数，允许 250–10000）。窗长固定 10 秒；分割、fbank、encoder、池化的开销都随该间隔反比缩放，调小换来更细的角色边界分辨率、调大换来更少的周期性突发。不影响识别：窗口节奏不会传到 recognizer。**0.3.22 起默认由 1000 改为 2000**，实测代价是重叠语音召回 38.5% → 34.4%（DER 0.098579 → 0.099990、归属准确率 94.13% → 93.99%），换来的收益见下一行 |
+| `scheduling.diarizationQos` | `auto` | 角色分离工作线程（lane worker 与聚类 worker）的调度放置：`auto` 在 `diarizationHopMs >= 2000` 时解析为 `background`、否则为 `inherit`；`inherit` 是 0.3.22 之前的行为，即**不设任何 QoS、直接继承前台策略**；`utility`、`background` 显式降低操作点；`default` 显式设为 `QOS_DEFAULT`。角色结果在任何取值下都逐位不变。<br><br>**为什么要有这个开关**：Mate 80 实测表明发热跟的是调度器被突发推上的操作点，而不是 CPU 时间 —— 同一段音频，`background` 档进程 CPU 多 56 个百分点（289.6% vs 233.4%），16 分钟机身温升反而低 1.34 °C（+4.22 vs +5.55 °C）。这些阶段每窗预算 1500 ms、实测只用约 153 ms，有十倍余量可换。<br><br>**成对约束**：显式写 `background` 而 `diarizationHopMs < 2000` 会被 `snapshotAsrScheduling` 拒绝。实测在 1000 ms 间隔下 `background` 把最坏单窗 embedding 从 647 ms 拉到 1421 ms，只剩 5% 预算余量；间隔减半后回到 1029 ms（69%）。`auto` 因此在短间隔下自动退回 `inherit`，而不是报错 |
 | 鼎桥 `numThreads` | `4` | ASR 推理线程数，含调用线程，整数 1–8；基础 SDK 原默认 2 不变 |
 | `disablePrepack` | `true` | 保留原来偏向低内存、快加载的策略 |
 

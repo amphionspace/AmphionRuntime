@@ -22,10 +22,16 @@ export class AsrSchedulingConfig {
    * top frequency, while a flat load of the same size costs little. Those stages
    * have a 1500 ms budget per window and use about a tenth of it, so there is
    * slack to finish them at a lower operating point. 'inherit' keeps the
-   * historical policy; 'utility' and 'background' trade window latency for a
+   * pre-0.3.22 policy; 'utility' and 'background' trade window latency for a
    * lower frequency step. Role results are unchanged in every case.
+   *
+   * The default 'auto' resolves to 'background' while the window cadence leaves
+   * room for it (hop >= 2000 ms) and to 'inherit' otherwise, so a caller that
+   * explicitly asks for a faster cadence keeps a configuration that fits rather
+   * than being rejected. Asking for 'background' outright at a shorter hop is
+   * still an error: that pair was measured to leave 5% of the window budget.
    */
-  diarizationQos: string = 'inherit';
+  diarizationQos: string = 'auto';
   /**
    * How often role separation opens a new 10 s analysis window, in
    * milliseconds. The default 1000 means every second of audio is analysed by
@@ -34,7 +40,20 @@ export class AsrSchedulingConfig {
    * Raising it trades boundary resolution for proportionally less of that work.
    * Recognition is unaffected: the window cadence never reaches the recognizer.
    */
-  diarizationHopMs: number = 1000;
+  diarizationHopMs: number = 2000;
+}
+
+/**
+ * Resolves the 'auto' role-worker placement against the window cadence.
+ *
+ * Kept separate from the snapshot, which carries the request verbatim: a
+ * snapshot that stored the decision would reject a later cadence change that
+ * is perfectly legal. The field is a request; this is the decision, and every
+ * read site must go through here.
+ */
+export function resolveDiarizationQos(diarizationQos: string, diarizationHopMs: number): string {
+  if (diarizationQos !== 'auto') return diarizationQos;
+  return diarizationHopMs >= 2000 ? 'background' : 'inherit';
 }
 
 export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSchedulingConfig()): AsrSchedulingConfig {
@@ -50,14 +69,30 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   if (diarizationEncoder !== 'cpu' && diarizationEncoder !== 'npu' && diarizationEncoder !== 'auto') {
     throw new Error('ASR diarizationEncoder must be cpu, npu, or auto');
   }
-  const diarizationQos = source.diarizationQos ?? 'inherit';
-  if (diarizationQos !== 'inherit' && diarizationQos !== 'background' &&
-    diarizationQos !== 'utility' && diarizationQos !== 'default') {
-    throw new Error('ASR diarizationQos must be inherit, background, utility, or default');
+  const diarizationQos = source.diarizationQos ?? 'auto';
+  if (diarizationQos !== 'auto' && diarizationQos !== 'inherit' &&
+    diarizationQos !== 'background' && diarizationQos !== 'utility' &&
+    diarizationQos !== 'default') {
+    throw new Error('ASR diarizationQos must be auto, inherit, background, utility, or default');
   }
-  const diarizationHopMs = source.diarizationHopMs ?? 1000;
+  const diarizationHopMs = source.diarizationHopMs ?? 2000;
   if (!Number.isInteger(diarizationHopMs) || diarizationHopMs < 250 || diarizationHopMs > 10000) {
     throw new Error('ASR diarizationHopMs must be an integer in [250, 10000] milliseconds');
+  }
+  // A lower operating point stretches every per-window stage. Measured on
+  // Mate 80 at the default 1000 ms hop, 'background' takes the worst-case
+  // embedding from 647 ms to 1421 ms against a 1500 ms window budget, leaving
+  // 5% of margin; a slower part or heavier throttling would start dropping
+  // windows. Halving the window rate pulls the same arm back to 1029 ms (69%).
+  // So the two knobs are only safe together, and that is enforced here rather
+  // than left to a documentation note.
+  // 'utility' is a milder step and is not constrained here: its window cost has
+  // not been measured yet, so guessing a limit for it would be unfounded.
+  if (resolveDiarizationQos(diarizationQos, diarizationHopMs) === 'background' &&
+    diarizationHopMs < 2000) {
+    throw new Error(
+      'ASR diarizationQos background requires diarizationHopMs >= 2000: ' +
+      'a lower operating point stretches each window past its budget at a 1000 ms hop');
   }
   const copy = new AsrSchedulingConfig();
   copy.qos = source.qos;

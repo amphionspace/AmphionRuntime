@@ -460,8 +460,8 @@ ASR encoder 是 zipformer2（`decode_chunk_len=64`、`T=77`、`num_encoder_layer
 | 逐算子族探测 HiAI 接受度（自造固定形状微模型，上机逐个 build+Predict） | 见下 | 接受：MatMul（含 batched）、Softmax、带 bool mask 的完整注意力（0.37 ms）、BiasNorm、SwooshL/R、Sigmoid、Tanh、ReduceSum、Conv（2-D 与 depthwise 1-D）、Transpose/Reshape/Concat/Slice/Gather/Range/Tile/Expand/ConstantOfShape/Where、int32 `Equal`、int64 `Greater`、bool 的 Unsqueeze/Expand/Slice/Concat。**拒绝**：`GatherElements`（任何索引类型）、**float** `Equal`、**float** `LessOrEqual`、恒等 `Cast`（bool→bool）、以及 `Shape`→`Gather`→`Concat`→`Reshape` 动态形状链 |
 | 修掉全部拒绝项（`asr/tools/rewrite_asr_encoder_npu_ops.py`） | 成功 | `GatherElements` ×19 → `Reshape+Mul+Add+Gather`（数值精确）；95 处 softplus 溢出保护 `where(log1p(exp z)==+inf, z, ·)` → 稳定式 `max(z,0)+log1p(exp(-|z|))`；恒等 `Cast` ×107 删除；`LessOrEqual` → `Greater+Not`；`Shape` ×574 与 2,582 个常量节点静态折叠。节点 10,891 → 3,766，117 个输出最大差 7.9e-4 |
 | 改写后整图在 Kirin NPU 上 build | **失败** | `NNRt: Authentication failed, input model cannot run by npu` → `OH_NNCompilation_Build failed` → `MS_LITE: BuildKirinNPUModel# Create full model kernel failed`，build 287 ms |
-| 前缀二分定位边界 | **容量上限** | 前 **741** 节点通过（≈19 层里的前 3.7 层），第 742 节点起整模型被拒。第一个被拒节点是 `Conv /causal_conv_6/Conv`（depthwise，group=384，kernel=16），而**完全相同的卷积在节点 559 和 621 是通过的** → 不是算子不支持，是模型规模过线 |
-| 被接受前缀的两端实测（741 节点，20.7 MB MindIR） | **NPU 更慢** | NPU 中位 **39.58 ms**（min 36.41 / max 65.13，build 889 ms）；MS Lite CPU 中位 **23.28 ms**（min 18.82 / max 41.94，build 56 ms）→ **NPU 慢 1.70×** |
+| 前缀二分定位边界 | **单模型容量上限** | 前 **741** 节点通过（≈19 层里的前 3.7 层），第 742 节点起整模型被拒。第一个被拒节点是 `Conv /causal_conv_6/Conv`（depthwise，group=384，kernel=16），而**完全相同的卷积在节点 559 和 621 是通过的** → 不是算子不支持，是模型规模过线。2026-10-09 判明这个上限**计的是节点数，不是权重字节**：同样 749 个节点、fp32 权重 40.8 MB 仍被接受，而 fp16 下第 750 个节点在仅 20.5 MB 就被拒。上限是**单模型**的，拆成多个顺序子模型即可绕过，见 8.5 |
+| 被接受前缀的两端实测（741 节点，20.7 MB MindIR） | ~~NPU 更慢 1.70×~~ **该比值不可复现，见 8.5** | 当时记录：NPU 中位 39.58 ms（min 36.41 / max 65.13，build 889 ms）；MS Lite CPU 中位 23.28 ms（min 18.82 / max 41.94，build 56 ms）。2026-10-09 在同一切点重测：NPU 中位 37.41 ms（**复现**，min 32.51 vs 当时 33.96），CPU 中位 35.15 ms（min 30.08，**不复现**）→ 比值 1.06。CPU 侧那一半是冷机读数，热机下 CPU 降频把差距抹平；而长会议恰恰是热机 |
 
 反量化版与上游原生 FP32 两条路径给出**完全一致**的结论（边界 749 vs 741 节点、同一个被拒节点、NPU/CPU 比 1.59 vs 1.70）。
 
@@ -481,9 +481,105 @@ ASR encoder 是 zipformer2（`decode_chunk_len=64`、`T=77`、`num_encoder_layer
 
 说话人 encoder 是一次性的大密集前向：输入 `[1,998,80]` → 输出 `[1,2560,125]`，单次 Predict 把整段 fbank 算完。zipformer 的一个 chunk 只有 T=77 帧，19 层里全是小张量的 matmul、slice、逐元素操作，算子下发与 NPU↔CPU 数据搬运的固定开销盖过算力收益。这也解释了为什么 conv 子采样前端（59 节点）在 NPU 上是 0.80 ms vs CPU 2.58 ms（快），而整层堆叠起来就反过来。
 
-### 8.4 结论
+### 8.4 结论（2026-10-08 的原始判断，已被 8.5 部分推翻）
 
-**这台设备上 ASR encoder 不能也不值得上 NPU**：整图被 HiAI 拒绝（容量上限），而被接受的前 3.7 层在 NPU 上比 CPU 慢 1.70×，拆分执行只会更慢更热，且需要在 sherpa 的 encoder 调用路径里跨两套 runtime 搬运 25 进 32 出的 state，工程代价高、收益为负。MindSpore Lite 的 NNRT delegate 是整模型 offload（`CreateFullModelKernel`），也不会自动做 CPU/NPU 切分。
+> 以下两句在 2026-10-09 的复查中被实测否定，保留原文以便追溯：~~**这台设备上 ASR encoder 不能也不值得上 NPU**：整图被 HiAI 拒绝（容量上限），而被接受的前 3.7 层在 NPU 上比 CPU 慢 1.70×，拆分执行只会更慢更热~~。
+
+仍然成立的部分：整图被 HiAI 拒绝（单模型容量上限）；需要在 sherpa 的 encoder 调用路径里跨两套 runtime 搬运 117 进 117 出的 state，工程代价高；MindSpore Lite 的 NNRT delegate 是整模型 offload（`CreateFullModelKernel`），不会自动做 CPU/NPU 切分。
+
+### 8.5 复查（2026-10-09）：搬得上，但不值得，理由与原来不同
+
+证据全表见 `ASR_ENCODER_NPU_RECHECK_20261009.json`（16 条）。结论改为三句：
+
+**一、算子等价已经做完，而且它不是卡点。** `rewrite_asr_encoder_npu_ops.py` 早已把 HiAI 真正拒绝的四类构造全部改写（`GatherElements` 19、浮点相等 95、恒等 `Cast` 107、浮点 `LessOrEqual` 1），节点 10,891 → 3,766，改写后不再有任何算子理由被拒。复查又否掉了三条继续压节点的路：ONNX 单算子 `Softplus` 被 HiAI 拒绝（同构去掉 Softplus 的对照通过，所以那 95 处 7 节点的稳定形式是必需的）；转换器的 `--optimizeTransformer` 开关在这张图上无效（开关两侧转出来都是 308,108,456 字节，zipformer2 的相对位置编码加 nonlin attention 不匹配 MS Lite 的 BERT 式融合规则）；剩余可融合量不够——真正的计算算子只有 521 个（13.8%），把 `MatMul+Add → Gemm` 的 344 处与可约的 38 对 Reshape/Transpose 全做上也只到 3,384 个节点，离墙还差 4.5 倍。
+
+**二、拆成十段顺序子模型可以搬上去，且逐位一致。** 按"节点数 ≤700、每段 fp16 权重 ≤35 MB"双约束分区，十段全部被 NPU 接受；与整图比对 117 个输出全部复原、最大绝对差 `0.000e+00`（六段分区同样逐位一致）。定速探针按真实 chunk 节拍（640 ms）驱动：墙钟中位 143.85 ms、p95 155.64 ms，94 个节拍零超时，encoder RTF 0.225，实时有富余。
+
+**三、对照产品基线算账，不值得做。** 新增的 ORT 探针量了交付用的那份 `encoder.int8.onnx`（md5 `473241f8…`，与 0.3.21 交付包钉住的哈希一致）：
+
+| 每 640 ms chunk | 交付 INT8 / ORT 4 线程 | 十段链 / NPU |
+|---|---:|---:|
+| 墙钟中位 | **53.80 ms** | 143.85 ms（慢 2.67×）|
+| 进程 CPU | **175.9 CPU·ms** | 72.4 CPU·ms（省 59%）|
+| 单核等效 | 27.5% | 11.3% |
+| encoder RTF | 0.084 | 0.225 |
+| 常驻内存（裸探针进程） | VmRSS 259.7 MiB | **942.2 MiB** |
+| HAP 内资产 | 已含 | **+293.9 MiB**（411.8 → 705.7 MiB）|
+
+换后端最多拿掉 181.0 个单核等效百分点里的 **16.2 个（9%）**，而且削的是**平均负载**——8.6 证明平均负载不产热。代价是常驻内存多 676 MiB（交付文档已载明 1 小时 RSS 峰值 1071/1185 MiB 超内部阈值，再叠就到 1.6–1.9 GiB）、安装包多 294 MiB、encoder 慢 2.67 倍、加载时多 3.8 秒建图、十个模型的边界张量要跨两套 runtime 搬运。此外那 143.85 ms 与 72.4 CPU·ms **不含** fp32↔fp16 的跨界转换（MindIR 是 fp16、引擎 state 是 fp32，每 chunk 约 8–10 MB），所以实际节省还要更小。
+
+对比已上线的说话人 encoder 迁移：那次拿掉 31.0–36.6 个 CPU 百分点、2.07–2.78 °C。**结论：不集成。**
+
+两条顺带判明的限制：MindSpore Lite 的 **CPU 后端装不下**权重密集的中段五片（1670–2952，各约 35 MB，进程被杀且无崩溃日志；而 36.8 MB 的 2952–3519 却能装），所以同 runtime 的整图 CPU 对照不存在；**int8 MindIR 被转换器堵死**——量化路径强制跑 legacy `infershape_pass`，它推不出 rank-3 的 1-D depthwise 卷积（`InferShape failed, /chunkwise_conv_*/Conv, type: Conv2DFusion`），加 `[registry] disable_fusion=on` 也无效，解法已知（把一维卷积抬成二维）但会把节点数推得更高，且字节已被证明不是约束。
+
+## 8.6 判定发热的根因（2026-10-09）：突发的操作点，不是计算量
+
+本节是本报告里唯一一个**判定性**实验。此前"发热跟尖峰而非 CPU 时间"只是从相关性推出的解释（见 7.6 与 8.1），没有实验能把"计算量"、"内存流量"和"操作点"三者分开。角色分离工作线程的 QoS 给出了这个分离：**它只改变线程跑在哪个核、跑多高频率，不改变计算量、不改变内存流量、也不改变忙等的存在。**
+
+### 8.6.1 实现
+
+`RoleQos()` 在出厂默认 `qos='default'` 下返回 −1，意为"不设 QoS、直接继承前台策略"。也就是说角色分离的 lane worker 与聚类 worker 一直以前台优先级运行，而它们每窗的预算是 1500 ms、实测只用约 153 ms —— 十倍余量没有被利用。
+
+新增 `scheduling.diarizationQos`（`inherit` / `utility` / `background` / `default`，默认 `inherit`，**默认行为不变**），经 `CommunityDiarizationInference` → `SpeakerDiarizationLocalClient` → `SpeechRecognizeSdk` 透传到 native 的 `RoleQosOverride()`，落在第四个可选 load 参数上，向后兼容既有三参数调用。真机确认生效：三个工作线程均报 `role-qos requested=0 result=0 effective=0`。
+
+### 8.6.2 配对结果（16 分钟，起点对齐 0.011 °C，环境差 0.01 °C）
+
+| 档 | 起点 | 峰值 | 温升 | 进程 CPU 均值 | 逐秒 max | >300% 占比 | 峰值 RSS | 输出哈希 |
+|---|---:|---:|---:|---:|---:|---:|---:|---|
+| `inherit`（基线） | 33.979 | 39.531 | **+5.55** | 233.4% | 391.4% | 4.3% | 737.6 MB | `b9cc303a…` |
+| `background` | 33.990 | 38.208 | **+4.22** | **289.6%** | 480.6% | 35.8% | 812.5 MB | `b9cc303a…` |
+
+**CPU 时间多了 56 个百分点，温度低了 1.34 °C（24%）。** 识别文本与角色结果逐位相同（`resultHex` 哈希一致、finals 74、finalChars 4147、角色窗 9、说话人 4、degraded 0、空 final 0）。
+
+### 8.6.3 结论
+
+同样的计算摊到小核低频上，占用的 CPU·秒更多而能耗更低。这条结果：
+
+1. **排除了"热来自计算量"与"热来自内存流量"** —— 否则只动调度策略不该有任何效果；
+2. **把根因定在操作点**：发热主体是调度器被角色分离的周期性突发推上大核高频；
+3. **仍无法区分操作点内部的两个细分机制** —— 频率电压档（V²f）还是核簇迁移。两者预言相同、修法相同；要分开必须直接测瓦数，而这需要设备脱离 USB（见 8.6.5）。
+
+设计层的根因因此可以一句话说清：**角色分离把十倍富余的延迟预算，用成了时间上高度集中的前台计算。** 两个有效修法都在吃这个余量 —— 降 QoS 让它在低操作点上慢慢做完，提高 hop 让它少做几次。
+
+### 8.6.4 必须修正本报告先前的一个指标用法
+
+7.6 与 8.1 用 **>300% 采样占比**作为发热的预测量。`background` 档证明这个用法只在 **QoS 固定时**成立：该档把占比从 4.3% 推到 35.8%，温度反而低 1.34 °C。**一旦操作点改变，CPU 百分比就不再预测发热。** 真正的驱动量是操作点；CPU 占用只是"操作点映射不变"这一前提下的代用指标。本报告此前所有基于 CPU 百分比的发热推断，都只在同 QoS 的档位之间有效。
+
+### 8.6.5 功耗仍未直接测到，以及为什么
+
+新增 `PowerSampler`（公开 API `batteryInfo.voltage` + `nowCurrent`，1 Hz，每点记录充电状态）。实测结论是**插着 USB 时这个通道对负载是瞎的**：
+
+| 负载 | 进程 CPU | 电池功率 | 电池温 |
+|---|---:|---:|---|
+| 近空载 | — | −345.6 mW | — |
+| 五段 encoder 链 / NPU | 7.5% | −371.4 mW | — |
+| 五段 encoder 链 / MS Lite CPU | 80.4% | −362.4 mW | — |
+| 五段链 / CPU 连续 | ~400% | **−295.4 mW** | 32.0 → 33.0 °C |
+
+约 4 核的连续负载，电池电流比空载**更小** 50 mW，而电池温度确实升了 1 °C —— `chargingStatus=DISABLE` 下充电器仍在旁路直供系统，电池电流与负载完全脱钩。要拿到瓦数必须让设备脱离 USB，而 hdc 只能走 USB 或 TCP，后者需要设备接入可路由的网络。采样器已就位，一旦走电池即可直接出瓦数。
+
+"功耗随频率电压超线性"因此仍是**推断**；但 8.6.2 已经用因果实验支持了这个方向。
+
+### 8.6.6 两个杠杆的筛选与叠加（16 分钟，同一构建）
+
+| 档 | 起点 | 末值 | 末 6 min 速率 | CPU 均值 | >300% | 峰值 RSS |
+|---|---:|---:|---:|---:|---:|---:|
+| `inherit` + hop 1000（基线） | 33.322 | 40.286 | **+0.270** °C/min | 225.2% | 4.1% | 726.9 MB |
+| `background` + hop 1000 | 34.120 | 39.176 | +0.212 | 282.5% | 32.5% | 821.5 MB |
+| `inherit` + hop 2000 | 34.206 | 39.029 | +0.232 | 201.9% | 0.2% | 692.2 MB |
+| `background` + hop 2000 | 36.099 | **39.007** | **+0.104** | 224.5% | 1.4% | **694.9 MB** |
+
+四档输出哈希全部相同（`b9cc303a…`），`status=PASS`。
+
+读这张表必须带两个口径说明：
+
+- **起点不对齐，所以"温升"一列不可横比。** 叠加档的降温用满 40 分钟仍停在 36.099 °C（USB 充电让 `charger` 托底，降不下去），比基线高 2.78 °C。三个干预档的**末值**都比基线低 1.11–1.28 °C，而起点反而高 0.80–2.78 °C、环境高 0.47–3.20 °C（整轮下来室温从 27.44 升到 30.64 °C），条件对它们不利。
+- **末 6 分钟速率是对长时运行最有预测力的量**：叠加档 +0.104 °C/min 是基线 +0.270 的 **39%**。16 分钟的末值差被起点差压缩了，速率差才是 30/60 分钟会放大的部分。
+
+两点额外观察：
+
+1. **叠加消掉了 `background` 单用的内存代价**：821.5 → 694.9 MB，比基线 726.9 还低。原因是 hop 2000 把窗口数减半，待处理队列与中间张量随之减少。所以 `background` 单用**不是零代价** —— 它零质量代价，但峰值 RSS 多 94.6 MB，而本报告第 10 节已载明 1 小时 RSS 本就超阈值。
+2. **三个干预档的末值收敛到 39.0–39.2 °C，叠加未再下探。** 平台被剩余部分托住：约 34 °C 的非计算地板（USB 充电 + 亮屏）加 ASR 那条平的 1.8 核负载。而 ASR 是平的，8.5 已实测平负载不响应卸载。角色分离侧的优化空间正在接近尽头。
 
 ## 9. 分割模型上 NPU：也被拒绝
 

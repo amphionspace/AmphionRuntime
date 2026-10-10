@@ -1,6 +1,6 @@
 import { DiarizationCommitClock } from './diarization/DiarizationCommitClock';
 import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizationTranscriptState';
-import { ResultAudioTimeline } from 'amphion_asr';
+import { ResultAudioTimeline, resolveDiarizationQos } from 'amphion_asr';
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { PoliceEnhanceResult, PoliceTextSpan as PoliceEnhanceSpan } from 'amphion_police';
@@ -634,8 +634,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         };
         // Only a non-default encoder request is forwarded; the CPU path keeps
         // the exact native argument shape it has always had.
-        const diarizationQos = this.params.scheduling?.diarizationQos;
-        if (diarizationQos !== undefined && diarizationQos !== 'inherit') {
+        // 'auto' is a request, not a placement: resolve it against the window
+        // cadence so the client, the diagnostics and the snapshot all agree.
+        const diarizationQos = resolveDiarizationQos(
+          this.params.scheduling?.diarizationQos ?? 'auto',
+          this.params.scheduling?.diarizationHopMs ?? 2000);
+        if (diarizationQos !== 'inherit') {
           diarizationOptions.roleQos = diarizationQos;
         }
         const diarizationEncoder = this.params.scheduling?.diarizationEncoder;
