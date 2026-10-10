@@ -7,18 +7,6 @@ export class AsrSchedulingConfig {
   /** Existing ORT default; false trades wake-up latency for less busy waiting. */
   allowSpinning: boolean = true;
   /**
-   * Whether the ASR thread pools are parked between decode calls.
-   *
-   * It only pays where another on-device model wants those cores. Where nothing
-   * does, it buys a wake-up on every chunk, and backgrounded that dominates:
-   * the platform confines the app to cores 0-3 at 41% of foreground cycles, and
-   * a locked-screen meeting lost 18% of its transcript with no role separation
-   * involved. 0.3.19 through 0.3.21 applied it unconditionally, which is the
-   * regression this default reverses. Parking idle pools also only reduces a
-   * flat load, and flat load was measured not to move device temperature.
-   */
-  asrStopIdleSpinning: boolean = false;
-  /**
    * Where the Community speaker encoder runs when role separation is on:
    * 'cpu' keeps the ORT session, 'npu' requires an NNRt accelerator and fails
    * the load without one, 'auto' prefers the accelerator and falls back.
@@ -88,10 +76,6 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
     typeof source.allowSpinning !== 'boolean') {
     throw new Error('invalid ASR scheduling configuration');
   }
-  const asrStopIdleSpinning = source.asrStopIdleSpinning ?? false;
-  if (typeof asrStopIdleSpinning !== 'boolean') {
-    throw new Error('ASR asrStopIdleSpinning must be a boolean');
-  }
   const diarizationEncoder = source.diarizationEncoder ?? 'auto';
   if (diarizationEncoder !== 'cpu' && diarizationEncoder !== 'npu' && diarizationEncoder !== 'auto') {
     throw new Error('ASR diarizationEncoder must be cpu, npu, or auto');
@@ -125,7 +109,6 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   copy.qos = source.qos;
   copy.diarizationQos = diarizationQos;
   copy.allowSpinning = source.allowSpinning;
-  copy.asrStopIdleSpinning = asrStopIdleSpinning;
   copy.diarizationEncoder = diarizationEncoder;
   copy.diarizationHopMs = diarizationHopMs;
   for (const cpu of source.cpuIds) {
@@ -145,6 +128,5 @@ export function asrCpuProvider(disablePrepack: boolean, source?: AsrSchedulingCo
   if (config.qos !== 'default') provider += `;AmphionQos=${config.qos}`;
   if (config.cpuIds.length > 0) provider += `;AmphionCpuIds=${config.cpuIds.join(',')}`;
   if (!config.allowSpinning) provider += ';AmphionAllowSpinning=0';
-  if (config.asrStopIdleSpinning) provider += ';AmphionStopIdleSpinning=1';
   return provider;
 }

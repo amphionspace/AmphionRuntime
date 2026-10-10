@@ -39,23 +39,10 @@ int main() {
   HarmonyScheduling defaults;
   { ScopedHarmonyScheduling scope(defaults); }
   assert(writes == 0);
-  // Defaults must leave the session options alone. 0.3.19 through 0.3.21 wrote
-  // force_spinning_stop here for every session, which cost a wake-up on every
-  // decode and 18% of a locked-screen transcript; parking the pools is opt-in.
   Ort::SessionOptions untouched;
   { HarmonySchedulingConstruction scope(&defaults); ConfigureHarmonyScheduling(&untouched); }
-  assert(!untouched.create && untouched.entries.empty());
-  HarmonyScheduling parked;
-  parked.Parse("cpu;AmphionStopIdleSpinning=1");
-  assert(parked.stop_idle_spinning);
-  Ort::SessionOptions asked;
-  { HarmonySchedulingConstruction scope(&parked); ConfigureHarmonyScheduling(&asked); }
-  assert(asked.entries.size() == 1);
-  assert(asked.entries.at("session.force_spinning_stop") == "1");
-  // An explicit 0 is accepted and is the same as not asking.
-  HarmonyScheduling off;
-  off.Parse("cpu;AmphionStopIdleSpinning=0");
-  assert(!off.stop_idle_spinning);
+  assert(!untouched.create && untouched.entries.size() == 1);
+  assert(untouched.entries.at("session.force_spinning_stop") == "1");
   HarmonyScheduling a, b;
   a.Parse("cpu;AmphionQos=user-initiated;AmphionCpuIds=2,3;AmphionAllowSpinning=0");
   b.Parse("cpu;AmphionQos=user-interactive;AmphionCpuIds=4");
@@ -93,12 +80,9 @@ int main() {
   }
   ConfigureHarmonyScheduling(&outside);
   assert(!outside.create && outside.entries.empty());
-  // `a` asks for allow_spinning=0, which is two entries; `b` asks for neither
-  // spinning option, so it writes nothing. Neither parks the idle pools.
-  assert(first.entries.size() == 2 && second.entries.empty());
-  assert(first.entries.at("session.intra_op.allow_spinning") == "0");
-  assert(first.entries.at("session.inter_op.allow_spinning") == "0");
-  assert(first.entries.count("session.force_spinning_stop") == 0);
+  assert(first.entries.size() == 3 && second.entries.size() == 1);
+  assert(first.entries.at("session.force_spinning_stop") == "1");
+  assert(second.entries.at("session.force_spinning_stop") == "1");
   // Release in reverse order after construction scopes have ended. Policies
   // stay attached to their own recognizer, not to the latest global config.
   std::promise<void> release_a, release_b;

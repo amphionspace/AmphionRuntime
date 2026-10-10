@@ -191,9 +191,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")
-    parser.add_argument("--asr-stop-idle-spinning", action="store_true",
-                        help="Park the ASR pools between decode calls. Unconditional in 0.3.19-0.3.21; "
-                             "it cost a wake-up per chunk and 18%% of a locked-screen transcript.")
     parser.add_argument("--asr-enable-prepack", action="store_true")
     parser.add_argument("--timeout", type=int, default=1800)
     parser.add_argument("--sample-interval", type=float, default=1.0)
@@ -1357,7 +1354,6 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
         "--ps", "stressAsrNumThreads", str(args.asr_num_threads),
         "--ps", "stressAsrAllowSpinning", str(not args.asr_disable_spinning).lower(),
-        "--ps", "stressAsrStopIdleSpinning", str(args.asr_stop_idle_spinning).lower(),
         "--ps", "stressAsrDisablePrepack", str(not args.asr_enable_prepack).lower(),
         "--ps", "stressEnrollmentCount", str(target_speaker_enrollment_count),
         "--ps", "stressEnforceTargetSpeakerBusinessText",
@@ -1559,7 +1555,6 @@ def run_stress(args: argparse.Namespace) -> Path:
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
             "asr_allow_spinning": not args.asr_disable_spinning,
-            "asr_stop_idle_spinning": args.asr_stop_idle_spinning,
             "asr_disable_prepack": not args.asr_enable_prepack,
             "sample_interval_seconds": args.sample_interval,
             "post_run_observe_seconds": args.post_run_observe,
