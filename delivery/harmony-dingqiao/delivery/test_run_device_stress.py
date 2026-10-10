@@ -40,7 +40,7 @@ class DiagnosticCaptureTest(unittest.TestCase):
         self.summary = {"completed": "1", "diagnosticsStatus": "EXPORTED", "diagnosticsRunId": self.diagnostic_id}
         self.binding = {"schemaVersion": 1, "runnerRunId": self.run_id,
                         "diagnosticRunId": self.diagnostic_id, "diarizationEncoder": "npu",
-                        "diarizationHopMs": "1000",
+                        "diarizationHopMs": "2000",
                         "mode": "burst", "requestedCycles": 1, "completedCycles": 1,
                         "startedAtMs": 100, "finishedAtMs": 200, "diagnosticSessions": ["session-1"]}
 
@@ -82,7 +82,7 @@ class DiagnosticCaptureTest(unittest.TestCase):
 
     def test_foreign_run_encoder_mode_cycles_or_sessions_cannot_match(self):
         for field, value in (("runnerRunId", "other"), ("diagnosticRunId", "other"),
-                             ("diarizationEncoder", "cpu"), ("diarizationHopMs", "2000"),
+                             ("diarizationEncoder", "cpu"), ("diarizationHopMs", "1000"),
                              ("mode", "paced"),
                              ("requestedCycles", 2), ("completedCycles", 0),
                              ("diagnosticSessions", ["session-other"])):

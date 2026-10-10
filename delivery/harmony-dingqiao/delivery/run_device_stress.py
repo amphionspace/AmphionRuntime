@@ -179,12 +179,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--asr-qos", choices=["default", "user-initiated", "user-interactive"], default="default")
     parser.add_argument("--sample-power", action="store_true",
                         help="Log battery voltage and current at 1 Hz for the run (diagnostics only).")
-    parser.add_argument("--diarization-qos", choices=["inherit", "utility", "background", "default"],
-                        default="inherit",
+    parser.add_argument("--diarization-qos",
+                        choices=["auto", "inherit", "utility", "background", "default"],
+                        default="auto",
                         help="Role-worker scheduler placement for the diarization burst.")
     parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="cpu",
                         help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
-    parser.add_argument("--diarization-hop-ms", type=int, default=1000,
+    parser.add_argument("--diarization-hop-ms", type=int, default=2000,
                         help="How often role separation opens a 10 s analysis window; the segmentation, "
                              "feature, encoder and pooling cost scale inversely with it.")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")

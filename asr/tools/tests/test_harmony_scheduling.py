@@ -14,7 +14,7 @@ class HarmonySchedulingTest(unittest.TestCase):
     def test_configuration_defaults_validation_and_snapshot(self):
         script = f"""
 import assert from 'node:assert/strict';
-import {{ AsrSchedulingConfig, snapshotAsrScheduling, asrCpuProvider }} from {POLICY.as_uri()!r};
+import {{ AsrSchedulingConfig, snapshotAsrScheduling, asrCpuProvider, resolveDiarizationQos }} from {POLICY.as_uri()!r};
 const c = new AsrSchedulingConfig();
 assert.equal(asrCpuProvider(true), 'cpu;DisablePrepacking=1');
 assert.deepEqual(snapshotAsrScheduling(undefined), c);
@@ -33,9 +33,9 @@ assert.throws(() => snapshotAsrScheduling({{ ...copy, qos: 'cpu;other=1' }}));
 assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }}));
 // The window cadence defaults to one second, survives a snapshot, and never
 // reaches the recognizer provider string: it only drives role separation.
-assert.equal(c.diarizationHopMs, 1000);
+assert.equal(c.diarizationHopMs, 2000);
 assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: 2000 }}).diarizationHopMs, 2000);
-assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: undefined }}).diarizationHopMs, 1000);
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: undefined }}).diarizationHopMs, 2000);
 assert.equal(asrCpuProvider(false, {{ ...copy, diarizationHopMs: 2000 }}),
   'cpu;AmphionQos=user-initiated;AmphionCpuIds=4,6;AmphionAllowSpinning=0');
 for (const hop of [249, 10001, 0, -1000, 1000.5, NaN, Infinity, '2000']) {{
@@ -44,6 +44,41 @@ for (const hop of [249, 10001, 0, -1000, 1000.5, NaN, Infinity, '2000']) {{
 for (const hop of [250, 1000, 2000, 10000]) {{
   assert.equal(snapshotAsrScheduling({{ ...copy, diarizationHopMs: hop }}).diarizationHopMs, hop);
 }}
+// Both levers ship on: the field says 'auto' and, at the default 2000 ms
+// cadence, that resolves to 'background'. The snapshot carries the request
+// verbatim, so lowering the cadence later stays legal.
+assert.equal(c.diarizationQos, 'auto');
+assert.equal(resolveDiarizationQos(c.diarizationQos, c.diarizationHopMs), 'background');
+assert.equal(resolveDiarizationQos('auto', 1999), 'inherit');
+assert.equal(resolveDiarizationQos('inherit', 4000), 'inherit');
+assert.equal(resolveDiarizationQos('utility', 250), 'utility');
+// null and undefined both mean "not set", matching the other two knobs.
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationQos: undefined }}).diarizationQos, 'auto');
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationQos: null }}).diarizationQos, 'auto');
+const faster = snapshotAsrScheduling({{ ...copy, diarizationQos: 'auto', diarizationHopMs: 1000 }});
+assert.equal(resolveDiarizationQos(faster.diarizationQos, faster.diarizationHopMs), 'inherit');
+for (const q of ['auto', 'utility', 'default', 'inherit']) {{
+  assert.equal(snapshotAsrScheduling({{ ...copy, diarizationQos: q }}).diarizationQos, q);
+}}
+for (const q of ['Background', 'low', '', 0]) {{
+  assert.throws(() => snapshotAsrScheduling({{ ...copy, diarizationQos: q }}));
+}}
+// 'background' stretches a window to 1421 ms of its 1500 ms budget at the
+// default hop, so the pair is rejected rather than merely discouraged.
+assert.throws(
+  () => snapshotAsrScheduling({{ ...copy, diarizationQos: 'background', diarizationHopMs: 1000 }}),
+  /diarizationHopMs >= 2000/);
+assert.throws(
+  () => snapshotAsrScheduling({{ ...copy, diarizationQos: 'background', diarizationHopMs: 1999 }}),
+  /diarizationHopMs >= 2000/);
+for (const hop of [2000, 4000, 10000]) {{
+  const ok = snapshotAsrScheduling({{ ...copy, diarizationQos: 'background', diarizationHopMs: hop }});
+  assert.equal(ok.diarizationQos, 'background');
+  assert.equal(ok.diarizationHopMs, hop);
+}}
+// Neither knob reaches the recognizer provider string.
+assert.equal(asrCpuProvider(false, {{ ...copy, diarizationQos: 'background', diarizationHopMs: 2000 }}),
+  'cpu;AmphionQos=user-initiated;AmphionCpuIds=4,6;AmphionAllowSpinning=0');
 """
         subprocess.run(['node', '--experimental-strip-types', '--input-type=module', '-e', script], check=True)
 

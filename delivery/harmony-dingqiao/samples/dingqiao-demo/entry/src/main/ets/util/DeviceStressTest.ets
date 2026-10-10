@@ -66,10 +66,10 @@ export class DeviceStressOptions {
   samplePower: boolean = false;
   /** Community speaker encoder placement: cpu, npu or auto (carrier A/B knob). */
   diarizationEncoder: string = 'cpu';
-  /** Role-worker placement: inherit, utility, background or default. */
-  diarizationQos: string = 'inherit';
-  /** Role window cadence in ms; 1000 is the SDK default. */
-  diarizationHopMs: number = 1000;
+  /** Role-worker placement: auto, inherit, utility, background or default. */
+  diarizationQos: string = 'auto';
+  /** Role window cadence in ms; mirrors the SDK default. */
+  diarizationHopMs: number = 2000;
   asrCpuIds: number[] = [];
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
