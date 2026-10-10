@@ -73,8 +73,6 @@ export class DeviceStressOptions {
   asrCpuIds: number[] = [];
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
-  /** Park the ASR pools between decode calls; off matches the SDK default. */
-  asrStopIdleSpinning: boolean = false;
   asrDisablePrepack: boolean = true;
   runId: string = 'manual';
   manifestPath: string = '';
@@ -1211,7 +1209,6 @@ async function exportStressDiagnostics(context: common.UIAbilityContext,
   binding["diagnosticRunId"] = diagnosticRunId;
   binding["diarizationEncoder"] = options.diarizationEncoder;
   binding["diarizationQos"] = options.diarizationQos;
-  binding["asrStopIdleSpinning"] = options.asrStopIdleSpinning;
   binding["diarizationHopMs"] = `${options.diarizationHopMs}`;
   binding["mode"] = options.mode;
   binding["requestedCycles"] = options.cycles;
@@ -1289,7 +1286,6 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   scheduling.qos = options.asrQos;
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
-  scheduling.asrStopIdleSpinning = options.asrStopIdleSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
   scheduling.diarizationQos = options.diarizationQos;
   scheduling.diarizationHopMs = options.diarizationHopMs;
@@ -1307,7 +1303,6 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
   scheduling.qos = options.asrQos;
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
-  scheduling.asrStopIdleSpinning = options.asrStopIdleSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
   scheduling.diarizationQos = options.diarizationQos;
   scheduling.diarizationHopMs = options.diarizationHopMs;
