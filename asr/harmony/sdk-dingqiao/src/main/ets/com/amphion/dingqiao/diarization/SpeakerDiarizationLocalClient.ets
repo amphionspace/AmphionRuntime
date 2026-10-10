@@ -122,9 +122,12 @@ export class SpeakerDiarizationLocalClient {
     options?: SpeakerDiarizationLocalClientOptions) {
     this.observer = observer;
     this.diagnostic = diagnostic;
-    // Keep the evidence density of the locked Community-1 pipeline. Decimating
-    // its windows changes VBx component survival even with identical vectors.
-    const hopMs = options?.hopMs ?? 1_000;
+    // Segmentation, Fbank and the encoder run once per window, so the hop sets
+    // what role separation costs; a 2 s hop halves it against Community-1's 1 s.
+    // The hop also sets the evidence density VBx sees. The native clusterer
+    // reads the spacing of the window starts and scales Fb to match, so the
+    // speakers kept apart at 1 s are not merged by the thinner evidence.
+    const hopMs = options?.hopMs ?? 2_000;
     this.maxPendingJobs = options?.maxPendingJobs ?? 2;
     if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
       throw new Error('maxPendingJobs must be a positive integer');

@@ -40,7 +40,7 @@ int main(int argc, char** argv) {
     auto seg=Read<float>(input,n*589*3), emb=Read<float>(input,n*768);
     auto runs=Read<float>(input,r*256);auto ranges=Read<int32_t>(input,r*4);
     auto levels=header[0]==0x43525032?Read<float>(input,r):std::vector<float>{};
-    auto c=community::Cluster(seg,emb,n,p,cap,runs,ranges,levels);
+    auto c=community::Cluster(seg,emb,n,p,cap,runs,ranges,levels,community::CommunityHopSamples(starts));
     auto turns=community::Reconstruct(seg,c.hard,starts,begin,cap,c.frame_hard);
     std::cout << std::setprecision(17) << "{\"speakerCount\":" << c.centroids.size();
     Values("trainingIndices",c.trainingIndices);Values("trainingRunIndices",c.trainingRunIndices);
