@@ -1,20 +1,34 @@
 From: Amphion Runtime <runtime@amphion.local>
 Date: Fri, 25 Sep 2026 14:50:00 +0800
-Subject: [PATCH] perf(harmony): stop idle ASR workers between inference runs
+Subject: [PATCH] perf(harmony): let the caller park idle ASR workers
 
 Keep in-run spinning and thread ownership unchanged. Streaming ASR otherwise
 leaves its encoder, decoder and joiner pools competing with offline diarization
 after their Run calls complete.
 
+Opt-in, because on OpenHarmony `construction_policy` is never null -- the
+recognizer always constructs one -- so an unconditional entry here applied to
+every session from 0.3.19 onward and cost a chunk's worth of wake-up latency
+on every decode. Foreground that is a fair trade. Backgrounded it is not: the
+platform confines the app to cores 0-3 at 41% of foreground cycles, where
+waking three pools per chunk dominates, and a locked-screen meeting lost 18%
+of its transcript with no diarization involved. Parking idle pools also only
+reduces a flat load, and flat load was measured not to move device temperature
+(see docs/speaker/DIARIZATION_HEAT_DEFAULTS_20261010.md), so the benefit this
+was reaching for is small while the regression was not.
+
 --- a/sherpa-onnx/csrc/harmony-scheduling.cc
 +++ b/sherpa-onnx/csrc/harmony-scheduling.cc
-@@ -89,6 +89,9 @@
+@@ -89,6 +89,12 @@
  void ConfigureHarmonyScheduling(Ort::SessionOptions *options) {
    const auto *policy = construction_policy;
    if (policy == nullptr) return;
-+  // Streaming ASR yields between decode calls. Idle workers must not compete
-+  // with other on-device models; retain spinning while Run is active.
-+  options->AddConfigEntry("session.force_spinning_stop", "1");
++  // Streaming ASR yields between decode calls. Where another on-device model
++  // wants those cores, parking the pools helps; where nothing does, it only
++  // buys a wake-up on every chunk. In-run spinning is untouched either way.
++  if (policy->stop_idle_spinning) {
++    options->AddConfigEntry("session.force_spinning_stop", "1");
++  }
    if (!policy->allow_spinning) {
      options->AddConfigEntry("session.intra_op.allow_spinning", "0");
      options->AddConfigEntry("session.inter_op.allow_spinning", "0");

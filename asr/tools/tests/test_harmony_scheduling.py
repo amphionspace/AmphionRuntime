@@ -31,6 +31,18 @@ for (const ids of [[NaN], [Infinity], [-1], [128], [1.5], [2, 2], ['2']]) {{
 }}
 assert.throws(() => snapshotAsrScheduling({{ ...copy, qos: 'cpu;other=1' }}));
 assert.throws(() => snapshotAsrScheduling({{ ...copy, allowSpinning: 'false' }}));
+// Parking the ASR pools between decode calls is opt-in: 0.3.19 through 0.3.21
+// emitted it for every session, which cost a wake-up per chunk and 18% of a
+// locked-screen transcript. It must stay out of the provider string unless asked.
+assert.equal(c.asrStopIdleSpinning, false);
+assert.equal(snapshotAsrScheduling({{ ...copy, asrStopIdleSpinning: undefined }}).asrStopIdleSpinning, false);
+assert.equal(asrCpuProvider(false, {{ ...copy, asrStopIdleSpinning: false }}),
+  'cpu;AmphionQos=user-initiated;AmphionCpuIds=4,6;AmphionAllowSpinning=0');
+assert.equal(asrCpuProvider(false, {{ ...copy, asrStopIdleSpinning: true }}),
+  'cpu;AmphionQos=user-initiated;AmphionCpuIds=4,6;AmphionAllowSpinning=0;AmphionStopIdleSpinning=1');
+assert.equal(asrCpuProvider(true, new AsrSchedulingConfig()), 'cpu;DisablePrepacking=1');
+assert.throws(() => snapshotAsrScheduling({{ ...copy, asrStopIdleSpinning: 'true' }}));
+assert.throws(() => snapshotAsrScheduling({{ ...copy, asrStopIdleSpinning: 1 }}));
 // The window cadence defaults to one second, survives a snapshot, and never
 // reaches the recognizer provider string: it only drives role separation.
 assert.equal(c.diarizationHopMs, 2000);

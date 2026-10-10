@@ -112,7 +112,7 @@ new file mode 100644
 index 00000000..458daa3d
 --- /dev/null
 +++ b/sherpa-onnx/csrc/harmony-scheduling.cc
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,159 @@
 +#include "sherpa-onnx/csrc/harmony-scheduling.h"
 +#if defined(__OHOS__)
 +#include <cerrno>
@@ -189,6 +189,9 @@ index 00000000..458daa3d
 +    } else if (key == "AmphionAllowSpinning") {
 +      if (value != "0" && value != "1") throw std::invalid_argument("Invalid spinning option");
 +      allow_spinning = value == "1";
++    } else if (key == "AmphionStopIdleSpinning") {
++      if (value != "0" && value != "1") throw std::invalid_argument("Invalid idle spinning option");
++      stop_idle_spinning = value == "1";
 +    }
 +  }
 +}
@@ -274,7 +277,7 @@ new file mode 100644
 index 00000000..d7a7fc7b
 --- /dev/null
 +++ b/sherpa-onnx/csrc/harmony-scheduling.h
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,53 @@
 +// Optional Harmony ASR scheduling. No process-wide scheduler changes.
 +#ifndef SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
 +#define SHERPA_ONNX_CSRC_HARMONY_SCHEDULING_H_
@@ -291,6 +294,9 @@ index 00000000..d7a7fc7b
 +  int qos = -1;
 +  std::vector<int> cpu_ids;
 +  bool allow_spinning = true;
++  // Parking the pools between Run calls only pays where something else wants
++  // the cores. Off by default: see 0029 for why it must not be unconditional.
++  bool stop_idle_spinning = false;
 +  mutable std::atomic<unsigned> reported{0};
 +  void Parse(const std::string &provider);
 +  bool HasThreadPolicy() const { return qos >= 0 || !cpu_ids.empty(); }
@@ -337,7 +343,7 @@ index 825b0d69..23993208 100755
  
  #include <algorithm>
  #include <fstream>
-@@ -196,6 +197,12 @@ Ort::SessionOptions GetSessionOptionsImpl(
+@@ -196,6 +197,13 @@ Ort::SessionOptions GetSessionOptionsImpl(
    sess_opts.SetIntraOpNumThreads(num_threads);
  
    sess_opts.SetInterOpNumThreads(num_threads);
@@ -346,6 +352,7 @@ index 825b0d69..23993208 100755
 +  config.erase("AmphionQos");
 +  config.erase("AmphionCpuIds");
 +  config.erase("AmphionAllowSpinning");
++  config.erase("AmphionStopIdleSpinning");
 +#endif
  
    std::vector<std::string> available_providers = Ort::GetAvailableProviders();
