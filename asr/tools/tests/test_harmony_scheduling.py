@@ -48,6 +48,18 @@ for (const hop of [250, 1000, 2000, 10000]) {{
 // cadence, that resolves to 'background'. The snapshot carries the request
 // verbatim, so lowering the cadence later stays legal.
 assert.equal(c.diarizationQos, 'auto');
+// The speaker encoder prefers the accelerator by default and falls back at
+// construction time, so a non-Kirin part is not a load failure.
+assert.equal(c.diarizationEncoder, 'auto');
+assert.equal(snapshotAsrScheduling(undefined).diarizationEncoder, 'auto');
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationEncoder: undefined }}).diarizationEncoder, 'auto');
+assert.equal(snapshotAsrScheduling({{ ...copy, diarizationEncoder: null }}).diarizationEncoder, 'auto');
+for (const b of ['cpu', 'npu', 'auto']) {{
+  assert.equal(snapshotAsrScheduling({{ ...copy, diarizationEncoder: b }}).diarizationEncoder, b);
+}}
+for (const b of ['NPU', 'gpu', '']) {{
+  assert.throws(() => snapshotAsrScheduling({{ ...copy, diarizationEncoder: b }}));
+}}
 assert.equal(resolveDiarizationQos(c.diarizationQos, c.diarizationHopMs), 'background');
 assert.equal(resolveDiarizationQos('auto', 1999), 'inherit');
 assert.equal(resolveDiarizationQos('inherit', 4000), 'inherit');
