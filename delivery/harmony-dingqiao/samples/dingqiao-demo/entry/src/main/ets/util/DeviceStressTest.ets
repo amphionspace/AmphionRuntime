@@ -65,7 +65,7 @@ export class DeviceStressOptions {
   /** Log battery voltage and current for the whole run (diagnostics only). */
   samplePower: boolean = false;
   /** Community speaker encoder placement: cpu, npu or auto (carrier A/B knob). */
-  diarizationEncoder: string = 'cpu';
+  diarizationEncoder: string = 'auto';
   /** Role-worker placement: auto, inherit, utility, background or default. */
   diarizationQos: string = 'auto';
   /** Role window cadence in ms; mirrors the SDK default. */

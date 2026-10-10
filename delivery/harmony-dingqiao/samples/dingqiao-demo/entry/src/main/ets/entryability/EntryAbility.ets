@@ -150,7 +150,7 @@ export default class EntryAbility extends UIAbility {
       options.captureDiagnostics = this.stringParameter(want, 'stressCaptureDiagnostics', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       options.samplePower = params !== undefined && params['samplePower'] === 'true';
-      options.diarizationEncoder = this.stringParameter(want, 'stressDiarizationEncoder', 'cpu');
+      options.diarizationEncoder = this.stringParameter(want, 'stressDiarizationEncoder', 'auto');
       options.diarizationQos = this.stringParameter(want, 'stressDiarizationQos', 'auto');
       options.diarizationHopMs = this.numberParameter(want, 'stressDiarizationHopMs', 2000);
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');

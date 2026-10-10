@@ -11,8 +11,19 @@ export class AsrSchedulingConfig {
    * 'cpu' keeps the ORT session, 'npu' requires an NNRt accelerator and fails
    * the load without one, 'auto' prefers the accelerator and falls back.
    * Recognition itself is unaffected; this does not join the ASR provider key.
+   *
+   * The default is 'auto' rather than 'npu' because a non-Kirin part has no
+   * accelerator to fail over from: 'npu' would fail the load there, while
+   * 'auto' lands on the ORT session. Fallback is construction-time only -- a
+   * missing MindIR asset or a refused accelerator build -- and never happens
+   * once inference has started. Each role window reports the backend it
+   * actually used, so a caller can verify placement instead of trusting this.
+   *
+   * Measured on Mate 80: the accelerator takes the per-window encoder from
+   * 307.7 ms to 27.7 ms and the 16/30/60 minute rises from +6.86/+8.90/+9.26
+   * to +4.79/+6.11/+7.13 C, with byte-identical recognition text.
    */
-  diarizationEncoder: string = 'cpu';
+  diarizationEncoder: string = 'auto';
   /**
    * Where the scheduler is allowed to run the role-separation workers.
    *
@@ -65,7 +76,7 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
     typeof source.allowSpinning !== 'boolean') {
     throw new Error('invalid ASR scheduling configuration');
   }
-  const diarizationEncoder = source.diarizationEncoder ?? 'cpu';
+  const diarizationEncoder = source.diarizationEncoder ?? 'auto';
   if (diarizationEncoder !== 'cpu' && diarizationEncoder !== 'npu' && diarizationEncoder !== 'auto') {
     throw new Error('ASR diarizationEncoder must be cpu, npu, or auto');
   }

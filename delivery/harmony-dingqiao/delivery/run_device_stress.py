@@ -183,7 +183,7 @@ def parse_args() -> argparse.Namespace:
                         choices=["auto", "inherit", "utility", "background", "default"],
                         default="auto",
                         help="Role-worker scheduler placement for the diarization burst.")
-    parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="cpu",
+    parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="auto",
                         help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
     parser.add_argument("--diarization-hop-ms", type=int, default=2000,
                         help="How often role separation opens a 10 s analysis window; the segmentation, "
