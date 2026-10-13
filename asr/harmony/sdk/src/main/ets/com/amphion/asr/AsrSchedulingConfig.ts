@@ -44,6 +44,22 @@ export class AsrSchedulingConfig {
    */
   diarizationQos: string = 'auto';
   /**
+   * Whether this session may keep recording with the display off.
+   *
+   * 'background' was measured with the display on, where it leaves 5% of the
+   * 1500 ms window budget. Turning the display off removes the big cluster, and
+   * a background-QoS thread is confined to what is left, so that margin is gone
+   * and windows start arriving late: a caller that had asked for nothing saw
+   * partials stretch from 0.45 s to 1.36 s. Thread affinity does not rescue it,
+   * because background QoS also selects the background cpuset.
+   *
+   * Only the caller knows whether the display may turn off, so 'auto' asks
+   * instead of guessing: with this set it stays at 'inherit' and keeps the
+   * margin, and the heat it would have saved is not worth losing windows for.
+   * An explicit 'background' is still honoured.
+   */
+  displayMayTurnOff: boolean = false;
+  /**
    * How often role separation opens a new 10 s analysis window, in
    * milliseconds. The default 1000 means every second of audio is analysed by
    * about ten overlapping windows, which is what makes role boundaries precise
@@ -62,8 +78,10 @@ export class AsrSchedulingConfig {
  * is perfectly legal. The field is a request; this is the decision, and every
  * read site must go through here.
  */
-export function resolveDiarizationQos(diarizationQos: string, diarizationHopMs: number): string {
+export function resolveDiarizationQos(diarizationQos: string, diarizationHopMs: number,
+  displayMayTurnOff: boolean = false): string {
   if (diarizationQos !== 'auto') return diarizationQos;
+  if (displayMayTurnOff) return 'inherit';
   return diarizationHopMs >= 2000 ? 'background' : 'inherit';
 }
 
@@ -99,7 +117,8 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   // than left to a documentation note.
   // 'utility' is a milder step and is not constrained here: its window cost has
   // not been measured yet, so guessing a limit for it would be unfounded.
-  if (resolveDiarizationQos(diarizationQos, diarizationHopMs) === 'background' &&
+  const displayMayTurnOff = source.displayMayTurnOff === true;
+  if (resolveDiarizationQos(diarizationQos, diarizationHopMs, displayMayTurnOff) === 'background' &&
     diarizationHopMs < 2000) {
     throw new Error(
       'ASR diarizationQos background requires diarizationHopMs >= 2000: ' +
@@ -111,6 +130,7 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   copy.allowSpinning = source.allowSpinning;
   copy.diarizationEncoder = diarizationEncoder;
   copy.diarizationHopMs = diarizationHopMs;
+  copy.displayMayTurnOff = displayMayTurnOff;
   for (const cpu of source.cpuIds) {
     if (!Number.isInteger(cpu) || cpu < 0 || cpu >= 128 || copy.cpuIds.indexOf(cpu) >= 0) {
       throw new Error('ASR cpuIds must contain unique integer CPU IDs in [0, 127]');
