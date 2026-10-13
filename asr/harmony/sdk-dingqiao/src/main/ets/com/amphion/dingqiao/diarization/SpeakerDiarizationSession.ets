@@ -64,6 +64,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private publishedThrough: number = 0;
   private windowIndex: number = 0;
   private finalSpeakerCount: number = 0;
+  // Last backend the encoder reported; 'auto' resolves per load, not per window.
+  private encoderBackend: string = '';
   private terminalPayload?: SpeechRecognitionResult;
   private degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
   private degradedMessage?: string;
@@ -286,6 +288,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
     // Lanes run windows in parallel; count each window's share of executor capacity.
     this.inferenceMs += window.inferenceWallMs;
+    // Outside the diagnostic block on purpose: a caller on a release build is the
+    // one who needs to know the encoder fell back, and diagnostics are not built.
+    if (window.result.encoderBackend !== undefined) this.encoderBackend = window.result.encoderBackend;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['jobId'] = window.jobId;
@@ -487,7 +492,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     const result = salvaged === undefined ?
       this.buildResult(this.degradedReason, this.degradedMessage, endTime, beginTime) :
       this.buildResult(SpeakerDiarizationDegradedReason.FINISH_TIMEOUT,
-        `speaker diarization finish timeout; speakers cover audio before ${Math.round(salvaged)}ms`,
+        `speaker diarization finish timeout; speakers cover audio before ${Math.round(salvaged)}ms` +
+          `; encoder backend ${this.encoderBackend.length > 0 ? this.encoderBackend : 'unknown'}`,
         endTime, beginTime);
     result.isSessionFinal = isSessionFinal;
     if (this.diagnostic !== undefined) {
@@ -532,6 +538,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     result.windowIndex = this.windowIndex;
     result.windowBeginTime = Math.round(beginTime);
     result.windowEndTime = Math.round(endTime);
+    result.encoderBackend = this.encoderBackend;
     const utterances = this.transcript.sentenceUtterances(endTime);
     for (let i = 0; i < utterances.length; i++) {
       result.utterances.push(this.toPublicUtterance(utterances[i]));

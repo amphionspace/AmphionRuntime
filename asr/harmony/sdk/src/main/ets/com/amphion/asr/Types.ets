@@ -50,7 +50,17 @@ export class VadConfig {
 }
 
 export class EndpointRules {
-  rule1: boolean = true;
+  /**
+   * rule1 ends an utterance on trailing silence alone, without requiring that
+   * anything was said. On sparse speech that fires every few seconds and tears
+   * the stream down before a short burst accumulates enough audio to decode:
+   * 120 s of a customer recording produced 10 such endpoints, every one of them
+   * with no text, and 105 s with nothing on screen. It also keeps rule3 out of
+   * reach, because the utterance length it would measure resets each time.
+   * rule2 still ends an utterance once something has been decoded, and rule3
+   * still bounds a silent stream, so dead air stays bounded without it.
+   */
+  rule1: boolean = false;
   rule1MinTrailingSilenceSec: number = 2.4;
   rule2: boolean = true;
   rule2MinTrailingSilenceSec: number = 1.4;

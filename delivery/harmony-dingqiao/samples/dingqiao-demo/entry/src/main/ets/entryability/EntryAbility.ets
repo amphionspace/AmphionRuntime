@@ -153,6 +153,8 @@ export default class EntryAbility extends UIAbility {
       options.diarizationEncoder = this.stringParameter(want, 'stressDiarizationEncoder', 'auto');
       options.diarizationQos = this.stringParameter(want, 'stressDiarizationQos', 'auto');
       options.diarizationHopMs = this.numberParameter(want, 'stressDiarizationHopMs', 2000);
+      options.displayMayTurnOff =
+        this.stringParameter(want, 'stressDisplayMayTurnOff', 'false') === 'true';
       const cpuIds = this.stringParameter(want, 'stressAsrCpuIds', 'none');
       options.asrCpuIds = cpuIds === 'none' ? [] : cpuIds.split(',').map((id: string): number => Number(id));
       options.asrNumThreads = this.numberParameter(want, 'stressAsrNumThreads', 4);

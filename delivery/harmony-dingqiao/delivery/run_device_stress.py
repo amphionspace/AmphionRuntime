@@ -185,6 +185,9 @@ def parse_args() -> argparse.Namespace:
                         help="Role-worker scheduler placement for the diarization burst.")
     parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="auto",
                         help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
+    parser.add_argument("--diarization-display-may-turn-off", action="store_true",
+                        help="Tell the SDK this session may keep recording with the display off, "
+                             "so an auto role QoS keeps its window-budget margin.")
     parser.add_argument("--diarization-hop-ms", type=int, default=2000,
                         help="How often role separation opens a 10 s analysis window; the segmentation, "
                              "feature, encoder and pooling cost scale inversely with it.")
@@ -1349,6 +1352,8 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressAsrQos", args.asr_qos,
         "--ps", "samplePower", "true" if args.sample_power else "false",
         "--ps", "stressDiarizationQos", args.diarization_qos,
+        "--ps", "stressDisplayMayTurnOff",
+        "true" if args.diarization_display_may_turn_off else "false",
         "--ps", "stressDiarizationEncoder", args.diarization_encoder,
         "--pi", "stressDiarizationHopMs", str(args.diarization_hop_ms),
         "--ps", "stressAsrCpuIds", args.asr_cpu_ids,
@@ -1551,6 +1556,7 @@ def run_stress(args: argparse.Namespace) -> Path:
             "asr_qos": args.asr_qos,
             "diarization_encoder": args.diarization_encoder,
             "diarization_qos": args.diarization_qos,
+            "display_may_turn_off": args.diarization_display_may_turn_off,
             "diarization_hop_ms": args.diarization_hop_ms,
             "asr_cpu_ids": args.asr_cpu_ids,
             "asr_num_threads": args.asr_num_threads,
