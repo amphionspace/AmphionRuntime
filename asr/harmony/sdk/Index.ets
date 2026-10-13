@@ -1,5 +1,5 @@
 export * from './src/main/ets/com/amphion/asr/Types';
-export { AsrSchedulingConfig } from './src/main/ets/com/amphion/asr/AsrSchedulingConfig';
+export { AsrSchedulingConfig, resolveDiarizationQos } from './src/main/ets/com/amphion/asr/AsrSchedulingConfig';
 export * from './src/main/ets/com/amphion/asr/AssetRegistry';
 export * from './src/main/ets/com/amphion/asr/Runtime';
 export * from './src/main/ets/com/amphion/asr/AssetInstaller';
@@ -8,4 +8,5 @@ export * from './src/main/ets/com/amphion/asr/SpeakerEnroller';
 export * from './src/main/ets/com/amphion/asr/LacPersonNer';
 export * from './src/main/ets/com/amphion/asr/SpeakerDiarizationInference';
 export * from './src/main/ets/com/amphion/asr/CommunityDiarizationInference';
+export * from './src/main/ets/com/amphion/asr/MindSporeProbe';
 export * from './src/main/ets/com/amphion/asr/ResultAudioTimeline';

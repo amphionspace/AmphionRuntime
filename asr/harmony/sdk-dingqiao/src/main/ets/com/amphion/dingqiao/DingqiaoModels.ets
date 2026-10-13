@@ -121,6 +121,14 @@ export class SpeakerDiarizationResult {
   utterances: DiarizedUtterance[] = [];
   speakerTurns: SpeakerTurn[] = [];
   speakerCount: number = 0;
+  /**
+   * Where the speaker encoder actually ran: 'npu', 'cpu', or '' before the first
+   * window. Requesting 'auto' can land on either, and the CPU path costs about an
+   * order of magnitude more per window, which is what makes a long meeting miss
+   * the finish budget and report FINISH_TIMEOUT. Read it to tell a slow device
+   * from a slow meeting.
+   */
+  encoderBackend: string = '';
   degraded: boolean = false;
   degradedReason: SpeakerDiarizationDegradedReason = SpeakerDiarizationDegradedReason.NONE;
   degradedMessage?: string;

@@ -31,6 +31,7 @@ import {
   customerScenarioProfile
 } from './CustomerScenarioProfile';
 import { WavIo } from './WavIo';
+import { PowerSampler } from './PowerSampler';
 
 const TAG: string = 'DeviceStressTest';
 const DOMAIN: number = 0x0000;
@@ -61,8 +62,15 @@ let stressEnableDiarization: boolean = false;
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
+  /** Log battery voltage and current for the whole run (diagnostics only). */
+  samplePower: boolean = false;
   /** Community speaker encoder placement: cpu, npu or auto (carrier A/B knob). */
-  diarizationEncoder: string = 'cpu';
+  diarizationEncoder: string = 'auto';
+  /** Role-worker placement: auto, inherit, utility, background or default. */
+  diarizationQos: string = 'auto';
+  displayMayTurnOff: boolean = false;
+  /** Role window cadence in ms; mirrors the SDK default. */
+  diarizationHopMs: number = 2000;
   asrCpuIds: number[] = [];
   asrNumThreads: number = 4;
   asrAllowSpinning: boolean = true;
@@ -1201,6 +1209,9 @@ async function exportStressDiagnostics(context: common.UIAbilityContext,
   binding["runnerRunId"] = options.runId;
   binding["diagnosticRunId"] = diagnosticRunId;
   binding["diarizationEncoder"] = options.diarizationEncoder;
+  binding["diarizationQos"] = options.diarizationQos;
+  binding["displayMayTurnOff"] = options.displayMayTurnOff ? "true" : "false";
+  binding["diarizationHopMs"] = `${options.diarizationHopMs}`;
   binding["mode"] = options.mode;
   binding["requestedCycles"] = options.cycles;
   binding["completedCycles"] = totals.completed;
@@ -1278,6 +1289,9 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
+  scheduling.diarizationQos = options.diarizationQos;
+  scheduling.displayMayTurnOff = options.displayMayTurnOff;
+  scheduling.diarizationHopMs = options.diarizationHopMs;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.extraParams['disablePrepack'] = options.asrDisablePrepack;
@@ -1293,6 +1307,9 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
   scheduling.cpuIds = options.asrCpuIds.slice();
   scheduling.allowSpinning = options.asrAllowSpinning;
   scheduling.diarizationEncoder = options.diarizationEncoder;
+  scheduling.diarizationQos = options.diarizationQos;
+  scheduling.displayMayTurnOff = options.displayMayTurnOff;
+  scheduling.diarizationHopMs = options.diarizationHopMs;
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.language = 'zh-CN';
@@ -3011,6 +3028,9 @@ export async function runDeviceStress(context: common.UIAbilityContext,
   let stressVoiceprintId: string = '';
   const stressVoiceprintSamplePaths: string[] = [];
   let fatal = '';
+  const power: PowerSampler | undefined =
+    options.samplePower ? new PowerSampler(options.runId, 1000) : undefined;
+  power?.start();
   logLine(`BEGIN|runId=${options.runId}|mode=${options.mode}|cycles=${options.cycles}`);
 
   try {
@@ -3180,6 +3200,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     fatal = safeDetail(`${e}`);
     logLine(`FATAL|runId=${options.runId}|detail=${fatal}`);
   } finally {
+    power?.stop();
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
     if (stressVoiceprintId.length > 0) {

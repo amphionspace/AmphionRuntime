@@ -50,6 +50,13 @@ export class VadConfig {
 }
 
 export class EndpointRules {
+  /**
+   * rule1 ends an utterance on trailing silence alone, without requiring that
+   * anything was said, which keeps short utterances from piling up behind dead
+   * air. It stays on by default; the long-form recognizer path turns it off,
+   * because there it tears the stream down before a sparse burst accumulates
+   * enough audio to decode and keeps rule3 out of reach as well.
+   */
   rule1: boolean = true;
   rule1MinTrailingSilenceSec: number = 2.4;
   rule2: boolean = true;

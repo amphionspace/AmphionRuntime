@@ -1,6 +1,6 @@
 import { DiarizationCommitClock } from './diarization/DiarizationCommitClock';
 import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizationTranscriptState';
-import { ResultAudioTimeline } from 'amphion_asr';
+import { ResultAudioTimeline, resolveDiarizationQos } from 'amphion_asr';
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
 import { PoliceEnhancePipeline } from 'amphion_police';
 import { PoliceEnhanceResult, PoliceTextSpan as PoliceEnhanceSpan } from 'amphion_police';
@@ -302,6 +302,16 @@ function mapLicenseErrorCode(asrCode: number): number {
 }
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
+// Budget for the final clustering pass, measured from the ASR tail rather than
+// from stop: the recognizer must drain every accepted frame first, and roles are
+// attached to its utterances. Exceeding it returns what has been clustered so
+// far, marked FINISH_TIMEOUT, whose coverage stops at the salvaged point, so a
+// shorter budget returns sooner but truncates more of the meeting's tail.
+// Measured on the NPU encoder the pass is linear and cheap (1.67 ms per window:
+// 1.1 s over 479 windows, ~1.5 s extrapolated to 24 minutes), so a 24-minute
+// recording that reported 21.6 s was not paying that cost - it exhausted the
+// budget for another reason, and shortening the budget would only have truncated
+// its roles sooner. Keep the budget; fix whatever makes clustering miss it.
 const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15000;
 // One in-flight window plus one clustering pass on already-inferred evidence.
 const SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS: number = 3000;
@@ -400,6 +410,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     fields['textChars'] = result.result.length;
     fields['text'] = result.result;
     fields['rejectedBySpeakerVad'] = rejectedBySpeakerVad;
+    // Finals only. Role latency is read from these, and only a final carries a
+    // stable utteranceId or a speaker, so recording them on every partial added
+    // four dead fields to a thousand records a session: measured 14.6 MB of RSS
+    // growth over a 100-cycle run against 45 MB with them.
+    if (result.isFinal) {
+      fields['utteranceId'] = result.utteranceId ?? '';
+      fields['speakerIndex'] = result.speakerIndex;
+      fields['secondarySpeakerIndexes'] = result.secondarySpeakerIndexes;
+      fields['speakerConfidence'] = result.speakerConfidence;
+    }
     fields['hasSpeakerSimilarity'] = result.speakerSimilarity !== undefined;
     if (result.speakerSimilarity !== undefined) {
       fields['speakerSimilarity'] = result.speakerSimilarity;
@@ -614,6 +634,16 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
               this.currentSessionId !== diarizationSessionId) return;
+            // Previews reach callers through this channel, so its cadence is the
+            // role latency a caller actually sees; commits are a coarser echo.
+            const fields: Record<string, Object> = {};
+            fields['utteranceId'] = update.utteranceId;
+            fields['revision'] = update.revision;
+            fields['speakerIndex'] = update.speakerIndex;
+            fields['beginTime'] = update.beginTime;
+            fields['endTime'] = update.endTime;
+            fields['listening'] = this.listener?.onSpeakerDiarizationUpdate !== undefined;
+            this.diagnostic(diarizationSessionId, 'CALLBACK_DIARIZATION_UPDATE', fields);
             this.listener?.onSpeakerDiarizationUpdate?.(diarizationSessionId, update);
           },
           (diarizationResult: SpeakerDiarizationResult): void => {
@@ -634,9 +664,24 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         };
         // Only a non-default encoder request is forwarded; the CPU path keeps
         // the exact native argument shape it has always had.
+        // 'auto' is a request, not a placement: resolve it against the window
+        // cadence so the client, the diagnostics and the snapshot all agree.
+        const diarizationQos = resolveDiarizationQos(
+          this.params.scheduling?.diarizationQos ?? 'auto',
+          this.params.scheduling?.diarizationHopMs ?? 2000,
+          this.params.scheduling?.displayMayTurnOff === true);
+        if (diarizationQos !== 'inherit') {
+          diarizationOptions.roleQos = diarizationQos;
+        }
         const diarizationEncoder = this.params.scheduling?.diarizationEncoder;
         if (diarizationEncoder !== undefined && diarizationEncoder !== 'cpu') {
           diarizationOptions.encoderBackend = diarizationEncoder;
+        }
+        // Same rule for the window cadence: only a non-default request travels,
+        // so the default path keeps the scheduler arguments it always had.
+        const diarizationHopMs = this.params.scheduling?.diarizationHopMs;
+        if (diarizationHopMs !== undefined && diarizationHopMs !== 1000) {
+          diarizationOptions.hopMs = diarizationHopMs;
         }
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
@@ -884,13 +929,17 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       payload,
       result.text,
       (provenance?: PoliceTextProvenance): void => {
-        this.diagnosticResult(sessionId, payload);
         const diarization = this.speakerDiarizationSession;
         if (diarization === undefined) {
+          this.diagnosticResult(sessionId, payload);
           this.listener?.onResult?.(sessionId, payload);
           return;
         }
+        // Record after the session decorates: the speaker fields are attached
+        // here, so a snapshot taken earlier shows -1 for every final and reads
+        // as though roles never reach the caller.
         diarization.observeAsrFinal(payload, result, provenance);
+        this.diagnosticResult(sessionId, payload);
         if (payload.isLast) {
           this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
         } else {
@@ -1112,10 +1161,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     payload.speakerSimilarity = result.speakerScore;
     if (this.targetSpeakerEnhancementEnabled) payload.targetSpeakerEnhancementApplied = true;
     this.finalResultSent = true;
-    this.diagnosticResult(sessionId, payload, true);
     const diarization = this.speakerDiarizationSession;
     if (diarization !== undefined) {
       diarization.observeAsrFinal(payload, result);
+      this.diagnosticResult(sessionId, payload, true);
       if (payload.isLast) {
         this.speakerDiarizationFinishBarrier?.resolveAsr(payload);
       } else {
@@ -1124,6 +1173,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       }
       return;
     }
+    this.diagnosticResult(sessionId, payload, true);
     this.listener?.onResult?.(sessionId, payload);
     if (rejectedFinalCompletesSession(result.isLast)) {
       if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -1179,13 +1229,14 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         result.result = '';
         if (this.targetSpeakerEnhancementEnabled) result.targetSpeakerEnhancementApplied = true;
         this.finalResultSent = true;
-        this.diagnosticResult(sessionId, result);
         if (this.speakerDiarizationSession !== undefined) {
           const asrTail = new AsrResult();
           asrTail.isLast = true;
           this.speakerDiarizationSession.observeAsrFinal(result, asrTail);
+          this.diagnosticResult(sessionId, result);
           this.speakerDiarizationFinishBarrier?.resolveAsr(result);
         } else {
+          this.diagnosticResult(sessionId, result);
           this.listener?.onResult?.(sessionId, result);
           if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
           this.completeCurrentSession(generation);

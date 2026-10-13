@@ -72,6 +72,12 @@ export interface SpeakerDiarizationLocalClientOptions {
    * for an NNRt accelerator, or 'auto' to prefer one and fall back to the CPU.
    */
   encoderBackend?: string;
+  /**
+   * Explicit placement for the role workers: 'inherit' (default) keeps them on
+   * the recognizer-derived policy, 'background' or 'utility' lets the scheduler
+   * run the per-window burst at a lower operating point. Results are identical.
+   */
+  roleQos?: string;
 }
 
 /**
@@ -135,7 +141,11 @@ export class SpeakerDiarizationLocalClient {
     this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
     // The backend is only forwarded when a caller asks for one, so the native
     // argument shape (and its contract tests) stay unchanged for the default.
-    this.inference = options?.encoderBackend !== undefined ?
+    const roleQos = options?.roleQos;
+    this.inference = roleQos !== undefined && roleQos !== 'inherit' ?
+      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default',
+        options?.encoderBackend ?? 'cpu', roleQos) :
+      options?.encoderBackend !== undefined ?
       new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default',
         options.encoderBackend) :
       new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default');
