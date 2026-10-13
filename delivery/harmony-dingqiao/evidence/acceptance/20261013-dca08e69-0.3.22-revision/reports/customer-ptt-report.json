@@ -3,7 +3,7 @@
   "mode": "customer-ptt",
   "overall_status": "PASS",
   "failures": [],
-  "device": "7GK0226326015655",
+  "device": "device-9d33cec60055",
   "build_identity": {
     "artifacts": {
       "amphion_asr.har": {
@@ -282,7 +282,7 @@
       "audioStartToFirstNonEmptyResultMs": "1417",
       "audioStartToSpeechBeginMs": "562",
       "speechBeginToFirstNonEmptyResultMs": "855",
-      "resultHex": "6c3865fa3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-0:start>customer-ptt-0:event-1>customer-ptt-0:final-last>customer-ptt-0:complete",
       "detail": "customer-ptt-contract"
@@ -343,7 +343,7 @@
       "audioStartToFirstNonEmptyResultMs": "1731",
       "audioStartToSpeechBeginMs": "627",
       "speechBeginToFirstNonEmptyResultMs": "1104",
-      "resultHex": "540c987a836f5e973002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-1:start>customer-ptt-1:event-1>customer-ptt-1:partial>customer-ptt-1:final-last>customer-ptt-1:complete",
       "detail": "customer-ptt-contract"
@@ -404,7 +404,7 @@
       "audioStartToFirstNonEmptyResultMs": "1804",
       "audioStartToSpeechBeginMs": "1212",
       "speechBeginToFirstNonEmptyResultMs": "592",
-      "resultHex": "8d6458c18d4b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-2:start>customer-ptt-2:event-1>customer-ptt-2:partial>customer-ptt-2:final-last>customer-ptt-2:complete",
       "detail": "customer-ptt-contract"
@@ -465,7 +465,7 @@
       "audioStartToFirstNonEmptyResultMs": "1788",
       "audioStartToSpeechBeginMs": "709",
       "speechBeginToFirstNonEmptyResultMs": "1079",
-      "resultHex": "8d8a5267620f526767094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-3:start>customer-ptt-3:event-1>customer-ptt-3:partial>customer-ptt-3:partial>customer-ptt-3:final-last>customer-ptt-3:complete",
       "detail": "customer-ptt-contract"
@@ -526,7 +526,7 @@
       "audioStartToFirstNonEmptyResultMs": "1782",
       "audioStartToSpeechBeginMs": "1201",
       "speechBeginToFirstNonEmptyResultMs": "581",
-      "resultHex": "546867704f2676848717725b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-4:start>customer-ptt-4:event-1>customer-ptt-4:partial>customer-ptt-4:partial>customer-ptt-4:final-last>customer-ptt-4:complete",
       "detail": "customer-ptt-contract"
@@ -587,7 +587,7 @@
       "audioStartToFirstNonEmptyResultMs": "1599",
       "audioStartToSpeechBeginMs": "665",
       "speechBeginToFirstNonEmptyResultMs": "934",
-      "resultHex": "767e5ea65c0f82f9679c97f34e503002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-5:start>customer-ptt-5:event-1>customer-ptt-5:partial>customer-ptt-5:partial>customer-ptt-5:final-last>customer-ptt-5:complete",
       "detail": "customer-ptt-contract"
@@ -648,7 +648,7 @@
       "audioStartToFirstNonEmptyResultMs": "1799",
       "audioStartToSpeechBeginMs": "607",
       "speechBeginToFirstNonEmptyResultMs": "1192",
-      "resultHex": "679c5e8451cc4e915bb6753557ce3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-6:start>customer-ptt-6:event-1>customer-ptt-6:partial>customer-ptt-6:partial>customer-ptt-6:final-last>customer-ptt-6:complete",
       "detail": "customer-ptt-contract"
@@ -709,7 +709,7 @@
       "audioStartToFirstNonEmptyResultMs": "1797",
       "audioStartToSpeechBeginMs": "709",
       "speechBeginToFirstNonEmptyResultMs": "1088",
-      "resultHex": "968f5dde7684697c76d867094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-7:start>customer-ptt-7:event-1>customer-ptt-7:partial>customer-ptt-7:partial>customer-ptt-7:final-last>customer-ptt-7:complete",
       "detail": "customer-ptt-contract"
@@ -770,7 +770,7 @@
       "audioStartToFirstNonEmptyResultMs": "1121",
       "audioStartToSpeechBeginMs": "408",
       "speechBeginToFirstNonEmptyResultMs": "713",
-      "resultHex": "621157286d774e0a738b51a07ee77eed536b51953002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-8:start>customer-ptt-8:event-1>customer-ptt-8:partial>customer-ptt-8:partial>customer-ptt-8:partial>customer-ptt-8:partial>customer-ptt-8:final-last>customer-ptt-8:complete",
       "detail": "customer-ptt-contract"
@@ -831,7 +831,7 @@
       "audioStartToFirstNonEmptyResultMs": "1801",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1234",
-      "resultHex": "4e5d9633674e6eaa4f9b753584254e1a53853002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-9:start>customer-ptt-9:event-1>customer-ptt-9:partial>customer-ptt-9:partial>customer-ptt-9:partial>customer-ptt-9:final-last>customer-ptt-9:complete",
       "detail": "customer-ptt-contract"
@@ -892,7 +892,7 @@
       "audioStartToFirstNonEmptyResultMs": "1807",
       "audioStartToSpeechBeginMs": "1168",
       "speechBeginToFirstNonEmptyResultMs": "639",
-      "resultHex": "96c44f1f5bb675355bb651775546573a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-10:start>customer-ptt-10:event-1>customer-ptt-10:partial>customer-ptt-10:partial>customer-ptt-10:partial>customer-ptt-10:final-last>customer-ptt-10:complete",
       "detail": "customer-ptt-contract"
@@ -953,7 +953,7 @@
       "audioStartToFirstNonEmptyResultMs": "1806",
       "audioStartToSpeechBeginMs": "1245",
       "speechBeginToFirstNonEmptyResultMs": "561",
-      "resultHex": "827e56fd52c76700521d768474065ff5662f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-11:start>customer-ptt-11:event-1>customer-ptt-11:partial>customer-ptt-11:partial>customer-ptt-11:partial>customer-ptt-11:final-last>customer-ptt-11:complete",
       "detail": "customer-ptt-contract"
@@ -1014,7 +1014,7 @@
       "audioStartToFirstNonEmptyResultMs": "1815",
       "audioStartToSpeechBeginMs": "669",
       "speechBeginToFirstNonEmptyResultMs": "1146",
-      "resultHex": "6cf05eb7662f4e2d56fd517b8001793e533a76845148884c80053002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-12:start>customer-ptt-12:event-1>customer-ptt-12:partial>customer-ptt-12:partial>customer-ptt-12:partial>customer-ptt-12:final-last>customer-ptt-12:complete",
       "detail": "customer-ptt-contract"
@@ -1075,7 +1075,7 @@
       "audioStartToFirstNonEmptyResultMs": "1793",
       "audioStartToSpeechBeginMs": "705",
       "speechBeginToFirstNonEmptyResultMs": "1088",
-      "resultHex": "4e0a8ff0516c53f87684653676ca8ba15165805460f363a780a13002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-13:start>customer-ptt-13:event-1>customer-ptt-13:partial>customer-ptt-13:partial>customer-ptt-13:partial>customer-ptt-13:partial>customer-ptt-13:final-last>customer-ptt-13:complete",
       "detail": "customer-ptt-contract"
@@ -1136,7 +1136,7 @@
       "audioStartToFirstNonEmptyResultMs": "1671",
       "audioStartToSpeechBeginMs": "624",
       "speechBeginToFirstNonEmptyResultMs": "1047",
-      "resultHex": "6daa57ce533a77f36d1e4e618d224e505e7c513f56ed3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-14:start>customer-ptt-14:event-1>customer-ptt-14:partial>customer-ptt-14:partial>customer-ptt-14:partial>customer-ptt-14:partial>customer-ptt-14:final-last>customer-ptt-14:complete",
       "detail": "customer-ptt-contract"
@@ -1197,7 +1197,7 @@
       "audioStartToFirstNonEmptyResultMs": "1657",
       "audioStartToSpeechBeginMs": "1045",
       "speechBeginToFirstNonEmptyResultMs": "612",
-      "resultHex": "800c76ee524d82f172795c1465744f534e1a52a18fdb5c557f1361623002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-15:start>customer-ptt-15:event-1>customer-ptt-15:partial>customer-ptt-15:partial>customer-ptt-15:partial>customer-ptt-15:partial>customer-ptt-15:final-last>customer-ptt-15:complete",
       "detail": "customer-ptt-contract"
@@ -1258,7 +1258,7 @@
       "audioStartToFirstNonEmptyResultMs": "1843",
       "audioStartToSpeechBeginMs": "566",
       "speechBeginToFirstNonEmptyResultMs": "1277",
-      "resultHex": "68606eaa9547804c4e1a628080fd57f98bad4e2d5fc33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-16:start>customer-ptt-16:event-1>customer-ptt-16:partial>customer-ptt-16:partial>customer-ptt-16:partial>customer-ptt-16:partial>customer-ptt-16:final-last>customer-ptt-16:complete",
       "detail": "customer-ptt-contract"
@@ -1319,7 +1319,7 @@
       "audioStartToFirstNonEmptyResultMs": "1797",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1229",
-      "resultHex": "7ea67ff04e5f4ece4e0d6234774097625177884c4e8b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-17:start>customer-ptt-17:event-1>customer-ptt-17:partial>customer-ptt-17:partial>customer-ptt-17:partial>customer-ptt-17:partial>customer-ptt-17:partial>customer-ptt-17:final-last>customer-ptt-17:complete",
       "detail": "customer-ptt-contract"
@@ -1380,7 +1380,7 @@
       "audioStartToFirstNonEmptyResultMs": "1809",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1241",
-      "resultHex": "62916216542b84c457308868793aff0c677068ee67094f4d957f671f76844f344fa33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-18:start>customer-ptt-18:event-1>customer-ptt-18:partial>customer-ptt-18:partial>customer-ptt-18:partial>customer-ptt-18:partial>customer-ptt-18:partial>customer-ptt-18:final-last>customer-ptt-18:complete",
       "detail": "customer-ptt-contract"
@@ -1441,7 +1441,7 @@
       "audioStartToFirstNonEmptyResultMs": "1798",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1090",
-      "resultHex": "800c4e2d56fd6cf062f365b0751f4ee35f3a8005917752118005987e8f898eab4e0a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-19:start>customer-ptt-19:event-1>customer-ptt-19:partial>customer-ptt-19:partial>customer-ptt-19:partial>customer-ptt-19:partial>customer-ptt-19:partial>customer-ptt-19:partial>customer-ptt-19:final-last>customer-ptt-19:complete",
       "detail": "customer-ptt-contract"
@@ -1502,7 +1502,7 @@
       "audioStartToFirstNonEmptyResultMs": "1787",
       "audioStartToSpeechBeginMs": "665",
       "speechBeginToFirstNonEmptyResultMs": "1122",
-      "resultHex": "628a677068ee75288fc767aa76845e8f521753f790fd53bb63894e863002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-20:start>customer-ptt-20:event-1>customer-ptt-20:partial>customer-ptt-20:partial>customer-ptt-20:partial>customer-ptt-20:partial>customer-ptt-20:partial>customer-ptt-20:final-last>customer-ptt-20:complete",
       "detail": "customer-ptt-contract"
@@ -1563,7 +1563,7 @@
       "audioStartToFirstNonEmptyResultMs": "1823",
       "audioStartToSpeechBeginMs": "729",
       "speechBeginToFirstNonEmptyResultMs": "1094",
-      "resultHex": "6e56535790b54e1c4e09540d5c115e746d895acc51655ba462a252ab67405bb3597365595e084e0068483002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-21:start>customer-ptt-21:event-1>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:partial>customer-ptt-21:final-last>customer-ptt-21:complete",
       "detail": "customer-ptt-contract"
@@ -1624,7 +1624,7 @@
       "audioStartToFirstNonEmptyResultMs": "1792",
       "audioStartToSpeechBeginMs": "787",
       "speechBeginToFirstNonEmptyResultMs": "1005",
-      "resultHex": "636e65b0534e793e75354e94540d9a6c4e0a534751659ad84e0076847537751f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-22:start>customer-ptt-22:event-1>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:partial>customer-ptt-22:final-last>customer-ptt-22:complete",
       "detail": "customer-ptt-contract"
@@ -1685,7 +1685,7 @@
       "audioStartToFirstNonEmptyResultMs": "1738",
       "audioStartToSpeechBeginMs": "669",
       "speechBeginToFirstNonEmptyResultMs": "1069",
-      "resultHex": "8ba44e3a524d8ff04e094eba8fdd53cd540c4e1a79816b6276847ea65b9a30025b9e96454e0a662f4e3a4e0a6d7780545f715de54f5c3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-23:start>customer-ptt-23:event-1>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:event-3>customer-ptt-23:final>customer-ptt-23:event-1>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:partial>customer-ptt-23:final-last>customer-ptt-23:complete",
       "detail": "customer-ptt-contract"
@@ -1746,7 +1746,7 @@
       "audioStartToFirstNonEmptyResultMs": "1573",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1006",
-      "resultHex": "6c3865fa3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-24:start>customer-ptt-24:event-1>customer-ptt-24:final-last>customer-ptt-24:complete",
       "detail": "customer-ptt-contract"
@@ -1807,7 +1807,7 @@
       "audioStartToFirstNonEmptyResultMs": "1852",
       "audioStartToSpeechBeginMs": "627",
       "speechBeginToFirstNonEmptyResultMs": "1225",
-      "resultHex": "540c987a836f5e973002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-25:start>customer-ptt-25:event-1>customer-ptt-25:partial>customer-ptt-25:final-last>customer-ptt-25:complete",
       "detail": "customer-ptt-contract"
@@ -1868,7 +1868,7 @@
       "audioStartToFirstNonEmptyResultMs": "1812",
       "audioStartToSpeechBeginMs": "1148",
       "speechBeginToFirstNonEmptyResultMs": "664",
-      "resultHex": "8d6458c18d4b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-26:start>customer-ptt-26:event-1>customer-ptt-26:partial>customer-ptt-26:final-last>customer-ptt-26:complete",
       "detail": "customer-ptt-contract"
@@ -1929,7 +1929,7 @@
       "audioStartToFirstNonEmptyResultMs": "1838",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1130",
-      "resultHex": "8d8a5267620f526767094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-27:start>customer-ptt-27:event-1>customer-ptt-27:partial>customer-ptt-27:partial>customer-ptt-27:final-last>customer-ptt-27:complete",
       "detail": "customer-ptt-contract"
@@ -1990,7 +1990,7 @@
       "audioStartToFirstNonEmptyResultMs": "1779",
       "audioStartToSpeechBeginMs": "1146",
       "speechBeginToFirstNonEmptyResultMs": "633",
-      "resultHex": "546867704f2676848717725b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-28:start>customer-ptt-28:event-1>customer-ptt-28:partial>customer-ptt-28:partial>customer-ptt-28:final-last>customer-ptt-28:complete",
       "detail": "customer-ptt-contract"
@@ -2051,7 +2051,7 @@
       "audioStartToFirstNonEmptyResultMs": "1814",
       "audioStartToSpeechBeginMs": "668",
       "speechBeginToFirstNonEmptyResultMs": "1146",
-      "resultHex": "767e5ea65c0f82f9679c97f34e503002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-29:start>customer-ptt-29:event-1>customer-ptt-29:partial>customer-ptt-29:partial>customer-ptt-29:final-last>customer-ptt-29:complete",
       "detail": "customer-ptt-contract"
@@ -2112,7 +2112,7 @@
       "audioStartToFirstNonEmptyResultMs": "1820",
       "audioStartToSpeechBeginMs": "609",
       "speechBeginToFirstNonEmptyResultMs": "1211",
-      "resultHex": "679c5e8451cc4e915bb6753557ce3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-30:start>customer-ptt-30:event-1>customer-ptt-30:partial>customer-ptt-30:partial>customer-ptt-30:final-last>customer-ptt-30:complete",
       "detail": "customer-ptt-contract"
@@ -2173,7 +2173,7 @@
       "audioStartToFirstNonEmptyResultMs": "1785",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1077",
-      "resultHex": "968f5dde7684697c76d867094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-31:start>customer-ptt-31:event-1>customer-ptt-31:partial>customer-ptt-31:partial>customer-ptt-31:final-last>customer-ptt-31:complete",
       "detail": "customer-ptt-contract"
@@ -2234,7 +2234,7 @@
       "audioStartToFirstNonEmptyResultMs": "1163",
       "audioStartToSpeechBeginMs": "407",
       "speechBeginToFirstNonEmptyResultMs": "756",
-      "resultHex": "621157286d774e0a738b51a07ee77eed536b51953002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-32:start>customer-ptt-32:event-1>customer-ptt-32:partial>customer-ptt-32:partial>customer-ptt-32:partial>customer-ptt-32:partial>customer-ptt-32:final-last>customer-ptt-32:complete",
       "detail": "customer-ptt-contract"
@@ -2295,7 +2295,7 @@
       "audioStartToFirstNonEmptyResultMs": "1776",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1209",
-      "resultHex": "4e5d9633674e6eaa4f9b753584254e1a53853002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-33:start>customer-ptt-33:event-1>customer-ptt-33:partial>customer-ptt-33:partial>customer-ptt-33:partial>customer-ptt-33:final-last>customer-ptt-33:complete",
       "detail": "customer-ptt-contract"
@@ -2356,7 +2356,7 @@
       "audioStartToFirstNonEmptyResultMs": "1589",
       "audioStartToSpeechBeginMs": "948",
       "speechBeginToFirstNonEmptyResultMs": "641",
-      "resultHex": "96c44f1f5bb675355bb651775546573a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-34:start>customer-ptt-34:event-1>customer-ptt-34:partial>customer-ptt-34:partial>customer-ptt-34:partial>customer-ptt-34:final-last>customer-ptt-34:complete",
       "detail": "customer-ptt-contract"
@@ -2417,7 +2417,7 @@
       "audioStartToFirstNonEmptyResultMs": "1840",
       "audioStartToSpeechBeginMs": "1161",
       "speechBeginToFirstNonEmptyResultMs": "679",
-      "resultHex": "827e56fd52c76700521d768474065ff5662f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-35:start>customer-ptt-35:event-1>customer-ptt-35:partial>customer-ptt-35:partial>customer-ptt-35:partial>customer-ptt-35:final-last>customer-ptt-35:complete",
       "detail": "customer-ptt-contract"
@@ -2478,7 +2478,7 @@
       "audioStartToFirstNonEmptyResultMs": "1799",
       "audioStartToSpeechBeginMs": "667",
       "speechBeginToFirstNonEmptyResultMs": "1132",
-      "resultHex": "6cf05eb7662f4e2d56fd517b8001793e533a76845148884c80053002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-36:start>customer-ptt-36:event-1>customer-ptt-36:partial>customer-ptt-36:partial>customer-ptt-36:partial>customer-ptt-36:final-last>customer-ptt-36:complete",
       "detail": "customer-ptt-contract"
@@ -2539,7 +2539,7 @@
       "audioStartToFirstNonEmptyResultMs": "1761",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1053",
-      "resultHex": "4e0a8ff0516c53f87684653676ca8ba15165805460f363a780a13002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-37:start>customer-ptt-37:event-1>customer-ptt-37:partial>customer-ptt-37:partial>customer-ptt-37:partial>customer-ptt-37:partial>customer-ptt-37:final-last>customer-ptt-37:complete",
       "detail": "customer-ptt-contract"
@@ -2600,7 +2600,7 @@
       "audioStartToFirstNonEmptyResultMs": "1829",
       "audioStartToSpeechBeginMs": "627",
       "speechBeginToFirstNonEmptyResultMs": "1202",
-      "resultHex": "6daa57ce533a77f36d1e4e618d224e505e7c513f56ed3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-38:start>customer-ptt-38:event-1>customer-ptt-38:partial>customer-ptt-38:partial>customer-ptt-38:partial>customer-ptt-38:partial>customer-ptt-38:final-last>customer-ptt-38:complete",
       "detail": "customer-ptt-contract"
@@ -2661,7 +2661,7 @@
       "audioStartToFirstNonEmptyResultMs": "1809",
       "audioStartToSpeechBeginMs": "1140",
       "speechBeginToFirstNonEmptyResultMs": "669",
-      "resultHex": "800c76ee524d82f172795c1465744f534e1a52a18fdb5c557f1361623002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-39:start>customer-ptt-39:event-1>customer-ptt-39:partial>customer-ptt-39:partial>customer-ptt-39:partial>customer-ptt-39:partial>customer-ptt-39:final-last>customer-ptt-39:complete",
       "detail": "customer-ptt-contract"
@@ -2722,7 +2722,7 @@
       "audioStartToFirstNonEmptyResultMs": "1777",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1210",
-      "resultHex": "68606eaa9547804c4e1a628080fd57f98bad4e2d5fc33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-40:start>customer-ptt-40:event-1>customer-ptt-40:partial>customer-ptt-40:partial>customer-ptt-40:partial>customer-ptt-40:partial>customer-ptt-40:final-last>customer-ptt-40:complete",
       "detail": "customer-ptt-contract"
@@ -2783,7 +2783,7 @@
       "audioStartToFirstNonEmptyResultMs": "1791",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1224",
-      "resultHex": "7ea67ff04e5f4ece4e0d6234774097625177884c4e8b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-41:start>customer-ptt-41:event-1>customer-ptt-41:partial>customer-ptt-41:partial>customer-ptt-41:partial>customer-ptt-41:partial>customer-ptt-41:partial>customer-ptt-41:final-last>customer-ptt-41:complete",
       "detail": "customer-ptt-contract"
@@ -2844,7 +2844,7 @@
       "audioStartToFirstNonEmptyResultMs": "1800",
       "audioStartToSpeechBeginMs": "566",
       "speechBeginToFirstNonEmptyResultMs": "1234",
-      "resultHex": "62916216542b84c457308868793aff0c677068ee67094f4d957f671f76844f344fa33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-42:start>customer-ptt-42:event-1>customer-ptt-42:partial>customer-ptt-42:partial>customer-ptt-42:partial>customer-ptt-42:partial>customer-ptt-42:partial>customer-ptt-42:final-last>customer-ptt-42:complete",
       "detail": "customer-ptt-contract"
@@ -2905,7 +2905,7 @@
       "audioStartToFirstNonEmptyResultMs": "1852",
       "audioStartToSpeechBeginMs": "706",
       "speechBeginToFirstNonEmptyResultMs": "1146",
-      "resultHex": "800c4e2d56fd6cf062f365b0751f4ee35f3a8005917752118005987e8f898eab4e0a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-43:start>customer-ptt-43:event-1>customer-ptt-43:partial>customer-ptt-43:partial>customer-ptt-43:partial>customer-ptt-43:partial>customer-ptt-43:partial>customer-ptt-43:partial>customer-ptt-43:final-last>customer-ptt-43:complete",
       "detail": "customer-ptt-contract"
@@ -2966,7 +2966,7 @@
       "audioStartToFirstNonEmptyResultMs": "1824",
       "audioStartToSpeechBeginMs": "668",
       "speechBeginToFirstNonEmptyResultMs": "1156",
-      "resultHex": "628a677068ee75288fc767aa76845e8f521753f790fd53bb63894e863002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-44:start>customer-ptt-44:event-1>customer-ptt-44:partial>customer-ptt-44:partial>customer-ptt-44:partial>customer-ptt-44:partial>customer-ptt-44:partial>customer-ptt-44:final-last>customer-ptt-44:complete",
       "detail": "customer-ptt-contract"
@@ -3027,7 +3027,7 @@
       "audioStartToFirstNonEmptyResultMs": "1782",
       "audioStartToSpeechBeginMs": "726",
       "speechBeginToFirstNonEmptyResultMs": "1056",
-      "resultHex": "6e56535790b54e1c4e09540d5c115e746d895acc51655ba462a252ab67405bb3597365595e084e0068483002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-45:start>customer-ptt-45:event-1>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:partial>customer-ptt-45:final-last>customer-ptt-45:complete",
       "detail": "customer-ptt-contract"
@@ -3088,7 +3088,7 @@
       "audioStartToFirstNonEmptyResultMs": "1858",
       "audioStartToSpeechBeginMs": "788",
       "speechBeginToFirstNonEmptyResultMs": "1070",
-      "resultHex": "636e65b0534e793e75354e94540d9a6c4e0a534751659ad84e0076847537751f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-46:start>customer-ptt-46:event-1>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:partial>customer-ptt-46:final-last>customer-ptt-46:complete",
       "detail": "customer-ptt-contract"
@@ -3149,7 +3149,7 @@
       "audioStartToFirstNonEmptyResultMs": "1766",
       "audioStartToSpeechBeginMs": "668",
       "speechBeginToFirstNonEmptyResultMs": "1098",
-      "resultHex": "8ba44e3a524d8ff04e094eba8fdd53cd540c4e1a79816b6276847ea65b9a30025b9e96454e0a662f4e3a4e0a6d7780545f715de54f5c3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-47:start>customer-ptt-47:event-1>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:event-3>customer-ptt-47:final>customer-ptt-47:event-1>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:partial>customer-ptt-47:final-last>customer-ptt-47:complete",
       "detail": "customer-ptt-contract"
@@ -3210,7 +3210,7 @@
       "audioStartToFirstNonEmptyResultMs": "1564",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "996",
-      "resultHex": "6c3865fa3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-48:start>customer-ptt-48:event-1>customer-ptt-48:final-last>customer-ptt-48:complete",
       "detail": "customer-ptt-contract"
@@ -3271,7 +3271,7 @@
       "audioStartToFirstNonEmptyResultMs": "1833",
       "audioStartToSpeechBeginMs": "628",
       "speechBeginToFirstNonEmptyResultMs": "1205",
-      "resultHex": "540c987a836f5e973002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-49:start>customer-ptt-49:event-1>customer-ptt-49:partial>customer-ptt-49:final-last>customer-ptt-49:complete",
       "detail": "customer-ptt-contract"
@@ -3332,7 +3332,7 @@
       "audioStartToFirstNonEmptyResultMs": "1798",
       "audioStartToSpeechBeginMs": "1191",
       "speechBeginToFirstNonEmptyResultMs": "607",
-      "resultHex": "8d6458c18d4b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-50:start>customer-ptt-50:event-1>customer-ptt-50:partial>customer-ptt-50:final-last>customer-ptt-50:complete",
       "detail": "customer-ptt-contract"
@@ -3393,7 +3393,7 @@
       "audioStartToFirstNonEmptyResultMs": "1806",
       "audioStartToSpeechBeginMs": "711",
       "speechBeginToFirstNonEmptyResultMs": "1095",
-      "resultHex": "8d8a5267620f526767094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-51:start>customer-ptt-51:event-1>customer-ptt-51:partial>customer-ptt-51:partial>customer-ptt-51:final-last>customer-ptt-51:complete",
       "detail": "customer-ptt-contract"
@@ -3454,7 +3454,7 @@
       "audioStartToFirstNonEmptyResultMs": "1779",
       "audioStartToSpeechBeginMs": "1162",
       "speechBeginToFirstNonEmptyResultMs": "617",
-      "resultHex": "546867704f2676848717725b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-52:start>customer-ptt-52:event-1>customer-ptt-52:partial>customer-ptt-52:partial>customer-ptt-52:final-last>customer-ptt-52:complete",
       "detail": "customer-ptt-contract"
@@ -3515,7 +3515,7 @@
       "audioStartToFirstNonEmptyResultMs": "1782",
       "audioStartToSpeechBeginMs": "668",
       "speechBeginToFirstNonEmptyResultMs": "1114",
-      "resultHex": "767e5ea65c0f82f9679c97f34e503002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-53:start>customer-ptt-53:event-1>customer-ptt-53:partial>customer-ptt-53:partial>customer-ptt-53:final-last>customer-ptt-53:complete",
       "detail": "customer-ptt-contract"
@@ -3576,7 +3576,7 @@
       "audioStartToFirstNonEmptyResultMs": "1800",
       "audioStartToSpeechBeginMs": "604",
       "speechBeginToFirstNonEmptyResultMs": "1196",
-      "resultHex": "679c5e8451cc4e915bb6753557ce3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-54:start>customer-ptt-54:event-1>customer-ptt-54:partial>customer-ptt-54:partial>customer-ptt-54:final-last>customer-ptt-54:complete",
       "detail": "customer-ptt-contract"
@@ -3637,7 +3637,7 @@
       "audioStartToFirstNonEmptyResultMs": "1835",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1127",
-      "resultHex": "968f5dde7684697c76d867094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-55:start>customer-ptt-55:event-1>customer-ptt-55:partial>customer-ptt-55:partial>customer-ptt-55:final-last>customer-ptt-55:complete",
       "detail": "customer-ptt-contract"
@@ -3698,7 +3698,7 @@
       "audioStartToFirstNonEmptyResultMs": "1175",
       "audioStartToSpeechBeginMs": "407",
       "speechBeginToFirstNonEmptyResultMs": "768",
-      "resultHex": "621157286d774e0a738b51a07ee77eed536b51953002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-56:start>customer-ptt-56:event-1>customer-ptt-56:partial>customer-ptt-56:partial>customer-ptt-56:partial>customer-ptt-56:partial>customer-ptt-56:final-last>customer-ptt-56:complete",
       "detail": "customer-ptt-contract"
@@ -3759,7 +3759,7 @@
       "audioStartToFirstNonEmptyResultMs": "1862",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1294",
-      "resultHex": "4e5d9633674e6eaa4f9b753584254e1a53853002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-57:start>customer-ptt-57:event-1>customer-ptt-57:partial>customer-ptt-57:partial>customer-ptt-57:partial>customer-ptt-57:final-last>customer-ptt-57:complete",
       "detail": "customer-ptt-contract"
@@ -3820,7 +3820,7 @@
       "audioStartToFirstNonEmptyResultMs": "1803",
       "audioStartToSpeechBeginMs": "1200",
       "speechBeginToFirstNonEmptyResultMs": "603",
-      "resultHex": "96c44f1f5bb675355bb651775546573a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-58:start>customer-ptt-58:event-1>customer-ptt-58:partial>customer-ptt-58:partial>customer-ptt-58:partial>customer-ptt-58:final-last>customer-ptt-58:complete",
       "detail": "customer-ptt-contract"
@@ -3881,7 +3881,7 @@
       "audioStartToFirstNonEmptyResultMs": "1803",
       "audioStartToSpeechBeginMs": "1189",
       "speechBeginToFirstNonEmptyResultMs": "614",
-      "resultHex": "827e56fd52c76700521d768474065ff5662f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-59:start>customer-ptt-59:event-1>customer-ptt-59:partial>customer-ptt-59:partial>customer-ptt-59:partial>customer-ptt-59:final-last>customer-ptt-59:complete",
       "detail": "customer-ptt-contract"
@@ -3942,7 +3942,7 @@
       "audioStartToFirstNonEmptyResultMs": "1814",
       "audioStartToSpeechBeginMs": "669",
       "speechBeginToFirstNonEmptyResultMs": "1145",
-      "resultHex": "6cf05eb7662f4e2d56fd517b8001793e533a76845148884c80053002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-60:start>customer-ptt-60:event-1>customer-ptt-60:partial>customer-ptt-60:partial>customer-ptt-60:partial>customer-ptt-60:final-last>customer-ptt-60:complete",
       "detail": "customer-ptt-contract"
@@ -4003,7 +4003,7 @@
       "audioStartToFirstNonEmptyResultMs": "1752",
       "audioStartToSpeechBeginMs": "707",
       "speechBeginToFirstNonEmptyResultMs": "1045",
-      "resultHex": "4e0a8ff0516c53f87684653676ca8ba15165805460f363a780a13002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-61:start>customer-ptt-61:event-1>customer-ptt-61:partial>customer-ptt-61:partial>customer-ptt-61:partial>customer-ptt-61:partial>customer-ptt-61:final-last>customer-ptt-61:complete",
       "detail": "customer-ptt-contract"
@@ -4064,7 +4064,7 @@
       "audioStartToFirstNonEmptyResultMs": "1768",
       "audioStartToSpeechBeginMs": "628",
       "speechBeginToFirstNonEmptyResultMs": "1140",
-      "resultHex": "6daa57ce533a77f36d1e4e618d224e505e7c513f56ed3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-62:start>customer-ptt-62:event-1>customer-ptt-62:partial>customer-ptt-62:partial>customer-ptt-62:partial>customer-ptt-62:partial>customer-ptt-62:final-last>customer-ptt-62:complete",
       "detail": "customer-ptt-contract"
@@ -4125,7 +4125,7 @@
       "audioStartToFirstNonEmptyResultMs": "1830",
       "audioStartToSpeechBeginMs": "1174",
       "speechBeginToFirstNonEmptyResultMs": "656",
-      "resultHex": "800c76ee524d82f172795c1465744f534e1a52a18fdb5c557f1361623002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-63:start>customer-ptt-63:event-1>customer-ptt-63:partial>customer-ptt-63:partial>customer-ptt-63:partial>customer-ptt-63:partial>customer-ptt-63:final-last>customer-ptt-63:complete",
       "detail": "customer-ptt-contract"
@@ -4186,7 +4186,7 @@
       "audioStartToFirstNonEmptyResultMs": "1805",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1237",
-      "resultHex": "68606eaa9547804c4e1a628080fd57f98bad4e2d5fc33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-64:start>customer-ptt-64:event-1>customer-ptt-64:partial>customer-ptt-64:partial>customer-ptt-64:partial>customer-ptt-64:partial>customer-ptt-64:final-last>customer-ptt-64:complete",
       "detail": "customer-ptt-contract"
@@ -4247,7 +4247,7 @@
       "audioStartToFirstNonEmptyResultMs": "1752",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1184",
-      "resultHex": "7ea67ff04e5f4ece4e0d6234774097625177884c4e8b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-65:start>customer-ptt-65:event-1>customer-ptt-65:partial>customer-ptt-65:partial>customer-ptt-65:partial>customer-ptt-65:partial>customer-ptt-65:partial>customer-ptt-65:final-last>customer-ptt-65:complete",
       "detail": "customer-ptt-contract"
@@ -4308,7 +4308,7 @@
       "audioStartToFirstNonEmptyResultMs": "1825",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "1257",
-      "resultHex": "62916216542b84c457308868793aff0c677068ee67094f4d957f671f76844f344fa33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-66:start>customer-ptt-66:event-1>customer-ptt-66:partial>customer-ptt-66:partial>customer-ptt-66:partial>customer-ptt-66:partial>customer-ptt-66:partial>customer-ptt-66:final-last>customer-ptt-66:complete",
       "detail": "customer-ptt-contract"
@@ -4369,7 +4369,7 @@
       "audioStartToFirstNonEmptyResultMs": "1814",
       "audioStartToSpeechBeginMs": "706",
       "speechBeginToFirstNonEmptyResultMs": "1108",
-      "resultHex": "800c4e2d56fd6cf062f365b0751f4ee35f3a8005917752118005987e8f898eab4e0a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-67:start>customer-ptt-67:event-1>customer-ptt-67:partial>customer-ptt-67:partial>customer-ptt-67:partial>customer-ptt-67:partial>customer-ptt-67:partial>customer-ptt-67:partial>customer-ptt-67:final-last>customer-ptt-67:complete",
       "detail": "customer-ptt-contract"
@@ -4430,7 +4430,7 @@
       "audioStartToFirstNonEmptyResultMs": "1769",
       "audioStartToSpeechBeginMs": "667",
       "speechBeginToFirstNonEmptyResultMs": "1102",
-      "resultHex": "628a677068ee75288fc767aa76845e8f521753f790fd53bb63894e863002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-68:start>customer-ptt-68:event-1>customer-ptt-68:partial>customer-ptt-68:partial>customer-ptt-68:partial>customer-ptt-68:partial>customer-ptt-68:partial>customer-ptt-68:final-last>customer-ptt-68:complete",
       "detail": "customer-ptt-contract"
@@ -4491,7 +4491,7 @@
       "audioStartToFirstNonEmptyResultMs": "1823",
       "audioStartToSpeechBeginMs": "728",
       "speechBeginToFirstNonEmptyResultMs": "1095",
-      "resultHex": "6e56535790b54e1c4e09540d5c115e746d895acc51655ba462a252ab67405bb3597365595e084e0068483002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-69:start>customer-ptt-69:event-1>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:partial>customer-ptt-69:final-last>customer-ptt-69:complete",
       "detail": "customer-ptt-contract"
@@ -4552,7 +4552,7 @@
       "audioStartToFirstNonEmptyResultMs": "1754",
       "audioStartToSpeechBeginMs": "789",
       "speechBeginToFirstNonEmptyResultMs": "965",
-      "resultHex": "636e65b0534e793e75354e94540d9a6c4e0a534751659ad84e0076847537751f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-70:start>customer-ptt-70:event-1>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:partial>customer-ptt-70:final-last>customer-ptt-70:complete",
       "detail": "customer-ptt-contract"
@@ -4613,7 +4613,7 @@
       "audioStartToFirstNonEmptyResultMs": "1793",
       "audioStartToSpeechBeginMs": "669",
       "speechBeginToFirstNonEmptyResultMs": "1124",
-      "resultHex": "8ba44e3a524d8ff04e094eba8fdd53cd540c4e1a79816b6276847ea65b9a30025b9e96454e0a662f4e3a4e0a6d7780545f715de54f5c3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-71:start>customer-ptt-71:event-1>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:event-3>customer-ptt-71:final>customer-ptt-71:event-1>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:partial>customer-ptt-71:final-last>customer-ptt-71:complete",
       "detail": "customer-ptt-contract"
@@ -4674,7 +4674,7 @@
       "audioStartToFirstNonEmptyResultMs": "1555",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "988",
-      "resultHex": "6c3865fa3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-72:start>customer-ptt-72:event-1>customer-ptt-72:final-last>customer-ptt-72:complete",
       "detail": "customer-ptt-contract"
@@ -4735,7 +4735,7 @@
       "audioStartToFirstNonEmptyResultMs": "1820",
       "audioStartToSpeechBeginMs": "628",
       "speechBeginToFirstNonEmptyResultMs": "1192",
-      "resultHex": "540c987a836f5e973002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-73:start>customer-ptt-73:event-1>customer-ptt-73:partial>customer-ptt-73:final-last>customer-ptt-73:complete",
       "detail": "customer-ptt-contract"
@@ -4796,7 +4796,7 @@
       "audioStartToFirstNonEmptyResultMs": "1760",
       "audioStartToSpeechBeginMs": "1223",
       "speechBeginToFirstNonEmptyResultMs": "537",
-      "resultHex": "8d6458c18d4b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-74:start>customer-ptt-74:event-1>customer-ptt-74:partial>customer-ptt-74:final-last>customer-ptt-74:complete",
       "detail": "customer-ptt-contract"
@@ -4857,7 +4857,7 @@
       "audioStartToFirstNonEmptyResultMs": "1772",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1064",
-      "resultHex": "8d8a5267620f526767094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-75:start>customer-ptt-75:event-1>customer-ptt-75:partial>customer-ptt-75:partial>customer-ptt-75:final-last>customer-ptt-75:complete",
       "detail": "customer-ptt-contract"
@@ -4918,7 +4918,7 @@
       "audioStartToFirstNonEmptyResultMs": "1811",
       "audioStartToSpeechBeginMs": "1148",
       "speechBeginToFirstNonEmptyResultMs": "663",
-      "resultHex": "546867704f2676848717725b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-76:start>customer-ptt-76:event-1>customer-ptt-76:partial>customer-ptt-76:partial>customer-ptt-76:final-last>customer-ptt-76:complete",
       "detail": "customer-ptt-contract"
@@ -4979,7 +4979,7 @@
       "audioStartToFirstNonEmptyResultMs": "1775",
       "audioStartToSpeechBeginMs": "664",
       "speechBeginToFirstNonEmptyResultMs": "1111",
-      "resultHex": "767e5ea65c0f82f9679c97f34e503002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-77:start>customer-ptt-77:event-1>customer-ptt-77:partial>customer-ptt-77:partial>customer-ptt-77:final-last>customer-ptt-77:complete",
       "detail": "customer-ptt-contract"
@@ -5040,7 +5040,7 @@
       "audioStartToFirstNonEmptyResultMs": "1832",
       "audioStartToSpeechBeginMs": "607",
       "speechBeginToFirstNonEmptyResultMs": "1225",
-      "resultHex": "679c5e8451cc4e915bb6753557ce3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-78:start>customer-ptt-78:event-1>customer-ptt-78:partial>customer-ptt-78:partial>customer-ptt-78:final-last>customer-ptt-78:complete",
       "detail": "customer-ptt-contract"
@@ -5101,7 +5101,7 @@
       "audioStartToFirstNonEmptyResultMs": "1822",
       "audioStartToSpeechBeginMs": "709",
       "speechBeginToFirstNonEmptyResultMs": "1113",
-      "resultHex": "968f5dde7684697c76d867094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-79:start>customer-ptt-79:event-1>customer-ptt-79:partial>customer-ptt-79:partial>customer-ptt-79:final-last>customer-ptt-79:complete",
       "detail": "customer-ptt-contract"
@@ -5162,7 +5162,7 @@
       "audioStartToFirstNonEmptyResultMs": "1140",
       "audioStartToSpeechBeginMs": "408",
       "speechBeginToFirstNonEmptyResultMs": "732",
-      "resultHex": "621157286d774e0a738b51a07ee77eed536b51953002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-80:start>customer-ptt-80:event-1>customer-ptt-80:partial>customer-ptt-80:partial>customer-ptt-80:partial>customer-ptt-80:partial>customer-ptt-80:final-last>customer-ptt-80:complete",
       "detail": "customer-ptt-contract"
@@ -5223,7 +5223,7 @@
       "audioStartToFirstNonEmptyResultMs": "1832",
       "audioStartToSpeechBeginMs": "563",
       "speechBeginToFirstNonEmptyResultMs": "1269",
-      "resultHex": "4e5d9633674e6eaa4f9b753584254e1a53853002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-81:start>customer-ptt-81:event-1>customer-ptt-81:partial>customer-ptt-81:partial>customer-ptt-81:partial>customer-ptt-81:final-last>customer-ptt-81:complete",
       "detail": "customer-ptt-contract"
@@ -5284,7 +5284,7 @@
       "audioStartToFirstNonEmptyResultMs": "1786",
       "audioStartToSpeechBeginMs": "1136",
       "speechBeginToFirstNonEmptyResultMs": "650",
-      "resultHex": "96c44f1f5bb675355bb651775546573a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-82:start>customer-ptt-82:event-1>customer-ptt-82:partial>customer-ptt-82:partial>customer-ptt-82:partial>customer-ptt-82:final-last>customer-ptt-82:complete",
       "detail": "customer-ptt-contract"
@@ -5345,7 +5345,7 @@
       "audioStartToFirstNonEmptyResultMs": "1802",
       "audioStartToSpeechBeginMs": "1186",
       "speechBeginToFirstNonEmptyResultMs": "616",
-      "resultHex": "827e56fd52c76700521d768474065ff5662f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-83:start>customer-ptt-83:event-1>customer-ptt-83:partial>customer-ptt-83:partial>customer-ptt-83:partial>customer-ptt-83:final-last>customer-ptt-83:complete",
       "detail": "customer-ptt-contract"
@@ -5406,7 +5406,7 @@
       "audioStartToFirstNonEmptyResultMs": "1825",
       "audioStartToSpeechBeginMs": "664",
       "speechBeginToFirstNonEmptyResultMs": "1161",
-      "resultHex": "6cf05eb7662f4e2d56fd517b8001793e533a76845148884c80053002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-84:start>customer-ptt-84:event-1>customer-ptt-84:partial>customer-ptt-84:partial>customer-ptt-84:partial>customer-ptt-84:final-last>customer-ptt-84:complete",
       "detail": "customer-ptt-contract"
@@ -5467,7 +5467,7 @@
       "audioStartToFirstNonEmptyResultMs": "1780",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1072",
-      "resultHex": "4e0a8ff0516c53f87684653676ca8ba15165805460f363a780a13002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-85:start>customer-ptt-85:event-1>customer-ptt-85:partial>customer-ptt-85:partial>customer-ptt-85:partial>customer-ptt-85:partial>customer-ptt-85:final-last>customer-ptt-85:complete",
       "detail": "customer-ptt-contract"
@@ -5528,7 +5528,7 @@
       "audioStartToFirstNonEmptyResultMs": "1810",
       "audioStartToSpeechBeginMs": "627",
       "speechBeginToFirstNonEmptyResultMs": "1183",
-      "resultHex": "6daa57ce533a77f36d1e4e618d224e505e7c513f56ed3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-86:start>customer-ptt-86:event-1>customer-ptt-86:partial>customer-ptt-86:partial>customer-ptt-86:partial>customer-ptt-86:partial>customer-ptt-86:final-last>customer-ptt-86:complete",
       "detail": "customer-ptt-contract"
@@ -5589,7 +5589,7 @@
       "audioStartToFirstNonEmptyResultMs": "1812",
       "audioStartToSpeechBeginMs": "1099",
       "speechBeginToFirstNonEmptyResultMs": "713",
-      "resultHex": "800c76ee524d82f172795c1465744f534e1a52a18fdb5c557f1361623002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-87:start>customer-ptt-87:event-1>customer-ptt-87:partial>customer-ptt-87:partial>customer-ptt-87:partial>customer-ptt-87:partial>customer-ptt-87:final-last>customer-ptt-87:complete",
       "detail": "customer-ptt-contract"
@@ -5650,7 +5650,7 @@
       "audioStartToFirstNonEmptyResultMs": "1775",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1208",
-      "resultHex": "68606eaa9547804c4e1a628080fd57f98bad4e2d5fc33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-88:start>customer-ptt-88:event-1>customer-ptt-88:partial>customer-ptt-88:partial>customer-ptt-88:partial>customer-ptt-88:partial>customer-ptt-88:final-last>customer-ptt-88:complete",
       "detail": "customer-ptt-contract"
@@ -5711,7 +5711,7 @@
       "audioStartToFirstNonEmptyResultMs": "1790",
       "audioStartToSpeechBeginMs": "567",
       "speechBeginToFirstNonEmptyResultMs": "1223",
-      "resultHex": "7ea67ff04e5f4ece4e0d6234774097625177884c4e8b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-89:start>customer-ptt-89:event-1>customer-ptt-89:partial>customer-ptt-89:partial>customer-ptt-89:partial>customer-ptt-89:partial>customer-ptt-89:partial>customer-ptt-89:final-last>customer-ptt-89:complete",
       "detail": "customer-ptt-contract"
@@ -5772,7 +5772,7 @@
       "audioStartToFirstNonEmptyResultMs": "1811",
       "audioStartToSpeechBeginMs": "569",
       "speechBeginToFirstNonEmptyResultMs": "1242",
-      "resultHex": "62916216542b84c457308868793aff0c677068ee67094f4d957f671f76844f344fa33002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-90:start>customer-ptt-90:event-1>customer-ptt-90:partial>customer-ptt-90:partial>customer-ptt-90:partial>customer-ptt-90:partial>customer-ptt-90:partial>customer-ptt-90:final-last>customer-ptt-90:complete",
       "detail": "customer-ptt-contract"
@@ -5833,7 +5833,7 @@
       "audioStartToFirstNonEmptyResultMs": "1773",
       "audioStartToSpeechBeginMs": "709",
       "speechBeginToFirstNonEmptyResultMs": "1064",
-      "resultHex": "800c4e2d56fd6cf062f365b0751f4ee35f3a8005917752118005987e8f898eab4e0a3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-91:start>customer-ptt-91:event-1>customer-ptt-91:partial>customer-ptt-91:partial>customer-ptt-91:partial>customer-ptt-91:partial>customer-ptt-91:partial>customer-ptt-91:partial>customer-ptt-91:final-last>customer-ptt-91:complete",
       "detail": "customer-ptt-contract"
@@ -5894,7 +5894,7 @@
       "audioStartToFirstNonEmptyResultMs": "1808",
       "audioStartToSpeechBeginMs": "669",
       "speechBeginToFirstNonEmptyResultMs": "1139",
-      "resultHex": "628a677068ee75288fc767aa76845e8f521753f790fd53bb63894e863002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-92:start>customer-ptt-92:event-1>customer-ptt-92:partial>customer-ptt-92:partial>customer-ptt-92:partial>customer-ptt-92:partial>customer-ptt-92:partial>customer-ptt-92:final-last>customer-ptt-92:complete",
       "detail": "customer-ptt-contract"
@@ -5955,7 +5955,7 @@
       "audioStartToFirstNonEmptyResultMs": "1814",
       "audioStartToSpeechBeginMs": "728",
       "speechBeginToFirstNonEmptyResultMs": "1086",
-      "resultHex": "6e56535790b54e1c4e09540d5c115e746d895acc51655ba462a252ab67405bb3597365595e084e0068483002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-93:start>customer-ptt-93:event-1>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:partial>customer-ptt-93:final-last>customer-ptt-93:complete",
       "detail": "customer-ptt-contract"
@@ -6016,7 +6016,7 @@
       "audioStartToFirstNonEmptyResultMs": "1802",
       "audioStartToSpeechBeginMs": "788",
       "speechBeginToFirstNonEmptyResultMs": "1014",
-      "resultHex": "636e65b0534e793e75354e94540d9a6c4e0a534751659ad84e0076847537751f3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-94:start>customer-ptt-94:event-1>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:partial>customer-ptt-94:final-last>customer-ptt-94:complete",
       "detail": "customer-ptt-contract"
@@ -6077,7 +6077,7 @@
       "audioStartToFirstNonEmptyResultMs": "1816",
       "audioStartToSpeechBeginMs": "668",
       "speechBeginToFirstNonEmptyResultMs": "1148",
-      "resultHex": "8ba44e3a524d8ff04e094eba8fdd53cd540c4e1a79816b6276847ea65b9a30025b9e96454e0a662f4e3a4e0a6d7780545f715de54f5c3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-95:start>customer-ptt-95:event-1>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:event-3>customer-ptt-95:final>customer-ptt-95:event-1>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:partial>customer-ptt-95:final-last>customer-ptt-95:complete",
       "detail": "customer-ptt-contract"
@@ -6138,7 +6138,7 @@
       "audioStartToFirstNonEmptyResultMs": "1521",
       "audioStartToSpeechBeginMs": "568",
       "speechBeginToFirstNonEmptyResultMs": "953",
-      "resultHex": "6c3865fa3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-96:start>customer-ptt-96:event-1>customer-ptt-96:final-last>customer-ptt-96:complete",
       "detail": "customer-ptt-contract"
@@ -6199,7 +6199,7 @@
       "audioStartToFirstNonEmptyResultMs": "1843",
       "audioStartToSpeechBeginMs": "623",
       "speechBeginToFirstNonEmptyResultMs": "1220",
-      "resultHex": "540c987a836f5e973002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-97:start>customer-ptt-97:event-1>customer-ptt-97:partial>customer-ptt-97:final-last>customer-ptt-97:complete",
       "detail": "customer-ptt-contract"
@@ -6260,7 +6260,7 @@
       "audioStartToFirstNonEmptyResultMs": "1770",
       "audioStartToSpeechBeginMs": "1196",
       "speechBeginToFirstNonEmptyResultMs": "574",
-      "resultHex": "8d6458c18d4b3002",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-98:start>customer-ptt-98:event-1>customer-ptt-98:partial>customer-ptt-98:final-last>customer-ptt-98:complete",
       "detail": "customer-ptt-contract"
@@ -6321,7 +6321,7 @@
       "audioStartToFirstNonEmptyResultMs": "1783",
       "audioStartToSpeechBeginMs": "708",
       "speechBeginToFirstNonEmptyResultMs": "1075",
-      "resultHex": "8d8a5267620f526767094ec04e48ff1f",
+      "resultHex": "<redacted>",
       "speakerTurnsHex": "",
       "trace": "customer-ptt-99:start>customer-ptt-99:event-1>customer-ptt-99:partial>customer-ptt-99:partial>customer-ptt-99:final-last>customer-ptt-99:complete",
       "detail": "customer-ptt-contract"
