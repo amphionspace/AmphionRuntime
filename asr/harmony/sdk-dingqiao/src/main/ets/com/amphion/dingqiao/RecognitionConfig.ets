@@ -130,6 +130,12 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   config.endpointRules.rule2MinTrailingSilenceSec = 2.0;
   const endpointRule3 = rule3Policy(params.extraParams, startParams?.extraParams ?? {});
   config.endpointRules.rule3MinUtteranceLengthSec = endpointRule3.minUtteranceSec;
+  // The long-form path keeps one stream across pauses, so an endpoint that fires
+  // on trailing silence with nothing decoded only costs it: it restarts the
+  // stream before a sparse burst accumulates enough audio to produce text, and
+  // the utterance length rule3 would have measured restarts with it. Short mode
+  // keeps rule1, where cutting dead air early is what callers expect.
+  config.endpointRules.rule1 = endpointRule3.mode === 'short';
   // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {

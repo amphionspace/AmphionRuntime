@@ -359,6 +359,26 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('buildMode="$BUILD_MODE"', smoke)
         self.assertIn('IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")', smoke)
 
+    def test_role_finish_budget_bounds_the_wait_after_the_recognizer_tail(self) -> None:
+        """The budget starts at the ASR tail, so the pair bounds the reported wait."""
+        sdk = (
+            REPO_ROOT
+            / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
+            "SpeechRecognizeSdk.ets"
+        ).read_text(encoding="utf-8")
+        finish = int(re.search(
+            r"SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = (\d+)", sdk).group(1))
+        salvage = int(re.search(
+            r"SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS: number = (\d+)", sdk).group(1))
+        # Clustering on the NPU encoder is linear and cheap: 1.1 s over 479
+        # windows, about 1.5 s extrapolated to 24 minutes. The budget must stay
+        # well clear of that, because exceeding it truncates the roles reported
+        # for the meeting's tail rather than reporting them late.
+        self.assertGreaterEqual(finish, 15_000)
+        self.assertGreaterEqual(salvage, 3_000)
+        # The timeout path must stay a disclosure: a degraded result, never silence.
+        self.assertIn("SpeakerDiarizationDegradedReason.FINISH_TIMEOUT", sdk)
+
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         recognition_config = (
             REPO_ROOT

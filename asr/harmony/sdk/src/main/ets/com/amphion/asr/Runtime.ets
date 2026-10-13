@@ -99,6 +99,18 @@ import {
   validateSessionConfig
 } from './RuntimeSupport';
 
+// Endpoint rules decide when a final is committed, so a caller reporting "text
+// only appears after half a minute" cannot be diagnosed without them. rule3 is
+// the one that bounds a continuous passage: a negative length disables it, and
+// then nothing cuts a long utterance until the speaker pauses.
+function endpointRulesMetric(config: AsrConfig): string {
+  const rules = config.endpointRules;
+  return `endpoint=${config.endpoint} rule1=${rules.rule1} ` +
+    `rule1SilenceSec=${rules.rule1MinTrailingSilenceSec} rule2=${rules.rule2} ` +
+    `rule2SilenceSec=${rules.rule2MinTrailingSilenceSec} ` +
+    `rule3UtteranceSec=${rules.rule3MinUtteranceLengthSec}`;
+}
+
 const ASR_SAMPLE_RATE_HZ: number = 16000;
 const PCM16_BYTES_PER_SECOND: number = ASR_SAMPLE_RATE_HZ * 2;
 const LONG_FORM_STABLE_PREFIX_INTERVAL_SEC: number = 60;
@@ -360,7 +372,8 @@ export class AmphionRuntime {
     Logger.metric(
       `kind=LOAD language=${language} pooled=${canReusePool} assetLayoutMs=${assetLayoutMs} ` +
       `recognizerLoadMs=${recognizerLoadMs} warmupMs=${warmupMs} ` +
-      `punctuationLoadMs=${engine.punctuationLoadDurationMs()} engineReadyMs=${engineReadyMs}`
+      `punctuationLoadMs=${engine.punctuationLoadDurationMs()} engineReadyMs=${engineReadyMs} ` +
+      endpointRulesMetric(effectiveConfig)
     );
     return engine;
   }
@@ -417,7 +430,8 @@ export class AmphionRuntime {
       `kind=LOAD language=${language} async=true pooled=${!recognizerLoad.ownsRecognizer} ` +
       `assetLayoutMs=${assetLayoutMs} ` +
       `recognizerReadyMs=${recognizerLoad.elapsedMs} punctuationReadyMs=${punctuationLoad.elapsedMs} ` +
-      `engineReadyMs=${engineReadyMs}`
+      `engineReadyMs=${engineReadyMs} ` +
+      endpointRulesMetric(effectiveConfig)
     );
     return engine;
   }
@@ -1449,6 +1463,14 @@ export class AsrSession {
         this.vad = this.createVad();
       }
       if (this.speakerVadEnabled) this.ensureSpeakerTurnSegmenterLoad();
+      // Per session, not per load: a resident engine skips createEngine entirely,
+      // so a kind=LOAD echo is missing from exactly the sessions a caller reports
+      // against. These knobs decide when a final is committed, which is what a
+      // report of "text only appears after half a minute" turns on.
+      Logger.metric(`kind=SESSION_CONFIG sessionId=${this.sessionId} ` +
+        `language=${this.language} vad=${config.vad} ` +
+        `vadActiveEndpointSilenceMs=${config.vadConfig.activeEndpointSilenceMs} ` +
+        endpointRulesMetric(config));
       // 预热已前移到 recognizer 创建处一次性完成(见 AmphionRuntime.warmUpRecognizer),
       // 这里不再每次 startListening 都跑 encoder,避免每次点"开始识别"卡 3~4 秒。
       this.callbackGate.invoke((): void => { this.callback.onSessionStarted?.(); });
@@ -2010,6 +2032,27 @@ export class AsrSession {
     const r = this.recognizer.getResult(this.stream);
     this.rememberSpeculativeTimestamps(r.timestamps);
     this.initialSilenceTracker.observeAsrResult(r.text, r.tokens.length);
+    // Put a ceiling on how long a caller waits for a final. rule3 is supposed to
+    // cut an utterance at 20 s, but GetEndpointReason reports the first matching
+    // rule and on continuous speech it was measured never to reach rule3: 301 s
+    // of speech with no pause over 200 ms produced finals up to 77.7 s apart,
+    // and the stream's own length ran to 78 s against a buffer that holds 25 s.
+    // Cut it here, where that length is known, so the wait is bounded whatever
+    // the native endpointer decides.
+    if (!isFinal && r.text.length > 0 &&
+      this.publicSamplesFed - this.streamStartSample >= UTT_MAX_SAMPLES) {
+      Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=utterance-length ` +
+        `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
+        `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${r.text.length} ` +
+        `tokens=${r.tokens.length} maxUtteranceSec=${UTT_MAX_SAMPLES / ASR_SAMPLE_RATE_HZ}`);
+      this.endpointAtMs = Date.now();
+      if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
+      this.dispatchFinal(true, decodeDurationMs, isLastFinal);
+      if (!this.callbackGate.isClosed()) {
+        this.finishUtterance(restartAfterFinal, 'utterance-length');
+      }
+      return;
+    }
     if (isFinal) {
       this.dispatchFinal(false, decodeDurationMs, isLastFinal);
       if (!this.callbackGate.isClosed()) this.finishUtterance(restartAfterFinal);

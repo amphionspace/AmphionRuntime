@@ -117,6 +117,27 @@ int RoleQos(const std::string& recognizer_qos) {
   throw std::runtime_error("invalid Community recognizer QoS");
 }
 
+// Explicit placement for the role workers, independent of the recognizer.
+//
+// Heat on this hardware tracks how high the scheduler drives the SoC, not how
+// much CPU time is spent: a flat load costs little, while the per-window burst
+// of segmentation, features, encoder and pooling pushes the governor to the big
+// cluster's top frequency for about 150 ms of every second. Those stages have a
+// 1500 ms budget per window and use roughly a tenth of it, so there is slack to
+// run them at a lower operating point. Doing that changes no arithmetic: the
+// windows and the role labels come out identical, only slower and cooler.
+//
+// "inherit" keeps the historical behaviour, where role workers follow
+// RoleQos(recognizer_qos) and the shipped "default" recognizer QoS leaves the
+// thread policy untouched.
+int RoleQosOverride(const std::string& role_qos, int inherited) {
+  if (role_qos.empty() || role_qos == "inherit") return inherited;
+  if (role_qos == "background") return QOS_BACKGROUND;
+  if (role_qos == "utility") return QOS_UTILITY;
+  if (role_qos == "default") return QOS_DEFAULT;
+  throw std::runtime_error("invalid Community role QoS");
+}
+
 // One report per owned worker; it never carries audio or results.
 void ApplyRoleQos(int qos) {
   const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(qos));
@@ -858,11 +879,12 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
     // recognizer QoS that its owned workers follow, then optionally the
     // encoder backend ("cpu", "npu" or "auto").
     const size_t loadInputs = from_resources ? 1u : 5u;
-    const bool withEncoder = operation == Operation::Load && count == loadInputs + 3;
+    const bool withRoleQos = operation == Operation::Load && count == loadInputs + 4;
+    const bool withEncoder = operation == Operation::Load && (withRoleQos || count == loadInputs + 3);
     const bool withQos = operation == Operation::Load && (withEncoder || count == loadInputs + 2);
     const bool withLanes = operation == Operation::Load && (withQos || count == loadInputs + 1);
     if (count != (operation == Operation::Load ?
-                    loadInputs + (withEncoder ? 3u : withQos ? 2u : withLanes ? 1u : 0u) :
+                    loadInputs + (withRoleQos ? 4u : withEncoder ? 3u : withQos ? 2u : withLanes ? 1u : 0u) :
                   operation == Operation::Cluster ? (legacyCluster ? 6u : clusterLevels ? 9u : 8u) : 2u)) {
       throw std::runtime_error("invalid Community arguments");
     }
@@ -892,6 +914,14 @@ napi_value Queue(napi_env env, napi_callback_info info, Operation operation, boo
           throw std::runtime_error("invalid Community recognizer QoS");
         }
         task->role_qos = RoleQos(std::string(qos, length));
+      }
+      if (withRoleQos) {
+        char role[32] = {};
+        size_t length = 0;
+        if (napi_get_value_string_utf8(env, args[loadInputs + 3], role, sizeof(role), &length) != napi_ok) {
+          throw std::runtime_error("invalid Community role QoS");
+        }
+        task->role_qos = RoleQosOverride(std::string(role, length), task->role_qos);
       }
       if (withEncoder) {
         char backend[16] = {};

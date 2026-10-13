@@ -85,9 +85,9 @@ export interface CommunityDiarizationWindow {
  */
 export function loadCommunityDiarization(segmentation: Uint8Array, encoder: Uint8Array,
   pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, lanes?: number,
-  recognizerQos?: string, encoderBackend?: string): Promise<number>;
+  recognizerQos?: string, encoderBackend?: string, roleQos?: string): Promise<number>;
 export function loadCommunityDiarizationResources(resourceManager: Object, lanes?: number,
-  recognizerQos?: string, encoderBackend?: string): Promise<number>;
+  recognizerQos?: string, encoderBackend?: string, roleQos?: string): Promise<number>;
 export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
 export function processCommunityDiarizationBatch(handle: number,
   pcm: Float32Array[]): Promise<CommunityDiarizationWindow[]>;
@@ -97,3 +97,18 @@ export function clusterCommunityDiarization(handle: number, segments: Float32Arr
   runRms: Float32Array): Promise<string>;
 export function closeCommunityDiarization(handle: number): void;
 
+/**
+ * Diagnostics-only MindSpore Lite backend probe. Builds the MindIR at
+ * `modelPath` with `backend` ("cpu", "npu", or an NNRt device-name substring),
+ * then runs `iterations` Predict calls on zero-filled inputs and resolves a JSON
+ * report of build and Predict timings. Zero inputs make the outputs meaningless:
+ * this measures backend acceptance and latency, never accuracy.
+ */
+export function probeMindSporeModel(modelPath: string, backend?: string,
+  iterations?: number): Promise<string>;
+
+export function probeMindSporeChain(modelPaths: string, backend?: string,
+  paceMs?: number, durationMs?: number): Promise<string>;
+
+export function probeOrtModel(modelPath: string, threads?: number,
+  iterations?: number): Promise<string>;
