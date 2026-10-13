@@ -9,6 +9,20 @@ from asr.tools.tests.test_harmony_speaker_diarization_session import (
     ROOT, DIARIZATION, SESSION, TS_LOADER, run_node,
 )
 
+LOCAL_CLIENT = DIARIZATION / 'SpeakerDiarizationLocalClient.ets'
+ANDROID_CLIENT = (ROOT / 'asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/'
+                  'diarization/SpeakerDiarizationLocalClient.kt')
+
+
+def shipped_hop_ms():
+    """The default window hop, read from the client rather than restated."""
+    import re
+    match = re.search(r"options\?\.hopMs\s*\?\?\s*([\d_]+)", LOCAL_CLIENT.read_text())
+    assert match, 'SpeakerDiarizationLocalClient must keep a literal default hop'
+    hop = int(match.group(1).replace('_', ''))
+    assert hop % 1000 == 0, f'these guards assume a whole-second hop, found {hop} ms'
+    return hop
+
 
 def run_community_session(body):
     imports = "\n".join(
@@ -580,6 +594,7 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           import {{ DiarizationWindowScheduler }} from {(DIARIZATION/'DiarizationWindowScheduler.ts').as_uri()!r};
           const SAMPLE_RATE=16000,WINDOW_SAMPLES=160000,INFERENCE_TIMEOUT_MS=10000,ENCODER_LANES=2;
           const SpeakerDiarizationDegradedReason={{STORAGE_UNAVAILABLE:1,INFERENCE_UNAVAILABLE:2}};
+          const HOP_SAMPLES={shipped_hop_ms() * 16};
           let nextDiarizationJobId=1,closeCount=0,holdFirst=false,releaseFirst;
           class DiarizationPcmSpool {{
             pcm=new Uint8Array(62*32000);end=0;
@@ -602,6 +617,25 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           const fs={{accessSync:()=>true,rmdirSync(){{}}}};
         """
         body="""
+          // Pick the two durations that exercise both tail rules at this hop.
+          const EXACT_WINDOWS=Math.floor((61000*16-WINDOW_SAMPLES)/HOP_SAMPLES);
+          const EXACT_MS=(WINDOW_SAMPLES+EXACT_WINDOWS*HOP_SAMPLES)/16,PADDED_MS=EXACT_MS+500;
+          // One complete 10 s window per hop, starting at sample zero. An
+          // incomplete tail is padded once; an exact last window must not be
+          // duplicated. Window k's first PCM sample encodes its start second + 1.
+          function expected(durationMs) {
+            const total=durationMs*16,rows=[];
+            let end=WINDOW_SAMPLES;
+            for(;end<=total;end+=HOP_SAMPLES){
+              const second=(end-WINDOW_SAMPLES)/SAMPLE_RATE;
+              rows.push([end-WINDOW_SAMPLES,end,false,(second+1)/32768,(second+10)/32768]);
+            }
+            if(end-HOP_SAMPLES!==total){
+              const start=end-WINDOW_SAMPLES;
+              rows.push([start,total,true,(start/SAMPLE_RATE+1)/32768,0]);
+            }
+            return rows;
+          }
           async function run(durationMs,chunkBytes,delayed) {
             holdFirst=delayed;releaseFirst=undefined;const rows=[],errors=[];
             let done;const drained=new Promise(r=>done=r);
@@ -616,21 +650,34 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             }
             c.finish();await new Promise(r=>setImmediate(r));if(delayed)releaseFirst();await drained;
             assert.deepEqual(errors,[]);c.cancel();await new Promise(r=>setImmediate(r));
-            // Upstream has one complete 10 s window per second. An incomplete
-            // tail is padded once; an exact last window must not be duplicated.
-            const expected=Array.from({length:52},(_,i)=>[i*16000,(i+10)*16000,false,(i+1)/32768,(i+10)/32768]);
-            if(durationMs===61500)expected.push([52*16000,61500*16,true,53/32768,0]);
-            assert.deepEqual(rows,expected,'executor must not silently decimate the model evidence');
+            assert.deepEqual(rows,expected(durationMs),'executor must not silently decimate the model evidence');
             return rows;
           }
-          assert.deepEqual(await run(61000,640,false),await run(61000,61000*32,true));
-          assert.deepEqual(await run(61500,640,false),await run(61500,61500*32,true));
+          assert.equal(expected(EXACT_MS).at(-1)[2],false,'an exact last window is not duplicated');
+          assert.equal(expected(PADDED_MS).at(-1)[2],true,'an incomplete tail is padded once');
+          assert.equal(expected(EXACT_MS).length,EXACT_WINDOWS+1);
+          assert.deepEqual(await run(EXACT_MS,640,false),await run(EXACT_MS,EXACT_MS*32,true));
+          assert.deepEqual(await run(PADDED_MS,640,false),await run(PADDED_MS,PADDED_MS*32,true));
           assert.equal(closeCount,4);
         """
         with tempfile.TemporaryDirectory() as directory:
             harness=Path(directory)/'cadence.mts';harness.write_text(stubs+source+body)
             subprocess.run(['node','--experimental-strip-types','--experimental-loader',
                             TS_LOADER.as_uri(),str(harness)],check=True,cwd=ROOT)
+
+    def test_android_and_harmony_ship_the_same_window_hop(self):
+        """The hop sets both the role cost and the VBx evidence density.
+
+        Both platforms share the native clusterer, which scales Fb from the
+        window spacing, so a drifting default would change identities on one
+        platform only.
+        """
+        import re
+        match = re.search(r'DiarizationWindowScheduler\(SAMPLE_RATE,\s*hopMs\s*=\s*([\d_]+)\)',
+                          ANDROID_CLIENT.read_text())
+        self.assertIsNotNone(match, 'Android client must keep a literal default hop')
+        self.assertEqual(int(match.group(1).replace('_', '')), shipped_hop_ms())
+        self.assertEqual(shipped_hop_ms(), 2000)
 
     def test_stopped_inference_drops_in_flight_window_and_starts_no_more(self):
         source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
@@ -713,10 +760,12 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
           // Window k starts at second k; its first PCM sample encodes k+1.
           const pcm=new Int16Array(12*16000);for(let i=0;i<pcm.length;i++)pcm[i]=Math.floor(i/16000)+1;
           const windows=[],errors=[];let stopOnFirst=false,c;
+          // Batching does not depend on the cadence; pin a 1 s hop so two
+          // windows queue behind the first call.
           c=new SpeakerDiarizationLocalClient({},'',{
             onWindow:w=>{windows.push([w.windowStartSample,w.result.segments[0]*32768,w.inferenceWallMs]);
               if(stopOnFirst)c.stopInference();},
-            onDrained(){},onDegraded:(_r,m)=>errors.push(m)});
+            onDrained(){},onDegraded:(_r,m)=>errors.push(m)},undefined,{hopMs:1_000});
           c.append(pcm.slice(0,10*16000).buffer);await tick();
           assert.deepEqual(batches.map(b=>b.starts.length),[1],'a lone window is not held back for a partner');
           c.append(pcm.slice(10*16000).buffer);await tick();

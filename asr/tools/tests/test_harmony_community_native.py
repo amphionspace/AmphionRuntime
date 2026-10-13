@@ -709,6 +709,58 @@ int main() {
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=30)
 
+    def test_fallback_voice_never_takes_an_identity_it_does_not_resemble_most(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Customer issue59: a second voice over the dominant speaker had no run
+        # evidence and resembled that speaker, yet took the only other identity
+        # because it was free in the frame. It must stay anonymous instead; a
+        # fallback voice that resembles the free identity still takes it.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  for(bool resemblesFree:{false,true}) {
+    // Voice A owns 10..300 on channel 0, voice B owns 320..500 on channel 1.
+    // Channel 2 overlaps A at 200..280 with no run vector of its own.
+    std::vector<float> segments(589*3),embeddings(768),runs(3*256);
+    for(int f=10;f<300;++f)segments[f*3]=1;
+    for(int f=320;f<500;++f)segments[f*3+1]=1;
+    for(int f=200;f<280;++f)segments[f*3+2]=1;
+    embeddings[0]=1.;embeddings[256+1]=1.;
+    embeddings[512]=resemblesFree?.1f:.9f;embeddings[512+1]=resemblesFree?.9f:.1f;
+    runs[0]=1.;runs[256+1]=1.;
+    std::fill(runs.begin()+512,runs.end(),std::numeric_limits<float>::quiet_NaN());
+    std::vector<int32_t> ranges={0,0,10,300,0,1,320,500,0,2,200,280};
+    auto result=community::Cluster(segments,embeddings,1,p,4,runs,ranges);
+    assert(result.centroids.size()==2);
+    const int a=result.frame_hard[20*3],b=result.frame_hard[400*3+1];
+    assert(a>=0 && b>=0 && a!=b);
+    for(int f=200;f<280;++f){
+      assert(result.frame_hard[f*3]==a);
+      assert(result.frame_hard[f*3+2]==(resemblesFree?b:-2));
+    }
+    auto turns=community::Reconstruct(segments,result.hard,{0},0,4,result.frame_hard);
+    bool anonymous=false;
+    for(const auto& turn:turns)if(turn.speaker<0&&turn.begin<4.&&turn.end>3.5)anonymous=true;
+    assert(anonymous!=resemblesFree);
+  }
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'fallback-closest.cpp'
+            binary = Path(directory) / 'fallback-closest'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
     def test_missing_enrollment_keeps_unknown_speech_and_overlap(self):
         compiler = shutil.which('clang++') or shutil.which('g++')
         if compiler is None:
@@ -1278,3 +1330,155 @@ int main() {
             source.write_text(program)
             subprocess.run([compiler,'-std=c++17','-O2','-I',str(CPP),str(source),'-o',str(binary)],check=True)
             subprocess.run([str(binary)],check=True)
+
+    def test_run_capacity_keeps_slots_for_components_that_own_evidence(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Five voices exceed the cap of four. VBx also leaves a component that is
+        # no vector's best explanation; its level is borrowed from the loudest
+        # voice through soft responsibilities. It must not take the fourth
+        # voice's slot. The VBx result is injected so the case stays exact.
+        import re
+        header = (CPP / 'community_cluster.h').read_text()
+        call = re.search(r'result\.vbx=Vbx\([^;]*\);', header)
+        self.assertIsNotNone(call)
+        instrumented = header.replace(call.group(0), call.group(0) +
+                                      'if(injectedVbx)result.vbx=*injectedVbx;', 1)
+        entry = 'struct ClusterResult {'
+        self.assertEqual(instrumented.count(entry), 1)
+        instrumented = instrumented.replace(entry, 'struct VbxResult;\n' + entry, 1)
+        instrumented = instrumented.replace('inline ClusterResult Cluster(',
+                                            'inline VbxResult* injectedVbx=nullptr;\ninline ClusterResult Cluster(', 1)
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,1.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  const float level[5]={.05f,.04f,.03f,.02f,.01f};
+  std::vector<float> segments(5*589*3),embeddings(5*3*256),runs,rms;std::vector<int32_t> ranges;
+  for(int w=0;w<5;++w){
+    for(int f=0;f<200;++f)segments[(w*589+f)*3]=1;
+    embeddings[(w*3)*256+w]=1;
+    std::vector<float> v(256);v[w]=1;runs.insert(runs.end(),v.begin(),v.end());
+    ranges.insert(ranges.end(),{w,0,0,200});rms.push_back(level[w]);
+  }
+  community::VbxResult vbx;
+  vbx.q=community::Matrix(5,community::Vec(6));
+  for(int i=0;i<5;++i)vbx.q[i][i]=1;
+  vbx.q[0][0]=.8;vbx.q[0][5]=.2;          // component 5 owns no vector
+  vbx.priors={.16,.2,.2,.2,.2,.04};
+  community::injectedVbx=&vbx;
+  auto result=community::Cluster(segments,embeddings,5,p,4,runs,ranges,rms);
+  assert(result.centroids.size()==4);
+  assert(std::find(result.retainedClusters.begin(),result.retainedClusters.end(),5)==result.retainedClusters.end());
+  for(int w=0;w<4;++w)assert(result.frame_hard[(w*589+20)*3]>=0);
+  assert(result.frame_hard[(4*589+20)*3]==-2);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            (Path(directory) / 'community_cluster.h').write_text(instrumented)
+            (Path(directory) / 'community_kmeans.h').write_text((CPP / 'community_kmeans.h').read_text())
+            source = Path(directory) / 'capacity-owners.cpp'
+            binary = Path(directory) / 'capacity-owners'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', directory,
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_tied_frame_votes_follow_the_window_that_sees_the_frame_from_inside(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Four-speaker short session at a 2 s hop: the first speaker's last
+        # 0.25 s was covered by two windows. The earlier window named her; the
+        # next one, where those frames are its first ones, named another voice.
+        # The tie went to the lower index and split her word. A tie now follows
+        # the window that sees the frames away from its edge.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+int main() {
+  constexpr int frames=589,local=3;
+  std::vector<float> segments(2*frames*local);std::vector<int> frameHard(2*frames*local,-2);
+  auto label=[&](int w,int ch,int begin,int end,int id){
+    for(int f=begin;f<end;++f){segments[(w*frames+f)*local+ch]=1;frameHard[(w*frames+f)*local+ch]=id;}
+  };
+  label(0,0,0,300,1);            // window 0: the first speaker, id 1
+  label(1,0,0,20,0);             // window 1 starts 2 s later; its edge names id 0
+  label(1,1,200,400,0);          // id 0 is a real voice elsewhere in window 1
+  auto turns=community::Reconstruct(segments,{1,-2,-2,0,0,-2},{0,32000},0,4,frameHard);
+  // Window 1's frames 0..20 are window 0's frames ~118..138, deep inside it.
+  const double inside=(32000+495.5+10*270)/16000.;
+  bool firstSpeaker=false,other=false;
+  for(const auto& turn:turns)if(turn.begin<=inside&&turn.end>inside){firstSpeaker|=turn.speaker==1;other|=turn.speaker==0;}
+  assert(firstSpeaker&&!other);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'tie-depth.cpp'
+            binary = Path(directory) / 'tie-depth'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=30)
+
+    def test_window_hop_keeps_the_calibrated_vbx_evidence_balance(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # VBx counts every window as one observation, and Community-1 set Fb for
+        # one window per second. With a 2 s hop the same speech yields half the
+        # observations; at a fixed Fb the minority voice below merges into the
+        # majority (the four-speaker short-session collapse). Fb scaled with the
+        # window spacing must keep it, exactly as the 1 s density does.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <cmath>
+static community::ClusterResult run(int copies,double hop){
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  // Four windows of voice A, three of voice B (cosine .1 to A).
+  const int voices=7,windows=voices*copies;
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runs;
+  std::vector<int32_t> ranges;
+  for(int w=0;w<windows;++w){
+    const int i=w%voices;std::vector<float> v(256);
+    if(i>=4){v[0]=.1f;v[1]=std::sqrt(.99f);}else v[0]=1;
+    v[2+(i%7)]+=.05f;
+    for(int f=0;f<200;++f)segments[(w*589+f)*3]=1;
+    for(int d=0;d<256;++d)embeddings[(w*3)*256+d]=v[d];
+    runs.insert(runs.end(),v.begin(),v.end());ranges.insert(ranges.end(),{w,0,0,200});
+  }
+  return community::Cluster(segments,embeddings,windows,p,4,runs,ranges,{},hop);
+}
+int main(){
+  // The spacing comes from the window starts, padded tail included.
+  assert(community::CommunityHopSamples({})==16000);
+  assert(community::CommunityHopSamples({0})==16000);
+  assert(community::CommunityHopSamples({0,16000,32000})==16000);
+  assert(community::CommunityHopSamples({0,32000,64000,96000})==32000);
+  const auto thin=run(1,16000),scaled=run(1,32000),dense=run(2,16000);
+  assert(thin.centroids.size()==1);
+  assert(scaled.centroids.size()==2);
+  assert(dense.centroids.size()==2);
+  // Duplicating every observation and halving Fb are the same VBx update.
+  for(size_t c=0;c<scaled.vbx.priors.size();++c)
+    assert(std::fabs(scaled.vbx.priors[c]-dense.vbx.priors[c])<1e-6);
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'hop-density.cpp'
+            binary = Path(directory) / 'hop-density'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=60)
