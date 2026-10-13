@@ -80,9 +80,22 @@ inline std::vector<int> Ahc(const Matrix& x) {
   cut(2*n-2);return labels;
 }
 struct VbxResult { Matrix q;Vec priors;Vec objectives; };
-inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial) {
+// Community-1 calibrated Fb=.8 for one window per second. VBx counts every
+// window as an independent observation, and repeating each observation r times
+// gives exactly the same updates as dividing Fb by r. A coarser hop therefore
+// keeps the calibrated balance only with Fb scaled by the same factor;
+// leaving it at .8 merges the speakers whose evidence was thinned out.
+constexpr double kCommunityFb=.8,kCommunityHopSamples=16000;
+// The windows of one session sit on the scheduler's hop grid, including its
+// padded tail. A single window has no spacing and keeps the calibrated value.
+inline double CommunityHopSamples(const std::vector<double>& starts) {
+  double hop=0;
+  for(size_t i=1;i<starts.size();++i){const double step=starts[i]-starts[i-1];if(step>0&&(hop==0||step<hop))hop=step;}
+  return hop>0?hop:kCommunityHopSamples;
+}
+inline VbxResult Vbx(const Matrix& x,const Vec& phi,const std::vector<int>& initial,double fb=kCommunityFb) {
   const int n=x.size(),d=phi.size(),k=*std::max_element(initial.begin(),initial.end())+1;
-  constexpr double fa=.07,fb=.8;const double smooth=std::exp(7.);
+  constexpr double fa=.07;const double smooth=std::exp(7.);
   VbxResult result;auto& q=result.q;auto& prior=result.priors;
   q=Matrix(n,Vec(k,1./(smooth+k-1)));prior=Vec(k,1./k);
   Matrix rho=x;Vec g(n);for(int i=0;i<n;++i){q[i][initial[i]]=smooth/(smooth+k-1);double s=0;for(int j=0;j<d;++j){rho[i][j]*=std::sqrt(phi[j]);s+=x[i][j]*x[i][j];}g[i]=-.5*(s+d*std::log(2*std::acos(-1.)));}
@@ -140,7 +153,12 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   const int total=static_cast<int>(std::nearbyint(endSample/270.)-firstFrame)+1;
   int knownClusters=std::max(0,*std::max_element(hard.begin(),hard.end())+1);
   if(!frameHard.empty())knownClusters=std::max(knownClusters,*std::max_element(frameHard.begin(),frameHard.end())+1);
-  Matrix activation(total,Vec(knownClusters));Vec counts(total),weights(total);
+  // Votes are tied when as many windows name one identity as another; with
+  // fewer windows over each frame (a coarser hop, or the start and end of a
+  // session) that happens more often. A window is least informed at its edges,
+  // so a tie goes to the identity voted from deeper inside its windows rather
+  // than to the lower index.
+  Matrix activation(total,Vec(knownClusters)),depth(total,Vec(knownClusters));Vec counts(total),weights(total);
   for(int w=0;w<windows;++w){
     const int64_t start=static_cast<int64_t>(std::nearbyint(windowStartSamples[w]/270.))-firstFrame;
     for(int f=0;f<frames;++f){
@@ -148,7 +166,7 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
       Vec active(knownClusters);int n=0;
       for(int k=0;k<local;++k){float value=segments[(w*frames+f)*local+k];n+=value;int label=frameHard.empty()?hard[w*local+k]:frameHard[(w*frames+f)*local+k];if(label>=0)active[label]=std::max(active[label],static_cast<double>(value));}
       counts[t]+=n;weights[t]+=1;
-      for(int k=0;k<knownClusters;++k)activation[t][k]+=active[k];
+      for(int k=0;k<knownClusters;++k){activation[t][k]+=active[k];if(active[k]>0)depth[t][k]+=std::min(f,frames-1-f);}
     }
   }
   // Voice count is evidence of speech, not of a particular identity. Reserve
@@ -161,10 +179,13 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
   }
   const int clusters=knownClusters+anonymousTracks;
   for(auto& row:activation)row.resize(clusters);
+  for(auto& row:depth)row.resize(clusters);
   std::vector<Turn> turns;std::vector<int> start(clusters,-1);
   for(int t=0;t<total;++t){
     int count=static_cast<int>(counts[t]);std::vector<int> order(clusters);std::iota(order.begin(),order.end(),0);
-    std::stable_sort(order.begin(),order.end(),[&](int a,int b){return activation[t][a]>activation[t][b];});
+    std::stable_sort(order.begin(),order.end(),[&](int a,int b){
+      if(activation[t][a]!=activation[t][b])return activation[t][a]>activation[t][b];
+      return depth[t][a]>depth[t][b];});
     std::vector<bool> on(clusters,false);int anonymous=knownClusters;
     for(int j=0;j<count;++j){
       const int candidate=order[j];
@@ -181,9 +202,10 @@ inline std::vector<Turn> Reconstruct(const std::vector<float>& segments,
 }
 inline ClusterResult Cluster(const std::vector<float>& segments,const std::vector<float>& embeddings,int windows,const Plda& plda,int maxSpeakers=4,
                             const std::vector<float>& runEmbeddings={},const std::vector<int32_t>& runRanges={},
-                            const std::vector<float>& runRms={}) {
+                            const std::vector<float>& runRms={},double hopSamples=kCommunityHopSamples) {
   constexpr int frames=589,local=3,dim=256;
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
+  if(!std::isfinite(hopSamples)||hopSamples<=0)throw std::runtime_error("invalid Community window hop");
   ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
   for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
   }
@@ -266,7 +288,8 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   // Other active local tracks must not inherit its identity unconditionally.
   if(train.size()==1)result.centroids=Matrix(1,train[0]);
   else {
-    result.ahc=Ahc(train);result.features=plda.Apply(train);result.vbx=Vbx(result.features,plda.phi,result.ahc);
+    result.ahc=Ahc(train);result.features=plda.Apply(train);
+    result.vbx=Vbx(result.features,plda.phi,result.ahc,kCommunityFb*kCommunityHopSamples/hopSamples);
     for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
   }
   if(runMode&&result.shortRunTrainingCount>0&&!result.ahc.empty()&&
@@ -351,7 +374,12 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       }
     }
     for(size_t c=0;c<columns.size();++c)result.capacityRms[c]=weights[c]>0?std::sqrt(result.capacityRms[c]/weights[c]):0.;
-    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0)
+    // A component that is no training vector's best explanation has no voice
+    // of its own; its level is borrowed from soft responsibilities. It must not
+    // take a slot from a speaker that owns evidence.
+    std::vector<int> owners(result.vbx.priors.size());
+    for(const auto& row:result.vbx.q)++owners[std::max_element(row.begin(),row.end())-row.begin()];
+    for(size_t c=0;c<columns.size();++c)if(result.capacityRms[c]>0&&owners[columns[c]]>0)
       result.retainedClusters.push_back(static_cast<int>(c));
     std::stable_sort(result.retainedClusters.begin(),result.retainedClusters.end(),[&](int a,int b){return result.capacityRms[a]>result.capacityRms[b];});
     if(result.retainedClusters.size()>static_cast<size_t>(maxSpeakers))result.retainedClusters.resize(maxSpeakers);
@@ -443,10 +471,16 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
       // runs) falls back to its channel's full-window vector against the same
       // centroids. It only takes identities still free at this frame, so run
       // evidence is never displaced; overflow voices score -inf and stay anonymous.
+      // It may only take the identity it resembles most: when that identity is
+      // already speaking in this frame, the voice stays anonymous instead of
+      // inheriting whichever identity happens to be free.
       std::vector<std::vector<double>> fallback(local, std::vector<double>(k,-std::numeric_limits<double>::infinity()));
       std::vector<bool> fallbackCandidate(local,false);bool anyFallback=false;
       for(int ch=0;ch<local;++ch)if(segments[(w*frames+f)*local+ch]&&!candidate[ch]){
-        fallback[ch]=scores[w*local+ch];fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
+        const auto& own=scores[w*local+ch];int closest=-1;
+        for(int c=0;c<k;++c)if(std::isfinite(own[c])&&(closest<0||own[c]>own[closest]))closest=c;
+        if(closest>=0)fallback[ch][closest]=own[closest];
+        fallbackCandidate[ch]=finite(fallback[ch]);anyFallback=anyFallback||fallbackCandidate[ch];
       }
       if(anyFallback){
         const auto extra=assign(fallback,fallbackCandidate,used);

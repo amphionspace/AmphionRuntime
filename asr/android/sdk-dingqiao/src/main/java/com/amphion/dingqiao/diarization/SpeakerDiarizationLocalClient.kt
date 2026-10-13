@@ -53,9 +53,10 @@ internal class SpeakerDiarizationLocalClient(
         CommunityDiarizationInference(DingqiaoSpeakerModelAssets.ensureCommunityInstalled(context, workPath))
     },
 ) {
-    // Match the locked pipeline's evidence density; dropping every other
-    // window changes VBx component survival, not just inference cost.
-    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 1_000)
+    // Same cadence as Harmony: a 2 s hop halves the per-window inference cost.
+    // The native clusterer scales Fb with the window spacing, so the thinner
+    // evidence does not merge speakers that the 1 s hop keeps apart.
+    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 2_000)
     private val queue = ArrayDeque<DiarizationLocalJob>()
     private val jobsRoot = File(workPath, "speaker-diarization-jobs")
     private val jobDir = File(jobsRoot, "job-${System.nanoTime()}")
