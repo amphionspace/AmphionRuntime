@@ -1482,3 +1482,43 @@ int main(){
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=60)
+
+
+class SharedTranslationUnitCompilesForAndroidTest(unittest.TestCase):
+    """community_diarization.cpp is compiled by the Android JNI target too."""
+
+    def test_no_harmony_only_symbol_escapes_its_platform_guard(self):
+        # The Android target in asr/android/sdk-dingqiao/src/main/cpp/CMakeLists.txt
+        # compiles this same file, where hilog does not exist. Every other test
+        # here builds it as Harmony, so an unguarded OH_LOG_Print reaches CI
+        # instead of a test. One did.
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        ort = ROOT / 'tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include'
+        if not (ort / 'onnxruntime_cxx_api.h').is_file():
+            self.skipTest('bundled ONNX Runtime headers unavailable')
+        jni_roots: list[Path] = []
+        java_home = subprocess.run(['/usr/libexec/java_home'], capture_output=True, text=True)
+        if java_home.returncode == 0:
+            base = Path(java_home.stdout.strip()) / 'include'
+            jni_roots = [base, base / 'darwin', base / 'linux']
+        else:
+            for candidate in sorted(Path('/usr/lib/jvm').glob('*/include')):
+                jni_roots = [candidate, candidate / 'linux']
+                break
+        if not any((root / 'jni.h').is_file() for root in jni_roots):
+            self.skipTest('JNI headers unavailable')
+        command = [
+            compiler, '-std=c++17', '-fsyntax-only', '-D__ANDROID__',
+            '-I', str(ROOT / 'asr/android/sdk-dingqiao/src/main/cpp'),
+            '-I', str(ort),
+        ]
+        for root in jni_roots:
+            if root.is_dir():
+                command += ['-I', str(root)]
+        command.append(str(CPP / 'community_diarization.cpp'))
+        completed = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(
+            completed.returncode, 0,
+            f'Android compilation of the shared source failed:\n{completed.stderr}')
