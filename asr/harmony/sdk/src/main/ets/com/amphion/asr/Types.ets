@@ -62,6 +62,17 @@ export class EndpointRules {
   rule2: boolean = true;
   rule2MinTrailingSilenceSec: number = 1.4;
   rule3MinUtteranceLengthSec: number = 20.0;
+  /**
+   * Ceiling on one utterance for the long-form path, where rule3 is disabled
+   * and no native rule bounds the wait for a final.
+   *
+   * Separate from rule3MinUtteranceLengthSec on purpose: that one configures a
+   * native rule, this one is the SDK's own cut, and conflating them would make a
+   * caller's short-mode setting silently govern a path where the rule is off.
+   * It cannot exceed the 25 s the utterance buffers hold, so values above that
+   * are clamped and the effective one is reported in kind=SESSION_CONFIG.
+   */
+  longFormMaxUtteranceSec: number = 25.0;
 }
 
 export class SpeakerVadConfig {

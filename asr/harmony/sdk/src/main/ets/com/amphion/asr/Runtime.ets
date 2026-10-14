@@ -108,7 +108,23 @@ function endpointRulesMetric(config: AsrConfig): string {
   return `endpoint=${config.endpoint} rule1=${rules.rule1} ` +
     `rule1SilenceSec=${rules.rule1MinTrailingSilenceSec} rule2=${rules.rule2} ` +
     `rule2SilenceSec=${rules.rule2MinTrailingSilenceSec} ` +
-    `rule3UtteranceSec=${rules.rule3MinUtteranceLengthSec}`;
+    `rule3UtteranceSec=${rules.rule3MinUtteranceLengthSec} ` +
+    `longFormMaxUtteranceSec=${longFormMaxUtteranceSamples(rules) / ASR_SAMPLE_RATE_HZ}`;
+}
+
+/**
+ * The long-form cut, clamped to what the utterance buffers can hold.
+ *
+ * A caller asking for more than the buffer gets the buffer's bound rather than
+ * a promise the stream cannot keep; asking for less is honoured, because the
+ * only thing a smaller ceiling costs is longer sentences. Below five seconds it
+ * would cut mid-phrase on ordinary speech, so that is the floor.
+ */
+function longFormMaxUtteranceSamples(rules: EndpointRules): number {
+  const requested = rules.longFormMaxUtteranceSec;
+  if (!Number.isFinite(requested) || requested <= 0) return UTT_MAX_SAMPLES;
+  const seconds = Math.min(Math.max(requested, 5), UTT_MAX_SAMPLES / ASR_SAMPLE_RATE_HZ);
+  return Math.round(seconds * ASR_SAMPLE_RATE_HZ);
 }
 
 const ASR_SAMPLE_RATE_HZ: number = 16000;
@@ -2039,12 +2055,13 @@ export class AsrSession {
     // and the stream's own length ran to 78 s against a buffer that holds 25 s.
     // Cut it here, where that length is known, so the wait is bounded whatever
     // the native endpointer decides.
+    const utteranceCeilingSamples = longFormMaxUtteranceSamples(this.config.endpointRules);
     if (!isFinal && r.text.length > 0 &&
-      this.publicSamplesFed - this.streamStartSample >= UTT_MAX_SAMPLES) {
+      this.publicSamplesFed - this.streamStartSample >= utteranceCeilingSamples) {
       Logger.metric(`kind=ENDPOINT sessionId=${this.sessionId} source=utterance-length ` +
         `streamGeneration=${this.streamGeneration} totalPcmBytes=${this.totalPcmBytes} ` +
         `utterancePcmBytes=${this.pcmBytesAccepted} textChars=${r.text.length} ` +
-        `tokens=${r.tokens.length} maxUtteranceSec=${UTT_MAX_SAMPLES / ASR_SAMPLE_RATE_HZ}`);
+        `tokens=${r.tokens.length} maxUtteranceSec=${utteranceCeilingSamples / ASR_SAMPLE_RATE_HZ}`);
       this.endpointAtMs = Date.now();
       if (!this.callbackGate.invoke((): void => { this.callback.onEndpoint?.(); })) return;
       this.dispatchFinal(true, decodeDurationMs, isLastFinal);
