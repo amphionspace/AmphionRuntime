@@ -434,37 +434,74 @@ class Model {
     plda_.mu = vector(128);
     for (int row = 0; row < 128; ++row) plda_.transform.push_back(vector(128));
     plda_.phi = vector(128);
+    // Encoders first, because whether one of them holds a CPU worker pool is
+    // what decides how many threads segmentation may take below.
+    Ort::SessionOptions encoder_options;
+    encoder_options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
+    encoder_options.SetInterOpNumThreads(1);
+    encoder_options.DisableCpuMemArena();
+    encoder_options.DisableMemPattern();
+    encoder_options.SetIntraOpNumThreads(1);
+    lanes_ = lanes;
+    if (lanes_ == 0) {
+      // XNNPACK owns the four compute workers.
+      encoder_options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
+      encoders_.push_back(make_encoder(encoder_options));
+    } else {
+      // A single-threaded XNNPACK encoder creates no worker pool, so nothing
+      // busy-waits between operators. An XNNPACK session must not run two
+      // windows concurrently; each lane owns its own instance.
+      encoder_options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "1"}});
+      for (int lane = 0; lane < lanes_; ++lane) {
+        encoders_.push_back(make_encoder(encoder_options));
+        lane_workers_.push_back(std::make_unique<RoleWorker>(role_qos));
+      }
+      cluster_worker_ = std::make_unique<RoleWorker>(role_qos);
+    }
+    // Segmentation is the chain's largest CPU stage: measured on a Kirin 9020
+    // confined to the background cpuset it is 446 ms of a 612 ms window, with
+    // the accelerated encoder at 32 ms. It was kept serial so a second pool
+    // could not compete with the XNNPACK encoder's four compute workers between
+    // convolution operators. That reason only holds while an encoder is on the
+    // CPU; when every encoder went to the accelerator, nothing is left to
+    // compete with and the serial session was costing the whole chain.
+    //
+    // Idle spinning is given up with it: a second pool that busy-waits between
+    // windows would take back from the recognizer what segmentation gains, and
+    // windows are bursts two seconds apart. force_spinning_stop keeps the spin
+    // only while Run is active, which is where it pays, and releases the
+    // workers in between - the same policy the recognizer's own sessions use.
+    // The graph is LSTM-heavy, so two threads is what its convolutions can use
+    // without oversubscribing a confined cpuset.
+    bool encoder_on_cpu = false;
+    for (const Encoder& candidate : encoders_) {
+      if (candidate.backend() == "cpu") encoder_on_cpu = true;
+    }
     Ort::SessionOptions options;
     options.SetExecutionMode(ExecutionMode::ORT_SEQUENTIAL);
     options.SetInterOpNumThreads(1);
     options.DisableCpuMemArena();
     options.DisableMemPattern();
-    options.SetIntraOpNumThreads(1);
+    options.SetIntraOpNumThreads(encoder_on_cpu ? 1 : kSegmentationThreads);
+    if (!encoder_on_cpu) {
+      options.AddConfigEntry("session.force_spinning_stop", "1");
+    }
+#ifndef __ANDROID__
+    // This translation unit is shared with the Android JNI target, which has no
+    // hilog. Every other report in it is guarded the same way.
+    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
+                 "community-segmentation threads=%{public}d encoderOnCpu=%{public}d",
+                 encoder_on_cpu ? 1 : kSegmentationThreads, encoder_on_cpu ? 1 : 0);
+#endif
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
     pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
-    lanes_ = lanes;
-    if (lanes_ == 0) {
-      // XNNPACK owns the four compute workers. Keep the ORT fallback serial so
-      // a second pool cannot compete with them between convolution operators.
-      options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "4"}});
-      encoders_.push_back(make_encoder(options));
-    } else {
-      // A single-threaded XNNPACK encoder creates no worker pool, so nothing
-      // busy-waits between operators. An XNNPACK session must not run two
-      // windows concurrently; each lane owns its own instance.
-      options.AppendExecutionProvider("XNNPACK", {{"intra_op_num_threads", "1"}});
-      for (int lane = 0; lane < lanes_; ++lane) {
-        encoders_.push_back(make_encoder(options));
-        lane_workers_.push_back(std::make_unique<RoleWorker>(role_qos));
-      }
-      cluster_worker_ = std::make_unique<RoleWorker>(role_qos);
-    }
     Ort::AllocatorWithDefaultOptions allocator;
     input_name_ = segmentation_.GetInputNameAllocated(0, allocator).get();
     output_name_ = segmentation_.GetOutputNameAllocated(0, allocator).get();
   }
 
   static constexpr int kMaxLanes = 4;
+  static constexpr int kSegmentationThreads = 2;
 
   int lanes() const { return lanes_; }
 

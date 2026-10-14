@@ -16,6 +16,24 @@ export function endpointMaxUtteranceSec(extraParams: Record<string, Object>): nu
   return durationMs / 1000;
 }
 
+/**
+ * The caller's utterance ceiling for the long-form path, or undefined to keep
+ * the SDK default.
+ *
+ * endpointMaxUtteranceMs configures rule3, which the long-form path disables,
+ * so before this the value was accepted and then ignored there. Reading it for
+ * the long-form cut as well keeps one knob meaning one thing - how long a
+ * caller waits for a final - instead of silently applying to one mode only.
+ * Undefined rather than a default, because the long-form default is the SDK's
+ * buffer bound and not rule3's 20 s.
+ */
+export function longFormMaxUtteranceSec(
+  sessionExtraParams: Record<string, Object>): number | undefined {
+  const durationMs = finiteNumberParam(sessionExtraParams, 'endpointMaxUtteranceMs');
+  if (durationMs === undefined || durationMs <= 0) return undefined;
+  return durationMs / 1000;
+}
+
 export function rule3Policy(engineExtraParams: Record<string, Object>,
   sessionExtraParams: Record<string, Object>): Rule3Policy {
   const rawMode = sessionExtraParams['recognizerMode'] ?? engineExtraParams['recognizerMode'];

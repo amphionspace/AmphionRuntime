@@ -64,6 +64,7 @@ import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
   './diarization/SpeakerDiarizationRuntimeLease';
 import {
+  SpeakerDiarizationFinishProgress,
   SpeakerDiarizationSession,
   SpeakerDiarizationSessionController,
   SpeakerDiarizationSessionObserver
@@ -124,6 +125,15 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
 
   append(audio: ArrayBuffer): void {
     if (!this.finished && !this.finishRequested) this.totalSamples += audio.byteLength / 2;
+  }
+
+  finishProgress(): SpeakerDiarizationFinishProgress {
+    // Nothing was ever inferred here, so there is no backlog and no clustering.
+    return {
+      stopToDrainedMs: 0, backlogWindowsAtStop: 0, pendingCommitsAtStop: 0,
+      inferredWindows: 0, lastCommitClusterMs: -1, inferenceEndMs: 0,
+      audioEndMs: Math.round(this.totalSamples / 16), encoderBackend: 'none',
+    };
   }
 
   observeAsrFinal(payload: SpeechRecognitionResult, result: AsrResult): void {
@@ -302,19 +312,36 @@ function mapLicenseErrorCode(asrCode: number): number {
 }
 
 const STOP_FALLBACK_DELAY_MS: number = 1500;
-// Budget for the final clustering pass, measured from the ASR tail rather than
-// from stop: the recognizer must drain every accepted frame first, and roles are
-// attached to its utterances. Exceeding it returns what has been clustered so
-// far, marked FINISH_TIMEOUT, whose coverage stops at the salvaged point, so a
-// shorter budget returns sooner but truncates more of the meeting's tail.
-// Measured on the NPU encoder the pass is linear and cheap (1.67 ms per window:
-// 1.1 s over 479 windows, ~1.5 s extrapolated to 24 minutes), so a 24-minute
-// recording that reported 21.6 s was not paying that cost - it exhausted the
-// budget for another reason, and shortening the budget would only have truncated
-// its roles sooner. Keep the budget; fix whatever makes clustering miss it.
-const SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = 15000;
-// One in-flight window plus one clustering pass on already-inferred evidence.
-const SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS: number = 3000;
+// Deadline for the whole role finish, measured from stop. A caller measures the
+// interval it can see - stop the recording, wait for roles - so the budget is
+// anchored there and the salvage reserve is carved out of it rather than added
+// to it. ASR is exempt: it must drain every accepted frame, because dropping
+// that would drop recognized text, so the real bound is max(ASR drain, this).
+// Exceeding the deadline returns what has been clustered so far, marked
+// FINISH_TIMEOUT, whose coverage stops at the salvaged point.
+// Measured on the NPU encoder the clustering pass is linear and cheap (1.67 ms
+// per window: 1.1 s over 479 windows, ~1.5 s extrapolated to 24 minutes), so a
+// 24-minute recording that reported 21.6 s was not paying that cost. It was
+// paying ASR drain plus a budget that used to start only at the ASR tail, which
+// is why that total could exceed the deadline a caller was measuring.
+// kind=DIARIZATION_FINISH reports the split, so the next slow finish names its
+// own dominant term instead of being inferred.
+//
+// Below the 15 s a caller measures, not equal to it. What a caller sees is stop
+// to onComplete, and expiring costs more than the timer: the barrier completes,
+// the engine builds the degraded result, and onResult, onSpeakerDiarizationResult
+// and onComplete each dispatch. Measured at 99 ms on a 24-minute session whose
+// salvage had already run (deadline 15000 produced finishToCompleteMs 15099, over
+// the limit). One second of headroom is about ten times that, and it leaves
+// 11 s of clustering before the reserve.
+const SPEAKER_DIARIZATION_FINISH_DEADLINE_MS: number = 14000;
+// Reserved inside the deadline, not added to it: one in-flight window plus one
+// clustering pass on already-inferred evidence.
+const SPEAKER_DIARIZATION_SALVAGE_RESERVE_MS: number = 3000;
+// Module scope rather than a private static: both the public SDK entry point and
+// the engine that emits metrics live in this file and need the same value, and
+// exposing it on the exported class would widen the public surface to say it.
+let runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN;
 
 class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private context: Context;
@@ -700,12 +727,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         }
         const diarizationController = this.speakerDiarizationSession;
         this.speakerDiarizationFinishBarrier = new SpeakerDiarizationFinishBarrier(
-          SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS,
+          SPEAKER_DIARIZATION_FINISH_DEADLINE_MS,
           (output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void => {
             this.completeSpeakerDiarizationSession(
               diarizationGeneration, diarizationSessionId, output);
           },
-          SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS,
+          SPEAKER_DIARIZATION_SALVAGE_RESERVE_MS,
           (): void => { diarizationController?.salvage(); });
       }
       if (this.sessionStartGate.publishSession(startGeneration)) {
@@ -977,6 +1004,41 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     diarization.finish(confirmedInitialSilence);
   }
 
+  // One line per session on the AmphionMetrics channel, so a slow finish names
+  // its own dominant term on a release build instead of being inferred from the
+  // total. Three terms matter: stop to the ASR tail, which the deadline cannot
+  // shorten; stop to drained, which is the window backlog inference still owed;
+  // and the last commit's clustering cost. The backlog and pending-commit
+  // counts say which of the three the next field report has to explain.
+  private reportDiarizationFinish(sessionId: string,
+    result: SpeakerDiarizationResult): void {
+    if (runtimeLogLevel === AmphionLogLevel.NONE) return;
+    const barrier = this.speakerDiarizationFinishBarrier;
+    const diarization = this.speakerDiarizationSession;
+    if (barrier === undefined || diarization === undefined) return;
+    const wait = barrier.timings();
+    const progress = diarization.finishProgress();
+    console.info('[AmphionMetrics] ' +
+      `kind=DIARIZATION_FINISH sessionId=${sessionId}` +
+      ` stopToAsrTailMs=${wait.stopToAsrTailMs}` +
+      ` stopToDrainedMs=${progress.stopToDrainedMs}` +
+      ` stopToResultMs=${wait.stopToSpeakerMs}` +
+      ` asrTailToResultMs=${wait.asrTailToSpeakerMs}` +
+      ` deadlineMs=${SPEAKER_DIARIZATION_FINISH_DEADLINE_MS}` +
+      ` salvageReserveMs=${SPEAKER_DIARIZATION_SALVAGE_RESERVE_MS}` +
+      ` timedOut=${wait.timedOut} salvaged=${wait.salvaged}` +
+      ` stopToSalvageMs=${wait.stopToSalvageMs}` +
+      ` backlogWindowsAtStop=${progress.backlogWindowsAtStop}` +
+      ` pendingCommitsAtStop=${progress.pendingCommitsAtStop}` +
+      ` inferredWindows=${progress.inferredWindows}` +
+      ` lastCommitClusterMs=${progress.lastCommitClusterMs}` +
+      ` inferenceEndMs=${progress.inferenceEndMs}` +
+      ` audioEndMs=${progress.audioEndMs}` +
+      ` encoderBackend=${progress.encoderBackend}` +
+      ` degraded=${result.degraded} degradedReason=${result.degradedReason}` +
+      ` speakerCount=${result.speakerCount}`);
+  }
+
   private completeSpeakerDiarizationSession(generation: number, sessionId: string,
     output: SpeakerDiarizationFinishOutput<SpeechRecognitionResult, SpeakerDiarizationResult>): void {
     if (!this.sessionStartGate.isCurrent(generation) || this.completeSent ||
@@ -992,6 +1054,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       diarizationResult.degradedMessage = 'speaker diarization finish timeout';
     }
     diarizationResult.isSessionFinal = true;
+    this.reportDiarizationFinish(sessionId, diarizationResult);
     diarization.decoratePayload(output.asr);
     this.listener?.onResult?.(sessionId, output.asr);
     if (!this.sessionStartGate.isCurrent(generation) || this.currentSessionId !== sessionId) return;
@@ -1015,6 +1078,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.targetSpeakerEnhancer = undefined;
     this.targetSpeakerEnhancementEnabled = false;
     this.speakerDiarizationSession = undefined;
+    this.speakerDiarizationFinishBarrier?.dispose();
     this.speakerDiarizationFinishBarrier = undefined;
     this.sessionStartGate.reset();
   }
@@ -1356,7 +1420,6 @@ function remainingDaysFromClaim(expiresAt: string | undefined): number {
 export class SpeechRecognizeSdk {
   private static context?: Context;
   private static workPath: string = '';
-  private static runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN;
   private static licenseInfo?: LicenseInfo;
   private static deviceIdProvider?: LicenseDeviceIdProvider;
   private static activatedLicenseText?: string;
@@ -1392,7 +1455,7 @@ export class SpeechRecognizeSdk {
 
   /** Sets the Runtime log threshold. Call before prepareRuntime to include initialization logs. */
   static setLogLevel(logLevel: AmphionLogLevel): void {
-    SpeechRecognizeSdk.runtimeLogLevel = logLevel;
+    runtimeLogLevel = logLevel;
   }
 
   /**
@@ -1508,7 +1571,7 @@ export class SpeechRecognizeSdk {
   private static buildRuntimeOptions(licenseText: string,
     provider: LicenseDeviceIdProvider): AmphionOptions {
     const options = new AmphionOptions();
-    options.logLevel = SpeechRecognizeSdk.runtimeLogLevel;
+    options.logLevel = runtimeLogLevel;
     options.license = licenseText;
     options.deviceIdProvider = new CoreDeviceIdProviderAdapter(provider);
     return options;

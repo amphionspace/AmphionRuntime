@@ -43,22 +43,25 @@ class HarmonyDingqiaoLogLevelTest(unittest.TestCase):
         self.assertIn("AmphionLogLevel", "\n".join(imports))
 
     def test_default_level_remains_warn_and_explicit_level_reaches_runtime_init(self) -> None:
+        # Module scope, not a static on the exported class: the engine that emits
+        # metrics needs the same value and must not force it into the public API.
         self.assertIn(
-            "private static runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN;",
+            "let runtimeLogLevel: AmphionLogLevel = AmphionLogLevel.WARN;",
             self.adapter,
         )
+        self.assertNotIn("static runtimeLogLevel", self.adapter)
         setter = method_body(
             self.adapter,
             "static setLogLevel(logLevel: AmphionLogLevel): void",
         )
-        self.assertIn("SpeechRecognizeSdk.runtimeLogLevel = logLevel", setter)
+        self.assertIn("runtimeLogLevel = logLevel", setter)
 
         options = method_body(
             self.adapter,
             "private static buildRuntimeOptions(",
         )
         self.assertIn(
-            "options.logLevel = SpeechRecognizeSdk.runtimeLogLevel",
+            "options.logLevel = runtimeLogLevel",
             options,
         )
 

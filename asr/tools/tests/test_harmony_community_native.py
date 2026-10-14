@@ -1,4 +1,5 @@
 """Portable clustering regressions; all vectors are synthetic, never voiceprints."""
+import os
 import shutil
 import subprocess
 import tempfile
@@ -1482,3 +1483,54 @@ int main(){
             subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=60)
+
+
+class SharedTranslationUnitCompilesForAndroidTest(unittest.TestCase):
+    """community_diarization.cpp is compiled by the Android JNI target too."""
+
+    def test_no_harmony_only_symbol_escapes_its_platform_guard(self):
+        # The Android target in asr/android/sdk-dingqiao/src/main/cpp/CMakeLists.txt
+        # compiles this same file, where hilog does not exist. Every other test
+        # here builds it as Harmony, so an unguarded OH_LOG_Print reaches CI
+        # instead of a test. One did.
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        ort = ROOT / 'tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include'
+        if not (ort / 'onnxruntime_cxx_api.h').is_file():
+            self.skipTest('bundled ONNX Runtime headers unavailable')
+        # jni.h ships with a JDK, which sits somewhere different on every host.
+        # Each lookup is optional and a miss is a skip: this test is about a
+        # platform guard in our source, not about the runner's Java install.
+        def jdk_candidates():
+            home = os.environ.get('JAVA_HOME')
+            if home:
+                yield Path(home) / 'include'
+            locator = Path('/usr/libexec/java_home')
+            if locator.is_file():
+                located = subprocess.run([str(locator)], capture_output=True, text=True)
+                if located.returncode == 0 and located.stdout.strip():
+                    yield Path(located.stdout.strip()) / 'include'
+            for pattern in ('/usr/lib/jvm/*/include', '/usr/java/*/include'):
+                for found in sorted(Path('/').glob(pattern.lstrip('/'))):
+                    yield found
+        jni_roots: list[Path] = []
+        for base in jdk_candidates():
+            if (base / 'jni.h').is_file():
+                jni_roots = [base, base / 'darwin', base / 'linux']
+                break
+        if not jni_roots:
+            self.skipTest('JNI headers unavailable')
+        command = [
+            compiler, '-std=c++17', '-fsyntax-only', '-D__ANDROID__',
+            '-I', str(ROOT / 'asr/android/sdk-dingqiao/src/main/cpp'),
+            '-I', str(ort),
+        ]
+        for root in jni_roots:
+            if root.is_dir():
+                command += ['-I', str(root)]
+        command.append(str(CPP / 'community_diarization.cpp'))
+        completed = subprocess.run(command, capture_output=True, text=True)
+        self.assertEqual(
+            completed.returncode, 0,
+            f'Android compilation of the shared source failed:\n{completed.stderr}')

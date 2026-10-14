@@ -450,3 +450,56 @@ class HarmonyRule3EndpointTransitionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LongFormUtteranceCeilingTest(unittest.TestCase):
+    """endpointMaxUtteranceMs must reach the long-form cut, clamped and reported."""
+
+    def setUp(self) -> None:
+        self.runtime = RUNTIME.read_text(encoding="utf-8")
+        self.types = (
+            REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Types.ets"
+        ).read_text(encoding="utf-8")
+        self.policy = (
+            REPO_ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
+            "EndpointRulePolicy.ts"
+        ).read_text(encoding="utf-8")
+        self.config = (
+            REPO_ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
+            "RecognitionConfig.ets"
+        ).read_text(encoding="utf-8")
+
+    def test_ceiling_is_its_own_field_not_rule3(self) -> None:
+        # rule3MinUtteranceLengthSec configures a native rule the long-form path
+        # disables. Reusing it would let a short-mode setting govern a path where
+        # the rule is off, so the SDK's own cut carries its own field.
+        self.assertIn("longFormMaxUtteranceSec: number = 25.0;", self.types)
+        self.assertIn("rule3MinUtteranceLengthSec: number = 20.0;", self.types)
+
+    def test_runtime_reads_the_configured_ceiling_and_reports_it(self) -> None:
+        # Before this the cut was a module constant, so a caller's value was
+        # accepted and then ignored on the long-form path.
+        self.assertIn(
+            "const utteranceCeilingSamples = "
+            "longFormMaxUtteranceSamples(this.config.endpointRules);",
+            self.runtime,
+        )
+        self.assertIn(
+            "this.publicSamplesFed - this.streamStartSample >= utteranceCeilingSamples",
+            self.runtime,
+        )
+        # Clamped, never promised beyond what the utterance buffers hold.
+        self.assertIn("Math.min(Math.max(requested, 5), UTT_MAX_SAMPLES / ASR_SAMPLE_RATE_HZ)",
+                      self.runtime)
+        # Silent clamping is what made the old behaviour hard to see.
+        self.assertIn("longFormMaxUtteranceSec=${longFormMaxUtteranceSamples(rules)",
+                      self.runtime)
+
+    def test_dingqiao_carries_the_caller_value_only_when_given(self) -> None:
+        self.assertIn("endpointMaxUtteranceMs", self.policy)
+        self.assertIn("export function longFormMaxUtteranceSec(", self.policy)
+        # undefined keeps the SDK default, which is the buffer bound and not
+        # rule3's 20 s, so an absent parameter must not be defaulted here.
+        self.assertIn("if (durationMs === undefined || durationMs <= 0) return undefined;",
+                      self.policy)
+        self.assertIn("if (requestedCeilingSec !== undefined) {", self.config)
