@@ -347,3 +347,42 @@ int main() {
           assert.equal(legacy.encoderBackend,'cpu');assert.equal(legacy.embeddingMs,0);
           assert.equal(current.encoderDevice,'Kirin990');assert.equal(current.encoderMs,12.5);
         ''')
+
+
+class SegmentationThreadingTest(unittest.TestCase):
+    """Segmentation stays serial only while something else holds a CPU pool."""
+
+    def setUp(self):
+        self.source = CPP.read_text(encoding='utf-8')
+
+    def test_threads_follow_whether_an_encoder_is_on_the_cpu(self):
+        # Serial segmentation existed so a second pool could not compete with
+        # the XNNPACK encoder's compute workers. With the encoder on the
+        # accelerator there is nothing to compete with, and segmentation is the
+        # chain's largest CPU stage: 446 ms of a 612 ms window on a Kirin 9020
+        # confined to the background cpuset, against 32 ms for that encoder.
+        self.assertIn('static constexpr int kSegmentationThreads = 2;', self.source)
+        self.assertIn(
+            'options.SetIntraOpNumThreads(encoder_on_cpu ? 1 : kSegmentationThreads);',
+            self.source,
+        )
+        self.assertIn('if (candidate.backend() == "cpu") encoder_on_cpu = true;', self.source)
+
+    def test_encoders_are_built_before_the_segmentation_session(self):
+        # The thread count cannot be chosen before the backend is known, so the
+        # construction order carries the dependency.
+        first_encoder = self.source.index('encoders_.push_back(make_encoder(encoder_options));')
+        backend_probe = self.source.index('bool encoder_on_cpu = false;')
+        segmentation = self.source.index(
+            'segmentation_ = Ort::Session(env_, segmentation.data()')
+        self.assertLess(first_encoder, backend_probe)
+        self.assertLess(backend_probe, segmentation)
+
+    def test_the_extra_pool_does_not_busy_wait_between_windows(self):
+        # Windows are bursts two seconds apart. An idle pool spinning in between
+        # would take back from the recognizer what segmentation gains, so the
+        # spin is kept only while Run is active.
+        branch = self.source.split('bool encoder_on_cpu = false;', 1)[1]
+        branch = branch.split('segmentation_ = Ort::Session', 1)[0]
+        self.assertIn('options.AddConfigEntry("session.force_spinning_stop", "1");', branch)
+        self.assertNotIn('allow_spinning', branch)
