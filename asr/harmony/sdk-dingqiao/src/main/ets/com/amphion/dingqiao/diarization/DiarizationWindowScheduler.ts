@@ -85,6 +85,18 @@ export class DiarizationWindowScheduler {
     return !this.finished && this.totalSamples >= this.nextWindowEnd;
   }
 
+  /**
+   * Windows whose audio has arrived but which inference has not pulled yet.
+   *
+   * Reported, not acted on: this is the backlog that a finish has to clear
+   * before roles can be published, and the number that says whether a slow
+   * finish was inference falling behind the audio or clustering being slow.
+   */
+  availableCount(): number {
+    if (this.finished || this.totalSamples < this.nextWindowEnd) return 0;
+    return Math.floor((this.totalSamples - this.nextWindowEnd) / this.hopSamples) + 1;
+  }
+
   /** Earliest PCM sample still needed by a future normal or final window. */
   nextWindowStartSample(): number | undefined {
     if (this.finished) return undefined;
