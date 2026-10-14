@@ -36,7 +36,21 @@ export interface SpeakerDiarizationSessionController {
   bestResult(reason?: SpeakerDiarizationDegradedReason, message?: string): SpeakerDiarizationResult;
   /** Finish timeout: freeze speakers for audio already inferred instead of discarding them. */
   salvage(): void;
+  /** Work the finish inherited and how long clearing it took; -1 where unreached. */
+  finishProgress(): SpeakerDiarizationFinishProgress;
   cleanup(): void;
+}
+
+/** Reported, never acted on: the terms behind one session's stop-to-roles wait. */
+export interface SpeakerDiarizationFinishProgress {
+  stopToDrainedMs: number;
+  backlogWindowsAtStop: number;
+  pendingCommitsAtStop: number;
+  inferredWindows: number;
+  lastCommitClusterMs: number;
+  inferenceEndMs: number;
+  audioEndMs: number;
+  encoderBackend: string;
 }
 
 export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserver,
@@ -77,6 +91,16 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private committing: boolean = false;
   // Audio end covered by inferred windows when a finish timeout stopped inference.
   private salvagedThroughMs?: number;
+  // Finish decomposition, reported once per session so a slow finish names its
+  // own dominant term instead of being inferred from the total.
+  private finishAtMs: number = 0;
+  private drainedAtMs: number = 0;
+  private backlogWindowsAtFinish: number = -1;
+  private pendingCommitsAtFinish: number = -1;
+  private lastCommitClusterMs: number = -1;
+  // Windows inference actually returned. this.windows is emptied on the final
+  // commit and windowIndex counts published results, so neither can stand in.
+  private inferredWindowCount: number = 0;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
@@ -217,6 +241,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finishRequested || this.finished) return;
     this.finishRequested = true;
     this.confirmedInitialSilence = confirmedInitialSilence;
+    // Sampled before anything drains: this is the work the finish inherited.
+    this.finishAtMs = Date.now();
+    this.backlogWindowsAtFinish = this.client.pendingWindowCount();
+    this.pendingCommitsAtFinish = this.commitClock.pendingCount();
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['confirmedInitialSilence'] = confirmedInitialSilence;
@@ -270,6 +298,20 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.finalizeIfReady();
   }
 
+  finishProgress(): SpeakerDiarizationFinishProgress {
+    return {
+      stopToDrainedMs: this.drainedAtMs > 0 && this.finishAtMs > 0 ?
+        this.drainedAtMs - this.finishAtMs : -1,
+      backlogWindowsAtStop: this.backlogWindowsAtFinish,
+      pendingCommitsAtStop: this.pendingCommitsAtFinish,
+      inferredWindows: this.inferredWindowCount,
+      lastCommitClusterMs: this.lastCommitClusterMs,
+      inferenceEndMs: Math.round(this.inferenceEndMs),
+      audioEndMs: Math.round(this.totalSamples * 1000 / SAMPLE_RATE),
+      encoderBackend: this.encoderBackend.length > 0 ? this.encoderBackend : 'unknown',
+    };
+  }
+
   cancel(): void {
     this.finished = true;
     this.client.cancel((): void => { this.releaseRuntimeLease(); });
@@ -283,6 +325,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   onWindow(window: DiarizationLocalWindowResult): void {
     if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
     this.client.retainEvidence(window.result);
+    this.inferredWindowCount += 1;
     this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
       realEndSample: window.realEndSample });
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
@@ -326,6 +369,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   onDrained(): void {
     if (!this.finishRequested || this.finished) return;
     this.processDrained = true;
+    if (this.drainedAtMs === 0) this.drainedAtMs = Date.now();
     this.recordDecision('DIARIZATION_DRAINED', {});
     this.finalizeIfReady();
   }
@@ -428,6 +472,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
       this.inferenceMs += clusterElapsedMs;
       if (provisional) this.lastPreviewClusterMs = clusterElapsedMs;
+      else this.lastCommitClusterMs = clusterElapsedMs;
       const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
       const firstAppearanceTimes: number[] =
         new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);

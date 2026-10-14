@@ -359,25 +359,57 @@ class ReleaseDefaultsTest(unittest.TestCase):
         self.assertIn('buildMode="$BUILD_MODE"', smoke)
         self.assertIn('IDENTITY_ARGS+=(--build-mode "$BUILD_MODE")', smoke)
 
-    def test_role_finish_budget_bounds_the_wait_after_the_recognizer_tail(self) -> None:
-        """The budget starts at the ASR tail, so the pair bounds the reported wait."""
+    def test_role_finish_deadline_bounds_the_whole_wait_after_stop(self) -> None:
+        """The deadline runs from stop and the salvage is reserved inside it."""
         sdk = (
             REPO_ROOT
             / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
             "SpeechRecognizeSdk.ets"
         ).read_text(encoding="utf-8")
-        finish = int(re.search(
-            r"SPEAKER_DIARIZATION_FINISH_TIMEOUT_MS: number = (\d+)", sdk).group(1))
-        salvage = int(re.search(
-            r"SPEAKER_DIARIZATION_SALVAGE_TIMEOUT_MS: number = (\d+)", sdk).group(1))
+        deadline = int(re.search(
+            r"SPEAKER_DIARIZATION_FINISH_DEADLINE_MS: number = (\d+)", sdk).group(1))
+        reserve = int(re.search(
+            r"SPEAKER_DIARIZATION_SALVAGE_RESERVE_MS: number = (\d+)", sdk).group(1))
+        # Callers measure stop to onComplete, so the deadline is that whole
+        # interval minus what the callback chain costs after it expires. On a
+        # 24-minute session a deadline of exactly 15000 produced
+        # finishToCompleteMs 15099, which run_device_stress fails at its 15000 ms
+        # limit, so the deadline keeps headroom below it. ASR is exempt by
+        # design: it must drain every accepted frame, making the real bound
+        # max(ASR drain, deadline).
+        self.assertLessEqual(deadline, 14_000)
+        # Reserved inside the deadline, never added to it.
+        self.assertLess(reserve, deadline)
+        # One in-flight window plus one clustering pass on inferred evidence.
         # Clustering on the NPU encoder is linear and cheap: 1.1 s over 479
-        # windows, about 1.5 s extrapolated to 24 minutes. The budget must stay
-        # well clear of that, because exceeding it truncates the roles reported
-        # for the meeting's tail rather than reporting them late.
-        self.assertGreaterEqual(finish, 15_000)
-        self.assertGreaterEqual(salvage, 3_000)
+        # windows, about 1.5 s extrapolated to 24 minutes.
+        self.assertGreaterEqual(reserve, 3_000)
+        # Enough of the deadline must survive the reserve to cluster a long
+        # meeting, because expiring truncates the roles reported for its tail
+        # rather than reporting them late.
+        self.assertGreaterEqual(deadline - reserve, 10_000)
         # The timeout path must stay a disclosure: a degraded result, never silence.
         self.assertIn("SpeakerDiarizationDegradedReason.FINISH_TIMEOUT", sdk)
+
+    def test_role_finish_reports_its_own_decomposition(self) -> None:
+        """A slow finish must name its dominant term on a release build."""
+        sdk = (
+            REPO_ROOT
+            / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/"
+            "SpeechRecognizeSdk.ets"
+        ).read_text(encoding="utf-8")
+        self.assertIn("kind=DIARIZATION_FINISH", sdk)
+        # Diagnostics builds are not what a customer runs, so this rides the
+        # AmphionMetrics hilog channel and is gated only by the log level.
+        self.assertIn("[AmphionMetrics] ", sdk)
+        self.assertIn("runtimeLogLevel === AmphionLogLevel.NONE", sdk)
+        # Without these three the total cannot be attributed: ASR drain is the
+        # term the deadline cannot shorten, the backlog is inference falling
+        # behind the audio, and the cluster cost is the pass itself.
+        for field in ("stopToAsrTailMs=", "stopToDrainedMs=", "stopToResultMs=",
+                      "backlogWindowsAtStop=", "pendingCommitsAtStop=",
+                      "lastCommitClusterMs=", "encoderBackend="):
+            self.assertIn(field, sdk)
 
     def test_speaker_vad_defaults_match_sdk_demo_and_public_docs(self) -> None:
         recognition_config = (

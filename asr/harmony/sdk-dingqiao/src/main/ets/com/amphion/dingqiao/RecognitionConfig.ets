@@ -7,7 +7,7 @@ import {
 } from 'amphion_asr';
 import { PoliceEngineConfig } from 'amphion_police';
 import { compatibleBooleanParam } from './BooleanParam';
-import { rule3Policy } from './EndpointRulePolicy';
+import { longFormMaxUtteranceSec, rule3Policy } from './EndpointRulePolicy';
 import { finiteNumberParam } from './NumericParam';
 import {
   CreateEngineParams,
@@ -136,6 +136,14 @@ export function buildAsrConfig(context: Context, params: CreateEngineParams,
   // the utterance length rule3 would have measured restarts with it. Short mode
   // keeps rule1, where cutting dead air early is what callers expect.
   config.endpointRules.rule1 = endpointRule3.mode === 'short';
+  // endpointMaxUtteranceMs configures rule3, which the long-form path disables,
+  // so there it used to be accepted and ignored. Carry it to the SDK's own cut
+  // as well; the runtime clamps it to what the utterance buffers hold and
+  // reports the effective value in kind=SESSION_CONFIG.
+  const requestedCeilingSec = longFormMaxUtteranceSec(startParams?.extraParams ?? {});
+  if (requestedCeilingSec !== undefined) {
+    config.endpointRules.longFormMaxUtteranceSec = requestedCeilingSec;
+  }
   // 默认跳过 prepack，优先降低冷启动和峰值内存；host 可显式传 false 恢复吞吐优先模式。
   config.disablePrepack = compatibleBooleanParam(params.extraParams, 'disablePrepack', true);
   if (withTargetSpeaker) {

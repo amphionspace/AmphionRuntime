@@ -110,3 +110,27 @@ assert.equal(asrCpuProvider(false, {{ ...copy, diarizationQos: 'background', dia
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class QosDoesNotWidenTheCpusetTest(unittest.TestCase):
+    """The config must not claim QoS decides which cores a worker may use."""
+
+    def setUp(self) -> None:
+        self.config = POLICY.read_text(encoding="utf-8")
+
+    def test_the_disproved_cpuset_claim_is_gone(self) -> None:
+        # displayMayTurnOff was built on "background QoS also selects the
+        # background cpuset". Measured on a Kirin 9020 with the display off, a
+        # thread at QOS_USER_INTERACTIVE and one at QOS_BACKGROUND report the
+        # same Cpus_allowed_list of 0-3, and so do all 54 threads of the
+        # process. Anyone restoring that sentence would rebuild the same switch.
+        self.assertNotIn("background QoS also selects the background cpuset", self.config)
+
+    def test_the_measurement_is_recorded_where_the_switch_is(self) -> None:
+        switch = self.config.split("displayMayTurnOff: boolean", 1)[0]
+        switch = switch[switch.rindex("/**"):]
+        self.assertIn("QOS_USER_INTERACTIVE", switch)
+        self.assertIn("QOS_BACKGROUND", switch)
+        self.assertIn("Cpus_allowed_list", switch)
+        # And that the switch is kept for compatibility, not because it works.
+        self.assertIn("Retained for compatibility", switch)
