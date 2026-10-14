@@ -14,23 +14,72 @@
 
 ### 问题一：锁屏后识别变慢约 3 倍
 
-角色分离的工作线程被默认放在 `QOS_BACKGROUND`。
+> **本节已于 2026-10-14 更正。** 下面先给被否掉的归因，再给成立的那个。客户按原归因
+> 做了配置、症状未变，这个过程本身就是证据，所以两版都保留。
+
+#### 被否掉的归因（本文 10-12 初版）
+
+初版认为根因是 SDK 自己申请了 `QOS_BACKGROUND`：
 
 ```ts
 // AsrSchedulingConfig.ts
 return diarizationHopMs >= 2000 ? 'background' : 'inherit';
 ```
 
-`diarizationQos` 默认 `auto`，`diarizationHopMs` 默认 `2000`，于是解析成 `background`。
-客户日志里的 `role-qos requested=0 result=0 effective=0` 正是这个（`QOS_BACKGROUND = 0`）。
+`diarizationQos` 默认 `auto`、`diarizationHopMs` 默认 `2000`，解析成 `background`；客户日志里的
+`role-qos requested=0 result=0 effective=0` 正是它（`QOS_BACKGROUND = 0`）。据此交付了
+`displayMayTurnOff` 开关，声明可能熄屏时保持 `inherit` 不降档。
 
-**关键影响：background QoS 隐含 background cpuset，所以应用侧配置的绑核大核拼不过它。**
-此前观测到的「熄屏后 85 个线程被改写到 cpu 0–3」不是内核无视绑核，而是 SDK 自己先申请了
-background。
+**该归因不成立。** 客户用 0.3.22-1013 开启该开关后复测（10-14 两场），全量 hilog 中
+`role-qos` **一条都没有**（开关生效、SDK 不再申请降档），而熄屏实时率仍为 **0.80×**，滞后随锁屏
+时长线性累积，峰值 67.6 s。所以线程级 QoS 申请是一个真实但**非约束性**的因素。
 
-SDK 注释中已记录该风险：background 在亮屏下把最坏情况 embedding 从 647 ms 拉到 1421 ms，
-对 1500 ms 的窗口预算只剩 5% 余量，并注明「a slower part or heavier throttling would start
-dropping windows」。熄屏移除大核集群，正是它所说的 heavier throttling。
+#### 成立的归因：进程级 cpuset，与我们是否申请无关
+
+熄屏时系统把**整个进程**挪进 `key-background`，该组只有 4 个小核。三条独立证据：
+
+| 来源 | 证据 |
+| --- | --- |
+| 客户现场巡检 | `/proc/<pid>/cpuset` 由 `top-app` 变 `key-background`；79~83/83 线程掩码全为 0-3 |
+| **客户日志里我方 SDK 自己打的** | 熄屏后 `affinity-exact result=0` → `affinity-set result=22`（`EINVAL`） |
+| 我方设备直接读取 | 熄屏时 `/proc/<pid>/cpuset = /cpuset/key-background`；后台态 `Cpus_allowed_list: 0,1,2,3` |
+
+`EINVAL` 的含义是确定的：请求掩码 `{4..11}` 与进程允许集的交集为空。`sched_setaffinity` 的掩码
+会与所属 cpuset 的 `cpus` 求交，**空集即 `EINVAL`，root 也不例外**。我方绑核只用
+`sched_setaffinity`（全仓历史中 `cpuset` 仅出现在注释里，从未有过操作），所以绑核在进程被降级后
+必然失败，这与 SDK 申请什么 QoS 无关。
+
+#### 成本在哪：segmentation 占 73%，而我们优化的 encoder 只占 5%
+
+我方设备在**相同的 4 小核**约束下（同为 `kirin9020_v2_0`）实测 24 分钟、716 个窗口：
+
+| 阶段 | 中位 | 占比 |
+| --- | --- | --- |
+| **segmentation** | **446.1 ms** | **73%** |
+| fbank | 89.7 ms | 15% |
+| pooling | 44.2 ms | 7% |
+| encoder（NPU） | 32.3 ms | 5% |
+| 单窗合计 | 612 ms | |
+
+0.3.21/0.3.22 把 encoder 搬上 NPU，动的是这 5%。客户报告把 0.54×→0.80× 归因于它，**该归因缺少
+依据**。
+
+#### SDK 侧补不上这个缺口
+
+从 0.80× 到 1.0× 需腾出 0.20×。而角色分离链**全部**开销只有 0.180×（258.7 s 墙钟 / 1440 s 音频）：
+
+| 杠杆 | 可腾出 | 状态 |
+| --- | --- | --- |
+| 放宽 hop（2000→4000） | ~0.090× | 被 `CommunityHopSamples` 取最小间距的推导挡住（见第五节） |
+| 分割换 MS Lite CPU 运行时 | ~0.083× | 未在小核验证；MindIR 已转换且逐位一致 |
+| 分割加线程 | **0.018×（实测）** | 已实施，见下 |
+| 角色分离整个删掉（上限） | 0.180× | **仍 < 0.20×** |
+
+**连把角色分离整个删掉都补不上**，所以这不是一个能由 SDK 单独关闭的问题。
+
+另一个必须排除的变量：客户测的 0.3.22-1013 包，其**正式 SDK 误用 diagnostics 模式构建**（我方打包
+缺陷，已在 `dca08e69` 修正），诊断模块每个回调落盘写事件。0.80× 中有多少来自这笔开销目前未知，
+需用修正包复测才能得到干净基线。
 
 客户实测数字我方已独立复算一致：
 
@@ -106,16 +155,36 @@ sherpa 侧 `RuleActivated` 对负值直接返回 false，所以 `long` 模式下
 | `DingqiaoModels.ets`、`SpeakerDiarizationSession.ets` | `SpeakerDiarizationResult` 暴露 `encoderBackend`；`FINISH_TIMEOUT` 的 `degradedMessage` 带上实际后端 | 诊断 |
 | `run_device_stress.py`、`EntryAbility.ets`、`DeviceStressTest.ets` | 压测链路支持 `--diarization-display-may-turn-off` | 验证用 |
 
+### 10-14 追加的改动
+
+| 文件 | 改动 | 对应问题 |
+| --- | --- | --- |
+| `community_diarization.cpp` | 先建 encoder，再按"是否有 encoder 落在 CPU"决定分割线程数（全部上加速器时取 2 线程），并加 `force_spinning_stop` 只在 `Run` 活跃期自旋 | 问题一（余量） |
+| `SpeakerDiarizationFinishBarrier.ts` | 收尾截止由"ASR 尾部起算"改为"停录起算"，打捞预留从截止内部切出而非叠加；ASR 尾部未到时延迟打捞 | 问题三 |
+| `SpeechRecognizeSdk.ets` | 截止 14000 / 预留 3000；新增 `kind=DIARIZATION_FINISH` 逐会话上报收尾时间分解（release 可见） | 问题三 |
+| `Types.ets`、`Runtime.ets`、`EndpointRulePolicy.ts`、`RecognitionConfig.ets` | 长录音句长上限改为采纳 `endpointMaxUtteranceMs`，夹在 `[5s, 25s]`，有效值回显 | 问题二（感知延迟） |
+
 ### 验证状态
 
-**问题一：机制已在设备上验证。** A/B 对照（同一构建、同一语料、亮屏、运行期间流式抓取 hilog）：
+**问题一：原归因已被客户复测否掉，`displayMayTurnOff` 无效。**
 
-| 臂 | `role-qos` 行数 | 内容 |
-| --- | --- | --- |
-| 默认（`displayMayTurnOff=false`） | 3 | `requested=0 result=0 effective=0` |
-| 开启（`displayMayTurnOff=true`） | **0** | 无 |
+10-12 时在亮屏 A/B 中确认过"开启后 SDK 不再申请降档"（默认臂 3 条 `role-qos`，开启臂 0 条），
+但那只证明了开关生效，没证明症状消失。10-14 客户带着该开关复测两场，`role-qos` 全程为 0、
+熄屏实时率仍 0.80×。**该修正对本症状无效**，根因是进程级 cpuset（见第一节）。
 
-默认臂逐字复现了客户日志中的那一行；开启后 SDK 不再申请降档，应用侧的绑核大核不会再被覆盖。
+分割线程那条已实测：segmentation 中位 446.1 → 394.1 ms（−11.7%），角色分离链 0.180× → 0.162×，
+**只腾出 0.018×**，对 0.20× 的缺口是余量而非解法。保留的理由是它免费、且原先单线程的约束
+（与 XNNPACK encoder 争 worker）在 encoder 上加速器后已不存在。
+
+**问题三：已在设备上三臂验证。**
+
+| 臂 | 结果 |
+| --- | --- |
+| 健康基线（24 分钟，亮屏） | 停录→角色结果 **2.785 s**，零欠账，`timedOut=false` |
+| 强制积压（hop 250 + CPU encoder） | **14001 ms**（旧锚点等价 18646 ms），`customer_stop_latency` PASS `max_ms=14104` |
+| 慢 ASR 尾部 | `stopToSalvageMs = stopToAsrTailMs = 15120`，延迟打捞成立，推理保住多出的 4.1 s |
+
+截止设 15000 时实测客户可见值为 15099 ms、仍越界（回调链本身约 99 ms），故内部截止取 14000。
 
 **问题二：两处缺陷的修复已实测，但主要症状仍在。**
 
@@ -134,23 +203,52 @@ sherpa 侧 `RuleActivated` 对负值直接返回 false，所以 `long` 模式下
 
 ## 四、需要客户做的事
 
-### 1. 问题一：加一行配置并回传验证结果
+### 1. 问题一：三件事，按性价比排序
 
-```ts
-scheduling.displayMayTurnOff = true;   // 会议纪要等可能熄屏继续录音的会话
-params.scheduling = scheduling;
+> 本小节已于 10-14 整体重写。`displayMayTurnOff` 那条已验证无效（见第一节），不再是待办。
+
+**(a) 用修正包复测一轮，拿干净基线。** 成本最低、可能直接改变结论。
+
+你们测的 0.3.22-1013 包，其正式 SDK 被我方误用 diagnostics 模式构建，诊断模块每个回调
+都往磁盘写事件。在 1.6 GHz 小核上这笔开销不可忽略，而 0.80× 里有多少来自它目前未知。
+修正包的正式 SDK 为 `debug` 模式，可在包内 `docs/build-identity.json` 自行核对
+`build_mode`。
+
+**(b) 把进程移出受限 cpuset —— 这是唯一能独立解决问题一的办法。**
+
+你们亮屏稳态 lag ≈ 0.5 s，证明大核下本来就 ≥1×。但入口**不是** `sched_setaffinity`：
+它绕不过 cpuset，root 也不行（内核求交集为空即 `EINVAL`，正是你们日志里的 `result=22`）。
+需要的是：
+
+```sh
+echo <pid> > /dev/cpuset/<宽松组>/tasks     # 或给 key-background/cpus 加核
 ```
 
-该改动默认关闭，不加则行为与现状完全相同（这样亮屏场景保留 background 的控热收益，
-实测省 55.9 个 CPU 百分点）。
+两点提醒：
 
-**请在熄屏场景重跑并确认两点：**
+- **系统在每次屏幕状态切换时都会把进程挪回去**，所以要在熄屏事件里重新下发，不能只做一次。
+- **我方无需任何代码改动。** 绑核作用域构造在每次解码调用里（`SherpaOnnxDecodeOnlineStream`），
+  一秒重试多次；日志里只看到 2 条 `result=22` 是因为上报按位去重，不是只试了 2 次。
+  你们一旦挪完，下一次解码就会把 `cpuIds=[4..11]` 绑上。
 
-- hilog 中 `role-qos requested=0 result=0 effective=0` 这三行**消失**
-- 锁屏期间 partial 间隔是否回到 0.45 s 量级（而非 1.36 s）
+**(c) 改渲染策略 —— 不需要改 SDK，可能解掉大半用户感知。**
 
-第二点我方无法验证——熄屏测试在我方环境不可靠，这正是该问题最初被搁置的原因。
-观测点在客户侧：你们的日志里有这三行，我方压测环境的日志抓取反而看不到会话启动期。
+你们锁屏期**文字是跟得上的**，这是从你们自己的日志统计出来的：
+
+| 阶段 | 首个 partial | 句末→final | 扣掉句长后的真实滞后 |
+| --- | --- | --- | --- |
+| 锁屏期（29 句） | **803 ms** | **405 ms** | **1.65 s** |
+| 亮屏排空期（20 句） | 500 ms | 51 ms | — |
+
+落后的只有角色标签：锁屏期 **26/29 个 final 的 `speakerIndex = -1`**。而句长中位 12.4 s、
+最长正好 25.0 s（SDK 的句长上限在起作用）。
+
+所以"说完等 30~40 秒才上屏"更可能是两件事叠加：界面只渲染 final（要等整句说完），
+以及等角色标签齐了才上文字（标签落后 13~67 s）。**先渲染 partial、角色标签等
+`onSpeakerDiarizationUpdate` 再回填**，用户就不必等。该接口本就带修订语义。
+
+另外，想让句子更短可以调小 `endpointMaxUtteranceMs`（本版起长录音模式真正采纳该值，
+夹在 `[5s, 25s]`，有效值回显在 `kind=SESSION_CONFIG`）。此前该值在长录音模式下被静默忽略。
 
 ### 2. 问题二：确认那约 70 秒的实际情况
 
@@ -190,11 +288,17 @@ kind=SESSION_CONFIG sessionId=1 language=ZH_EN vad=true vadActiveEndpointSilence
 
 | 项 | 状态 | 说明 |
 | --- | --- | --- |
-| 问题一的熄屏症状 | **未验证** | 仅验证了「不再申请 background QoS」，未验证「因此变快」。需客户在熄屏场景确认 |
-| 问题一的改动生效条件 | **需客户配合** | 默认 `false`，客户不加配置则无变化 |
+| **问题一** | **未解决** | 根因是进程级 cpuset，SDK 侧无独立解法：缺口 0.20×，而角色分离链全部开销仅 0.180× |
+| 问题一的原修正 `displayMayTurnOff` | **已证无效** | 客户 10-14 复测两场，开关生效（`role-qos` 全程 0）但实时率仍 0.80× |
+| 问题一的干净基线 | **待复测** | 客户测的 1013 包正式 SDK 误用 diagnostics 模式（我方缺陷），0.80× 中该开销占比未知 |
+| 问题一的 cpuset 迁移可行性 | **待客户确认** | 需系统权限写 `/dev/cpuset/*/tasks`，且每次屏幕状态切换后重新下发 |
 | 问题二的主要症状 | **仍在** | 最大空档从 105 s 降到 72.5 s，用户仍会看到长时间无输出 |
 | 问题二残余的归因 | **待客户确认** | 「该段无可转写语音」证据较强（三臂同一地板）但未经客户确认 |
 | 问题二 25 秒上限的覆盖 | **有限** | 上限要求当前已有文字；解码器无文字时上限不生效，这正是残余空档的成因 |
+| 问题三 | **已改未交付** | 三臂真机验证通过，但尚未打包给客户 |
+| 分割换 MS Lite CPU 运行时 | **未验证** | 10-08 探针显示 35.2 vs 97 ms/窗，但非受控对比，且未在小核域验证 |
+| 放宽 hop 以降成本 | **被挡住** | `CommunityHopSamples` 取相邻窗口起点的**最小**间距，中途改 hop 会使 Fb 按密集证据缩放而后半段实际稀疏，正是 #260 要修的失败模式 |
+| 熄屏场景的生命周期门禁 | **测不了** | 熄屏下 ArkTS UI 线程冻结，demo 的压测状态上报走 UI 层，`completes=0`。这是 demo/harness 限制，不是 SDK 问题 |
 
 另需说明：`maxSpeakers` 取值范围为 1–4（`SpeakerDiarizationConfigPolicy.ts`，超出直接抛错）。
 若实际会议超过 4 人，多出的人会被并入已有标签，角色结果本身就会不准。这是既有产品限制，
@@ -249,3 +353,95 @@ done
 
 判据：最大 final 间隔、`source=utterance-length` 是否触发、`kind=SESSION_CONFIG` 中
 `rule3UtteranceSec` 的实际取值。
+
+---
+
+## 七、问题仍在时，需要客户提供什么
+
+本节是「装上修订包以后问题还在」时的材料清单。按问题分列，但**第 0 项对三个问题都必需**。
+
+### 0. 最优选项：用 Diagnostics SDK 跑一次复现
+
+包内 `diagnostics-sdk/` 是专门为此准备的。它能产出一样东西是任何其他途径都给不了的：
+**每个 session 的 `sdk-input.wav`，即 SDK 实际收到的音频**。有了它，问题二可以一次定性——
+到底是麦克风没收到声音，还是 SDK 收到了却没识别出来。目前我方三种干预都停在同一地板，
+最可能的解释是前者，但没有这份音频就只能是推断。
+
+做法：把应用依赖临时换成 `diagnostics-sdk/sdk/` 里的 HAR（接口与正式 SDK 完全相同，无需改代码），
+复现一次，然后：
+
+```bash
+python3 tools/collect_asr_diagnostics.py --device auto --last 1 \
+  --bundle <你们的 bundle name> --note "熄屏后仍变慢" --include-all-sessions
+```
+
+`--bundle` 必须传你们自己的包名（工具默认读随包 Demo）。多 HAP 应用再加 `--module`。
+工具会自己校验、脱敏 hilog、打 ZIP 并给出 SHA-256，直接把那个 ZIP 发回即可。
+
+如果不方便换依赖，也可以只用正式 SDK，按下面第 1 项准备材料——但问题二大概率仍定不了性。
+
+### 0b. hilog 必须在复现期间流式抓取
+
+这一条请务必照做，否则材料会白费。设备 hilog 是按域滚动的缓冲，**事后导出抓不到会话启动期**：
+我方实测导出的文件跨了 5 天 8059 行，而当轮的 `AmphionMetrics` 只剩 13 条，
+`role-qos`、`kind=LOAD`、`kind=SESSION_CONFIG` 全部丢失。`hilog -r` 在该环境清不掉缓冲。
+同一配置下改用流式抓取，得到 91031 行完整日志和 3 行 `role-qos`。
+
+```bash
+hdc shell hilog > live.txt &          # 点"开始录音"之前就启动
+# 在手机上正常操作：进入会议纪要 → 开始录音 → 复现问题 → 停止
+kill %1                              # 停止录音之后再关
+```
+
+### 1. 问题一仍在（熄屏后仍然变慢）
+
+| 材料 | 说明 |
+| --- | --- |
+| 两次对照会话的流式 hilog | 同一台机器、同一段话、相近时长，一次亮屏一次熄屏 |
+| 两次会话的原始音频 | 未转码、未重采样、未裁剪 |
+| 应用的线程相关调用 | 有没有自己绑核、设置线程 QoS、申请长时任务（continuous task）？有的话给出具体调用和参数 |
+| 熄屏期间的 CPU 状态采样（可选但很有用） | 每秒一次：`cat /sys/devices/system/cpu/cpu*/online` 和 `.../cpufreq/scaling_cur_freq` |
+
+partial 间隔不需要你们统计，我方会从 `CALLBACK_RESULT` 自己算。
+
+**先看一眼就能分流：**
+
+| hilog 中的现象 | 含义 |
+| --- | --- |
+| `role-qos requested=0 result=0 effective=0` 仍有 3 行 | 配置没生效。检查是否传给了 `createEngine`（引擎级，`createEngine` 之后再改无效） |
+| 这三行已消失，但仍然慢 | 我方归因不完整。需要上表的 CPU 状态采样继续查 |
+
+另外请一并回传 `kind=SESSION_CONFIG` 那一行，用于确认会话参数与预期一致。
+
+### 2. 问题二仍在（吐字慢）
+
+| 材料 | 说明 |
+| --- | --- |
+| 流式 hilog + 同一次会话的原始音频 | 两者必须是同一次会话，否则无法对齐 |
+| 空档的起止时间 | 用手机本地时间，精确到秒 |
+| 那段时间实际说了什么 | 口述大意即可，不需要逐字 |
+| 说话人距麦克风多远、是否外放/免提/蓝牙耳机 | 决定输入增益是否够 |
+| 录音链路参数 | 采样率、声道数，以及音频是否经过 AEC / 降噪 / AGC |
+
+最有价值的仍是第 0 项的 `sdk-input.wav`。若确实无法提供，退一步的办法是**复现时用另一台设备
+或录音机并行录一份**：若并行录音里听得清而 SDK 没出文字，问题在我方；若并行录音里也听不清，
+问题在采集链路。
+
+### 3. 问题三仍在（角色结果迟到）
+
+| 材料 | 说明 |
+| --- | --- |
+| 覆盖整段会话的流式 hilog | 不能只给尾部。我方此前因只拿到尾部日志而得出过错误结论 |
+| 会议实际人数 | `maxSpeakers` 上限为 4（见第五节）；超过 4 人时角色结果本身就会不准 |
+| 两个回调的到达时间 | `onSpeakerDiarizationUpdate` 与 `onSpeakerDiarizationResult`，应用侧打点即可 |
+| 会话总时长 | 权威角色结果按 120 秒提交周期产出，短会话本就会「迟到」。先确认是否属于这种情况 |
+
+### 4. 材料怎么整理
+
+- **一次会话一个目录**，内含 hilog、原始音频、一行说明（时间、机型、系统版本、SDK 版本、
+  是否开说话人分离、是否锁屏、现象一句话）。
+- **音频不要转码，不要重采样。** 若因会议内容敏感必须裁剪，请**保留空档前后各 2 分钟**
+  并说明已裁剪——我方需要这段上下文来判断输入增益和有声占比，裁得太紧就判不了。
+- **不要只给截图。** 我方需要可检索的文本日志。
+- 日志里如含敏感内容，可自行替换，但请保留 `AmphionMetrics` / `AmphionRuntime` /
+  `ASR_STRESS` 这几个标签的行不变——定位全靠它们。
