@@ -1,4 +1,5 @@
 """Portable clustering regressions; all vectors are synthetic, never voiceprints."""
+import os
 import shutil
 import subprocess
 import tempfile
@@ -1498,16 +1499,27 @@ class SharedTranslationUnitCompilesForAndroidTest(unittest.TestCase):
         ort = ROOT / 'tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include'
         if not (ort / 'onnxruntime_cxx_api.h').is_file():
             self.skipTest('bundled ONNX Runtime headers unavailable')
+        # jni.h ships with a JDK, which sits somewhere different on every host.
+        # Each lookup is optional and a miss is a skip: this test is about a
+        # platform guard in our source, not about the runner's Java install.
+        def jdk_candidates():
+            home = os.environ.get('JAVA_HOME')
+            if home:
+                yield Path(home) / 'include'
+            locator = Path('/usr/libexec/java_home')
+            if locator.is_file():
+                located = subprocess.run([str(locator)], capture_output=True, text=True)
+                if located.returncode == 0 and located.stdout.strip():
+                    yield Path(located.stdout.strip()) / 'include'
+            for pattern in ('/usr/lib/jvm/*/include', '/usr/java/*/include'):
+                for found in sorted(Path('/').glob(pattern.lstrip('/'))):
+                    yield found
         jni_roots: list[Path] = []
-        java_home = subprocess.run(['/usr/libexec/java_home'], capture_output=True, text=True)
-        if java_home.returncode == 0:
-            base = Path(java_home.stdout.strip()) / 'include'
-            jni_roots = [base, base / 'darwin', base / 'linux']
-        else:
-            for candidate in sorted(Path('/usr/lib/jvm').glob('*/include')):
-                jni_roots = [candidate, candidate / 'linux']
+        for base in jdk_candidates():
+            if (base / 'jni.h').is_file():
+                jni_roots = [base, base / 'darwin', base / 'linux']
                 break
-        if not any((root / 'jni.h').is_file() for root in jni_roots):
+        if not jni_roots:
             self.skipTest('JNI headers unavailable')
         command = [
             compiler, '-std=c++17', '-fsyntax-only', '-D__ANDROID__',
