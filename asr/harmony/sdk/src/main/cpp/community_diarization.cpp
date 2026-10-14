@@ -486,9 +486,13 @@ class Model {
     if (!encoder_on_cpu) {
       options.AddConfigEntry("session.force_spinning_stop", "1");
     }
+#ifndef __ANDROID__
+    // This translation unit is shared with the Android JNI target, which has no
+    // hilog. Every other report in it is guarded the same way.
     OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
                  "community-segmentation threads=%{public}d encoderOnCpu=%{public}d",
                  encoder_on_cpu ? 1 : kSegmentationThreads, encoder_on_cpu ? 1 : 0);
+#endif
     segmentation_ = Ort::Session(env_, segmentation.data(), segmentation.size(), options);
     pooling_ = Ort::Session(env_, pooling.data(), pooling.size(), options);
     Ort::AllocatorWithDefaultOptions allocator;
