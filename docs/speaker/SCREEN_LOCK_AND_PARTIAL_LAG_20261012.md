@@ -30,9 +30,27 @@ return diarizationHopMs >= 2000 ? 'background' : 'inherit';
 `role-qos requested=0 result=0 effective=0` 正是它（`QOS_BACKGROUND = 0`）。据此交付了
 `displayMayTurnOff` 开关，声明可能熄屏时保持 `inherit` 不降档。
 
-**该归因不成立。** 客户用 0.3.22-1013 开启该开关后复测（10-14 两场），全量 hilog 中
-`role-qos` **一条都没有**（开关生效、SDK 不再申请降档），而熄屏实时率仍为 **0.80×**，滞后随锁屏
-时长线性累积，峰值 67.6 s。所以线程级 QoS 申请是一个真实但**非约束性**的因素。
+**该归因不成立，而且其因果前提本身是错的。**
+
+先看现场：客户用 0.3.22-1013 开启该开关后复测（10-14 两场），全量 hilog 中 `role-qos`
+**一条都没有**（开关生效、SDK 不再申请降档），而熄屏实时率仍为 **0.80×**，滞后随锁屏时长线性
+累积，峰值 67.6 s。
+
+再看机制。该归因依赖一句我方写进源码注释和交付文档的论断：「background QoS 隐含 background
+cpuset，所以应用侧的绑核拼不过它」。**我方已实测否证该论断**（Kirin 9020，熄屏，`--asr-qos
+user-interactive`）：
+
+| 线程 | QoS 实测 | `Cpus_allowed_list` |
+| --- | --- | --- |
+| 识别线程 | `qos-effective result=5` = `QOS_USER_INTERACTIVE`（**最高档**） | `0,1,2,3` |
+| 角色线程 | `role-qos effective=0` = `QOS_BACKGROUND`（**最低档**） | `0,1,2,3` |
+| 进程全部 54 个线程 | — | **全部 `0,1,2,3`** |
+
+**最高档和最低档的可用核完全相同。** QoS 决定的是在**既定核集合内**的调度权重；核集合本身由
+系统按进程前后台状态指派为 cpuset，`sched_setaffinity` 与 QoS **都无法扩大它，root 亦然**。
+
+所以 `displayMayTurnOff` 不是实现有缺陷，而是整条因果链从一开始就错了。该开关的实际作用只是
+「不让角色线程在已被限制的那几个核里再被降权」，现场复测未测出可辨识收益。
 
 #### 成立的归因：进程级 cpuset，与我们是否申请无关
 
@@ -214,11 +232,16 @@ sherpa 侧 `RuleActivated` 对负值直接返回 false，所以 `long` 模式下
 修正包的正式 SDK 为 `debug` 模式，可在包内 `docs/build-identity.json` 自行核对
 `build_mode`。
 
-**(b) 把进程移出受限 cpuset —— 这是唯一能独立解决问题一的办法。**
+**(b) 把进程或其工作线程移出受限 cpuset —— 这是唯一能独立解决问题一的办法。**
 
-你们亮屏稳态 lag ≈ 0.5 s，证明大核下本来就 ≥1×。但入口**不是** `sched_setaffinity`：
-它绕不过 cpuset，root 也不行（内核求交集为空即 `EINVAL`，正是你们日志里的 `result=22`）。
-需要的是：
+你们亮屏稳态 lag ≈ 0.5 s，证明大核下本来就 ≥1×。但两条常见入口都已被实测排除：
+
+| 入口 | 结果 |
+| --- | --- |
+| `cpuIds`（`sched_setaffinity`） | 熄屏后 `EINVAL`。只能在 cpuset 内收窄，无法扩大，root 亦然 |
+| `scheduling.qos` 调到最高档 | **无效**。`QOS_USER_INTERACTIVE` 与 `QOS_BACKGROUND` 的可用核相同，均为 0-3 |
+
+需要的是改 cpuset 归属本身：
 
 ```sh
 echo <pid> > /dev/cpuset/<宽松组>/tasks     # 或给 key-background/cpus 加核

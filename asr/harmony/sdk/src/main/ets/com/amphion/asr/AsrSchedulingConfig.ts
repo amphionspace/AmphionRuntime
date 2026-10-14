@@ -41,22 +41,36 @@ export class AsrSchedulingConfig {
    * explicitly asks for a faster cadence keeps a configuration that fits rather
    * than being rejected. Asking for 'background' outright at a shorter hop is
    * still an error: that pair was measured to leave 5% of the window budget.
+   *
+   * This level does not decide which cores the workers may use. That is the
+   * process's cpuset, which the system assigns from its foreground state; a
+   * thread at the highest QoS and one at the lowest were measured to report the
+   * same Cpus_allowed_list. See displayMayTurnOff for the measurement.
    */
   diarizationQos: string = 'auto';
   /**
    * Whether this session may keep recording with the display off.
    *
-   * 'background' was measured with the display on, where it leaves 5% of the
-   * 1500 ms window budget. Turning the display off removes the big cluster, and
-   * a background-QoS thread is confined to what is left, so that margin is gone
-   * and windows start arriving late: a caller that had asked for nothing saw
-   * partials stretch from 0.45 s to 1.36 s. Thread affinity does not rescue it,
-   * because background QoS also selects the background cpuset.
+   * Retained for compatibility and measured not to fix what it was added for.
+   * It was introduced on the reading that a background QoS request also selects
+   * the background cpuset, so that giving the request up would keep the role
+   * workers on the big cluster with the display off. That reading is wrong.
+   * Measured on a Kirin 9020 with the display off: a recognizer thread holding
+   * QOS_USER_INTERACTIVE, the highest level, and a role worker holding
+   * QOS_BACKGROUND, the lowest, report the same Cpus_allowed_list of 0-3, and
+   * all 54 threads of the process report it. QoS sets scheduling weight inside
+   * whatever cpuset the process is in; the cpuset is assigned by the system from
+   * the process's foreground state and neither QoS nor sched_setaffinity can
+   * widen it, root included.
    *
-   * Only the caller knows whether the display may turn off, so 'auto' asks
-   * instead of guessing: with this set it stays at 'inherit' and keeps the
-   * margin, and the heat it would have saved is not worth losing windows for.
-   * An explicit 'background' is still honoured.
+   * So what this switch actually does is keep the role workers from being
+   * deprioritised among the cores they are already confined to. The field
+   * retest found no measurable benefit for the screen-off symptom: with the
+   * switch on, role-qos is absent from the whole capture and the lock-period
+   * rate is unchanged at 0.80x.
+   *
+   * With the display on it still gives up the heat the lower operating point
+   * saved, which is what it was always documented to cost.
    */
   displayMayTurnOff: boolean = false;
   /**
