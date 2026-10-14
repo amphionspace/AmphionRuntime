@@ -45,6 +45,7 @@ def run_community_session(body):
           for(let i=0;i<n;i++){segments.set(this.evidence[i].segments,i*589*3);embeddings.set(this.evidence[i].embeddings,i*3*256);}
           return {segments,embeddings};}
         cancel(cb){cb?.()} cleanup(cb){cb?.()} finish(){} stopInference(){this.stopped=true}
+        pendingWindowCount(){return this.pending??0}
       }
       function session() {return new SpeakerDiarizationSession({},'',4,{
         onSpeakerDiarizationUpdate(){},onWindowResult(){},onFinished(){}});}

@@ -184,6 +184,18 @@ export class SpeakerDiarizationLocalClient {
     }
   }
 
+  /**
+   * Windows owed to inference: spooled but unpulled, queued, and the one in flight.
+   *
+   * A finish cannot publish roles until this reaches zero, so its value at stop
+   * separates "inference fell behind the audio" from "clustering was slow".
+   */
+  pendingWindowCount(): number {
+    if (this.closed || this.degraded || this.stopped) return 0;
+    return this.scheduler.availableCount() + this.queue.length +
+      (this.activeJob !== undefined ? 1 : 0);
+  }
+
   finish(): void {
     if (this.closed || this.finishing) return;
     this.finishing = true;

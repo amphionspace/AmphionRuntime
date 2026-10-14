@@ -50,6 +50,14 @@ export class DiarizationCommitClock {
     return queued;
   }
 
+  /**
+   * Boundaries planned but not yet committed.
+   *
+   * Each one is a full clustering pass that a finish must run before the final
+   * commit, so its value at stop says how much deferred work the finish owes.
+   */
+  pendingCount(): number { return this.pending.length; }
+
   takeReady(inferenceEndTime: number): DiarizationCommitBoundary | undefined {
     const next = this.pending[0];
     if (next === undefined || inferenceEndTime < next.evidenceEndTime) return undefined;

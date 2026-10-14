@@ -497,17 +497,21 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             timeoutBarrier.resolveSpeaker({{ degraded: false, value: 'late' }});
             assert.equal(timedOut.length, 1);
 
+            // The deadline runs from stop, so a slow ASR tail spends it. Nothing is
+            // emitted while ASR drains, and what finally lands is degraded: the
+            // budget was consumed, not extended.
             const missingAsr = [];
             const missingAsrBarrier = new SpeakerDiarizationFinishBarrier(
               20, result => missingAsr.push(result));
             missingAsrBarrier.begin();
             await new Promise(resolve => setTimeout(resolve, 40));
-            assert.deepEqual(missingAsr, []);
+            assert.deepEqual(missingAsr, [], 'accepted PCM must drain before last/complete');
             missingAsrBarrier.resolveAsr('actual-tail');
-            missingAsrBarrier.resolveSpeaker({{ degraded: false, value: 'speakers' }});
             assert.deepEqual(missingAsr, [{{
-              asr: 'actual-tail', speaker: 'speakers', degraded: false
+              asr: 'actual-tail', speaker: undefined, degraded: true
             }}]);
+            missingAsrBarrier.resolveSpeaker({{ degraded: false, value: 'speakers' }});
+            assert.equal(missingAsr.length, 1);
             """
         )
 
@@ -522,7 +526,9 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
               {{ degraded: false, value: 'complete-in-grace' }}, undefined]) {{
               const outputs = [];
               let timeouts = 0;
-              const barrier = new SpeakerDiarizationFinishBarrier(20, result => outputs.push(result), 200,
+              // 220 total with 200 reserved: the salvage is asked at 20 ms and the
+              // grace ends at 220 ms, so the whole finish still costs 220 ms.
+              const barrier = new SpeakerDiarizationFinishBarrier(220, result => outputs.push(result), 200,
                 () => {{ timeouts++; if (salvage !== undefined) barrier.resolveSpeaker(salvage); }});
               barrier.begin();
               barrier.resolveAsr('last');
@@ -630,27 +636,33 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         )
 
     def test_diarization_timeout_never_replaces_pending_asr_tail(self) -> None:
+        """A spent deadline still cannot publish before the recognizer's tail."""
         run_node(
             f"""
             import assert from 'node:assert/strict';
             import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
-            let expire;
-            globalThis.setTimeout = fn => {{ expire = fn; return 1; }};
+            const timers = [];
+            globalThis.setTimeout = (fn, delay) => {{ timers.push({{ fn, delay }}); return timers.length; }};
             globalThis.clearTimeout = () => {{}};
             for (const speakerFirst of [false, true]) {{
-              expire = undefined;
+              timers.length = 0;
               const events = [];
               const barrier = new SpeakerDiarizationFinishBarrier(
                 15000, result => events.push(result));
               barrier.begin();
+              // Anchored at stop, so the deadline is armed by begin() and not by
+              // the ASR tail: that is what keeps the whole finish inside it.
+              assert.equal(timers.length, 1, 'the deadline runs from stop');
+              assert.equal(timers[0].delay, 15000);
               if (speakerFirst) barrier.resolveSpeaker({{ degraded: false, value: 'speakers' }});
-              assert.equal(expire, undefined, 'ASR backlog is not a diarization timeout');
               assert.deepEqual(events, [], 'accepted PCM must drain before last/complete');
-              barrier.resolveAsr('actual-tail-after-draining');
               if (!speakerFirst) {{
-                assert.deepEqual(events, []);
-                expire();
+                // Firing it while ASR is still draining degrades diarization and
+                // nothing else. ASR is never the thing that gets dropped.
+                timers[0].fn();
+                assert.deepEqual(events, [], 'a spent deadline cannot publish without the tail');
               }}
+              barrier.resolveAsr('actual-tail-after-draining');
               assert.deepEqual(events, [{{
                 asr: 'actual-tail-after-draining',
                 speaker: speakerFirst ? 'speakers' : undefined,
@@ -658,12 +670,106 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
               }}]);
               barrier.resolveAsr('duplicate');
               barrier.resolveSpeaker({{ degraded: false, value: 'late-speakers' }});
-              expire?.();
               assert.equal(events.length, 1);
             }}
             """
         )
         self.assertNotIn("createSpeakerDiarizationTimeoutLastResult", ADAPTER.read_text())
+
+    def test_spent_deadline_defers_the_salvage_until_the_recognizer_tail(self) -> None:
+        """Blocked on ASR, freezing roles buys no latency, so it waits for the tail."""
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            const timers = [];
+            globalThis.setTimeout = (fn, delay) => {{ timers.push({{ fn, delay }}); return timers.length; }};
+            globalThis.clearTimeout = () => {{}};
+
+            let salvages = 0;
+            const events = [];
+            const barrier = new SpeakerDiarizationFinishBarrier(
+              15000, result => events.push(result), 3000, () => {{ salvages += 1; }});
+            barrier.begin();
+            assert.equal(timers[0].delay, 12000);
+
+            // Deadline reached with the recognizer still draining.
+            timers[0].fn();
+            assert.equal(salvages, 0, 'a blocked callback must not pay for a salvage');
+            assert.equal(timers.length, 1, 'the reserve is not spent while ASR drains');
+            assert.deepEqual(events, []);
+
+            // Clustering keeps the time it was going to spend blocked anyway, so a
+            // session that finishes in that window still reports complete roles.
+            barrier.resolveSpeaker({{ degraded: false, value: 'complete-while-blocked' }});
+            assert.deepEqual(events, [], 'accepted PCM must drain before last/complete');
+            barrier.resolveAsr('late-tail');
+            assert.deepEqual(events, [{{
+              asr: 'late-tail', speaker: 'complete-while-blocked', degraded: false
+            }}]);
+            assert.equal(salvages, 0);
+
+            // Unfinished at the tail: the salvage it was owed starts there.
+            let lateSalvages = 0;
+            const lateEvents = [];
+            timers.length = 0;
+            const late = new SpeakerDiarizationFinishBarrier(
+              15000, result => lateEvents.push(result), 3000, () => {{ lateSalvages += 1; }});
+            late.begin();
+            timers[0].fn();
+            late.resolveAsr('tail-after-deadline');
+            assert.equal(lateSalvages, 1, 'the salvage is deferred, not skipped');
+            assert.equal(timers[1].delay, 3000);
+            assert.deepEqual(lateEvents, []);
+            timers[1].fn();
+            assert.deepEqual(lateEvents, [{{
+              asr: 'tail-after-deadline', speaker: undefined, degraded: true
+            }}]);
+            const timings = late.timings();
+            assert.equal(timings.timedOut, true);
+            assert.equal(timings.salvaged, true);
+            assert.ok(timings.stopToSalvageMs >= timings.stopToAsrTailMs,
+              'a deferred salvage is visible as starting at or after the tail');
+            """
+        )
+
+    def test_finish_deadline_reserves_the_salvage_instead_of_extending(self) -> None:
+        """Stop to roles stays inside the deadline; the reserve is carved out of it."""
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationFinishBarrier }} from {BARRIER.as_uri()!r};
+            const timers = [];
+            globalThis.setTimeout = (fn, delay) => {{ timers.push({{ fn, delay }}); return timers.length; }};
+            globalThis.clearTimeout = () => {{}};
+
+            let salvages = 0;
+            const events = [];
+            const barrier = new SpeakerDiarizationFinishBarrier(
+              15000, result => events.push(result), 3000, () => {{ salvages += 1; }});
+            barrier.begin();
+            barrier.resolveAsr('tail');
+            // Ask for the salvage with the reserve still unspent, then expire at the
+            // deadline itself. The two delays sum to the deadline, never past it.
+            assert.equal(timers[0].delay, 12000, 'salvage is asked inside the deadline');
+            timers[0].fn();
+            assert.equal(salvages, 1);
+            assert.equal(timers[1].delay, 3000, 'the reserve is the remainder');
+            assert.equal(timers[0].delay + timers[1].delay, 15000);
+            assert.deepEqual(events, [], 'the grace period still waits for salvaged speakers');
+            timers[1].fn();
+            assert.deepEqual(events,
+              [{{ asr: 'tail', speaker: undefined, degraded: true }}]);
+            const timings = barrier.timings();
+            assert.equal(timings.timedOut, true);
+            assert.equal(timings.salvaged, true);
+
+            // A reserve that cannot fit inside the deadline is a configuration error,
+            // not a budget that silently grows.
+            assert.throws(() => new SpeakerDiarizationFinishBarrier(
+              3000, () => {{}}, 3000, () => {{}}));
+            """
+        )
 
     def test_diarization_runtime_release_waits_for_active_native_work(self) -> None:
         run_node(
