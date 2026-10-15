@@ -1,0 +1,21 @@
+[20:54:36] === 场次 C3-干净包-亮屏220s 开始 cpuIds=none screen=on ===
+[20:54:39] 降温中 shell_back=29.61C 目标<=29.0C
+[20:54:59] 降温中 shell_back=29.55C 目标<=29.0C
+[20:55:19] 降温中 shell_back=29.62C 目标<=29.0C
+[20:55:40] 降温中 shell_back=29.62C 目标<=29.0C
+[20:56:00] 降温中 shell_back=29.48C 目标<=29.0C
+[20:56:20] 降温中 shell_back=29.42C 目标<=29.0C
+[20:56:40] 降温中 shell_back=29.35C 目标<=29.0C
+[20:57:00] 降温中 shell_back=29.26C 目标<=29.0C
+[20:57:20] 降温中 shell_back=29.22C 目标<=29.0C
+[20:57:40] 降温中 shell_back=29.15C 目标<=29.0C
+[20:58:00] 降温中 shell_back=29.30C 目标<=29.0C
+[20:58:21] 降温中 shell_back=29.21C 目标<=29.0C
+[20:58:41] 降温中 shell_back=29.10C 目标<=29.0C
+[20:59:01] 降温中 shell_back=29.04C 目标<=29.0C
+[20:59:21] 降温结束 shell_back=28.98C 等待=282s
+[20:59:21] 起始温度 {"Battery": 28.0, "ambient": 23.963, "charger": 28.35, "modem": 0.0, "pa_s": 27.476, "rfboard": 27.904, "shell_back": 28.976, "shell_frame": 28.476, "shell_front": 28.476, "system_h": 28.2} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -22, 'temperature': 280}
+[20:59:22] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 /Users/momo/project/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/corpus-220 --mode paced --files 1 --cycles 1 --pace-ms 20 --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/runs/C3-clean-on220/stress --enable-diarization
+[20:59:25] 检测到会话首帧，T0=+3.0s
+[21:03:12] 驱动退出 rc=0 墙钟=229.9s 结束温度 {"Battery": 30.0, "ambient": 24.096, "charger": 30.65, "modem": 0.0, "pa_s": 28.8, "rfboard": 28.55, "shell_back": 30.403, "shell_frame": 29.903, "shell_front": 29.903, "system_h": 30.8} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -64, 'temperature': 300}
+[21:03:12] === 场次 C3-干净包-亮屏220s 结束 ===

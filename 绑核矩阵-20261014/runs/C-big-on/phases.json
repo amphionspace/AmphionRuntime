@@ -1,0 +1,265 @@
+{
+  "name": "C-亮屏绑大核",
+  "cpu_ids": "10,11",
+  "screen": "on",
+  "t0_ms": 1791989044092,
+  "input_end_ms": 1791989567814,
+  "last_event_ms": 1791989569469,
+  "input_feed_s": 523.7,
+  "observed_tail_s": 1.7,
+  "audio_total_s": 523.7,
+  "audio_processed_s": 523.7,
+  "unprocessed_at_end_s": 0.0,
+  "phases": [
+    {
+      "phase": "全程",
+      "wall_s": 523.7,
+      "audio_done_s": 523.7,
+      "realtime": 1.0
+    },
+    {
+      "phase": "前 1/3",
+      "wall_s": 174.6,
+      "audio_done_s": 174.6,
+      "realtime": 1.0
+    },
+    {
+      "phase": "中 1/3",
+      "wall_s": 174.6,
+      "audio_done_s": 174.5,
+      "realtime": 1.0
+    },
+    {
+      "phase": "后 1/3",
+      "wall_s": 174.6,
+      "audio_done_s": 174.6,
+      "realtime": 1.0
+    },
+    {
+      "phase": "输入结束后排空",
+      "wall_s": 1.7,
+      "audio_done_s": 0.0,
+      "realtime": 0.012
+    }
+  ],
+  "lag_peak": {
+    "rel_s": 405.0,
+    "written_s": 405.0,
+    "processed_s": 404.6,
+    "lag_s": 0.4
+  },
+  "lag_p50_s": 0.0,
+  "lag_p95_s": 0.2,
+  "lag_curve": [
+    {
+      "rel_s": 15.0,
+      "written_s": 15.0,
+      "processed_s": 15.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 30.0,
+      "written_s": 30.0,
+      "processed_s": 30.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 45.0,
+      "written_s": 45.0,
+      "processed_s": 45.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 60.0,
+      "written_s": 60.0,
+      "processed_s": 60.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 75.0,
+      "written_s": 75.0,
+      "processed_s": 74.8,
+      "lag_s": 0.2
+    },
+    {
+      "rel_s": 90.0,
+      "written_s": 90.0,
+      "processed_s": 90.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 105.0,
+      "written_s": 105.0,
+      "processed_s": 104.9,
+      "lag_s": 0.1
+    },
+    {
+      "rel_s": 120.0,
+      "written_s": 120.0,
+      "processed_s": 120.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 135.0,
+      "written_s": 135.0,
+      "processed_s": 135.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 150.0,
+      "written_s": 150.0,
+      "processed_s": 150.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 165.0,
+      "written_s": 165.0,
+      "processed_s": 165.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 180.0,
+      "written_s": 180.0,
+      "processed_s": 179.8,
+      "lag_s": 0.2
+    },
+    {
+      "rel_s": 195.0,
+      "written_s": 195.0,
+      "processed_s": 194.9,
+      "lag_s": 0.1
+    },
+    {
+      "rel_s": 210.0,
+      "written_s": 210.0,
+      "processed_s": 210.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 225.0,
+      "written_s": 225.0,
+      "processed_s": 224.9,
+      "lag_s": 0.1
+    },
+    {
+      "rel_s": 240.0,
+      "written_s": 239.9,
+      "processed_s": 239.6,
+      "lag_s": 0.3
+    },
+    {
+      "rel_s": 255.0,
+      "written_s": 255.0,
+      "processed_s": 255.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 270.0,
+      "written_s": 270.0,
+      "processed_s": 269.9,
+      "lag_s": 0.1
+    },
+    {
+      "rel_s": 285.0,
+      "written_s": 285.0,
+      "processed_s": 285.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 300.0,
+      "written_s": 300.0,
+      "processed_s": 300.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 315.0,
+      "written_s": 315.0,
+      "processed_s": 315.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 330.0,
+      "written_s": 330.0,
+      "processed_s": 330.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 345.0,
+      "written_s": 345.0,
+      "processed_s": 345.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 360.0,
+      "written_s": 360.0,
+      "processed_s": 360.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 375.0,
+      "written_s": 375.0,
+      "processed_s": 375.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 390.0,
+      "written_s": 390.0,
+      "processed_s": 390.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 405.0,
+      "written_s": 405.0,
+      "processed_s": 404.6,
+      "lag_s": 0.4
+    },
+    {
+      "rel_s": 420.0,
+      "written_s": 420.0,
+      "processed_s": 420.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 435.0,
+      "written_s": 435.0,
+      "processed_s": 435.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 450.0,
+      "written_s": 450.0,
+      "processed_s": 449.9,
+      "lag_s": 0.1
+    },
+    {
+      "rel_s": 465.0,
+      "written_s": 465.0,
+      "processed_s": 464.8,
+      "lag_s": 0.2
+    },
+    {
+      "rel_s": 480.0,
+      "written_s": 480.0,
+      "processed_s": 480.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 495.0,
+      "written_s": 495.0,
+      "processed_s": 495.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 510.0,
+      "written_s": 510.0,
+      "processed_s": 510.0,
+      "lag_s": 0.0
+    },
+    {
+      "rel_s": 525.0,
+      "written_s": 523.7,
+      "processed_s": 523.7,
+      "lag_s": 0.0
+    }
+  ]
+}

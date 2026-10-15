@@ -1,0 +1,7 @@
+[21:49:03] === 场次 C6-干净包-关分离-亮屏220s 开始 cpuIds=none screen=on ===
+[21:49:07] 降温结束 shell_back=27.27C 等待=0s
+[21:49:07] 起始温度 {"Battery": 26.0, "ambient": 23.335, "charger": 26.857, "modem": 0.0, "pa_s": 25.818, "rfboard": 25.863, "shell_back": 27.265, "shell_frame": 26.765, "shell_front": 26.765, "system_h": 27.0} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -95, 'temperature': 260}
+[21:49:08] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 /Users/momo/project/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/corpus-220 --mode paced --files 1 --cycles 1 --pace-ms 20 --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/runs/C6-clean-nodiar-on/stress
+[21:49:11] 检测到会话首帧，T0=+3.0s
+[21:52:57] 驱动退出 rc=0 墙钟=229.1s 结束温度 {"Battery": 28.0, "ambient": 23.491, "charger": 28.55, "modem": 0.0, "pa_s": 27.19, "rfboard": 26.857, "shell_back": 28.699, "shell_frame": 28.199, "shell_front": 28.199, "system_h": 28.55} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -65, 'temperature': 280}
+[21:52:57] === 场次 C6-干净包-关分离-亮屏220s 结束 ===

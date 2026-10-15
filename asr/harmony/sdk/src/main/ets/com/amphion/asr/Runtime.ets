@@ -152,6 +152,28 @@ const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
 const SPEAKER_FINAL_TAIL_MIN_PADDING_MS: number = 800;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
 
+
+// ct-transformer only inserts punctuation, but it also re-spaces ASCII runs, so
+// `2.58万` comes back as `2 . 58万` and `2026/05/15` as `2026 / 05 / 15`. Keep the
+// marks it added and drop the spaces it invented; spaces already present upstream
+// (ITN emits some) survive because they align. Any alignment failure keeps the
+// model's own output untouched.
+function dropPunctuationSpacing(before: string, after: string): string {
+  let out: string = '';
+  let i: number = 0;
+  for (let j: number = 0; j < after.length; j++) {
+    const ch: string = after.charAt(j);
+    if (i < before.length && ch === before.charAt(i)) {
+      out += ch;
+      i++;
+      continue;
+    }
+    if (ch === ' ') continue;
+    out += ch;
+  }
+  return i === before.length ? out : after;
+}
+
 export class AmphionRuntime {
   private static readonly SDK_VERSION: string = HARMONY_SDK_VERSION;
   private static readonly SDK_MAJOR: number = HARMONY_SDK_MAJOR;
@@ -180,6 +202,7 @@ export class AmphionRuntime {
   // Pooled punctuation model (ct-transformer), keyed by `${punctModel}|${numThreads}`. Rebuilt cold in
   // the AsrEngine ctor otherwise, so a verify/VAD toggle re-loads it and adds to the start freeze.
   private static punctuationPool: Map<string, OfflinePunctuation> = new Map<string, OfflinePunctuation>();
+
   private static punctuationLoads: Map<string, Promise<OfflinePunctuation>> =
     new Map<string, Promise<OfflinePunctuation>>();
   private static itnPool: Map<string, WetextItn> = new Map<string, WetextItn>();
@@ -2137,7 +2160,9 @@ export class AsrSession {
     }
     if (this.punctuation !== undefined && result.text.length > 0) {
       try {
-        result.text = this.punctuation.addPunct(result.text);
+        const beforePunct: string = result.text;
+        result.text = dropPunctuationSpacing(
+          beforePunct, this.punctuation.addPunct(beforePunct));
       } catch (e) {
         if (!this.callbackGate.invoke((): void => {
           this.callback.onError?.(new AsrError(AsrErrorCode.POSTPROCESS_FAILED, `${e}`));

@@ -1,0 +1,12 @@
+[21:12:30] === 场次 C5-干净包-B3协议523s 开始 cpuIds=none screen=off ===
+[21:12:33] 降温中 shell_back=30.28C 目标<=30.0C
+[21:12:53] 降温中 shell_back=30.22C 目标<=30.0C
+[21:13:13] 降温中 shell_back=30.13C 目标<=30.0C
+[21:13:33] 降温结束 shell_back=29.96C 等待=60s
+[21:13:33] 起始温度 {"Battery": 29.0, "ambient": 24.034, "charger": 29.38, "modem": 0.0, "pa_s": 28.55, "rfboard": 28.45, "shell_back": 29.964, "shell_frame": 29.464, "shell_front": 29.464, "system_h": 29.285} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -25, 'temperature': 290}
+[21:13:35] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 /Users/momo/project/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/corpus-523 --mode paced --files 1 --cycles 1 --pace-ms 20 --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/runs/C5-clean-b3/stress --enable-diarization --allow-screen-off --hold-mic-capture
+[21:13:38] 检测到会话首帧，T0=+3.0s
+[21:14:39] 已熄屏（会话首帧后 60s）
+[21:20:23] 已亮屏并解锁（会话首帧后 400s），cpuset=/cpuset/top-app
+[21:22:30] 驱动退出 rc=0 墙钟=534.8s 结束温度 {"Battery": 31.0, "ambient": 24.047, "charger": 31.85, "modem": 0.0, "pa_s": 29.952, "rfboard": 29.428, "shell_back": 31.586, "shell_frame": 31.086, "shell_front": 31.086, "system_h": 32.05} 电池 {'capacity': 79, 'chargingStatus': 2, 'nowCurrent': -89, 'temperature': 310}
+[21:22:30] === 场次 C5-干净包-B3协议523s 结束 ===
