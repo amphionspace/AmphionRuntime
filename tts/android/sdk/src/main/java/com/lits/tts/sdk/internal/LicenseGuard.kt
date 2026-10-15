@@ -27,6 +27,12 @@ internal object LicenseGuard {
     @Volatile
     private var enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE
 
+    private var activeContext: Context? = null
+    private var activeOptions: TtsLicenseOptions? = null
+
+    @Volatile
+    private var activeDeadline: Long = Long.MAX_VALUE
+
     /** police 风格显式入口：用业务方给定的 [context] / [options] 验签并缓存。ENFORCE 下失败抛异常。 */
     @Synchronized
     fun configureAndVerify(context: Context, options: TtsLicenseOptions) {
@@ -42,42 +48,68 @@ internal object LicenseGuard {
             sdkMajor = BuildConfig.SDK_MAJOR,
             sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
         )
-        cached = result
         if (!result.ok && enforcement == LicenseEnforcement.ENFORCE) {
             throw licenseException(result)
         }
+        if (result.ok && result.status.state == TtsLicenseStatus.State.LICENSED) {
+            try {
+                LicenseVerifier.acceptGeneration(ctx, resolveLicenseText(ctx, options))
+            } catch (error: EnterpriseLicensePolicy.Rejected) {
+                throw TextToSpeechException(error.code, "license generation rejected")
+            }
+        }
+        cached = result
+        activeContext = ctx
+        activeOptions = options.copy(license = resolveLicenseText(ctx, options), licenseAssetName = null)
+        activeDeadline = if (result.ok && result.status.state == TtsLicenseStatus.State.LICENSED && enforcement == LicenseEnforcement.ENFORCE) {
+            EnterpriseLicensePolicy.deadlineMillis(activeOptions?.license)
+        } else Long.MAX_VALUE
     }
 
     /** createEngine 门禁：复用缓存结果，未 init 时懒校验。ENFORCE 下失败抛异常。 */
+    @Synchronized
     fun gate() {
-        val result = cached ?: lazyVerify()
+        val result = refresh() ?: cached ?: lazyVerify()
         if (!result.ok && enforcement == LicenseEnforcement.ENFORCE) {
             throw licenseException(result)
+        }
+        if (result.ok && result.status.state == TtsLicenseStatus.State.LICENSED) {
+            try {
+                LicenseVerifier.acceptGeneration(activeContext!!, activeOptions?.license)
+            } catch (error: EnterpriseLicensePolicy.Rejected) {
+                throw TextToSpeechException(error.code, "license generation rejected")
+            }
         }
     }
 
     /** 查询当前 license 状态：尚未触发任何校验时返回 NOT_INITIALIZED。 */
-    fun status(): TtsLicenseStatus = cached?.status ?: TtsLicenseStatus.NOT_INITIALIZED
+    @Synchronized
+    fun status(): TtsLicenseStatus = (refresh() ?: cached)?.status ?: TtsLicenseStatus.NOT_INITIALIZED
+
+    fun gateRuntimeTime() {
+        if (System.currentTimeMillis() >= activeDeadline) {
+            throw TextToSpeechException(com.lits.tts.sdk.TtsErrorCode.LICENSE_EXPIRED, "license no longer valid")
+        }
+    }
+
+    private fun refresh(): LicenseVerifier.Result? {
+        val ctx = activeContext ?: return null
+        val options = activeOptions ?: return null
+        return LicenseVerifier.verify(
+            ctx, options.license, BuildConfig.LICENSE_PUBLIC_KEY_B64, options.expiryGraceDays,
+            options.deviceIdProvider, options.deviceSha256, BuildConfig.SDK_MAJOR, BuildConfig.SDK_RELEASE_DATE,
+        ).also { cached = it }
+    }
 
     @Synchronized
     private fun lazyVerify(): LicenseVerifier.Result {
         cached?.let { return it }
         val ctx = AndroidAppContext.tryGet()
-        val result = if (ctx == null) {
-            // 无 Context（纯 JVM 单测 / 不在 Android 进程内）：无法校验，按未武装的开发态放行。
-            // 真机 release 下 AndroidAppContext 必能拿到 ApplicationContext，不会走到这里。
-            LicenseVerifier.devResult("")
-        } else {
-            LicenseVerifier.verify(
-                ctx = ctx,
-                licenseText = resolveLicenseText(ctx, TtsLicenseOptions()),
-                publicKeyB64 = BuildConfig.LICENSE_PUBLIC_KEY_B64,
-                expiryGraceDays = 0,
-                deviceIdProvider = TtsLicenseOptions().deviceIdProvider,
-                sdkMajor = BuildConfig.SDK_MAJOR,
-                sdkReleaseDate = BuildConfig.SDK_RELEASE_DATE,
-            )
+        if (ctx != null) {
+            configureAndVerify(ctx, TtsLicenseOptions())
+            return cached!!
         }
+        val result = LicenseVerifier.devResult("")
         cached = result
         return result
     }
@@ -106,6 +138,9 @@ internal object LicenseGuard {
     /** 仅供单元测试复位静态状态。 */
     internal fun resetForTest() {
         cached = null
+        activeContext = null
+        activeOptions = null
+        activeDeadline = Long.MAX_VALUE
         enforcement = LicenseEnforcement.ENFORCE
     }
 }

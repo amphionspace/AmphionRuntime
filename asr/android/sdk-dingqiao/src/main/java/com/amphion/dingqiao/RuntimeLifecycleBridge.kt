@@ -8,6 +8,7 @@ import com.amphion.asr.AmphionRuntime
 
 internal interface RuntimeLifecycleBridge {
     fun validateLicense(context: Context, options: AmphionOptions): AmphionLicenseStatus
+    fun activateLicense(context: Context, options: AmphionOptions): AmphionLicenseStatus
     fun prepareRuntime(context: Context, options: AmphionOptions)
     fun isRuntimeReady(): Boolean
     fun unloadModel()
@@ -19,6 +20,9 @@ internal object AndroidRuntimeLifecycleBridge : RuntimeLifecycleBridge {
         context: Context,
         options: AmphionOptions,
     ): AmphionLicenseStatus = AmphionRuntime.validateLicense(context, options)
+
+    override fun activateLicense(context: Context, options: AmphionOptions): AmphionLicenseStatus =
+        AmphionRuntime.activateLicense(context, options)
 
     override fun prepareRuntime(context: Context, options: AmphionOptions) {
         AmphionRuntime.init(context, options)

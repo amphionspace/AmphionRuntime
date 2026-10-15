@@ -29,6 +29,8 @@
 -keep class com.amphion.asr.internal.AssetRegistry { *; }
 -keep class com.amphion.asr.internal.AssetRegistry$Bundle { *; }
 -keep class com.amphion.asr.internal.LicenseVerifier { *; }
+-keep class com.amphion.asr.internal.EnterpriseLicensePolicy { *; }
+-keep class com.amphion.asr.internal.EnterpriseLicensePolicy$Rejected { *; }
 -keep class com.amphion.asr.internal.FinalCallbackOrderGate { *; }
 -keep class com.amphion.asr.AsrConfig { *; }
 -keep class com.amphion.asr.internal.StreamingAgcProcessor { *; }

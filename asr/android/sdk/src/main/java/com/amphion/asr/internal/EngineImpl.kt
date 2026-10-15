@@ -128,6 +128,7 @@ internal class EngineImpl(
         get() = closed.get()
 
     fun newSession(callback: AsrCallback, sessionConfig: SessionConfig? = null): SessionImpl {
+        com.amphion.asr.AmphionRuntime.checkInitialized()
         check(!closed.get()) { "Engine is closed (code=${AsrErrorCode.SESSION_ALREADY_CLOSED})" }
         check(closingSessions.awaitAll(SESSION_REUSE_DRAIN_TIMEOUT_MS)) {
             "Previous session decoder did not quiesce in ${SESSION_REUSE_DRAIN_TIMEOUT_MS}ms"

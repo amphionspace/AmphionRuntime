@@ -22,6 +22,12 @@ internal object LicenseVerifier {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
+    fun acceptGeneration(ctx: Context, licenseText: String?) {
+        if (licenseText.isNullOrBlank()) return
+        val envelope = JSONObject(licenseText)
+        EnterpriseLicensePolicy.acceptGeneration(ctx, String(Base64Codec.decode(envelope.getString("payload_b64")), Charsets.UTF_8))
+    }
+
     internal class Result(
         val status: TtsLicenseStatus,
         val errorCode: Int,
@@ -59,6 +65,7 @@ internal object LicenseVerifier {
             sdkReleaseDate = sdkReleaseDate,
             requiredFeature = requiredFeature,
             nowMillis = nowMillis,
+            context = ctx,
         )
     }
 
@@ -74,6 +81,7 @@ internal object LicenseVerifier {
         sdkReleaseDate: String,
         requiredFeature: String,
         nowMillis: Long,
+        context: Context? = null,
     ): Result {
         if (publicKeyB64.isBlank()) {
             return Result(dev(packageName), TtsErrorCode.OK, null)
@@ -102,6 +110,12 @@ internal object LicenseVerifier {
         if (!signatureValid) {
             return failWith(claims, TtsErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
+        try {
+            val policy = EnterpriseLicensePolicy.validate(String(payloadBytes, Charsets.UTF_8), nowMillis)
+            if (context != null) EnterpriseLicensePolicy.checkGeneration(context, policy)
+        } catch (t: Throwable) {
+            return failWith(claims, (t as? EnterpriseLicensePolicy.Rejected)?.code ?: TtsErrorCode.LICENSE_MALFORMED, "Enterprise policy rejected")
+        }
 
         // 新 license 显式选择 allowlist/none；旧 TTS license 缺少策略字段时保持历史单包语义。
         if (!applicationMatches(claims.applicationBindingMode, claims.boundApplicationId, claims.applicationIds, packageName)) {
@@ -119,7 +133,7 @@ internal object LicenseVerifier {
             }
         }
 
-        if (claims.expiresAt.isNotBlank()) {
+        if (!JSONObject(String(payloadBytes, Charsets.UTF_8)).has("authorizationVersion") && claims.expiresAt.isNotBlank()) {
             val expMillis = parseDateUtcMillis(claims.expiresAt)
                 ?: return failWith(claims, TtsErrorCode.LICENSE_MALFORMED, "bad expiresAt=${claims.expiresAt}")
             val deadline = expMillis + (expiryGraceDays + 1).toLong() * DAY_MS
