@@ -1,0 +1,7 @@
+   3 role-qos requested=0 result=0 effective=0
+   2 community-encoder backend=npu device=NPU_ohos.boot.hardware.kirin9020_v2_0 build=0
+   1 qos-set result=0 thread=393779558688
+   1 qos-effective result=3 thread=393779558688
+   1 community-segmentation threads=2 encoderOnCpu=0
+   1 affinity-set result=0 thread=393779558688
+   1 affinity-exact result=1 thread=393779558688

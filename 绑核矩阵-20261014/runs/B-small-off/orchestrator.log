@@ -1,0 +1,33 @@
+[07:19:20] === 场次 B-熄屏绑小核 开始 cpuIds=0,1,2,3 screen=off ===
+[07:19:22] 降温中 shell_back=33.67C 目标<=31.5C
+[07:19:43] 降温中 shell_back=33.66C 目标<=31.5C
+[07:20:03] 降温中 shell_back=33.47C 目标<=31.5C
+[07:20:23] 降温中 shell_back=33.24C 目标<=31.5C
+[07:20:43] 降温中 shell_back=33.10C 目标<=31.5C
+[07:21:03] 降温中 shell_back=32.97C 目标<=31.5C
+[07:21:23] 降温中 shell_back=32.85C 目标<=31.5C
+[07:21:43] 降温中 shell_back=32.76C 目标<=31.5C
+[07:22:03] 降温中 shell_back=32.64C 目标<=31.5C
+[07:22:23] 降温中 shell_back=32.56C 目标<=31.5C
+[07:22:44] 降温中 shell_back=32.49C 目标<=31.5C
+[07:23:04] 降温中 shell_back=32.38C 目标<=31.5C
+[07:23:24] 降温中 shell_back=32.29C 目标<=31.5C
+[07:23:44] 降温中 shell_back=32.23C 目标<=31.5C
+[07:24:04] 降温中 shell_back=32.15C 目标<=31.5C
+[07:24:24] 降温中 shell_back=32.10C 目标<=31.5C
+[07:24:44] 降温中 shell_back=32.08C 目标<=31.5C
+[07:25:04] 降温中 shell_back=32.01C 目标<=31.5C
+[07:25:25] 降温中 shell_back=31.94C 目标<=31.5C
+[07:25:45] 降温中 shell_back=31.87C 目标<=31.5C
+[07:26:05] 降温中 shell_back=31.82C 目标<=31.5C
+[07:26:25] 降温中 shell_back=31.77C 目标<=31.5C
+[07:26:45] 降温中 shell_back=31.72C 目标<=31.5C
+[07:27:05] 降温中 shell_back=31.67C 目标<=31.5C
+[07:27:25] 降温结束 shell_back=31.57C 等待=483s
+[07:27:25] 起始温度 {"Battery": 31.0, "ambient": 26.063, "charger": 31.25, "modem": 0.0, "pa_s": 30.35, "rfboard": 30.65, "shell_back": 31.569, "shell_frame": 31.069, "shell_front": 31.069, "system_h": 31.0} 电池 {'capacity': 82, 'chargingStatus': 2, 'nowCurrent': -32, 'temperature': 310}
+[07:27:27] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 /Users/momo/project/AmphionRuntime/delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/corpus-523 --mode paced --files 1 --cycles 1 --pace-ms 20 --enable-diarization --capture-diagnostics --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root /Users/momo/project/AmphionRuntime/.cache/core-domain-matrix-20261014/runs/B-small-off/stress --asr-cpu-ids 0,1,2,3 --allow-screen-off --hold-mic-capture
+[07:27:30] 检测到会话首帧，T0=+3.0s
+[07:28:31] 已熄屏（会话首帧后 60s）
+[07:36:20] 已亮屏（输入结束后 ~5s），进入排空观察
+[07:36:54] 驱动退出 rc=1 墙钟=566.5s 结束温度 {"Battery": 33.0, "ambient": 25.998, "charger": 33.526, "modem": 0.0, "pa_s": 32.0, "rfboard": 31.15, "shell_back": 33.111, "shell_frame": 32.611, "shell_front": 32.611, "system_h": 33.578} 电池 {'capacity': 82, 'chargingStatus': 2, 'nowCurrent': -16, 'temperature': 330}
+[07:36:54] === 场次 B-熄屏绑小核 结束 ===

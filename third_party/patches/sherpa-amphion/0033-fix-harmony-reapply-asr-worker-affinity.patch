@@ -1,0 +1,180 @@
+From 67db0025b89bb6f4c26009c4f5469bc147d0ece0 Mon Sep 17 00:00:00 2001
+From: Amphion <amphion@local>
+Date: Thu, 15 Oct 2026 02:28:54 -0700
+Subject: [PATCH] fix(harmony): re-apply ASR worker affinity after a cpuset
+ move
+
+An ORT worker binds its affinity once, when the thread starts. The kernel
+rewrites every mask when the process changes cpuset group, so one screen
+lock/unlock cycle costs the whole worker pool its configured cpuIds and only
+the decode call's own thread keeps being re-bound - the field saw 26 bound
+threads become 1. Keep the ids of the workers we create ourselves and, when the
+caller thread's allowed domain shows the group moved, re-apply the request to
+those ids only.
+---
+ sherpa-onnx/csrc/harmony-scheduling.cc | 121 +++++++++++++++++++++++++
+ 1 file changed, 121 insertions(+)
+
+diff --git a/sherpa-onnx/csrc/harmony-scheduling.cc b/sherpa-onnx/csrc/harmony-scheduling.cc
+index aad6efe7..e2ab4b03 100644
+--- a/sherpa-onnx/csrc/harmony-scheduling.cc
++++ b/sherpa-onnx/csrc/harmony-scheduling.cc
+@@ -1,10 +1,15 @@
+ #include "sherpa-onnx/csrc/harmony-scheduling.h"
+ #if defined(__OHOS__)
+ #include <cerrno>
++#include <chrono>
+ #include <cstdio>
++#include <mutex>
+ #include <sstream>
+ #include <stdexcept>
+ #include <thread>
++#include <vector>
++#include <unistd.h>
++#include <sys/syscall.h>
+ #include <hilog/log.h>
+ 
+ namespace sherpa_onnx {
+@@ -21,12 +26,88 @@ void Report(const HarmonyScheduling &policy, unsigned bit, const char *operation
+   }
+ }
+ 
++// The kernel rewrites every thread's affinity when the process changes cpuset
++// group (screen lock moves it to key-background, unlocking moves it back), and
++// an ORT worker binds exactly once, at thread start. Without re-applying, a
++// single lock/unlock cycle permanently loses the caller's cpuIds for the whole
++// worker pool: only the decode call's own thread keeps being re-bound, which is
++// the "26 bound threads become 1" the field reported. Keep the worker ids we
++// created ourselves and re-apply to those, never to threads we do not own.
++class WorkerAffinityRegistry {
++ public:
++  static WorkerAffinityRegistry &Instance() {
++    static WorkerAffinityRegistry registry;
++    return registry;
++  }
++
++  void Add(pid_t tid, const cpu_set_t &requested) {
++    std::lock_guard<std::mutex> guard(mutex_);
++    workers_.push_back({tid, requested});
++  }
++
++  void Remove(pid_t tid) {
++    std::lock_guard<std::mutex> guard(mutex_);
++    for (size_t i = 0; i < workers_.size(); ++i) {
++      if (workers_[i].tid == tid) {
++        workers_.erase(workers_.begin() + i);
++        return;
++      }
++    }
++  }
++
++  // Returns how many workers had drifted and were re-applied.
++  int ReapplyDrifted() {
++    std::lock_guard<std::mutex> guard(mutex_);
++    int repaired = 0;
++    for (const auto &worker : workers_) {
++      cpu_set_t effective;
++      if (sched_getaffinity(worker.tid, sizeof(effective), &effective) != 0) continue;
++      if (CPU_EQUAL(&worker.requested, &effective)) continue;
++      if (sched_setaffinity(worker.tid, sizeof(worker.requested),
++                            &worker.requested) == 0) {
++        ++repaired;
++      }
++    }
++    return repaired;
++  }
++
++ private:
++  struct Worker {
++    pid_t tid;
++    cpu_set_t requested;
++  };
++  std::mutex mutex_;
++  std::vector<Worker> workers_;
++};
++
++// RAII registration for one ORT worker thread.
++class ScopedWorkerRegistration {
++ public:
++  explicit ScopedWorkerRegistration(const HarmonyScheduling &policy) {
++    if (policy.cpu_ids.empty()) return;
++    cpu_set_t requested;
++    CPU_ZERO(&requested);
++    for (int cpu : policy.cpu_ids) CPU_SET(cpu, &requested);
++    tid_ = static_cast<pid_t>(syscall(SYS_gettid));
++    WorkerAffinityRegistry::Instance().Add(tid_, requested);
++  }
++  ~ScopedWorkerRegistration() {
++    if (tid_ != 0) WorkerAffinityRegistry::Instance().Remove(tid_);
++  }
++  ScopedWorkerRegistration(const ScopedWorkerRegistration &) = delete;
++  ScopedWorkerRegistration &operator=(const ScopedWorkerRegistration &) = delete;
++
++ private:
++  pid_t tid_ = 0;
++};
++
+ OrtCustomThreadHandle CreateWorker(void *opaque, OrtThreadWorkerFn work,
+                                    void *param) {
+   const auto *policy = static_cast<const HarmonyScheduling *>(opaque);
+   try {
+     auto *thread = new std::thread([policy, work, param] {
+       ScopedHarmonyScheduling scope(*policy, true);
++      ScopedWorkerRegistration registration(*policy);
+       work(param);
+     });
+     return reinterpret_cast<OrtCustomThreadHandle>(thread);
+@@ -43,6 +124,39 @@ void JoinWorker(OrtCustomThreadHandle handle) {
+     delete thread;
+   }
+ }
++// Detects a cpuset transition from the caller thread's allowed domain and
++// re-applies the configured affinity to the workers we own.
++void ReapplyWorkersOnCpusetChange(const HarmonyScheduling &policy,
++                                  const cpu_set_t &allowed) {
++  using Clock = std::chrono::steady_clock;
++  static std::mutex mutex;
++  static bool seen = false;
++  static cpu_set_t last;
++  static Clock::time_point repair_until{};
++  bool repair = false;
++  {
++    std::lock_guard<std::mutex> guard(mutex);
++    const auto now = Clock::now();
++    if (!seen || !CPU_EQUAL(&last, &allowed)) {
++      // The kernel rewrites the masks of a migrating process thread by thread,
++      // and not all of them have landed by the time the first decode call after
++      // the move observes the new domain. A single sweep would be overwritten,
++      // so keep sweeping for a short window after the transition.
++      if (seen) repair_until = now + std::chrono::seconds(3);
++      seen = true;
++      last = allowed;
++    }
++    repair = now < repair_until;
++  }
++  if (!repair) return;
++  const int repaired = WorkerAffinityRegistry::Instance().ReapplyDrifted();
++  if (repaired > 0) {
++    OH_LOG_Print(LOG_APP, LOG_INFO, 0x6666, "AmphionScheduling",
++                 "affinity-reapplied workers=%{public}d", repaired);
++  }
++  (void)policy;
++}
++
+ }  // namespace
+ 
+ void HarmonyScheduling::Parse(const std::string &provider) {
+@@ -144,6 +258,13 @@ ScopedHarmonyScheduling::ScopedHarmonyScheduling(const HarmonyScheduling &policy
+                "affinity-exact", CPU_EQUAL(&requested, &effective) ? 1 : 0);
+       }
+     }
++    // `previous_cpus_` is the allowed domain the caller's thread had on entry,
++    // which tracks the process cpuset. A change since the last decode call means
++    // the group moved and the kernel rewrote every mask, so the worker pool needs
++    // its binding back. Sweeping only on a transition keeps the steady state at
++    // one extra syscall per call. Owned worker threads never sweep: they are the
++    // ones being repaired.
++    if (!owned_thread) ReapplyWorkersOnCpusetChange(policy, previous_cpus_);
+   }
+ }
+ 

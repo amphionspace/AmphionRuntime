@@ -1,0 +1,194 @@
+From e3669b6027ac9231edb3a32bd9d57bfc1eb63630 Mon Sep 17 00:00:00 2001
+From: Amphion <amphion@local>
+Date: Thu, 15 Oct 2026 01:38:20 -0700
+Subject: [PATCH] fix(itn): keep spoken digit runs intact instead of grouping
+ them
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The zh ITN tagger reads 一二三四五六七八九十 as cardinal { value: "123 4567
+80~90" }: it splits the run and renders a trailing 十 as an approximate range,
+so counting digits out loud came back regrouped. Collapse such a run to its
+digits before tagging, and translate alignment offsets back through the
+rewrite so the spans the caller receives stay in its own coordinates.
+---
+ .../csrc/wetext/processor/wetext_processor.cc | 131 +++++++++++++++++-
+ 1 file changed, 125 insertions(+), 6 deletions(-)
+
+diff --git a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+index 2bf54a1f..d34940ae 100644
+--- a/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
++++ b/sherpa-onnx/csrc/wetext/processor/wetext_processor.cc
+@@ -12,6 +12,8 @@
+ // See the License for the specific language governing permissions and
+ // limitations under the License.
+ 
++#include <tuple>
++
+ #include "processor/wetext_processor.h"
+ 
+ namespace {
+@@ -101,6 +103,107 @@ bool MatchDigitToken(const std::string &input, size_t offset,
+   return false;
+ }
+ 
++// Spoken digit runs (念「一二三四五六七八九十」) are read out one digit at a time,
++// but the upstream tagger groups them into `123 4567 80~90`: it splits the run and
++// renders a trailing 十 as an approximate range. Rewrite such a run to its digits
++// before tagging so the reading survives. Compound cardinals, dates and measures
++// keep their grammars: the run needs at least three items, a trailing 十 is only
++// absorbed when at least two digits precede it and nothing numeric follows, and a
++// unit directly after the run hands the whole thing back to the tagger.
++// `source_map` keeps, for every byte of the rewritten text, the byte offset it came
++// from in `input`, so alignment spans can be reported in the caller's coordinates.
++std::string CollapseSpokenDigitRuns(const std::string &input,
++                                    std::vector<size_t> *source_map) {
++  static const std::pair<const char *, const char *> kDigits[] = {
++      {"零", "0"}, {"〇", "0"}, {"一", "1"}, {"二", "2"}, {"三", "3"},
++      {"四", "4"}, {"五", "5"}, {"六", "6"}, {"七", "7"}, {"八", "8"},
++      {"九", "9"}, {"幺", "1"}, {"么", "1"}, {"两", "2"}};
++  // A unit right after the run means a date, a measure or a money amount; those
++  // grammars read the spoken form and must keep it.
++  static const char *kUnits[] = {
++      "年", "月", "日", "时", "分", "秒", "点", "元", "块", "角", "毛",
++      "度", "岁", "号", "个", "百", "千", "万", "亿", "兆", "％", ".", "%"};
++  static const char *kShi = "十";
++
++  auto digit_at = [&](size_t offset, std::string *digit) -> size_t {
++    if (offset < input.size() && input[offset] >= '0' && input[offset] <= '9') {
++      *digit = input.substr(offset, 1);
++      return 1;
++    }
++    for (const auto &entry : kDigits) {
++      const std::string token(entry.first);
++      if (input.compare(offset, token.size(), token) == 0) {
++        *digit = entry.second;
++        return token.size();
++      }
++    }
++    return 0;
++  };
++  auto unit_at = [&](size_t offset) -> bool {
++    for (const char *unit : kUnits) {
++      const std::string token(unit);
++      if (input.compare(offset, token.size(), token) == 0) return true;
++    }
++    return false;
++  };
++
++  // `map[k]` is the offset in `input` reached after consuming `k` bytes of the
++  // rewritten text, so the last byte of a rewritten item carries the end of the
++  // source it replaced. Callers read end offsets, which is what spans need.
++  std::string output;
++  std::vector<size_t> map;
++  output.reserve(input.size());
++  map.reserve(input.size() + 1);
++  map.push_back(0);
++  auto emit = [&](const std::string &text, size_t begin, size_t end) {
++    for (size_t k = 0; k < text.size(); ++k) {
++      output.push_back(text[k]);
++      map.push_back(k + 1 == text.size() ? end : begin);
++    }
++  };
++
++  size_t offset = 0;
++  while (offset < input.size()) {
++    std::string digit;
++    size_t width = digit_at(offset, &digit);
++    if (width == 0) {
++      emit(input.substr(offset, 1), offset, offset + 1);
++      offset += 1;
++      continue;
++    }
++    const size_t run_start = offset;
++    std::vector<std::tuple<std::string, size_t, size_t>> items;
++    while ((width = digit_at(offset, &digit)) != 0) {
++      items.emplace_back(digit, offset, offset + width);
++      offset += width;
++    }
++    const std::string shi(kShi);
++    bool absorbed_shi = false;
++    if (items.size() >= 2 && input.compare(offset, shi.size(), shi) == 0) {
++      const size_t after = offset + shi.size();
++      std::string ignored;
++      if (digit_at(after, &ignored) == 0 && !unit_at(after)) {
++        items.emplace_back("10", offset, after);
++        offset = after;
++        absorbed_shi = true;
++      }
++    }
++    if (items.size() >= 3 && !unit_at(offset)) {
++      for (const auto &item : items) {
++        emit(std::get<0>(item), std::get<1>(item), std::get<2>(item));
++      }
++      continue;
++    }
++    // Not a spoken run: hand the original bytes back, byte for byte.
++    (void)absorbed_shi;
++    for (size_t q = run_start; q < offset; ++q) {
++      emit(input.substr(q, 1), q, q + 1);
++    }
++  }
++  if (source_map != nullptr) *source_map = map;
++  return output;
++}
++
+ std::string CanonicalizeAmbiguousDigitOne(const std::string &input) {
+   std::string output;
+   output.reserve(input.size());
+@@ -208,15 +311,32 @@ std::string Processor::Verbalize(const std::string& input) {
+ 
+ std::string Processor::Normalize(const std::string& input) {
+   if (parse_type_ == ParseType::kZH_ITN) {
+-    return Verbalize(Tag(CanonicalizeAmbiguousDigitOne(input)));
++    return Verbalize(
++        Tag(CollapseSpokenDigitRuns(CanonicalizeAmbiguousDigitOne(input),
++                                    nullptr)));
+   }
+   return Verbalize(Tag(input));
+ }
+ 
+ NormalizedText Processor::NormalizeWithAlignment(const std::string& input) {
+   if (input.empty()) return {};
+-  const std::string canonical = parse_type_ == ParseType::kZH_ITN ?
+-      CanonicalizeAmbiguousDigitOne(input) : input;
++  // `canonical` may differ in length from `input` once spoken digit runs are
++  // collapsed, so every source offset below is translated back through
++  // `source_map` before it reaches a span.
++  std::vector<size_t> source_map;
++  std::string canonical;
++  if (parse_type_ == ParseType::kZH_ITN) {
++    canonical = CollapseSpokenDigitRuns(CanonicalizeAmbiguousDigitOne(input),
++                                        &source_map);
++  } else {
++    canonical = input;
++    source_map.resize(canonical.size() + 1);
++    for (size_t i = 0; i <= canonical.size(); ++i) source_map[i] = i;
++  }
++  if (source_map.size() != canonical.size() + 1 ||
++      source_map.back() != input.size()) {
++    return {Verbalize(Tag(canonical)), {}};
++  }
+   StdVectorFst input_fst, lattice, path;
+   compiler_->operator()(canonical, &input_fst);
+   fst::Compose(input_fst, *tagger_, &lattice);
+@@ -249,8 +369,7 @@ NormalizedText Processor::NormalizeWithAlignment(const std::string& input) {
+     }
+     state = arc.nextstate;
+   }
+-  if (source != input.size() || canonical.size() != input.size() ||
+-      traced != tagged) return result;
++  if (source != canonical.size() || traced != tagged) return result;
+ 
+   // The existing parser's records are flat, with quoted/escaped field values.
+   // Its field reorder and decimal repair stay inside each record. Preserve
+@@ -272,7 +391,7 @@ NormalizedText Processor::NormalizeWithAlignment(const std::string& input) {
+     if (c != '}') continue;
+     if (!open) return result;
+     open = false;
+-    const size_t source_end = consumed[i];
++    const size_t source_end = source_map[consumed[i]];
+     if (source_end <= source_begin ||
+         (source_end < input.size() &&
+          (static_cast<unsigned char>(input[source_end]) & 0xc0) == 0x80)) {
