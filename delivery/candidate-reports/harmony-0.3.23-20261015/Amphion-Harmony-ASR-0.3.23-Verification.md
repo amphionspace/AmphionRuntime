@@ -9,8 +9,10 @@
 1. `speaker-vad-turn` 沿用 0.3.20–0.3.22 的豁免（本检出与两个受控数据包中均无目标说话人夹具）。
    按 `DEFAULT_DELIVERY.md`，缺该模式证据的包**不具备正式发布资格** —— 因此尽管本轮的指示是
    "正式发布"，这里仍按仓库既有口径登记为未发布候选（`published: false`）。
-2. **包内 `demo-source` 的独立构建未执行**（`NOT_RUN`）。0.3.20 做过这一步；本轮只做到"从最终
-   ZIP 里取出已签名 demo HAP 安装复测"，没有用包内源码对着公开 HAR 重新构建一次。
+2. **包内 `demo-source` 原样不可编译**：`MindirProbe.ets` 仍从内部模块 `amphion_asr` 取三个
+   探针函数，而交付工程并不依赖该模块。删掉那一行（并把三处调用置桩）后独立构建通过、产物
+   真机 8/8 通过。打包脚本已在本包冻结之后修好，但该 ZIP 无法在不换源码提交的前提下重切，
+   所以本包带着这个缺陷发出，客户文档里给出了那一行的规避方法。
 
 | 产物 | 值 |
 |---|---|
@@ -104,8 +106,8 @@ hilog 中 `affinity-reapplied workers=N` 仅在调度域迁移后出现。
 | 正式 SDK HAR 构建模式 | PASS，包内 `BuildProfile` 为 `BUILD_MODE_NAME='debug'`，版本 0.3.23 |
 | 包内 `-signed.hap` | PASS，精确取出 `amphion_asr_demo-diagnostics-signed.hap`（432,036,538 字节） |
 | 包内 demo 安装复测 | PASS，8 条 ITN 用例 8/8 |
-| **包内源码独立构建** | **NOT_RUN**（0.3.20 做过；本轮缺这一步） |
-| **源码构建产物复测** | **NOT_RUN**（依赖上一项） |
+| 包内源码独立构建 | **FAIL 原样 / PASS 去掉一行后**：原样 `CompileArkTS` 报 `10505001 Cannot find module 'amphion_asr'`（`MindirProbe.ets:4`）；删该 import 并置桩三处调用后 `BUILD SUCCESSFUL`，33 个 hvigor 任务，依赖 `libs/amphion_dingqiao.har`，只补本地授权与签名 |
+| 源码构建产物复测 | PASS，签名 HAP `d26b30c1…`，8 条 ITN 用例 8/8，`sdk=PASS`、空 final 率 0.000 |
 
 ## 未完成与未覆盖
 
@@ -114,7 +116,7 @@ hilog 中 `affinity-reapplied workers=N` 仅在调度域迁移后出现。
 | 项 | 状态 | 原因 |
 |---|---|---|
 | 真机 `speaker-vad-turn` | WAIVED（结构性，非产品缺陷） | 该模式需要客户目标说话人夹具，本检出与两个已拉取的受控数据包中均不存在。本版未改动该模式。清单与随包验收摘要均声明该豁免 |
-| 包内 `demo-source` 独立构建 | NOT_RUN | 本轮未执行；是本记录登记为候选而非正式发布的第二个原因 |
+| 包内 `demo-source` 原样编译 | 缺陷，已定位、已修打包脚本、本包未重切 | 见下一节 |
 | **锁屏变慢** | **未解决，但基线已更正** | 干净包锁屏期实测 0.856× / 0.866×，真实缺口 **0.134×**（角色分离链 0.091×、ASR 主链路自身 0.043×；关掉角色分离也只到 0.957×）。客户 10-14 的 0.80× 系在 10-13 那个 diagnostics 污染包上测得，污染值实测 ≥0.22× 实时率。SDK 侧无独立解法 |
 | 锁屏期仅点亮屏幕 | 无效，必须解锁 | 仅点亮时进程仍在受限调度组，排空 0.618×；滑动解锁后 1.550× |
 | 停录即拆会话会丢文本 | 已量化，未改 | 积压 133 秒时停止、30 秒后拆会话，最终文本少 15% |
@@ -126,6 +128,49 @@ hilog 中 `affinity-reapplied workers=N` 仅在调度域迁移后出现。
 | 长稳内存分阶段证据 | INCONCLUSIVE | 100 轮 `customer-ptt` 的通用 RSS 预算通过，未采集与角色分离阶段对齐的证据 |
 | 断网网络观测 | NOT_RUN | — |
 | 粤英语种 / TTS 模型 / 目标说话人增强 | 不在本批范围 | 本批为 ZH_EN；不含 TTS 模型；目标说话人增强仅保留接口，不含所需模型，不能启用 |
+
+## 包内 `demo-source` 不可编译（本轮发现的交付缺陷）
+
+**现象**：从最终 ZIP 解出 `demo-source/`，`ohpm install --all` 后 `assembleHap` 失败：
+
+```
+10505001 ArkTS Compiler Error
+Cannot find module 'amphion_asr' or its corresponding type declarations.
+At File: .../entry/src/main/ets/util/MindirProbe.ets:4:82
+```
+
+**成因**：`pack_complete_asr_delivery.sh` 只对 `DeviceStressTest.ets` 与 `ModelLoadBench.ets`
+两个文件剥离内部模块 import。`MindirProbe.ets` 是 2026-10-08 的提交 `c0dec403` 新增的
+（**0.3.20 交付是 10-07，正好在这之前**，所以上次这道检查过得去），它带进来第三个
+`from 'amphion_asr'` 的 import，没人剥。
+
+**本轮的处置**：
+
+1. 打包脚本已修（本包冻结之后）：同样对 `MindirProbe.ets` 剥 import 并把
+   `probeOrtBackend` / `probeMindSporeChainPaced` / `probeMindSporeBackend` 三处调用置桩；
+   并新增一道**兜底门禁**——组包时扫描交付源码里所有 `.ets`，只要还有 `from 'amphion_asr'`
+   就让组包失败。这样下一个文件再带内部依赖进来，会在组包时暴露，而不是等客户编译时暴露。
+2. **本包没有重切**：`pack_complete_asr_delivery.sh` 把 `SOURCE_COMMIT` 钉在 `HEAD`，并要求
+   正式 SDK 的 `BUILD_PROVENANCE.json` 与 Diagnostics 的 `build-identity.json` 都等于同一个
+   提交。改打包脚本就要换提交，换提交就要重建两个子包、重跑 100 轮验收。为一行 import 做这些，
+   代价与收益不成比例。
+3. 客户侧规避写进了交付文档：删掉 `MindirProbe.ets` 第 4 行那个 import，并把该文件里三处
+   `probe*` 调用改成抛错即可；该文件只是诊断探针，正式 SDK 本来也没有这三个函数。
+
+**验证**：按上述规避改完后，独立构建 `BUILD SUCCESSFUL`（33 个 hvigor 任务），产出的签名 HAP
+（`d26b30c1637bb9f4153975348acae1967c40afc6e10494f3aaaf47fe18d64740`）装机后 8 条 ITN 用例
+全部达标，`sdk=PASS`、空 final 率 0.000。**除这一行 import 外，包内源码是完整可用的。**
+
+## 独立构建环境上的两个坑（方法记录）
+
+1. **CLT 自带的 node 是 v24.14.1，它不再支持 `NODE_PATH`。** hvigor 正是靠 `NODE_PATH`
+   指向 `~/.hvigor/project_caches/<id>/workspace/node_modules` 来解析自己的插件，于是每次
+   调用都死在 `Cannot find module '@ohos/hvigor-ohos-plugin'`。在 CLT 的 `hvigor/` 根下补出
+   `node_modules/@ohos/{hvigor,hvigor-ohos-plugin}` 两个符号链接即可。这与交付包无关，是本机
+   工具链供给问题，但任何人复现这一步都会先撞上它。
+2. **`deviceInfo.ODID` 在卸载 demo 后会重新生成**，本地签发的授权随即失配，`setLicense`
+   返回 `1002200033`。`hdc install` 覆盖安装保留 ODID，卸载不保留。该结论用已验证通过的
+   Diagnostics HAP 反向验证过：重装之后它同样报 `1002200033`。
 
 ## CI 盲区（本轮暴露，建议修）
 
@@ -161,9 +206,8 @@ hilog 中 `affinity-reapplied workers=N` 仅在调度域迁移后出现。
 
 ## 下一步
 
-1. 执行包内 `demo-source` 独立构建与其产物复测（工作流第 3 节 / `DEFAULT_DELIVERY.md`），
-   补齐最终 ZIP 验收的最后两行。
-2. 取得客户目标说话人夹具后运行 `speaker-vad-turn`，方可把本记录从候选改为正式发布。
+1. 取得客户目标说话人夹具后运行 `speaker-vad-turn`，方可把本记录从候选改为正式发布。
+2. 下一个版本组包时确认 `MindirProbe.ets` 的剥离与新增的兜底门禁生效（本轮已做过脱机 dry-run）。
 3. 包实际发出后，再用 `tools/delivery/asr_release_tracker.py record` 登记台账
    （本轮未登记，因为包尚未发出）。
 4. 重建 Android AAR，消除两端行为差异。
