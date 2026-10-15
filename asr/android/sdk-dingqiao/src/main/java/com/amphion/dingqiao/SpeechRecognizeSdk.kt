@@ -486,11 +486,16 @@ object SpeechRecognizeSdk {
      */
     @JvmStatic
     fun getLicenseInfo(): LicenseInfo {
-        licenseInfo?.let { return it }
         if (runtimeInitialized) {
             val info = AmphionRuntime.licenseStatus().toDingqiaoLicenseInfo()
             if (info.status != 2) return info
         }
+        activatedLicenseText?.let { text ->
+            return runtimeBridge.validateLicense(requireContext(), AmphionOptions(
+                license = text, licenseAssetName = null, deviceIdProvider = effectiveDeviceIdProvider(),
+            )).toDingqiaoLicenseInfo()
+        }
+        licenseInfo?.let { return it }
         throw DingqiaoEngineException(
             DingqiaoErrorCode.LICENSE_NOT_SET,
             "license not set",
@@ -674,6 +679,15 @@ object SpeechRecognizeSdk {
                             errorCode = DingqiaoErrorCode.LICENSE_ACTIVATION_FAILED,
                             errorMessage = "superseded by a newer setLicense request",
                         )
+                    }
+                    val activated = runtimeBridge.activateLicense(ctx, AmphionOptions(
+                        logLevel = runtimeLogLevel,
+                        license = text,
+                        licenseAssetName = null,
+                        deviceIdProvider = effectiveDeviceIdProvider(),
+                    ))
+                    if (activated.errorCode != AsrErrorCode.OK) {
+                        throw IllegalStateException("code=${activated.errorCode}: ${activated.state}")
                     }
                     runtimeGeneration += 1
                     modelGeneration += 1

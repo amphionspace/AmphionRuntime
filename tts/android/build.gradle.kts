@@ -210,12 +210,21 @@ val cleanBundledTtsResources = tasks.register<Delete>("cleanBundledTtsResources"
     delete(bundledAssetRoot)
 }
 
+val stageBundledTtsResources = tasks.register<Sync>("stageBundledTtsResources") {
+    dependsOn(stageExternalTtsResources)
+    from(externalResourceDir)
+    into(rootProject.layout.buildDirectory.dir("generated/bundledTtsAssets/lits-models/tts/$modelId/$modelVersion"))
+}
+
 subprojects {
     tasks.withType<Test>().configureEach {
         systemProperty("lits.tts.testAssetRoot", litsModelDir.absolutePath)
     }
     tasks.matching { it.name == "preBuild" }.configureEach {
         dependsOn(cleanBundledTtsResources, stageExternalTtsResources)
+        if (project.name == "sdk" && providers.gradleProperty("amphionBundleModelsInSdk").orNull == "true") {
+            dependsOn(stageBundledTtsResources)
+        }
     }
 }
 

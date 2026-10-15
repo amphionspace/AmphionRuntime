@@ -29,8 +29,6 @@ internal object LitsTtsAssetRegistry {
     const val SYMBOLS: String = "zh_en_symbols.json"
     const val PINYIN_TO_TOKENS: String = "pinyin_to_tokens.json"
     const val ARPABET_TO_TOKENS: String = "arpabet_to_tokens.json"
-    const val TN_RULES_ZH: String = "rules/zh.json"
-    const val TN_RULES_EN: String = "rules/en.json"
     const val TN_RULES_ZH_PINYIN: String = "rules_v2/zh_pinyin.json"
     const val TN_RULES_V2_ZH: String = "rules_v2/zh.full.json"
     const val TN_RULES_V2_EN: String = "rules_v2/en.full.json"
@@ -56,8 +54,6 @@ internal object LitsTtsAssetRegistry {
         SYMBOLS,
         PINYIN_TO_TOKENS,
         ARPABET_TO_TOKENS,
-        TN_RULES_ZH,
-        TN_RULES_EN,
         TN_RULES_ZH_PINYIN,
         TN_RULES_V2_ZH,
         TN_RULES_V2_EN,

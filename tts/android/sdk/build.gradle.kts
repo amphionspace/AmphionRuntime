@@ -68,6 +68,9 @@ android {
     }
 
     sourceSets["main"].jniLibs.srcDirs("src/main/jniLibs")
+    if (providers.gradleProperty("amphionBundleModelsInSdk").orNull == "true") {
+        sourceSets["main"].assets.srcDir(rootProject.layout.buildDirectory.dir("generated/bundledTtsAssets"))
+    }
     sourceSets["androidTest"].assets.srcDir(generatedAndroidTestAssets)
 }
 

@@ -37,6 +37,12 @@ internal object LicenseVerifier {
 
     private const val DAY_MS = 24L * 60 * 60 * 1000
 
+    fun acceptGeneration(ctx: Context, licenseText: String?) {
+        if (licenseText.isNullOrBlank()) return
+        val envelope = JSONObject(licenseText)
+        EnterpriseLicensePolicy.acceptGeneration(ctx, String(Base64.decode(envelope.getString("payload_b64"), Base64.NO_WRAP), Charsets.UTF_8))
+    }
+
     /** 校验结果：成功时 [errorCode] = [AsrErrorCode.OK]。 */
     internal class Result(
         val status: AmphionLicenseStatus,
@@ -102,6 +108,12 @@ internal object LicenseVerifier {
         if (!signatureValid) {
             return failWith(claims, AsrErrorCode.LICENSE_SIGNATURE_INVALID, "signature mismatch")
         }
+        try {
+            val policy = EnterpriseLicensePolicy.validate(String(payloadBytes, Charsets.UTF_8), nowMillis)
+            EnterpriseLicensePolicy.checkGeneration(ctx, policy)
+        } catch (t: Throwable) {
+            return failWith(claims, (t as? EnterpriseLicensePolicy.Rejected)?.code ?: AsrErrorCode.LICENSE_MALFORMED, "Enterprise policy rejected")
+        }
 
         // 6. 应用包白名单。旧 license 没有策略字段，继续按原有 ASR 语义仅记录。
         if (!applicationMatches(claims.applicationBindingMode, claims.boundApplicationId, claims.applicationIds, pkg)) {
@@ -122,7 +134,7 @@ internal object LicenseVerifier {
         }
 
         // 7. 到期校验（expiresAt 非空时才校验；到期日当天有效，再加宽限）。
-        if (claims.expiresAt.isNotBlank()) {
+        if (!JSONObject(String(payloadBytes, Charsets.UTF_8)).has("authorizationVersion") && claims.expiresAt.isNotBlank()) {
             val expMillis = parseDateUtcMillis(claims.expiresAt)
                 ?: return failWith(claims, AsrErrorCode.LICENSE_MALFORMED, "bad expiresAt=${claims.expiresAt}")
             val deadline = expMillis + (expiryGraceDays + 1).toLong() * DAY_MS

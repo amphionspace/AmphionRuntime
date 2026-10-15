@@ -35,6 +35,15 @@ verify_no_host_paths() {
   fi
 }
 
+verify_sherpa_jni_api() {
+  local symbols
+  symbols="$(LC_ALL=C strings "$1")"
+  if ! grep -qx 'Java_com_k2fsa_sherpa_onnx_OnlineRecognizer_getVadEndpointWaitSeconds' <<< "$symbols"; then
+    echo "[ERROR] Sherpa JNI 缺少当前 SDK 必需接口，请从固定源码和补丁重建 native 库。" >&2
+    return 1
+  fi
+}
+
 copy_one_abi() {
   local ABI="$1"
   local SRC_DIR="$SHERPA_ROOT/build-android-${ABI}/install/lib"
@@ -56,6 +65,9 @@ copy_one_abi() {
   for f in libsherpa-onnx-jni.so libonnxruntime.so; do
     if [[ -f "$SRC_DIR/$f" ]]; then
       verify_no_host_paths "$SRC_DIR/$f"
+      if [[ "$f" == "libsherpa-onnx-jni.so" ]]; then
+        verify_sherpa_jni_api "$SRC_DIR/$f"
+      fi
       cp -fv "$SRC_DIR/$f" "$DST_DIR/$f"
     else
       if [[ "$STRICT" == "1" ]]; then
