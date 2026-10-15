@@ -224,6 +224,33 @@ device_text = replace_exact(
 )
 device_stress.write_text(device_text, encoding="utf-8")
 
+mindir_probe = module_package.parent / "src/main/ets/util/MindirProbe.ets"
+probe_text = mindir_probe.read_text(encoding="utf-8")
+probe_text = replace_exact(
+    probe_text,
+    "import { probeMindSporeBackend, probeMindSporeChainPaced, probeOrtBackend } from 'amphion_asr';\n",
+    "",
+    "MindirProbe diagnostics import",
+)
+probe_text = replace_exact(
+    probe_text,
+    "import { PowerSampler } from './PowerSampler';\n",
+    "import { PowerSampler } from './PowerSampler';\n\n"
+    "async function probeUnavailable(): Promise<string> {\n"
+    "  throw new Error('mindir probe is only available in the diagnostics SDK');\n"
+    "}\n",
+    "MindirProbe stub insertion",
+)
+for call, label in (
+    ("probeOrtBackend(options.ortModel, options.ortThreads, options.iterations)", "ORT probe call"),
+    ("probeMindSporeChainPaced(paths, options.backend, options.paceMs, options.durationMs)",
+     "chain probe call"),
+    ("probeMindSporeBackend(options.modelPath, options.backend, options.iterations)",
+     "single probe call"),
+):
+    probe_text = replace_exact(probe_text, call, "probeUnavailable()", f"MindirProbe {label}")
+mindir_probe.write_text(probe_text, encoding="utf-8")
+
 model_bench = module_package.parent / "src/main/ets/util/ModelLoadBench.ets"
 model_text = model_bench.read_text(encoding="utf-8")
 model_text = replace_exact(
@@ -241,10 +268,24 @@ transformations.write_text(
     "# Demo source delivery transformations\n\n"
     "This source is based on the recorded delivery commit and adapted to build only with "
     "the public `amphion_dingqiao.har`. The package removes non-public runtime inspection "
-    "calls from `DeviceStressTest.ets` and `ModelLoadBench.ets`, narrows the build profile "
+    "calls from `DeviceStressTest.ets`, `ModelLoadBench.ets` and `MindirProbe.ets`, "
+    "narrows the build profile "
     "to the ASR Demo module, and rewrites its dependency to `libs/amphion_dingqiao.har`.\n",
     encoding="utf-8",
 )
+
+# The delivered source must compile against the public HAR alone. A surviving import of an
+# internal module means a demo file gained a diagnostics dependency this script does not
+# strip, which otherwise only surfaces when the customer builds it, so fail the pack here.
+leaked = sorted(
+    str(path.relative_to(module_package.parents[3]))
+    for path in module_package.parents[3].rglob("*.ets")
+    if "from 'amphion_asr'" in path.read_text(encoding="utf-8")
+)
+if leaked:
+    raise SystemExit(
+        "[ERROR] delivered demo source still imports the internal SDK: " + ", ".join(leaked)
+    )
 PY
 unzip -p "$RELEASE_ZIP" '*/har/amphion_dingqiao.har' \
   > "$PACKAGE_ROOT/demo-source/libs/amphion_dingqiao.har"
