@@ -1,0 +1,22 @@
+[08:14:08] === 场次 E-亮屏绑中核4-7 开始 cpuIds=4,5,6,7 screen=on ===
+[08:14:10] 降温中 shell_back=33.20C 目标<=32.0C
+[08:14:30] 降温中 shell_back=33.03C 目标<=32.0C
+[08:14:50] 降温中 shell_back=32.95C 目标<=32.0C
+[08:15:10] 降温中 shell_back=32.83C 目标<=32.0C
+[08:15:31] 降温中 shell_back=32.73C 目标<=32.0C
+[08:15:51] 降温中 shell_back=32.65C 目标<=32.0C
+[08:16:11] 降温中 shell_back=32.54C 目标<=32.0C
+[08:16:31] 降温中 shell_back=32.47C 目标<=32.0C
+[08:16:51] 降温中 shell_back=32.42C 目标<=32.0C
+[08:17:11] 降温中 shell_back=32.35C 目标<=32.0C
+[08:17:31] 降温中 shell_back=32.26C 目标<=32.0C
+[08:17:51] 降温中 shell_back=32.22C 目标<=32.0C
+[08:18:12] 降温中 shell_back=32.12C 目标<=32.0C
+[08:18:32] 降温中 shell_back=32.07C 目标<=32.0C
+[08:18:52] 降温中 shell_back=32.00C 目标<=32.0C
+[08:19:12] 降温结束 shell_back=31.95C 等待=302s
+[08:19:12] 起始温度 {"Battery": 31.0, "ambient": 26.419, "charger": 31.7, "modem": 0.0, "pa_s": 30.8, "rfboard": 31.05, "shell_back": 31.954, "shell_frame": 31.454, "shell_front": 31.454, "system_h": 31.4} 电池 {'capacity': 81, 'chargingStatus': 2, 'nowCurrent': -27, 'temperature': 310}
+[08:19:13] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir .cache/core-domain-matrix-20261014/corpus-523 --mode paced --files 1 --cycles 1 --pace-ms 20 --enable-diarization --capture-diagnostics --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root .cache/core-domain-matrix-20261014/runs/E-mid-on/stress --asr-cpu-ids 4,5,6,7
+[08:19:16] 检测到会话首帧，T0=+3.0s
+[08:28:12] 驱动退出 rc=0 墙钟=538.2s 结束温度 {"Battery": 34.0, "ambient": 26.622, "charger": 35.315, "modem": 0.0, "pa_s": 33.21, "rfboard": 32.45, "shell_back": 34.487, "shell_frame": 33.987, "shell_front": 33.987, "system_h": 35.368} 电池 {'capacity': 81, 'chargingStatus': 2, 'nowCurrent': -25, 'temperature': 340}
+[08:28:12] === 场次 E-亮屏绑中核4-7 结束 ===
