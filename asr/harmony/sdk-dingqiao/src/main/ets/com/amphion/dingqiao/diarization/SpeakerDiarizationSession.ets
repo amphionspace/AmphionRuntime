@@ -71,9 +71,24 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private processedThroughMs: number = 0;
   private static readonly PREVIEW_INTERVAL_MS: number = 10000;
   // A preview reclusters every window so far, so its cost grows with the meeting.
-  // Space previews so that their wall time stays within a tenth of the audio they
-  // cover. Short sessions keep a preview every 10 s; commits are unaffected.
-  private static readonly PREVIEW_COST_RATIO: number = 10;
+  // Space previews so that their wall time stays within this fraction of the audio
+  // they cover. Short sessions keep a preview every 10 s; commits are unaffected.
+  //
+  // Measured on a 7332 s single session: at a tenth, previews were the largest
+  // single item in role separation, 534 s of its 1183 s of compute, against 451 s
+  // for window inference and 199 s for the commits they are superseded by. A
+  // twentieth halves that to about 279 s while the spacing late in that session,
+  // 109 s of audio, still lands inside the 120 s commit period, so a preview keeps
+  // refreshing provisional roles once per commit for the whole meeting. A fortieth
+  // saves another 137 s but spaces previews 208 s apart, past the commit period:
+  // previews would quietly stop mattering in exactly the long meetings they were
+  // throttled for.
+  //
+  // This changes only how often provisional roles refresh between commits. A
+  // preview forks the identity registry, never advances the commit clock or the
+  // published boundary, and each commit replaces the transcript turns outright, so
+  // the committed result does not depend on this value.
+  private static readonly PREVIEW_COST_RATIO: number = 20;
   private previewThroughMs: number = 0;
   private lastPreviewClusterMs: number = 0;
   private inferenceMs: number = 0;
