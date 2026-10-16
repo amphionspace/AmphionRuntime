@@ -118,7 +118,6 @@ GB二8181,GB28181,report_v028
 网投,网逃,report_v028
 网增,网侦,report_v028
 现行,限行,report_v028
-讯问,询问,report_v028
 一景,义警,report_v028
 智报,治爆,report_v028
 自爆,治爆,report_v028
@@ -212,7 +211,7 @@ GB二8181,GB28181,report_v028
 
 # Police 1.4.0 / V6 记录仪指令：仅完整 final 命中，不把沿路、电子录音等合法词全局替换。
 开启记录仪ENFC,开启记录仪NFC,police_v140_v6
-把路线分辨率设置为D 幺,把录像分辨率设置为D 幺,police_v140_v6
+把路线分辨率设置为D 幺,把录像分辨率设置为D1,police_v140_v6
 八视频分段时长设置为六十分钟,把视频分段时长设置为六十分钟,police_v140_v6
 当前沿路时长是多少,当前延录时长是多少,police_v140_v6
 把记录仪的镜头模式分辨率帧率沿路时长都告诉我,把记录仪的镜头模式分辨率帧率延录时长都告诉我,police_v140_v6
@@ -221,10 +220,10 @@ GB二8181,GB28181,report_v028
 八视频分段时长设置为60min,把视频分段时长设置为60min,police_v140_device
 八、视频分段时长设置为60min,把视频分段时长设置为60min,police_v140_device
 把记录仪的镜头模式分辨率、帧率沿路时长都告诉我,把记录仪的镜头模式分辨率、帧率延录时长都告诉我,police_v140_device
-把录像分辨率设置为第一要,把录像分辨率设置为D 幺,police_v140_device
+把录像分辨率设置为第一要,把录像分辨率设置为D1,police_v140_device
 把记录仪亮度调到零到,把记录仪亮度调到零档,police_v140_device
-执法路线分辨率设置为D幺,把录像分辨率设置为D 幺,police_v140_device
-执法路线分辨率设置为D 幺,把录像分辨率设置为D 幺,police_v140_device
+执法路线分辨率设置为D幺,把录像分辨率设置为D1,police_v140_device
+执法路线分辨率设置为D 幺,把录像分辨率设置为D1,police_v140_device
 
 # 20260922 Police 1.4.0 警言警语开发集；不泛化单个同音字。
 勤指行今天有点卡,情指行今天有点卡,police_v140_terms
@@ -232,4 +231,27 @@ GB二8181,GB28181,report_v028
 佩奇防护装备,配齐防护装备,police_v140_terms
 非直系亲属不能待办,非直系亲属不能代办,police_v140_terms
 保暖毯可以防止湿温,保暖毯可以防止失温,police_v140_terms
-把路线分辨率设置为D幺,把录像分辨率设置为D 幺,police_v140_device
+把路线分辨率设置为D幺,把录像分辨率设置为D1,police_v140_device
+# 20261015 手机反馈：合法的讯问不纠为询问；分辨率只纠完整指令，应用名只纠独立 final。
+把录像分辨率设置为第一,把录像分辨率设置为D1,device_20261015
+把录像分辨率设置为D幺,把录像分辨率设置为D1,device_20261015
+把录像分辨率设置为D 幺,把录像分辨率设置为D1,device_20261015
+易锦保,e警保,device_20261015
+E警保,e警保,device_20261015
+E。警保,e警保,device_20261015
+e。警保,e警保,device_20261015
+
+# 20261015 Android 930 报告与同句真机回放：只纠完整 final，不全局替换沿路/补正，不猜填号码或媒体。
+玉露是否开启,预录是否开启,android_feedback_20261015
+沿路是否开启,延录是否开启,android_feedback_20261015
+视频增速支持哪些,视频帧率支持哪些,android_feedback_20261015
+记录仪沿路时长是多少,记录仪延录时长是多少,android_feedback_20261015
+关闭沿路,关闭延录,android_feedback_20261015
+打开沿路并设置为60秒,打开延录并设置为60秒,android_feedback_20261015
+打开沿路,打开延录,android_feedback_20261015
+打开记录仪WANG,打开记录仪WLAN,android_feedback_20261015
+把镜头切换到超常待机模式,把镜头切换到超长待机模式,android_feedback_20261015
+查询沿路时长,查询延录时长,android_feedback_20261015
+视频证率支持哪些,视频帧率支持哪些,android_feedback_20261015
+打开记录仪PLAN,打开记录仪WLAN,android_feedback_20261015
+布证,补证,android_feedback_20261015
