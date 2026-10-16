@@ -1,0 +1,13 @@
+[20:33:19] === 场次 C2-干净包-熄屏140s 开始 cpuIds=none screen=off ===
+[20:33:22] 降温中 shell_back=29.25C 目标<=29.0C
+[20:33:42] 降温中 shell_back=29.31C 目标<=29.0C
+[20:34:02] 降温中 shell_back=29.23C 目标<=29.0C
+[20:34:22] 降温中 shell_back=29.10C 目标<=29.0C
+[20:34:42] 降温中 shell_back=29.01C 目标<=29.0C
+[20:35:02] 降温结束 shell_back=28.92C 等待=101s
+[20:35:02] 起始温度 {"Battery": 28.0, "ambient": 23.953, "charger": 28.25, "modem": 0.0, "pa_s": 27.428, "rfboard": 27.666, "shell_back": 28.923, "shell_frame": 28.423, "shell_front": 28.423, "system_h": 28.1} 电池 {'capacity': 80, 'chargingStatus': 2, 'nowCurrent': -32, 'temperature': 280}
+[20:35:04] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir .cache/core-domain-matrix-20261014/corpus-140 --mode paced --files 1 --cycles 1 --pace-ms 20 --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root .cache/core-domain-matrix-20261014/runs/C2-clean-off/stress --enable-diarization --allow-screen-off --hold-mic-capture
+[20:35:06] 检测到会话首帧，T0=+2.0s
+[20:36:07] 已熄屏（会话首帧后 60s）
+[20:37:46] 驱动退出 rc=0 墙钟=161.7s 结束温度 {"Battery": 29.0, "ambient": 23.996, "charger": 29.619, "modem": 0.0, "pa_s": 28.2, "rfboard": 27.761, "shell_back": 29.764, "shell_frame": 29.264, "shell_front": 29.264, "system_h": 29.761} 电池 {'capacity': 80, 'chargingStatus': 2, 'nowCurrent': -20, 'temperature': 290}
+[20:37:46] === 场次 C2-干净包-熄屏140s 结束 ===
