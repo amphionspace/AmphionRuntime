@@ -19,6 +19,10 @@ interface DiarizationEvidenceWindow {
   jobId: string;
   windowStartSample: number;
   realEndSample: number;
+  // Per-channel activity totals, summed once when the window completes. It cannot change
+  // afterwards, and recomputing it for the whole session on every commit is what
+  // made the cost of one commit grow with the length of the meeting.
+  activity: number[];
 }
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
@@ -326,8 +330,15 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
     this.client.retainEvidence(window.result);
     this.inferredWindowCount += 1;
+    const totals: number[] = [0, 0, 0];
+    const windowSegments = window.result.segments;
+    for (let frame = 0; frame < 589; frame++) {
+      totals[0] += windowSegments[frame * 3];
+      totals[1] += windowSegments[frame * 3 + 1];
+      totals[2] += windowSegments[frame * 3 + 2];
+    }
     this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
-      realEndSample: window.realEndSample });
+      realEndSample: window.realEndSample, activity: totals });
     this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
     // Lanes run windows in parallel; count each window's share of executor capacity.
     this.inferenceMs += window.inferenceWallMs;
@@ -451,14 +462,21 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       const activity: number[] = new Array<number>(available.length * 3).fill(0);
       const publishedActivity: number[] = new Array<number>(available.length * 3).fill(0);
       for (let index = 0; index < available.length; index++) {
+        const evidenceWindow = available[index];
+        activity[index * 3] = evidenceWindow.activity[0];
+        activity[index * 3 + 1] = evidenceWindow.activity[1];
+        activity[index * 3 + 2] = evidenceWindow.activity[2];
+        // Only the published interval moves between commits. A window that ends
+        // before it or starts after it contributes nothing, so the per-frame walk
+        // covers the committed span instead of the whole session.
+        const firstFrameTime = (evidenceWindow.windowStartSample + 495.5) * 1000 / SAMPLE_RATE;
+        const lastFrameTime = (evidenceWindow.windowStartSample + 495.5 + 588 * 270) * 1000 / SAMPLE_RATE;
+        if (lastFrameTime < beginTime || firstFrameTime >= endTime) continue;
         for (let frame = 0; frame < 589; frame++) {
-          const frameTime = (available[index].windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
+          const frameTime = (evidenceWindow.windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
+          if (frameTime < beginTime || frameTime >= endTime) continue;
           for (let channel = 0; channel < 3; channel++) {
-            const value = segments[(index * 589 + frame) * 3 + channel];
-            activity[index * 3 + channel] += value;
-            if (frameTime >= beginTime && frameTime < endTime) {
-              publishedActivity[index * 3 + channel] += value;
-            }
+            publishedActivity[index * 3 + channel] += segments[(index * 589 + frame) * 3 + channel];
           }
         }
       }
