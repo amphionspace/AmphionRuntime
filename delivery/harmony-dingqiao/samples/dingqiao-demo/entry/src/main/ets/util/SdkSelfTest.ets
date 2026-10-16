@@ -1,6 +1,7 @@
 import hilog from '@ohos.hilog';
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
+import { PoliceEnhancePipeline } from 'amphion_police';
 import {
   SpeechRecognizeSdk,
   CreateEngineParams,
@@ -198,6 +199,45 @@ function buildCreateParams(): CreateEngineParams {
 export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<void> {
   const r = new Report();
   hilog.info(DOMAIN, TAG, 'BEGIN self-test');
+
+  // 手机反馈的确定性后处理回归；识别精度仍由真实音频单独验证。
+  const police = PoliceEnhancePipeline.create(context);
+  const policeCases: string[][] = [
+    ['讯问。', '讯问。'],
+    ['询问。', '询问。'],
+    ['把录像分辨率设置为第一。', '把录像分辨率设置为D1。'],
+    ['把录像分辨率设置为D幺。', '把录像分辨率设置为D1。'],
+    ['把录像分辨率设置为第一档。', '把录像分辨率设置为第一档。'],
+    ['E。警保。', 'e警保。'],
+    ['e。警保。', 'e警保。'],
+    ['易锦保。', 'e警保。'],
+    ['请打开E。警保客户端。', '请打开e警保客户端。'],
+    ['打开义警保护群众的工作记录。', '打开义警保护群众的工作记录。'],
+    ['玉露是否开启？', '预录是否开启？'],
+    ['沿路是否开启？', '延录是否开启？'],
+    ['视频增速支持哪些？', '视频帧率支持哪些？'],
+    ['视频证率支持哪些？', '视频帧率支持哪些？'],
+    ['记录仪沿路时长是多少？', '记录仪延录时长是多少？'],
+    ['关闭沿路。', '关闭延录。'],
+    ['打开沿路并设置为60秒。', '打开延录并设置为60秒。'],
+    ['打开沿路。', '打开延录。'],
+    ['打开记录仪WANG。', '打开记录仪WLAN。'],
+    ['打开记录仪PLAN。', '打开记录仪WLAN。'],
+    ['把镜头切换到超常待机模式。', '把镜头切换到超长待机模式。'],
+    ['查询沿路时长。', '查询延录时长。'],
+    ['布证。', '补证。'],
+    ['沿路风景很好。', '沿路风景很好。'],
+    ['请复述打开沿路这个错误。', '请复述打开沿路这个错误。'],
+    ['补正。', '补正。'],
+    ['把记录仪音量调到最大。', '把记录仪音量调到最大。'],
+    ['请您拨打855 4767电话。', '请您拨打855 4767电话。']
+  ];
+  for (let i = 0; i < policeCases.length; i++) {
+    const actual = police.enhance(policeCases[i][0]).text;
+    r.check(`police feedback ${i}`, actual === policeCases[i][1],
+      `${policeCases[i][0]} -> ${actual}`);
+  }
+  police.close();
 
   // --- setWorkPath / getWorkPath ---
   const workPath = `${context.filesDir}/amphion_asr_work`;
