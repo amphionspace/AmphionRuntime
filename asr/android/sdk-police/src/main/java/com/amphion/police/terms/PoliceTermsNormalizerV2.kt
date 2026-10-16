@@ -188,10 +188,14 @@ class PoliceTermsNormalizerV2 private constructor(
         return t
     }
 
-    /** cp5500 新增的 e警保 误识；值为后继字碰撞黑名单，命中即按通用表达保留。 */
+    /** e警保 误识及标点拆词；值为后继字碰撞黑名单，命中即按通用表达保留。 */
     private val eJingbaoVariants: Map<String, Set<Char>> = mapOf(
         "咦劲爆" to setOf('新', '消', '视', '话', '爆', '内', '音', '现'),
         "义警保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
+        "易锦保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
+        "E警保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
+        "E。警保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
+        "e。警保" to setOf('安', '护', '险', '障', '卫', '洁', '持', '密'),
     )
 
     /** 前接这些操作动词时才视为 App 名称；单字“用”不单独构成充分证据。 */
@@ -204,7 +208,7 @@ class PoliceTermsNormalizerV2 private constructor(
     )
 
     /**
-     * 上下文受限地把 咦劲爆/义警保 纠为 e警保。裸短词不纠；碰撞黑名单优先于 App 语境，
+     * 上下文受限地纠为 e警保；独立 final 由整句映射单独处理。碰撞黑名单优先于 App 语境，
      * 避免“打开义警保护群众”或“咦劲爆新闻可以上传”等句子被功能词误触发。
      */
     private fun applyEJingbaoGuard(text: String): String {
@@ -223,7 +227,10 @@ class PoliceTermsNormalizerV2 private constructor(
                 sb.append(out, i, idx)
                 val end = idx + variant.length
                 val after = firstSemanticChar(out, end)
-                val collide = after != null && after in collisions
+                // E 必须是独立字母，不能从 CODE 等英文词尾拼出应用名。
+                val embeddedLetter = variant[0] in "eE" && idx > 0 &&
+                    out[idx - 1] in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                val collide = embeddedLetter || (after != null && after in collisions)
                 val ctxAfter = out.substring(end, (end + 10).coerceAtMost(out.length))
                 val hasAfterCtx = eJingbaoAppCtx.any { ctxAfter.contains(it) }
                 val before = out.substring(0, idx)

@@ -1,3 +1,4 @@
+import groovy.json.JsonSlurper
 import java.util.Properties
 
 plugins {
@@ -22,12 +23,28 @@ val demoAssetDir = providers.gradleProperty("dingqiaoDemoAssetDir").orNull
 
 val validateDingqiaoDemoRuntimeAssets by tasks.registering {
     group = "verification"
-    description = "Reject a project-based Demo APK build without packed runtime models."
+    description = "Require the shared Dingqiao model identity in a project-based Demo APK."
     onlyIf { !useFatAar }
     doLast {
-        check(rootProject.file("sdk/src/main/assets/amphion-models/manifest.json").isFile) {
+        val manifestFile = rootProject.file("sdk/src/main/assets/amphion-models/manifest.json")
+        check(manifestFile.isFile) {
             "Dingqiao Demo models are not packed. Run " +
                 "`bash asr/tools/08_pack_sdk_assets.sh --zh-en-only` before building the APK."
+        }
+        // 本地 assets 不入库；切换源码后仍可能残留旧模型，必须与鸿蒙共用的模型策略核对。
+        val policy = JsonSlurper().parse(rootProject.file(
+            "../../delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json",
+        )) as Map<*, *>
+        val expected = policy["onnx_files_md5"] as Map<*, *>
+        val manifest = JsonSlurper().parse(manifestFile) as Map<*, *>
+        val bundles = manifest["bundles"] as Map<*, *>
+        val models = (bundles["zh-en/v1"] as List<*>).map { it as Map<*, *> }
+            .filter { (it["name"] as String).endsWith(".ort.mp3") }
+        check(models.size == expected.size && models.all {
+            expected.containsKey(it["source_name"]) && expected[it["source_name"]] == it["source_md5"]
+        } && models.map { it["source_name"] }.toSet() == expected.keys) {
+            "Dingqiao Demo ZH_EN models do not match ${policy["model_id"]}. " +
+                "Run `bash asr/tools/08_pack_sdk_assets.sh --zh-en-only` before building the APK."
         }
     }
 }
