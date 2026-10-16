@@ -79,6 +79,29 @@ inline std::vector<int> Ahc(const Matrix& x) {
   };
   cut(2*n-2);return labels;
 }
+// Centroid estimation needs a representative sample of a meeting, not every
+// window in it. Ahc is quadratic in training vectors, and the short-run
+// admission below refits it once per candidate, so an unbounded training set
+// makes one clustering quadratic in meeting length - cubic while the speaker
+// cap still has room and candidates keep being weighed. Measured on synthetic
+// 2 s-hop sessions: 0.02 s per clustering at 3 minutes of audio, 0.59 s at 40
+// minutes, and 9.9 s at 20 minutes once the admission loop runs. Subsample
+// instead, so one clustering stops growing with the meeting. A session below
+// the cap - about 17 minutes at the shipped 2 s hop - keeps every vector and
+// is unchanged.
+constexpr size_t kMaxTrainingVectors=512;
+constexpr size_t kMaxShortRunCandidates=32;
+// Evenly spaced positions over [0,count), first and last always included, so a
+// subsample still spans the whole session instead of its opening minutes.
+inline std::vector<size_t> EvenlySpaced(size_t count,size_t keep) {
+  std::vector<size_t> picked;
+  if(keep==0)return picked;
+  if(count<=keep){picked.resize(count);std::iota(picked.begin(),picked.end(),size_t{0});return picked;}
+  picked.reserve(keep);
+  for(size_t i=0;i<keep;++i)picked.push_back(i*(count-1)/(keep-1));
+  picked.erase(std::unique(picked.begin(),picked.end()),picked.end());
+  return picked;
+}
 struct VbxResult { Matrix q;Vec priors;Vec objectives; };
 // Community-1 calibrated Fb=.8 for one window per second. VBx counts every
 // window as an independent observation, and repeating each observation r times
@@ -207,6 +230,9 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
   if(segments.size()!=windows*frames*local||embeddings.size()!=windows*local*dim)throw std::runtime_error("invalid cluster shapes");
   if(!std::isfinite(hopSamples)||hopSamples<=0)throw std::runtime_error("invalid Community window hop");
   ClusterResult result;Matrix train;std::vector<int> activity(windows*local);
+  // The fit that matches `train` as it currently stands, so the admission
+  // check below and the clustering at the end share one Ahc call.
+  std::vector<int> baseFit;size_t baseFitSize=0;
   for(int w=0;w<windows;++w){for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k){int on=segments[(w*frames+f)*local+k];activity[w*local+k]+=on;}}
   }
   const bool runMode=!runRanges.empty()&&runRanges.size()%4==0&&runEmbeddings.size()==(runRanges.size()/4)*dim;
@@ -255,26 +281,39 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
         shortCandidate[r]=true;shortCandidateVectors[r]=std::move(full);
       }
     }
+    if(train.size()>kMaxTrainingVectors){
+      const auto keep=EvenlySpaced(train.size(),kMaxTrainingVectors);
+      Matrix sampled;sampled.reserve(keep.size());
+      std::vector<int> sampledRuns;sampledRuns.reserve(keep.size());
+      for(size_t i:keep){sampled.push_back(std::move(train[i]));sampledRuns.push_back(result.trainingRunIndices[i]);}
+      train=std::move(sampled);result.trainingRunIndices=std::move(sampledRuns);
+    }
     // Add only a candidate that creates one new AHC group while the public
     // speaker cap still has room. This admits an otherwise unrepresented
     // short voice without forcing a count or allowing duplicate short tails
     // to manufacture identities.
-    auto groupCount=[](const Matrix& values){
-      if(values.empty())return 0;
-      auto labels=Ahc(values);return *std::max_element(labels.begin(),labels.end())+1;
+    auto countOf=[](const std::vector<int>& labels){
+      return labels.empty()?0:*std::max_element(labels.begin(),labels.end())+1;
     };
-    int groups=groupCount(train);
+    baseFit=train.empty()?std::vector<int>():Ahc(train);baseFitSize=train.size();
+    int groups=countOf(baseFit);
     if(groups>0){
       // Admission requires exactly one additional group within the cap. Once
       // full, no later candidate can change train or groups; avoid refitting
       // the same history for every remaining, necessarily rejected short run.
-      for(size_t r=0;r<shortCandidate.size()&&groups<maxSpeakers;++r)if(shortCandidate[r]){
+      std::vector<size_t> candidates;
+      for(size_t r=0;r<shortCandidate.size();++r)if(shortCandidate[r])candidates.push_back(r);
+      for(size_t index:EvenlySpaced(candidates.size(),kMaxShortRunCandidates)){
+        if(groups>=maxSpeakers)break;
+        const size_t r=candidates[index];
         Matrix proposed=train;proposed.push_back(shortCandidateVectors[r]);
-        const int next=groupCount(proposed);
+        const auto proposedFit=Ahc(proposed);
+        const int next=countOf(proposedFit);
         if(next==groups+1&&next<=maxSpeakers){
           train.push_back(std::move(shortCandidateVectors[r]));
           result.trainingRunIndices.push_back(static_cast<int>(r));
           ++result.shortRunTrainingCount;groups=next;
+          baseFit=proposedFit;baseFitSize=train.size();
         }
       }
     }
@@ -282,13 +321,21 @@ inline ClusterResult Cluster(const std::vector<float>& segments,const std::vecto
     for(int w=0;w<windows;++w){int clean[local]={};for(int f=0;f<frames;++f){int count=0;for(int k=0;k<local;++k)count+=segments[(w*frames+f)*local+k];for(int k=0;k<local;++k)if(count==1&&segments[(w*frames+f)*local+k])clean[k]++;}
       for(int k=0;k<local;++k){int i=w*local+k;Vec emb(embeddings.begin()+i*dim,embeddings.begin()+(i+1)*dim);if(clean[k]>=.2*frames&&std::all_of(emb.begin(),emb.end(),[](double x){return std::isfinite(x);})){result.trainingIndices.push_back(i);train.push_back(std::move(emb));}}
     }
+    if(train.size()>kMaxTrainingVectors){
+      const auto keep=EvenlySpaced(train.size(),kMaxTrainingVectors);
+      Matrix sampled;sampled.reserve(keep.size());
+      std::vector<int> sampledIndices;sampledIndices.reserve(keep.size());
+      for(size_t i:keep){sampled.push_back(std::move(train[i]));sampledIndices.push_back(result.trainingIndices[i]);}
+      train=std::move(sampled);result.trainingIndices=std::move(sampledIndices);
+    }
   }
   if(train.empty()){result.hard=std::vector<int>(windows*local,-2);return result;}
   // A single enrollment still goes through the same constrained assignment.
   // Other active local tracks must not inherit its identity unconditionally.
   if(train.size()==1)result.centroids=Matrix(1,train[0]);
   else {
-    result.ahc=Ahc(train);result.features=plda.Apply(train);
+    result.ahc=baseFitSize==train.size()&&!baseFit.empty()?baseFit:Ahc(train);
+    result.features=plda.Apply(train);
     result.vbx=Vbx(result.features,plda.phi,result.ahc,kCommunityFb*kCommunityHopSamples/hopSamples);
     for(size_t c=0;c<result.vbx.priors.size();++c)if(result.vbx.priors[c]>1e-7){Vec centroid(dim);double sum=0;for(size_t i=0;i<train.size();++i){double q=result.vbx.q[i][c];sum+=q;for(int j=0;j<dim;++j)centroid[j]+=q*train[i][j];}for(auto&v:centroid)v/=sum;result.centroids.push_back(std::move(centroid));}
   }

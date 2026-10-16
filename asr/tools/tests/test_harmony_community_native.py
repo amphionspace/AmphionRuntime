@@ -1484,6 +1484,91 @@ int main(){
                             str(source), '-o', str(binary)], check=True)
             subprocess.run([str(binary)], check=True, timeout=60)
 
+    def test_long_session_clustering_stays_bounded_and_keeps_its_speakers(self):
+        compiler = shutil.which('clang++') or shutil.which('g++')
+        if compiler is None:
+            self.skipTest('C++17 compiler unavailable')
+        # Ahc is quadratic in training vectors and the short-run admission
+        # refits it per candidate, so an unbounded training set made one
+        # clustering grow with the meeting: measured 9.9 s for 20 minutes of
+        # 2 s-hop windows while the speaker cap still had room, and cubic from
+        # there. The caps must hold that flat without losing either voice, and
+        # must not engage at all for a session that fits under them.
+        program = r'''
+#include "community_cluster.h"
+#include <cassert>
+#include <chrono>
+#include <cmath>
+#include <cstdio>
+static community::Plda Model(){
+  community::Plda p;
+  p.mean1=community::Vec(256);p.mean2=community::Vec(128);p.mu=community::Vec(128);
+  p.phi=community::Vec(128,10.);p.lda=community::Matrix(256,community::Vec(128));
+  p.transform=community::Matrix(128,community::Vec(128));
+  for(int i=0;i<128;++i){p.lda[i][i]=1.;p.transform[i][i]=1.;}
+  return p;
+}
+// Two long-run voices plus a short run on an idle channel in every window:
+// the shape that keeps the speaker cap open and feeds the admission loop.
+static community::ClusterResult Session(int windows,double* seconds){
+  const community::Plda p=Model();
+  std::vector<float> segments(windows*589*3),embeddings(windows*3*256),runs;
+  std::vector<int32_t> ranges;std::vector<double> starts;
+  for(int w=0;w<windows;++w){
+    const int voice=(w/3)%2,channel=w%3,other=(channel+1)%3;
+    std::vector<float> v(256);
+    if(voice)  {v[0]=.1f;v[1]=std::sqrt(.99f);} else v[0]=1;
+    v[2+(w%5)]+=.01f;
+    for(int f=40;f<549;++f)segments[(w*589+f)*3+channel]=1;
+    for(int d=0;d<256;++d)embeddings[(w*3+channel)*256+d]=v[d];
+    runs.insert(runs.end(),v.begin(),v.end());
+    ranges.insert(ranges.end(),{w,channel,40,549});
+    std::vector<float> s(256);s[0]=1;s[7]=.02f;
+    for(int f=5;f<35;++f)segments[(w*589+f)*3+other]=1;
+    for(int d=0;d<256;++d)embeddings[(w*3+other)*256+d]=s[d];
+    runs.insert(runs.end(),s.begin(),s.end());
+    ranges.insert(ranges.end(),{w,other,5,35});
+    starts.push_back(w*32000.);
+  }
+  const auto began=std::chrono::steady_clock::now();
+  auto result=community::Cluster(segments,embeddings,windows,p,4,runs,ranges,{},
+                                 community::CommunityHopSamples(starts));
+  *seconds=std::chrono::duration<double>(std::chrono::steady_clock::now()-began).count();
+  return result;
+}
+int main(){
+  double shortSeconds=0,longSeconds=0,longerSeconds=0;
+  // Under the cap every vector is kept, so a short session is untouched.
+  const auto brief=Session(120,&shortSeconds);
+  assert(brief.trainingRunIndices.size()>community::kMaxTrainingVectors/8);
+  assert(brief.trainingRunIndices.size()<=community::kMaxTrainingVectors);
+  assert(brief.centroids.size()>=2);
+  // Well past the cap the training set stops growing, and so does the cost.
+  const auto hour=Session(1890,&longSeconds);
+  const auto twoHours=Session(3600,&longerSeconds);
+  assert(hour.trainingRunIndices.size()<=community::kMaxTrainingVectors+
+         community::kMaxShortRunCandidates);
+  assert(twoHours.trainingRunIndices.size()<=community::kMaxTrainingVectors+
+         community::kMaxShortRunCandidates);
+  // Both voices survive the subsample; it must bound cost, not merge people.
+  assert(hour.centroids.size()>=2);
+  assert(twoHours.centroids.size()>=2);
+  // Doubling the meeting must not square the work. Everything beyond the cap
+  // is the linear per-window scoring, so the ratio stays near the window ratio
+  // rather than its square; before the caps this ran away cubically.
+  const double ratio=longerSeconds/longSeconds;
+  if(!(ratio<3.)){std::fprintf(stderr,"cost ratio %.2f for 1.9x the windows\n",ratio);assert(false);}
+}
+'''
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / 'long-session.cpp'
+            binary = Path(directory) / 'long-session'
+            source.write_text(program)
+            subprocess.run([compiler, '-std=c++17', '-O2', '-I', str(CPP),
+                            str(source), '-o', str(binary)], check=True)
+            subprocess.run([str(binary)], check=True, timeout=600)
+
+
 
 class SharedTranslationUnitCompilesForAndroidTest(unittest.TestCase):
     """community_diarization.cpp is compiled by the Android JNI target too."""
