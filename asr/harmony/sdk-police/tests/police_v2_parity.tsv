@@ -153,7 +153,7 @@ terms	equals	鸡呀	羁押
 terms	equals	积压	羁押
 terms	equals	简介	警戒
 terms	equals	禁戒	警戒
-terms	equals	讯问	询问
+terms	equals	讯问	讯问
 terms	equals	询问	询问
 terms	equals	自爆	治爆
 terms	equals	智报	治爆
@@ -515,7 +515,7 @@ terms	equals	李强。	李强。
 terms	equals	林子行。	林子行。
 terms	equals	林子晴平台。	林子晴平台。
 terms	equals	易警报。	易警报。
-terms	equals	易锦保。	易锦保。
+terms	equals	易锦保。	e警保。
 terms	equals	是彻底先进行。	是彻底先进行。
 # 20260824 cp5500：只在明确车牌语境清理仍保留完整序号的冀R前缀残余。
 plate	equals	车牌号GIR17685车辆	车牌号冀R17685车辆
@@ -678,9 +678,9 @@ terms	equals	开启记录仪ENFC	开启记录仪NFC
 terms	equals	  开启记录仪ENFC？	  开启记录仪NFC？
 terms	equals	开启记录仪NFC	开启记录仪NFC
 terms	equals	请复述开启记录仪ENFC这个错误	请复述开启记录仪ENFC这个错误
-terms	equals	把路线分辨率设置为D 幺	把录像分辨率设置为D 幺
-terms	equals	  把路线分辨率设置为D 幺？	  把录像分辨率设置为D 幺？
-terms	equals	把录像分辨率设置为D 幺	把录像分辨率设置为D 幺
+terms	equals	把路线分辨率设置为D 幺	把录像分辨率设置为D1
+terms	equals	  把路线分辨率设置为D 幺？	  把录像分辨率设置为D1？
+terms	equals	把录像分辨率设置为D 幺	把录像分辨率设置为D1
 terms	equals	请复述把路线分辨率设置为D 幺这个错误	请复述把路线分辨率设置为D 幺这个错误
 terms	equals	八视频分段时长设置为六十分钟	把视频分段时长设置为六十分钟
 terms	equals	  八视频分段时长设置为六十分钟？	  把视频分段时长设置为六十分钟？
@@ -712,16 +712,16 @@ pipeline	equals	请复述八、视频分段时长设置为60min这个错误。	�
 pipeline	equals	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。	请复述把记录仪的镜头模式分辨率、帧率沿路时长都告诉我这个错误。
 pipeline	equals	沿路风景很好，录像时长是60min。	沿路风景很好，录像时长是60min。
 pipeline	equals	八视频分段时长设置为60min	把视频分段时长设置为60min。
-pipeline	equals	把录像分辨率设置为第一要。	把录像分辨率设置为D 幺。
+pipeline	equals	把录像分辨率设置为第一要。	把录像分辨率设置为D1。
 pipeline	equals	把记录仪亮度调到零到。	把记录仪亮度调到零档。
-pipeline	equals	  把录像分辨率设置为第一要？	把录像分辨率设置为D 幺。
+pipeline	equals	  把录像分辨率设置为第一要？	把录像分辨率设置为D1。
 pipeline	equals	  把记录仪亮度调到零到？	  把记录仪亮度调到零档？
-pipeline	equals	把录像分辨率设置为第一。	把录像分辨率设置为第一。
+pipeline	equals	把录像分辨率设置为第一。	把录像分辨率设置为D1。
 pipeline	equals	把记录仪亮度调到零。	把记录仪亮度调到零。
 pipeline	equals	请复述把录像分辨率设置为第一要这个错误。	请复述把录像分辨率设置为第一要这个错误。
 pipeline	equals	请复述把记录仪亮度调到零到这个错误。	请复述把记录仪亮度调到零到这个错误。
 pipeline	equals	把视频分段时长设置为60min	把视频分段时长设置为60min。
-pipeline	equals	  把录像分辨率设置为D 幺？	把录像分辨率设置为D 幺。
+pipeline	equals	  把录像分辨率设置为D 幺？	把录像分辨率设置为D1。
 
 # 20260922 警言警语全量基线：出警语境、完整数字码与开发集定向术语纠错。
 terms	equals	对不起因当前交通堵塞我们会催促出警人员尽快赶到现场请您稍等	对不起因当前交通堵塞我们会催促出警人员尽快赶到现场请您稍等
@@ -807,16 +807,16 @@ plate	equals	以267 240这辆车倒车的时候碰到我电动车了。	以冀R6
 plate	equals	设备编号267240这辆车已经登记。	设备编号267240这辆车已经登记。
 
 # V6 native 对照确认短热词“执法”锁住误识；只修正完整设备指令，不移除通用热词。
-terms	equals	执法路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
-terms	equals	执法路线分辨率设置为D 幺	把录像分辨率设置为D 幺
-pipeline	equals	执法路线分辨率设置为D幺	把录像分辨率设置为D 幺。
+terms	equals	执法路线分辨率设置为D幺。	把录像分辨率设置为D1。
+terms	equals	执法路线分辨率设置为D 幺	把录像分辨率设置为D1
+pipeline	equals	执法路线分辨率设置为D幺	把录像分辨率设置为D1
 terms	equals	执法路线分辨率设置为D。	执法路线分辨率设置为D。
 terms	equals	执法路线分辨率设置为D二。	执法路线分辨率设置为D二。
 terms	equals	请复述执法路线分辨率设置为D幺这个错误。	请复述执法路线分辨率设置为D幺这个错误。
 terms	equals	执法路线已经确认。	执法路线已经确认。
 # Device INT8/score1 output: the complete command may omit the space before 幺.
-terms	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
-pipeline	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D 幺。
+terms	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D1。
+pipeline	equals	把路线分辨率设置为D幺。	把录像分辨率设置为D1。
 terms	equals	把路线分辨率设置为D。	把路线分辨率设置为D。
 terms	equals	请复述把路线分辨率设置为D幺这个错误。	请复述把路线分辨率设置为D幺这个错误。
 # Station correction must preserve the caller's command outside the station span.
@@ -834,3 +834,77 @@ pipeline	equals	through just their habits	through just their habits
 plate	equals	UG12345	豫G12345
 plate	equals	车牌号UGABCDE	车牌号豫GABCDE
 plate	equals	冀R一二三四五	冀R12345
+# 20261015 手机反馈：保留讯问、完整分辨率指令归一 D1、修复 e警保专名及内部误加标点。
+pipeline	equals	讯问。	讯问。
+pipeline	equals	  讯问？	  讯问？
+pipeline	equals	询问。	询问。
+pipeline	equals	把录像分辨率设置为D1。	把录像分辨率设置为D1。
+pipeline	equals	把录像分辨率设置为D幺。	把录像分辨率设置为D1。
+pipeline	equals	把录像分辨率设置为第一档。	把录像分辨率设置为第一档。
+pipeline	equals	请复述把录像分辨率设置为第一这个错误。	请复述把录像分辨率设置为第一这个错误。
+pipeline	equals	第一。	第一。
+pipeline	equals	e警保。	e警保。
+pipeline	equals	E警保。	e警保。
+pipeline	equals	E。警保。	e警保。
+pipeline	equals	e。警保。	e警保。
+pipeline	equals	易锦保。	e警保。
+pipeline	equals	请打开易锦保客户端。	请打开e警保客户端。
+pipeline	equals	请打开E。警保客户端。	请打开e警保客户端。
+pipeline	equals	请打开e。警保。	请打开e警保。
+pipeline	equals	登录E警保平台。	登录e警保平台。
+pipeline	equals	易锦保是他的名字。	易锦保是他的名字。
+pipeline	equals	打开易锦保护群众的记录。	打开易锦保护群众的记录。
+pipeline	equals	打开E。警保护群众的记录。	打开E。警保护群众的记录。
+pipeline	equals	CODE。警保客户端。	CODE。警保客户端。
+
+# 20261015 Android 930 反馈：完整记录仪指令纠错及合法词/缺失信息保护。
+pipeline	equals	玉露是否开启	预录是否开启
+pipeline	equals	  玉露是否开启？	  预录是否开启？
+pipeline	equals	预录是否开启。	预录是否开启。
+pipeline	equals	沿路是否开启	延录是否开启
+pipeline	equals	  沿路是否开启？	  延录是否开启？
+pipeline	equals	延录是否开启。	延录是否开启。
+pipeline	equals	视频增速支持哪些	视频帧率支持哪些
+pipeline	equals	  视频增速支持哪些？	  视频帧率支持哪些？
+pipeline	equals	视频帧率支持哪些。	视频帧率支持哪些。
+pipeline	equals	记录仪沿路时长是多少	记录仪延录时长是多少
+pipeline	equals	  记录仪沿路时长是多少？	  记录仪延录时长是多少？
+pipeline	equals	记录仪延录时长是多少。	记录仪延录时长是多少。
+pipeline	equals	关闭沿路	关闭延录
+pipeline	equals	  关闭沿路？	  关闭延录？
+pipeline	equals	关闭延录。	关闭延录。
+pipeline	equals	打开沿路并设置为60秒	打开延录并设置为60秒
+pipeline	equals	  打开沿路并设置为60秒？	打开延录并设置为60秒。
+pipeline	equals	打开延录并设置为60秒。	打开延录并设置为60秒。
+pipeline	equals	打开沿路	打开延录
+pipeline	equals	  打开沿路？	  打开延录？
+pipeline	equals	打开延录。	打开延录。
+pipeline	equals	打开记录仪WANG	打开记录仪WLAN
+pipeline	equals	  打开记录仪WANG？	  打开记录仪WLAN？
+pipeline	equals	打开记录仪WLAN。	打开记录仪WLAN。
+pipeline	equals	把镜头切换到超常待机模式	把镜头切换到超长待机模式。
+pipeline	equals	  把镜头切换到超常待机模式？	把镜头切换到超长待机模式。
+pipeline	equals	把镜头切换到超长待机模式。	把镜头切换到超长待机模式。
+pipeline	equals	查询沿路时长	查询延录时长
+pipeline	equals	  查询沿路时长？	  查询延录时长？
+pipeline	equals	查询延录时长。	查询延录时长。
+pipeline	equals	玉露茶很好喝。	玉露茶很好喝。
+pipeline	equals	沿路风景很好。	沿路风景很好。
+pipeline	equals	查询沿路路况。	查询沿路路况。
+pipeline	equals	视频增速很快。	视频增速很快。
+pipeline	equals	请复述打开沿路这个错误。	请复述打开沿路这个错误。
+pipeline	equals	请补正申请材料。	请补正申请材料。
+pipeline	equals	补正。	补正。
+pipeline	equals	补证。	补证。
+pipeline	equals	把记录仪音量调到最大。	把记录仪音量调到最大。
+pipeline	equals	把记录仪媒体音量调到最大。	把记录仪媒体音量调到最大。
+pipeline	equals	您反映的问题属于武侯区单位管辖请您拨打855 4767电话。	您反映的问题属于武侯区单位管辖请您拨打855 4767电话。
+pipeline	equals	您反映的问题属于武侯区单位管辖请您拨打85554767电话。	您反映的问题属于武侯区单位管辖请您拨打85554767电话。
+pipeline	equals	视频证率支持哪些？	视频帧率支持哪些？
+pipeline	equals	打开记录仪PLAN。	打开记录仪WLAN。
+pipeline	equals	布证。	补证。
+
+# 术语层保留原标点；完整 pipeline 沿用既有 station 指令句号格式。
+terms	equals	  打开沿路并设置为60秒？	  打开延录并设置为60秒？
+terms	equals	把镜头切换到超常待机模式	把镜头切换到超长待机模式
+terms	equals	  把镜头切换到超常待机模式？	  把镜头切换到超长待机模式？
