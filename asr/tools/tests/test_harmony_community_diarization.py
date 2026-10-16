@@ -230,10 +230,23 @@ class HarmonyCommunityDiarizationTest(unittest.TestCase):
             for(let k=0;k<=70;k++){s.onWindow(window(k));s.asrAudioProcessed((k+10)*16000);await tick();}
             return covered;
           }
-          // Cheap previews keep the 10 s cadence of short sessions.
-          assert.deepEqual(await previews(100),[10000,20000,30000,40000,50000,60000,70000,80000]);
-          // A 3 s recluster waits for 30 s more audio before the next preview.
-          assert.deepEqual(await previews(3000),[10000,40000,70000]);
+          // Derive the expectation from the throttle rather than restating its
+          // constant: the behaviour under test is that cost sets the spacing.
+          const ratio=SpeakerDiarizationSession.PREVIEW_COST_RATIO;
+          const floorMs=SpeakerDiarizationSession.PREVIEW_INTERVAL_MS;
+          const expected=(costMs)=>{
+            const gap=Math.max(floorMs,ratio*costMs);
+            const out=[];
+            for(let at=floorMs;at<=80000;at+=gap)out.push(at);
+            return out;
+          };
+          // Cheap previews keep the 10 s cadence of short sessions: the floor wins.
+          assert.equal(expected(100).length,8);
+          assert.deepEqual(await previews(100),expected(100));
+          // An expensive recluster waits for proportionally more audio.
+          assert.ok(expected(3000).length<expected(100).length,
+            'an expensive preview must be spaced further than a cheap one');
+          assert.deepEqual(await previews(3000),expected(3000));
         """)
 
     def test_delayed_preview_is_serial_and_cancel_discards_its_result(self):

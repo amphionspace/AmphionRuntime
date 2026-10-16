@@ -1,3 +1,4 @@
+import re
 import subprocess
 import textwrap
 import unittest
@@ -634,6 +635,34 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             assert.equal(plain.completeSent,true);
             """
         )
+
+    def test_preview_spacing_stays_inside_the_commit_period(self) -> None:
+        """A preview must keep refreshing provisional roles at least once per commit."""
+        # Previews are throttled to a fraction of the audio they cover because their
+        # cost grows with the meeting. Raise that fraction far enough and the spacing
+        # overtakes the commit period, at which point previews stop adding anything
+        # in exactly the long meetings the throttle exists for. Measured on a 7332 s
+        # session, one preview late in it cost 4858 ms, so the spacing there is the
+        # ratio times that; it has to stay inside the default commit period.
+        source = SESSION.read_text(encoding="utf-8")
+        ratio = int(re.search(r"PREVIEW_COST_RATIO: number = (\d+)", source).group(1))
+        interval = int(re.search(r"PREVIEW_INTERVAL_MS: number = (\d+)", source).group(1))
+        clock = (DIARIZATION / "DiarizationCommitClock.ts").read_text(encoding="utf-8")
+        commit_period = int(
+            re.search(r"commitPeriodMs: number = (\d+)", clock).group(1)
+        )
+        measured_late_preview_ms = 4858
+        spacing = max(interval, ratio * measured_late_preview_ms)
+        self.assertLessEqual(
+            spacing,
+            commit_period,
+            f"preview spacing {spacing} ms of audio exceeds the {commit_period} ms "
+            "commit period, so previews would be sparser than the commits that "
+            "supersede them",
+        )
+        # The floor still has to be a floor: a cheap preview early on must not be
+        # spaced by the ratio alone.
+        self.assertGreaterEqual(interval, 1000)
 
     def test_diarization_timeout_never_replaces_pending_asr_tail(self) -> None:
         """A spent deadline still cannot publish before the recognizer's tail."""
