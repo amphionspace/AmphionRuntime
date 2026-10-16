@@ -402,7 +402,7 @@ class PoliceShortTermGuard {
   }
 }
 
-// cp5500 的 e警保 三字误识只在明确 App 语境下纠正；裸短词和通用碰撞表达保持原文。
+// e警保 误识和标点拆词只在明确 App 语境下纠正；独立 final 由整句映射单独处理。
 // 与 Android PoliceTermsNormalizerV2.applyEJingbaoGuard 对齐。
 class EJingbaoGuard {
   private static readonly TARGET: string = 'e警保';
@@ -414,7 +414,11 @@ class EJingbaoGuard {
   ];
   private static readonly VARIANTS: EJingbaoVariant[] = [
     new EJingbaoVariant('咦劲爆', ['新', '消', '视', '话', '爆', '内', '音', '现']),
-    new EJingbaoVariant('义警保', ['安', '护', '险', '障', '卫', '洁', '持', '密'])
+    new EJingbaoVariant('义警保', ['安', '护', '险', '障', '卫', '洁', '持', '密']),
+    new EJingbaoVariant('易锦保', ['安', '护', '险', '障', '卫', '洁', '持', '密']),
+    new EJingbaoVariant('E警保', ['安', '护', '险', '障', '卫', '洁', '持', '密']),
+    new EJingbaoVariant('E。警保', ['安', '护', '险', '障', '卫', '洁', '持', '密']),
+    new EJingbaoVariant('e。警保', ['安', '护', '险', '障', '卫', '洁', '持', '密'])
   ];
 
   static apply(text: string, trace?: PoliceTextTrace): string {
@@ -435,7 +439,10 @@ class EJingbaoGuard {
         result += out.substring(from, index);
         const end = index + item.variant.length;
         const after = EJingbaoGuard.firstSemanticChar(out, end);
-        const collide = after.length > 0 && item.collide.has(after);
+        // E 必须是独立字母，不能从 CODE 等英文词尾拼出应用名。
+        const embeddedLetter = 'eE'.indexOf(item.variant.charAt(0)) >= 0 && index > 0 &&
+          /[A-Za-z0-9]/.test(out.charAt(index - 1));
+        const collide = embeddedLetter || (after.length > 0 && item.collide.has(after));
         const ctxAfter = out.substring(end, Math.min(end + 10, out.length));
         let hasAfterCtx = false;
         for (let c = 0; c < EJingbaoGuard.APP_CTX.length; c++) {
