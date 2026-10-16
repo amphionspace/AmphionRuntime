@@ -1,0 +1,18 @@
+[20:38:38] === 场次 D1-诊断包-亮屏140s 开始 cpuIds=none screen=on ===
+[20:38:41] 降温中 shell_back=29.68C 目标<=29.0C
+[20:39:01] 降温中 shell_back=29.55C 目标<=29.0C
+[20:39:21] 降温中 shell_back=29.59C 目标<=29.0C
+[20:39:41] 降温中 shell_back=29.57C 目标<=29.0C
+[20:40:01] 降温中 shell_back=29.40C 目标<=29.0C
+[20:40:21] 降温中 shell_back=29.36C 目标<=29.0C
+[20:40:41] 降温中 shell_back=29.28C 目标<=29.0C
+[20:41:01] 降温中 shell_back=29.20C 目标<=29.0C
+[20:41:22] 降温中 shell_back=29.13C 目标<=29.0C
+[20:41:42] 降温中 shell_back=29.05C 目标<=29.0C
+[20:42:02] 降温中 shell_back=29.00C 目标<=29.0C
+[20:42:22] 降温结束 shell_back=28.97C 等待=221s
+[20:42:22] 起始温度 {"Battery": 28.0, "ambient": 23.901, "charger": 28.35, "modem": 0.0, "pa_s": 27.476, "rfboard": 27.904, "shell_back": 28.967, "shell_frame": 28.467, "shell_front": 28.467, "system_h": 28.2} 电池 {'capacity': 80, 'chargingStatus': 2, 'nowCurrent': -22, 'temperature': 280}
+[20:42:23] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir .cache/core-domain-matrix-20261014/corpus-140 --mode paced --files 1 --cycles 1 --pace-ms 20 --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root .cache/core-domain-matrix-20261014/runs/D1-diag-on/stress --capture-diagnostics --enable-diarization
+[20:42:26] 检测到会话首帧，T0=+3.0s
+[20:44:55] 驱动退出 rc=0 墙钟=151.9s 结束温度 {"Battery": 29.0, "ambient": 24.029, "charger": 30.4, "modem": 0.0, "pa_s": 28.45, "rfboard": 28.25, "shell_back": 30.073, "shell_frame": 29.573, "shell_front": 29.573, "system_h": 30.65} 电池 {'capacity': 80, 'chargingStatus': 2, 'nowCurrent': -64, 'temperature': 290}
+[20:44:55] === 场次 D1-诊断包-亮屏140s 结束 ===

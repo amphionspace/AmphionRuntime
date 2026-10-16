@@ -1,0 +1,30 @@
+[08:49:14] === 场次 B3-熄屏不绑核-中途解锁 开始 cpuIds=none screen=off ===
+[08:49:17] 降温中 shell_back=33.67C 目标<=32.0C
+[08:49:37] 降温中 shell_back=33.53C 目标<=32.0C
+[08:49:57] 降温中 shell_back=33.42C 目标<=32.0C
+[08:50:17] 降温中 shell_back=33.34C 目标<=32.0C
+[08:50:37] 降温中 shell_back=33.24C 目标<=32.0C
+[08:50:57] 降温中 shell_back=33.18C 目标<=32.0C
+[08:51:17] 降温中 shell_back=33.06C 目标<=32.0C
+[08:51:37] 降温中 shell_back=32.97C 目标<=32.0C
+[08:51:58] 降温中 shell_back=32.88C 目标<=32.0C
+[08:52:18] 降温中 shell_back=32.82C 目标<=32.0C
+[08:52:38] 降温中 shell_back=32.73C 目标<=32.0C
+[08:52:58] 降温中 shell_back=32.65C 目标<=32.0C
+[08:53:18] 降温中 shell_back=32.56C 目标<=32.0C
+[08:53:38] 降温中 shell_back=32.49C 目标<=32.0C
+[08:53:58] 降温中 shell_back=32.42C 目标<=32.0C
+[08:54:18] 降温中 shell_back=32.41C 目标<=32.0C
+[08:54:39] 降温中 shell_back=32.36C 目标<=32.0C
+[08:54:59] 降温中 shell_back=32.30C 目标<=32.0C
+[08:55:19] 降温中 shell_back=32.24C 目标<=32.0C
+[08:55:39] 降温中 shell_back=32.16C 目标<=32.0C
+[08:55:59] 降温中 shell_back=32.11C 目标<=32.0C
+[08:56:19] 降温结束 shell_back=32.05C 等待=423s
+[08:56:19] 起始温度 {"Battery": 31.0, "ambient": 26.561, "charger": 31.75, "modem": 0.0, "pa_s": 30.85, "rfboard": 31.15, "shell_back": 32.045, "shell_frame": 31.545, "shell_front": 31.545, "system_h": 31.5} 电池 {'capacity': 81, 'chargingStatus': 2, 'nowCurrent': -32, 'temperature': 310}
+[08:56:20] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir .cache/core-domain-matrix-20261014/corpus-523 --mode paced --files 1 --cycles 1 --pace-ms 20 --enable-diarization --capture-diagnostics --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root .cache/core-domain-matrix-20261014/runs/B3-off-nobind-unlock/stress --allow-screen-off --hold-mic-capture
+[08:56:23] 检测到会话首帧，T0=+3.0s
+[08:57:25] 已熄屏（会话首帧后 60s）
+[09:03:09] 已亮屏并解锁（会话首帧后 400s），cpuset=/cpuset/top-app
+[09:05:43] 驱动退出 rc=0 墙钟=561.9s 结束温度 {"Battery": 34.0, "ambient": 26.654, "charger": 35.315, "modem": 0.0, "pa_s": 33.315, "rfboard": 32.25, "shell_back": 34.681, "shell_frame": 34.181, "shell_front": 34.181, "system_h": 35.368} 电池 {'capacity': 81, 'chargingStatus': 2, 'nowCurrent': -25, 'temperature': 340}
+[09:05:43] === 场次 B3-熄屏不绑核-中途解锁 结束 ===
