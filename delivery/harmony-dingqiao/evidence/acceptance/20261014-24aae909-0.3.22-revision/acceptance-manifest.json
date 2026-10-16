@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.22",
+  "source_commit": "24aae909b1765edcd99dc8554771b7bdaac25c9c",
+  "summary_sha256": "9ec3878d9bb3479a5993bc1a464b7a1ec031be2743be50c4eb2eef30088a74e6",
+  "reports": [
+    {
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "8ac7dfaf0ee2b5fd811887ee78b75d11a895487d8a200ffe01b711270176d02e"
+    }
+  ],
+  "waived_modes": [
+    {
+      "mode": "speaker-vad-turn",
+      "reason": "Waived for this batch, carried forward from 0.3.22, 0.3.21 and 0.3.20: the mode requires a target-speaker manifest whose customer fixtures are absent from this checkout and from both fetched controlled data bundles, so no valid evidence can be produced. This revision changes nothing in that mode."
+    }
+  ]
+}

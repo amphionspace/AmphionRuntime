@@ -1,0 +1,7 @@
+[06:55:47] === 场次 D-亮屏不绑核 开始 cpuIds=none screen=on ===
+[06:55:49] 降温结束 shell_back=30.03C 等待=0s
+[06:55:50] 起始温度 {"Battery": 29.0, "ambient": 25.381, "charger": 29.571, "modem": 0.0, "pa_s": 28.75, "rfboard": 28.7, "shell_back": 30.03, "shell_frame": 29.53, "shell_front": 29.53, "system_h": 29.285} 电池 {'capacity': 82, 'chargingStatus': 2, 'nowCurrent': -42, 'temperature': 290}
+[06:55:51] 驱动命令: /Library/Developer/CommandLineTools/usr/bin/python3 delivery/harmony-dingqiao/delivery/run_device_stress.py --data-dir .cache/core-domain-matrix-20261014/corpus-523 --mode paced --files 1 --cycles 1 --pace-ms 20 --enable-diarization --capture-diagnostics --installed-package --asr-qos user-initiated --asr-num-threads 4 --diarization-hop-ms 2000 --diarization-encoder auto --timeout 1800 --sample-interval 1.0 --output-root .cache/core-domain-matrix-20261014/runs/D-baseline/stress
+[06:55:54] 检测到会话首帧，T0=+3.0s
+[07:04:51] 驱动退出 rc=0 墙钟=539.5s 结束温度 {"Battery": 32.0, "ambient": 25.866, "charger": 33.473, "modem": 0.0, "pa_s": 31.65, "rfboard": 30.85, "shell_back": 33.015, "shell_frame": 32.515, "shell_front": 32.515, "system_h": 33.421} 电池 {'capacity': 82, 'chargingStatus': 2, 'nowCurrent': -24, 'temperature': 320}
+[07:04:51] === 场次 D-亮屏不绑核 结束 ===
