@@ -163,6 +163,9 @@ internal class SessionImpl(
     @Volatile
     private var initialSilenceTimeoutSent: Boolean = false
 
+    @Volatile
+    private var licenseRejected: Boolean = false
+
     /** 声能只触发有界确认，不会直接或永久标记 speech。 */
     private val initialAcousticActivity = if (
         initialSilenceTimeoutSamples > 0L && initialSilenceConfirmationGraceSamples > 0L
@@ -388,6 +391,7 @@ internal class SessionImpl(
     }
 
     fun stop() {
+        if (licenseRejected) return
         pcmSubmissionLimiter.stopAccepting()
         decoderSubmissionFence.submitStop {
             stopped.set(true)
@@ -596,6 +600,13 @@ internal class SessionImpl(
 
     /** Fixed slices prevent audio after an armed deadline from changing the decision at that deadline. */
     private fun feedChunkAndDecode(rawSamples: FloatArray, processedSamples: FloatArray): Boolean {
+        if (licenseRejected) return false
+        if (com.amphion.asr.AmphionRuntime.runtimeLicenseExpired()) {
+            licenseRejected = true
+            pcmSubmissionLimiter.stopAccepting()
+            postError(AsrError(AsrErrorCode.LICENSE_EXPIRED, "license no longer valid"))
+            return false
+        }
         if (closed.get() || initialSilenceTimeoutSent) return false
         check(rawSamples.size == processedSamples.size) { "raw/processed PCM size mismatch" }
 
@@ -1259,6 +1270,7 @@ internal class SessionImpl(
     }
 
     private fun dispatchFinal(processed: AsrResult, postProcessMs: Long) {
+        if (licenseRejected) return
         // 在 postprocess 线程同步抓 metrics 快照（utterance 维度）；startupBundle 仅第一段非 null
         val bundleForThisUtterance = startupBundlePending
         startupBundlePending = null
@@ -1266,6 +1278,7 @@ internal class SessionImpl(
         metrics.emit(utteranceMetrics, callback, callbackHandler)
 
         callbackHandler.post {
+            if (licenseRejected) return@post
             safeCallback {
                 // 目标说话人门控：被判为非目标的段改派 onFinalRejected（不再触发 onFinal）。
                 if (processed.isTargetSpeaker == false) {
@@ -1280,6 +1293,7 @@ internal class SessionImpl(
 
     private fun postSessionStopped() {
         callbackHandler.post {
+            if (licenseRejected) return@post
             safeCallback { callback.onSessionStopped() }
         }
     }

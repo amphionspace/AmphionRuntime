@@ -596,7 +596,7 @@ internal class DingqiaoRecognitionEngine(
             notifyError(
                 errorEpoch,
                 sessionId,
-                DingqiaoErrorCode.RECOGNITION_ERROR,
+                if (error.code == com.amphion.asr.AsrErrorCode.LICENSE_EXPIRED) DingqiaoErrorCode.LICENSE_EXPIRED else DingqiaoErrorCode.RECOGNITION_ERROR,
                 "${error.code}: ${error.message}",
             )
         }

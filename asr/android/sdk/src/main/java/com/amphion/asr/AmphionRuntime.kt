@@ -41,6 +41,12 @@ public object AmphionRuntime {
     @Volatile
     private var licenseStatusHolder: AmphionLicenseStatus? = null
 
+    @Volatile
+    private var activeLicenseOptions: AmphionOptions? = null
+
+    @Volatile
+    private var activeLicenseDeadline: Long = Long.MAX_VALUE
+
     /**
      * 多语言预加载池：language → 已加载的 OnlineRecognizer。
      *
@@ -80,6 +86,13 @@ public object AmphionRuntime {
                 }
             }
 
+            if (result.ok && result.status.state == AmphionLicenseStatus.State.LICENSED) {
+                LicenseVerifier.acceptGeneration(ctx, resolveLicenseText(ctx, options))
+            }
+            activeLicenseOptions = options.copy(license = resolveLicenseText(ctx, options), licenseAssetName = null)
+            activeLicenseDeadline = if (result.ok && result.status.state == AmphionLicenseStatus.State.LICENSED && options.licenseEnforcement == LicenseEnforcement.ENFORCE) {
+                com.amphion.asr.internal.EnterpriseLicensePolicy.deadlineMillis(activeLicenseOptions?.license)
+            } else Long.MAX_VALUE
             appContext = ctx
             initialized = true
             Logger.i(
@@ -101,6 +114,21 @@ public object AmphionRuntime {
     ): AmphionLicenseStatus {
         val ctx = context.applicationContext ?: context
         return verifyLicense(ctx, options).status
+    }
+
+    /** 激活已验签的授权并持久记录代次；不初始化或加载模型。 */
+    @JvmStatic
+    public fun activateLicense(context: Context, options: AmphionOptions): AmphionLicenseStatus {
+        val ctx = context.applicationContext ?: context
+        val result = verifyLicense(ctx, options)
+        if (result.ok && result.status.state == AmphionLicenseStatus.State.LICENSED) {
+            try {
+                LicenseVerifier.acceptGeneration(ctx, resolveLicenseText(ctx, options))
+            } catch (error: com.amphion.asr.internal.EnterpriseLicensePolicy.Rejected) {
+                throw IllegalStateException("code=${error.code}: Enterprise license activation rejected", error)
+            }
+        }
+        return result.status
     }
 
     /** 当前 Runtime 是否已经完成 [init]。 */
@@ -264,8 +292,10 @@ public object AmphionRuntime {
      * 授权客户 / 到期日 / 档位，或排障时确认 SDK 是否被授权武装。
      */
     @JvmStatic
-    public fun licenseStatus(): AmphionLicenseStatus =
-        licenseStatusHolder ?: AmphionLicenseStatus.NOT_INITIALIZED
+    public fun licenseStatus(): AmphionLicenseStatus {
+        refreshLicense()
+        return licenseStatusHolder ?: AmphionLicenseStatus.NOT_INITIALIZED
+    }
 
     /**
      * 设备 SN 授权哈希，用于申请设备白名单 `.lic`（`authorizedDeviceHashes` 字段）。
@@ -288,6 +318,8 @@ public object AmphionRuntime {
             unloadModelLocked()
             appContext = null
             licenseStatusHolder = null
+            activeLicenseOptions = null
+            activeLicenseDeadline = Long.MAX_VALUE
             initialized = false
             Logger.i("AmphionRuntime released.")
         }
@@ -351,6 +383,23 @@ public object AmphionRuntime {
             "AmphionRuntime.init(context) must be called before using SDK APIs " +
                 "(error code=${AsrErrorCode.SDK_NOT_INITIALIZED})."
         }
+        val result = refreshLicense()
+        if (result != null && !result.ok && activeLicenseOptions?.licenseEnforcement == LicenseEnforcement.ENFORCE) {
+            throw IllegalStateException("code=${result.errorCode}: license no longer valid")
+        }
+        if (result?.ok == true && result.status.state == AmphionLicenseStatus.State.LICENSED) {
+            LicenseVerifier.acceptGeneration(appContext!!, activeLicenseOptions?.license)
+        }
+    }
+
+    internal fun runtimeLicenseExpired(): Boolean = System.currentTimeMillis() >= activeLicenseDeadline
+
+    private fun refreshLicense(): LicenseVerifier.Result? {
+        val ctx = appContext ?: return null
+        val options = activeLicenseOptions ?: return null
+        val result = verifyLicense(ctx, options)
+        licenseStatusHolder = result.status
+        return result
     }
 
     /**
