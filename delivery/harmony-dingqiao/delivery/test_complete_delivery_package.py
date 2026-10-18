@@ -2,6 +2,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -72,6 +73,28 @@ class CompleteDeliveryPackageTest(unittest.TestCase):
                 for line in archive.read(prefix+'docs/checksums.txt').decode().splitlines():
                     expected, relative = line.split(None, 1)
                     self.assertEqual(digest(archive.read(prefix+relative.removeprefix('./'))), expected)
+                self.assertUnshippedImports(archive, prefix)
+
+    def assertUnshippedImports(self, archive, prefix):
+        """Delivered demo source must import nothing it is not shipped with.
+
+        The customer builds this tree against `libs/` alone, so an import of a module that
+        lives only in the diagnostics SDK fails for them and for nobody else.
+        """
+        source = prefix + 'demo-source/'
+        package = json.loads(archive.read(source + 'samples/dingqiao-demo/entry/oh-package.json5'))
+        allowed = set(package['dependencies']) | set(package.get('devDependencies', {}))
+        system = ('@ohos.', '@kit.', '@system.', '@arkts.', '@hms.', '@ohos/')
+        pattern = re.compile(r"""(?:from|import)\s+['\"]([^'\"]+)['\"]""")
+        leaked = {}
+        for name in archive.namelist():
+            if not name.startswith(source) or not name.endswith(('.ets', '.ts')):
+                continue
+            for module in pattern.findall(archive.read(name).decode('utf-8')):
+                if module.startswith('.') or module.startswith(system) or module in allowed:
+                    continue
+                leaked.setdefault(module, []).append(name[len(source):])
+        self.assertEqual(leaked, {})
 
 
 if __name__ == '__main__':

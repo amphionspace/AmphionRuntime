@@ -188,6 +188,14 @@ def replace_exact(text: str, old: str, new: str, label: str) -> str:
         raise SystemExit(f"[ERROR] expected one {label} rewrite, found {count}")
     return text.replace(old, new)
 
+
+def cut_between(text: str, start: str, end: str, label: str) -> str:
+    if text.count(start) != 1 or text.count(end) != 1:
+        raise SystemExit(f"[ERROR] expected one {label} region, found no unique anchors")
+    head, rest = text.split(start, 1)
+    _, tail = rest.split(end, 1)
+    return head + tail
+
 build_profile, module_package = map(Path, sys.argv[1:])
 profile = json.loads(build_profile.read_text(encoding="utf-8"))
 demo_modules = [
@@ -263,28 +271,59 @@ model_text = replace_exact(
 )
 model_bench.write_text(model_text, encoding="utf-8")
 
+self_test = module_package.parent / "src/main/ets/util/SdkSelfTest.ets"
+self_test_text = self_test.read_text(encoding="utf-8")
+self_test_text = replace_exact(
+    self_test_text,
+    "import { PoliceEnhancePipeline } from 'amphion_police';\n",
+    "",
+    "SdkSelfTest police import",
+)
+# amphion_police ships only in the diagnostics SDK, so its regression cases cannot be part
+# of a self-test the customer builds against the public HAR alone.
+self_test_text = cut_between(
+    self_test_text,
+    "  // \u624b\u673a\u53cd\u9988\u7684\u786e\u5b9a\u6027\u540e\u5904\u7406\u56de\u5f52"
+    "\uff1b\u8bc6\u522b\u7cbe\u5ea6\u4ecd\u7531\u771f\u5b9e\u97f3\u9891\u5355\u72ec"
+    "\u9a8c\u8bc1\u3002\n",
+    "  police.close();\n",
+    "SdkSelfTest police regression",
+)
+self_test.write_text(self_test_text, encoding="utf-8")
+
 transformations = module_package.parents[3] / "TRANSFORMATIONS.md"
 transformations.write_text(
     "# Demo source delivery transformations\n\n"
     "This source is based on the recorded delivery commit and adapted to build only with "
     "the public `amphion_dingqiao.har`. The package removes non-public runtime inspection "
-    "calls from `DeviceStressTest.ets`, `ModelLoadBench.ets` and `MindirProbe.ets`, "
-    "narrows the build profile "
+    "calls from `DeviceStressTest.ets`, `ModelLoadBench.ets` and `MindirProbe.ets`, removes "
+    "the `amphion_police` regression cases from `SdkSelfTest.ets` because that module ships "
+    "only in the diagnostics SDK, narrows the build profile "
     "to the ASR Demo module, and rewrites its dependency to `libs/amphion_dingqiao.har`.\n",
     encoding="utf-8",
 )
 
 # The delivered source must compile against the public HAR alone. A surviving import of an
-# internal module means a demo file gained a diagnostics dependency this script does not
-# strip, which otherwise only surfaces when the customer builds it, so fail the pack here.
-leaked = sorted(
-    str(path.relative_to(module_package.parents[3]))
-    for path in module_package.parents[3].rglob("*.ets")
-    if "from 'amphion_asr'" in path.read_text(encoding="utf-8")
-)
+# internal module means a demo file gained a dependency this script does not strip, which
+# otherwise only surfaces when the customer builds it, so fail the pack here. The check is
+# on every bare specifier rather than a list of known-internal names: a new internal module
+# would otherwise pass unnoticed exactly the way `amphion_police` did.
+import re
+
+system_prefixes = ("@ohos.", "@kit.", "@system.", "@arkts.", "@hms.", "@ohos/")
+allowed = set(package["dependencies"]) | set(package.get("devDependencies", {}))
+source_root = module_package.parents[3]
+specifier = re.compile(r"""(?:from|import)\s+['"]([^'"]+)['"]""")
+leaked = {}
+for path in sorted(source_root.rglob("*.ets")) + sorted(source_root.rglob("*.ts")):
+    for name in specifier.findall(path.read_text(encoding="utf-8")):
+        if name.startswith(".") or name.startswith(system_prefixes) or name in allowed:
+            continue
+        leaked.setdefault(name, []).append(str(path.relative_to(source_root)))
 if leaked:
     raise SystemExit(
-        "[ERROR] delivered demo source still imports the internal SDK: " + ", ".join(leaked)
+        "[ERROR] delivered demo source imports modules it is not shipped with: "
+        + ", ".join(f"{name} ({', '.join(files)})" for name, files in sorted(leaked.items()))
     )
 PY
 unzip -p "$RELEASE_ZIP" '*/har/amphion_dingqiao.har' \
