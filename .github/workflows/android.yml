@@ -142,8 +142,6 @@ jobs:
               "asr/tools/sync_harmony_police_assets.py",
               "asr/tools/test_harmony_police_parity.py",
               "asr/tools/tests/test_user_hotword_weight.py",
-              // 逐词热词加权依赖 sherpa 的 `:<分>` 语法和 ContextGraph 的零分回落。
-              "third_party/sherpa-onnx",
             ]);
             const policePrefixes = [
               "asr/android/sdk-police/",
@@ -181,6 +179,8 @@ jobs:
               "asr/tools/prepare_sherpa_source.sh",
               "asr/tools/ensure_agc_build_tools.sh",
               "asr/tools/prefetch_sherpa_cmake_deps.sh",
+              // 逐词热词加权依赖 sherpa 的 `:<分>` 语法和 ContextGraph 的零分回落。
+              "asr/tools/tests/test_sherpa_hotword_score_syntax.py",
               "third_party/sherpa-onnx",
             ]);
             const androidPrefixes = [
@@ -612,6 +612,8 @@ jobs:
           sherpa_root="$(bash asr/tools/prepare_sherpa_source.sh)"
           echo "AMPHION_SHERPA_ROOT=$sherpa_root" >> "$GITHUB_ENV"
           python3 -m unittest asr.tools.tests.test_sherpa_source_isolation -v
+          AMPHION_SHERPA_ROOT="$sherpa_root" \
+            python3 -m unittest asr.tools.tests.test_sherpa_hotword_score_syntax -v
 
       - name: Compute Android native source fingerprint
         id: native-fingerprint
