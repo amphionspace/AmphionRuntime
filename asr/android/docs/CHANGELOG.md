@@ -8,7 +8,8 @@
 
 ## [Unreleased]
 
-当前无未发布变更。
+- 调用方热词（`sysGeneralLexicon`）改为逐词加权 3.0，警务预置池（车牌/派出所/术语）保持 Police 1.4.0 校准的 1.0。此前两者共用 1.0，业务专名压不过同音常用词（「鼎桥」被识别成「顶桥」）。公开 API 与热词入参格式不变；`AsrConfig.hotwordsScore` 的语义收窄为「未逐词标注时的兜底分」。
+- 鸿蒙诊断流的 `hotwordCount` 修正为统计引擎级 `sysGeneralLexicon`。此前读的是 `StartParams` 上并不存在的 `hotwords`，该字段恒为 0，排查热词未生效时会误导成「热词没传进来」。
 
 ## [0.3.8] - 2026-09-18
 

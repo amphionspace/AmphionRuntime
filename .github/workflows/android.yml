@@ -141,6 +141,9 @@ jobs:
               WORKFLOW,
               "asr/tools/sync_harmony_police_assets.py",
               "asr/tools/test_harmony_police_parity.py",
+              "asr/tools/tests/test_user_hotword_weight.py",
+              // 逐词热词加权依赖 sherpa 的 `:<分>` 语法和 ContextGraph 的零分回落。
+              "third_party/sherpa-onnx",
             ]);
             const policePrefixes = [
               "asr/android/sdk-police/",
@@ -555,6 +558,7 @@ jobs:
         run: |
           python3 asr/tools/sync_harmony_police_assets.py --check
           python3 asr/tools/test_harmony_police_parity.py
+          python3 -m unittest asr.tools.tests.test_user_hotword_weight -v
 
   host-agc:
     name: Host AGC native tests
