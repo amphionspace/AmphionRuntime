@@ -1,8 +1,9 @@
-"""调用方热词(sysGeneralLexicon)的逐词加权必须双端一致,且 sherpa-onnx 侧语法仍然成立。
+"""调用方热词(sysGeneralLexicon)的逐词加权必须双端一致。
 
-预置池按 Police 1.4.0 校准停在 1.0,调用方热词单独走 3.0。两档靠 sherpa-onnx hotwords
-buffer 的逐行 `<词> :<分>` 语法共存:未标注的行回落到 ContextGraph 的全局 context_score。
-若 sherpa 升级后丢掉其中任何一环,这个修复会静默退化成「调用方热词也只有 1.0」。
+预置池按 Police 1.4.0 校准停在 1.0,调用方热词单独走 3.0;两档靠 sherpa-onnx hotwords
+buffer 的逐行 `<词> :<分>` 语法共存。sherpa 侧那两个前提由
+test_sherpa_hotword_score_syntax.py 钉住(它需要 sherpa 源码已检出,因此跑在初始化了
+子模块的 job 里)。本文件只读仓库内源码,不依赖子模块。
 """
 
 import re
@@ -17,8 +18,6 @@ HARMONY_POLICE = REPO_ROOT / (
 ANDROID_POLICE = REPO_ROOT / (
     "asr/android/sdk-police/src/main/java/com/amphion/police/PoliceEngineConfig.kt"
 )
-SHERPA_UTILS = REPO_ROOT / "third_party/sherpa-onnx/sherpa-onnx/csrc/utils.cc"
-SHERPA_CONTEXT_GRAPH = REPO_ROOT / "third_party/sherpa-onnx/sherpa-onnx/csrc/context-graph.cc"
 
 PRESET_SCORE = 1.0
 USER_SCORE = 3.0
@@ -55,18 +54,6 @@ class UserHotwordWeightTest(unittest.TestCase):
             self.assertIn(f"readHotwords(context, '{domain}').forEach(appendPreset)", harmony)
         for preset in ("PoliceTermsHotwords", "PlateHotwords", "PoliceStationHotwords"):
             self.assertIn(f"{preset}.PRESET.forEach {{ append(it) }}", android)
-
-    def test_sherpa_still_parses_per_hotword_scores(self) -> None:
-        utils = SHERPA_UTILS.read_text(encoding="utf-8")
-        # `:<分>` 必须排在短语之后,且由 EncodeHotwords 透出到 boost_scores。
-        self.assertIn("case ':':  // boosting score for current keyword", utils)
-        self.assertIn(
-            "return EncodeBase(lines, symbol_table, hotwords, nullptr, boost_scores,", utils
-        )
-
-    def test_unscored_hotwords_fall_back_to_the_global_weight(self) -> None:
-        graph = SHERPA_CONTEXT_GRAPH.read_text(encoding="utf-8")
-        self.assertIn("score = score == 0.0f ? context_score_ : score;", graph)
 
 
 if __name__ == "__main__":
