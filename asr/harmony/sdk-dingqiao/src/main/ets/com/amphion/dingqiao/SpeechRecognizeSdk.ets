@@ -422,7 +422,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       config['enableVoiceprintVerification'] = verify;
       config['enableSpeakerVad'] = speakerVad;
       config['voiceprintIdCount'] = voiceprintIdCount;
-      config['hotwordCount'] = parseLexicon(params.extraParams['hotwords']).length;
+      // 热词是引擎级参数（CreateEngineParams.extraParams.sysGeneralLexicon）。这里原本读
+      // StartParams 上并不存在的 'hotwords'，诊断流里 hotwordCount 恒为 0，排查热词未生效时
+      // 会被误导成「热词没传进来」。
+      config['hotwordCount'] = parseLexicon(this.params.extraParams['sysGeneralLexicon']).length;
       DiagnosticsModule.beginSession(params.sessionId, this.diagnosticEngineId, config);
     } catch (_ignored) {
     }
