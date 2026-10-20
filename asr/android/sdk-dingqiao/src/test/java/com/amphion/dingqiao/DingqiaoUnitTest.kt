@@ -102,7 +102,9 @@ class DingqiaoEngineConfigTest {
             speakerModelPath = null,
         )
         assertTrue(config.hotwords.isNotEmpty())
-        assertTrue(config.hotwords.contains("盘查"))
+        // 调用方热词带逐词加权分进池；与预置词重名时只保留带分的那一条。
+        assertTrue(config.hotwords.contains("盘查 :3.0"))
+        assertFalse(config.hotwords.contains("盘查"))
     }
 
     @Test
@@ -185,8 +187,10 @@ class DingqiaoEngineConfigTest {
             CreateEngineParams(language = "zh-CN", online = DingqiaoOnlineMode.OFFLINE),
             speakerModelPath = null,
         )
+        // 全局分只管预置池；没有调用方热词时池里不应出现任何逐词加权标注。
         assertEquals(1.0f, config.hotwordsScore)
         assertTrue(config.hotwords.isNotEmpty())
+        assertTrue(config.hotwords.none { it.contains(" :") })
     }
 
     @Test

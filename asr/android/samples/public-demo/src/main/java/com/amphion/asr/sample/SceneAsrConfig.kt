@@ -31,6 +31,7 @@ object SceneAsrConfig {
         termsHotwords: Boolean = true,
     ): List<String> = effectiveHotwords(context, lang, plateHotwords, stationHotwords, termsHotwords)
         .filter { it != PoliceEngineConfig.HOTWORD_POOL_PLACEHOLDER }
+        .map { PoliceEngineConfig.displayText(it) }
 
     fun build(
         context: Context,
