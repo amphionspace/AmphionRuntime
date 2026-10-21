@@ -239,6 +239,11 @@ prepare_build_workspace() {
   clone_tree "$REPO_ROOT/asr/harmony/sdk-police" "$temp_repo/asr/harmony/sdk-police"
   clone_tree "$REPO_ROOT/asr/harmony/sdk-dingqiao" "$temp_repo/asr/harmony/sdk-dingqiao"
   clone_tree "$REPO_ROOT/shared/models/asr" "$temp_repo/shared/models/asr"
+  # sdk-dingqiao's hvigorfile requires the shared NMNet synchronizer by relative
+  # path, so the isolated tree needs it even though nothing else under asr/tools is
+  # part of a build.
+  mkdir -p "$temp_repo/asr/tools"
+  cp "$REPO_ROOT/asr/tools/nmnet_model_resources.cjs" "$temp_repo/asr/tools/"
   clone_tree \
     "$REPO_ROOT/asr/native/audio-processing/include" \
     "$temp_repo/asr/native/audio-processing/include"
@@ -299,6 +304,27 @@ if upstream not in text:
 cmake_path.write_text(text.replace(upstream, cache_url, 1), encoding="utf-8")
 PY
     echo "[INFO] using the verified local node-addon-api Git cache"
+  fi
+  # The Git cache above still needs a git CMake can find; where it cannot (offline
+  # workstations report GIT_VERSION_STRING=''), point FetchContent straight at an
+  # already-patched local source instead. Inert unless the variable is set.
+  if [[ -n "${NODE_ADDON_API_PREPATCHED:-}" && -d "$NODE_ADDON_API_PREPATCHED" ]]; then
+    "$LICENSE_PYTHON" - \
+      "$sherpa_destination/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt" \
+      "$NODE_ADDON_API_PREPATCHED" <<'PY'
+import sys
+from pathlib import Path
+
+cmake_path = Path(sys.argv[1])
+source = Path(sys.argv[2]).resolve()
+text = cmake_path.read_text(encoding="utf-8")
+anchor = "include(FetchContent)"
+if anchor not in text:
+    raise SystemExit("[ERROR] FetchContent anchor missing")
+override = f'set(FETCHCONTENT_SOURCE_DIR_NODE_ADDON_API "{source}" CACHE PATH "" FORCE)\n'
+cmake_path.write_text(text.replace(anchor, override + anchor, 1), encoding="utf-8")
+PY
+    echo "[INFO] node-addon-api resolved from the pre-patched local source; no git fetch"
   fi
   BUILD_PROJECT_ROOT="$temp_repo/delivery/harmony-dingqiao"
   BUILD_PROFILE="$BUILD_PROJECT_ROOT/build-profile.json5"
