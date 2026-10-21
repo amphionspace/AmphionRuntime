@@ -71,7 +71,14 @@ ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt
 PYTHON="$LICENSE_VENV/bin/python"
 MINDIR_VERIFY_ARGS=(--repo-root "$REPO_ROOT" --source-only)
 if [[ -n "$HAP" ]]; then
-  MINDIR_VERIFY_ARGS+=(--archive "$HAP")
+  # A student-backend build packages no community-* asset, so the HAP cannot carry
+  # the Community MindIR member. Measurement-only builds drop that assertion and
+  # keep the source-side provenance checks; release builds must not.
+  if [[ -n "${AMPHION_SKIP_COMMUNITY_MINDIR_GATE:-}" ]]; then
+    echo "[WARN] not asserting the Community MindIR HAP member; measurement build only"
+  else
+    MINDIR_VERIFY_ARGS+=(--archive "$HAP")
+  fi
 fi
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_community_encoder_mindir.py" "${MINDIR_VERIFY_ARGS[@]}"
 require_file "$LICENSE_FILE"
@@ -218,9 +225,15 @@ if [[ -n "$HAP" ]]; then
     "$REPO_ROOT/shared/models/asr/dingqiao/campplus.onnx" <<'PY'
 import json
 import hashlib
+import os
 import sys
 import zipfile
 from pathlib import Path
+
+# A student-backend build removes pyannote-segmentation-3.0.onnx from the packaged
+# assets, so a measurement-only build cannot assert its presence or contents.
+# Release builds leave this unset and keep the assertion.
+skip_community = bool(os.environ.get("AMPHION_SKIP_COMMUNITY_MINDIR_GATE"))
 
 hap = Path(sys.argv[1])
 license_path = Path(sys.argv[2])
@@ -245,8 +258,9 @@ required = {
     "resources/rawfile/amphion-license.lic",
     "resources/rawfile/amphion-dingqiao/eres2net.onnx",
     "resources/rawfile/amphion-dingqiao/campplus.onnx",
-    "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
 }
+if not skip_community:
+    required.add("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx")
 with zipfile.ZipFile(hap) as package:
     names = set(package.namelist())
     missing = sorted(required - names)
@@ -262,8 +276,9 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP voiceprint model differs from the verified SDK asset")
     if package.read("resources/rawfile/amphion-dingqiao/campplus.onnx") != local_complementary.read_bytes():
         raise SystemExit("[ERROR] HAP complementary speaker model differs from the verified SDK asset")
-    if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
-        raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
+    if not skip_community:
+        if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
+            raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
     if not zh_en_only:
         police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
         for relative, expected_sha256 in police_manifest["files"].items():

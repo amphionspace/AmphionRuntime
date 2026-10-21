@@ -508,7 +508,15 @@ if [[ "$SKIP_BUILD" != true ]]; then
     "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
-  publish_community_mindir
+  # The Community MindIR release gate requires community-wespeaker-encoder.fp16.ms
+  # inside the HAP. A student-backend build removes every community-* asset, so the
+  # two cannot both hold. Measurement-only builds may skip the gate; release builds
+  # must not, and the conflict has to be settled before shipping either backend.
+  if [[ -n "${AMPHION_SKIP_COMMUNITY_MINDIR_GATE:-}" ]]; then
+    echo "[WARN] skipping the Community MindIR release gate; measurement build only"
+  else
+    publish_community_mindir
+  fi
   publish_har \
     "$BUILD_WORKSPACE/repo/asr/harmony/sdk/build/default/outputs/default" \
     "$REPO_ROOT/asr/harmony/sdk/build/default/outputs/default"
