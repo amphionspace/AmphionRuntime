@@ -1,7 +1,6 @@
 package com.amphion.dingqiao.diarization
 
 import android.content.Context
-import com.amphion.dingqiao.DingqiaoSpeakerModelAssets
 import com.amphion.dingqiao.SpeakerDiarizationDegradedReason
 import java.io.File
 import java.io.RandomAccessFile
@@ -20,11 +19,12 @@ internal data class DiarizationLocalWindowResult(
     val commitStartSample: Long,
     val stableEndSample: Long,
     val finalWindow: Boolean,
-    val result: CommunityDiarizationWindow,
+    val result: NmnetDiarizationDelta,
 )
 
 internal interface SpeakerDiarizationLocalObserver {
     fun onWindow(result: DiarizationLocalWindowResult)
+    fun onFlushed(delta: NmnetDiarizationDelta)
     fun onDrained()
     fun onDegraded(reason: SpeakerDiarizationDegradedReason, message: String)
 }
@@ -43,25 +43,23 @@ private data class DiarizationLocalJob(
 
 /**
  * Incremental on-device executor. PCM remains in the app sandbox and at most one bounded
- * ten-second window is in native inference at a time.
+ * twenty-second window is in native inference at a time.
  */
 internal class SpeakerDiarizationLocalClient(
     context: Context,
     workPath: File,
     private val observer: SpeakerDiarizationLocalObserver,
-    loadInference: () -> CommunityDiarizationInference = {
-        CommunityDiarizationInference(DingqiaoSpeakerModelAssets.ensureCommunityInstalled(context, workPath))
+    maxSpeakers: Int = 0,
+    loadInference: () -> NmnetDiarizationInference = {
+        NmnetDiarizationInference(context.assets, maxSpeakers)
     },
 ) {
-    // Same cadence as Harmony: a 2 s hop halves the per-window inference cost.
-    // The native clusterer scales Fb with the window spacing, so the thinner
-    // evidence does not merge speakers that the 1 s hop keeps apart.
-    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, hopMs = 2_000)
+    // One ordered 20 s / 2 s native lane owns history and overlap state.
+    private val scheduler = DiarizationWindowScheduler(SAMPLE_RATE, windowMs = 20_000, hopMs = 2_000, rightContextMs = 18_000)
     private val queue = ArrayDeque<DiarizationLocalJob>()
     private val jobsRoot = File(workPath, "speaker-diarization-jobs")
     private val jobDir = File(jobsRoot, "job-${System.nanoTime()}")
     private val spool: DiarizationPcmSpool
-    private val evidence: DiarizationEvidenceSpool
     private val executor: ExecutorService = Executors.newSingleThreadExecutor { task ->
         Thread(task, "amphion-diarization").apply { isDaemon = true }
     }
@@ -69,12 +67,12 @@ internal class SpeakerDiarizationLocalClient(
         Executors.newSingleThreadScheduledExecutor { task ->
             Thread(task, "amphion-diarization-watchdog").apply { isDaemon = true }
         }
-    private var inference: CommunityDiarizationInference? = null
+    private var inference: NmnetDiarizationInference? = null
     private var loadSettled = false
     private var nextJobId = 1
     private var active = false
     private var activeJobId: String? = null
-    private var pendingClusters = 0
+    private var flushing = false
     private var finishWindowQueued = false
     private var finishing = false
     private var stopped = false
@@ -88,7 +86,6 @@ internal class SpeakerDiarizationLocalClient(
         sweepStaleJobs(jobsRoot)
         check(jobDir.mkdirs() || jobDir.isDirectory) { "cannot create ${jobDir.absolutePath}" }
         spool = DiarizationPcmSpool(jobDir)
-        evidence = DiarizationEvidenceSpool(jobDir)
         executor.execute {
             try {
                 val loaded = loadInference()
@@ -142,7 +139,6 @@ internal class SpeakerDiarizationLocalClient(
             closed = true
             queue.clear()
             runCatching { spool.close() }
-            runCatching { evidence.close() }
         }
         closeWhenQuiescentLocked()
     }
@@ -155,41 +151,6 @@ internal class SpeakerDiarizationLocalClient(
         if (closed) return
         stopped = true
         queue.clear()
-    }
-
-    /** Keeps every completed window's model inputs until cleanup; commits never prune them. */
-    @Synchronized
-    fun retainEvidence(window: CommunityDiarizationWindow) {
-        check(!closed) { "speaker diarization client is closed" }
-        evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms)
-    }
-
-    @Synchronized
-    fun readEvidence(windowCount: Int): DiarizationEvidence = try {
-        evidence.read(windowCount)
-    } catch (t: Throwable) {
-        failLocked(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-            "diarization evidence read failed: ${t.message ?: t.javaClass.simpleName}")
-        throw t
-    }
-
-    fun cluster(segments: FloatArray, embeddings: FloatArray, maxSpeakers: Int,
-        starts: DoubleArray, beginSample: Double, runEmbeddings: FloatArray, runRanges: FloatArray,
-        runRms: FloatArray, complete: (Result<CommunityDiarizationCluster>) -> Unit) {
-        synchronized(this) {
-            check(!closed) { "speaker diarization client is closed" }
-            pendingClusters++
-            executor.execute {
-                val result = runCatching {
-                    synchronized(this) { check(!closed) }
-                    checkNotNull(inference).cluster(segments, embeddings, maxSpeakers, starts, beginSample,
-                        runEmbeddings, runRanges, runRms)
-                }
-                try { complete(result) } finally {
-                    synchronized(this) { pendingClusters--; closeWhenQuiescentLocked() }
-                }
-            }
-        }
     }
 
     private fun submitLocked(window: DiarizationInferenceWindow?) {
@@ -246,7 +207,7 @@ internal class SpeakerDiarizationLocalClient(
         try {
             val samples = readWindow(job)
             val result = checkNotNull(inference) { "speaker diarization inference is unavailable" }
-                .process(samples)
+                .process(samples, job.sampleCount, job.windowStartSample / 32_000)
             val deliver = synchronized(this) { !closed && !degraded && !stopped && activeJobId == job.jobId }
             if (deliver) {
                 observer.onWindow(
@@ -256,7 +217,7 @@ internal class SpeakerDiarizationLocalClient(
                         job.contentStartInWindowSample,
                         job.realEndSample,
                         job.commitStartSample,
-                        job.stableEndSample,
+                        result.rolesCommittedThroughSample,
                         job.finalWindow,
                         result,
                     ),
@@ -313,19 +274,40 @@ internal class SpeakerDiarizationLocalClient(
     }
 
     private fun maybeNotifyDrainedLocked() {
-        if (finishing && !active && queue.isEmpty() && !drainedNotified) {
+        if (!finishing || closed || active || queue.isNotEmpty() || drainedNotified || flushing || !loadSettled) return
+        if (degraded || stopped) {
             drainedNotified = true
-            executor.execute { observer.onDrained() }
+            executor.execute { if (synchronized(this) { !closed }) observer.onDrained() }
+            return
+        }
+        if (!finishWindowQueued) return
+        flushing = true
+        executor.execute {
+            try {
+                val delta = checkNotNull(inference).finish()
+                if (synchronized(this) { !closed && !stopped && !degraded }) observer.onFlushed(delta)
+            } catch (t: Throwable) {
+                synchronized(this) { if (!closed && !stopped) failLocked(
+                    SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE, "NMNet flush failed: ${t.message}") }
+            } finally {
+                val notify = synchronized(this) {
+                    flushing = false
+                    val notify = !closed && !drainedNotified
+                    if (notify) drainedNotified = true
+                    closeWhenQuiescentLocked()
+                    notify
+                }
+                if (notify) observer.onDrained()
+            }
         }
     }
 
     private fun closeWhenQuiescentLocked() {
-        if (!closed || !loadSettled || active || pendingClusters > 0 || resourcesClosed) return
+        if (!closed || !loadSettled || active || flushing || resourcesClosed) return
         resourcesClosed = true
         runCatching { inference?.close() }
         inference = null
         runCatching { spool.remove() }
-        runCatching { evidence.remove() }
         jobDir.delete()
         executor.shutdown()
         timeoutExecutor.shutdown()
@@ -336,8 +318,8 @@ internal class SpeakerDiarizationLocalClient(
 
     private companion object {
         const val SAMPLE_RATE = 16_000
-        const val WINDOW_SAMPLES = 160_000
-        const val INFERENCE_TIMEOUT_MS = 10_000L
+        const val WINDOW_SAMPLES = 320_000
+        const val INFERENCE_TIMEOUT_MS = 60_000L
         private val sweptJobRoots = ConcurrentHashMap.newKeySet<String>()
 
         // Job files are removed when a client becomes quiescent, which a killed process never

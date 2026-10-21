@@ -974,8 +974,8 @@ internal class DingqiaoRecognitionEngine(
 
     private fun validateSpeakerDiarizationConfig(config: SpeakerDiarizationConfig?) {
         if (config == null) return
-        require(config.maxSpeakers in 1..4) {
-            "SpeakerDiarizationConfig.maxSpeakers must be in [1, 4]"
+        require(config.maxSpeakers >= 0) {
+            "SpeakerDiarizationConfig.maxSpeakers must be >= 0; 0 means unlimited"
         }
     }
 

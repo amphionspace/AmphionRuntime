@@ -48,10 +48,11 @@ internal class SpeakerDiarizationSession(
     private fun recordDecision(event: String, fields: Map<String, Any?>) {
         runCatching { diagnostic?.invoke(event, fields) }
     }
-    private val client = SpeakerDiarizationLocalClient(context, workPath, this)
+    private val client = SpeakerDiarizationLocalClient(context, workPath, this, maxSpeakers)
     private val transcript = DiarizationTranscriptState()
     private val commitClock = DiarizationCommitClock()
-    private val identities = CommunitySpeakerIdentity(maxSpeakers)
+    private var rolesCommittedEndMs = 0
+    private val committedTracks = mutableListOf<DoubleArray>()
     private val callbacks = DiarizationCallbackQueue()
     // Completed-window order only; model inputs stay in the client's evidence spool.
     private data class EvidenceWindow(val jobId: String, val windowStartSample: Long, val realEndSample: Long)
@@ -78,7 +79,7 @@ internal class SpeakerDiarizationSession(
     // Audio end covered by inferred windows when a finish timeout stopped inference.
     private var salvagedThroughMs: Int? = null
 
-    init { require(maxSpeakers in 1..4) }
+    init { require(maxSpeakers >= 0) }
 
     @Synchronized
     override fun append(audio: ByteArray) {
@@ -171,11 +172,11 @@ internal class SpeakerDiarizationSession(
         synchronized(this) {
             // A drained session already owns a complete final commit; let it finish normally.
             if (finished || !finishRequested || processDrained || salvagedThroughMs != null) return
-            salvagedThroughMs = inferenceEndMs
+            salvagedThroughMs = rolesCommittedEndMs
             if (diagnostic != null) recordDecision("DIARIZATION_FINISH_SALVAGE", mapOf(
                 "inferenceEndMs" to inferenceEndMs, "audioEndSample" to totalSamples, "windows" to windows.size))
             client.stopInference()
-            transcript.limitEvidence(inferenceEndMs)
+            transcript.limitEvidence(rolesCommittedEndMs)
             processDrained = true
             flushReadyWindowsLocked()
         }
@@ -198,21 +199,25 @@ internal class SpeakerDiarizationSession(
     override fun onWindow(result: DiarizationLocalWindowResult) {
         synchronized(this) {
             if (finished || confirmedInitialSilence || salvagedThroughMs != null) return
-            if (diagnostic != null) recordDecision("DIARIZATION_COMMUNITY_WINDOW", mapOf(
-                "jobId" to result.jobId, "windowStartSample" to result.windowStartSample,
-                "realEndSample" to result.realEndSample, "segmentations" to result.result.segments,
-                "embeddings" to result.result.embeddings, "segmentationMs" to result.result.segmentationMs,
-                "featureMs" to result.result.featureMs, "embeddingMs" to result.result.embeddingMs,
-                "runEmbeddings" to result.result.runEmbeddings, "runRanges" to result.result.runRanges,
-                "runRms" to result.result.runRms,
-                "appendedEndSample" to totalSamples, "processedThroughMs" to processedThroughMs))
-            client.retainEvidence(result.result)
-            windows += EvidenceWindow(result.jobId, result.windowStartSample, result.realEndSample)
-            inferenceEndMs = (result.realEndSample * 1000 / SAMPLE_RATE).toInt()
-            inferenceMs += (result.result.segmentationMs + result.result.featureMs + result.result.embeddingMs).toLong()
+            inferenceEndMs = (result.result.inferenceThroughSample / 16).toInt()
+            inferenceMs += (result.result.segmentationMs + result.result.embeddingMs).toLong()
+            acceptDeltaLocked(result.result)
             flushReadyWindowsLocked()
         }
         callbacks.drain()
+    }
+
+    private fun acceptDeltaLocked(delta: NmnetDiarizationDelta) {
+        rolesCommittedEndMs = (delta.rolesCommittedThroughSample / 16).toInt()
+        finalSpeakerCount = delta.speakerCount
+        committedTracks.addAll(delta.turns)
+    }
+
+    override fun onFlushed(delta: NmnetDiarizationDelta) {
+        synchronized(this) {
+            if (finished || confirmedInitialSilence || salvagedThroughMs != null) return
+            acceptDeltaLocked(delta)
+        }
     }
 
     override fun onDrained() {
@@ -238,9 +243,9 @@ internal class SpeakerDiarizationSession(
 
     private fun flushReadyWindowsLocked() {
         if (finished || committing) return
-        val progress = if (degradedReason == SpeakerDiarizationDegradedReason.NONE) inferenceEndMs else Int.MAX_VALUE
+        val progress = if (degradedReason == SpeakerDiarizationDegradedReason.NONE) rolesCommittedEndMs else Int.MAX_VALUE
         val boundary = commitClock.takeReady(progress)
-        val previewEnd = minOf(inferenceEndMs, processedThroughMs) / 10_000 * 10_000
+        val previewEnd = minOf(rolesCommittedEndMs, processedThroughMs) / 10_000 * 10_000
         val commit = when {
             boundary != null -> Commit(boundary.beginTime, boundary.endTime, boundary.evidenceEndTime)
             finishRequested && processDrained && asrTailObserved ->
@@ -253,85 +258,16 @@ internal class SpeakerDiarizationSession(
             else -> return
         }
         committing = true
-        val available = windows.filter { commit.final ||
-            (it.windowStartSample + 160_000) * 1000 / SAMPLE_RATE <= commit.evidenceEnd }
-        if (confirmedInitialSilence || available.isEmpty() || degradedReason != SpeakerDiarizationDegradedReason.NONE) {
-            completeCommitLocked(commit)
-            committing = false
-            flushReadyWindowsLocked()
-            return
-        }
-        // Completed windows arrive in order; the evidence cutoff selects a prefix. Read
-        // exactly that prefix, including history already frozen for callers (as Harmony).
-        val evidence = try { client.readEvidence(available.size) } catch (t: Throwable) {
-            onDegraded(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-                "diarization evidence read failed: ${t.message ?: t.javaClass.simpleName}")
-            completeCommitLocked(commit)
-            committing = false
-            flushReadyWindowsLocked()
-            return
-        }
-        val segments = evidence.segments
-        val publishedActivity = IntArray(available.size * 3)
-        available.forEachIndexed { index, window ->
-            for (frame in 0 until 589) {
-                val time = (window.windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE
-                if (time >= commit.begin && time < commit.end) for (channel in 0..2) {
-                    publishedActivity[index * 3 + channel] += segments[(index * 589 + frame) * 3 + channel].toInt()
-                }
+        if (!confirmedInitialSilence && degradedReason == SpeakerDiarizationDegradedReason.NONE) {
+            val turns = nmnetTimeline(committedTracks, IntArray(finalSpeakerCount) { it },
+                commit.begin, minOf(commit.end, rolesCommittedEndMs))
+            transcript.applySpeakerTurns(turns, true).forEach { update ->
+                callbacks.enqueue { observer.onUpdate(update.toPublic()) }
             }
         }
-        val started = System.nanoTime()
-        client.cluster(segments, evidence.embeddings, maxSpeakers,
-            available.map { it.windowStartSample.toDouble() }.toDoubleArray(),
-            commit.begin.toDouble() * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges,
-            evidence.runRms) { outcome ->
-            synchronized(this) {
-                if (!finished) {
-                    outcome.onSuccess { clustered ->
-                        if (!confirmedInitialSilence && degradedReason == SpeakerDiarizationDegradedReason.NONE) {
-                            inferenceMs += (System.nanoTime() - started) / 1_000_000
-                            val visible = BooleanArray(clustered.speakerCount)
-                            val firstAppearance = DoubleArray(clustered.speakerCount) { Double.POSITIVE_INFINITY }
-                            clustered.turns.filter { it[0] < commit.end && it[1] > commit.begin }.forEach {
-                                val label = it[2].toInt()
-                                if (label in visible.indices) {
-                                    visible[label] = true
-                                    firstAppearance[label] = minOf(firstAppearance[label], maxOf(commit.begin.toDouble(), it[0]))
-                                }
-                            }
-                            val registry = if (commit.provisional) identities.fork() else identities
-                            val identity = registry.assign(available.map { it.jobId }, clustered.hard,
-                                clustered.speakerCount, publishedActivity, visible, firstAppearance)
-                            if (diagnostic != null) recordDecision(
-                                if (commit.provisional) "DIARIZATION_COMMUNITY_PREVIEW" else "DIARIZATION_COMMUNITY_COMMIT",
-                                mapOf("beginTime" to commit.begin, "endTime" to commit.end,
-                                    "evidenceEndTime" to commit.evidenceEnd, "jobIds" to available.map { it.jobId },
-                                    "windowStartSamples" to available.map { it.windowStartSample },
-                                    "hard" to clustered.hard.toList(), "speakerCount" to clustered.speakerCount,
-                                    "publishedActivity" to publishedActivity.toList(), "visibleClusters" to visible.toList(),
-                                    "clusterToFrozenId" to identity.mapping.toList(), "registryBefore" to identity.before,
-                                    "registryAfter" to identity.after, "clusterWallMs" to (System.nanoTime()-started)/1_000_000,
-                                    "turns" to clustered.turns.map { it.toList() }))
-                            if (!commit.provisional) finalSpeakerCount = identity.after
-                            val turns = communityTimeline(clustered.turns, identity.mapping, commit.begin, commit.end)
-                            transcript.applySpeakerTurns(turns, true).forEach { update ->
-                                callbacks.enqueue { observer.onUpdate(update.toPublic()) }
-                            }
-                        }
-                    }.onFailure {
-                        onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
-                            "Community finalization failed: ${it.message}")
-                    }
-                    completeCommitLocked(commit)
-                }
-                committing = false
-            }
-            // Let reentrant cancellation run before scheduling another commit.
-            callbacks.drain()
-            synchronized(this) { flushReadyWindowsLocked() }
-            callbacks.drain()
-        }
+        completeCommitLocked(commit)
+        committing = false
+        if (!finished) flushReadyWindowsLocked()
     }
 
     private fun completeCommitLocked(commit: Commit) {
@@ -344,8 +280,8 @@ internal class SpeakerDiarizationSession(
         val committed = result.copy(isSessionFinal = commit.final)
         transcript.commitThrough(commit.end)
         publishedThrough = commit.end
-        // Public commitment freezes display state, not the input distribution of the
-        // unchanged batch clusterer. Evidence stays on disk until client cleanup.
+        committedTracks.removeAll { it[1] <= commit.end }
+        // History is owned by native state and survives public display commits.
         if (commit.final) {
             windows.clear()
             finished = true

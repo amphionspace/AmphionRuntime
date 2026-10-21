@@ -36,7 +36,7 @@ data class StartParams(
 
 /** Offline speaker diarization configuration. */
 data class SpeakerDiarizationConfig(
-    val maxSpeakers: Int = 4,
+    val maxSpeakers: Int = 0,
 )
 
 /** 识别结果。 */
