@@ -151,8 +151,7 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             [turn(0,200,'S1'),turn(200,400,'S2')],
             [turn(0,150,'S1'),turn(150,175,'S2'),turn(175,400,'S1')],
             [turn(0,400,'UNKNOWN')],
-            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['S2']}})],
-            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})]
+            [turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['S2']}})]
           ]){{
             const s=sample(turns),before=s.allTurns(),out=s.sentenceUtterances();
             assert.equal(out.length,1);assert.equal(out[0].text,'3%。');
@@ -167,6 +166,14 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             const frozen=s.commitThrough(400);s.applySpeakerTurns([turn(0,400,'S3')]);
             assert.deepEqual(frozen,out);assert.deepEqual(s.sentenceUtterances(),[]);
           }}
+          // A converted record with one known primary and only an unidentified
+          // secondary keeps that primary; the overlap marker is still published.
+          const quiet=sample([turn(0,400,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})]);
+          const quietOut=quiet.sentenceUtterances();
+          assert.equal(quietOut.length,1);assert.equal(quietOut[0].text,'3%。');
+          assert.equal(quietOut[0].speakerId,'S1');assert.equal(quietOut[0].overlap,true);
+          assert.equal(quietOut[0].speakerTextSpans[0].speakerId,'S1');
+          assert.equal(quietOut[0].speakerTextSpans[0].overlap,true);
           for(const spans of [[],[{{sourceBegin:0,sourceEnd:3,textBegin:0,textEnd:2}}],
             [{{sourceBegin:0,sourceEnd:4,textBegin:1,textEnd:2}}]]) {{
             const out=sample([turn(0,400,'S1')],spans).sentenceUtterances()[0];
@@ -190,8 +197,12 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           assert.deepEqual(out.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','S1']]);
           assert.equal(out.map(x=>x.rawText).join(''),raw);assert.equal(out.map(x=>x.text).join(''),text);assert.deepEqual(s.allTurns(),before);
           assert.equal(new Set(out.map(x=>x.utteranceId)).size,3);assert(out.every(x=>!x.speakerInferred));
+          // The last sentence is S1 throughout with only an unidentified secondary,
+          // so it keeps S1 and still reports the overlap it observed.
           const overlap=sample([turns[0],turns[1],turn(300,400,'S1'),turn(400,450,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}}),turn(450,500,'S1')]).sentenceUtterances();
-          assert.deepEqual(overlap.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','UNKNOWN']]);assert(overlap[2].overlap);
+          assert.deepEqual(overlap.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','S1']]);assert(overlap[2].overlap);
+          const knownOverlap=sample([turns[0],turns[1],turn(300,400,'S1'),turn(400,450,'S1',{{overlap:true,secondarySpeakerIds:['S2']}}),turn(450,500,'S1')]).sentenceUtterances();
+          assert.deepEqual(knownOverlap.map(x=>[x.text,x.speakerId]),[['HELLO WORLD。','S1'],['YES。','S2'],['THANK YOU。','UNKNOWN']]);assert(knownOverlap[2].overlap);
           const lexical=sample(turns,'HELLOWORLD。YES。THANK YOU。').sentenceUtterances();assert.equal(lexical.length,1);assert.equal(lexical[0].speakerId,'UNKNOWN','deleting an inter-word space without replacement punctuation remains unaligned');
           const trailing=new State();trailing.addUtterance({{rawText:'HELLO ',text:'HELLO。',tokens:[...'HELLO '],tokenTimesMs:[0,0,0,0,0,100],beginTime:0,endTime:200}});trailing.applySpeakerTurns([turn(0,200,'S1')]);assert.equal(trailing.sentenceUtterances().length,1);assert.equal(trailing.sentenceUtterances()[0].text,'HELLO。');
           const frozen=s.commitThrough(500);s.applySpeakerRemap({{S1:'S3'}});assert.deepEqual(frozen,out);assert.equal(s.sentenceUtterances().length,0);
@@ -487,7 +498,6 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             [turn(0,600,'S1'),turn(600,1000,'S2')],
             [turn(0,250,'S1'),turn(250,270,'S2'),turn(270,1000,'S1')],
             [turn(0,1000,'S1',{{overlap:true,secondarySpeakerIds:['S2']}})],
-            [turn(0,1000,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})],
             [turn(0,1000,'UNKNOWN')]
           ]) {{
             const s=sample(turns), before=s.allTurns(), result=s.sentenceUtterances();
@@ -497,6 +507,16 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
             assert.equal(s.currentAssignment('u1').speakerId,'UNKNOWN','provisional assignment cannot use majority');
             assert.deepEqual(s.allTurns(),before);
           }}
+          // An unidentified secondary voice does not establish a different primary,
+          // so the unanimous known primary keeps the sentence and the overlap marker
+          // is still published. See ASR_CONTRACTS.md and UNKNOWN_SPEAKER_BACKFILL.md.
+          const quiet=sample([turn(0,1000,'S1',{{overlap:true,secondarySpeakerIds:['UNKNOWN']}})]);
+          const quietBefore=quiet.allTurns(), kept=quiet.sentenceUtterances();
+          assert.equal(kept.length,1); assert.equal(kept[0].text,'张三。');
+          assert.equal(kept[0].speakerId,'S1'); assert.equal(kept[0].overlap,true);
+          assert.deepEqual(kept[0].secondarySpeakerIds,['UNKNOWN']);
+          assert.equal(quiet.currentAssignment('u1').speakerId,'UNKNOWN','provisional assignment still withholds');
+          assert.deepEqual(quiet.allTurns(),quietBefore);
           const bounded=sample([turn(0,500,'S1'),turn(500,1000,'UNKNOWN')]);
           const fixed=bounded.sentenceUtterances()[0];
           assert.equal(fixed.speakerId,'S1'); assert.equal(fixed.speakerInferred,true);
