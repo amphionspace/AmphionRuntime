@@ -1,22 +1,18 @@
 import { DiarizationPcmSpool } from './DiarizationPcmSpool';
-import { DiarizationEvidence, DiarizationEvidenceSpool } from './DiarizationEvidenceSpool';
-import { CommunityDiarizationInference, CommunityDiarizationWindow, CommunityDiarizationCluster } from 'amphion_asr';
+import { NmnetDiarizationInference, NmnetDiarizationDelta } from 'amphion_asr';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { SpeakerDiarizationDegradedReason } from '../DingqiaoModels';
 import { DiarizationInferenceWindow, DiarizationWindowScheduler } from './DiarizationWindowScheduler';
 
 const SAMPLE_RATE: number = 16000;
-const WINDOW_SAMPLES: number = 160000;
+const WINDOW_SAMPLES: number = 320000;
 // A native call cannot be interrupted; timing out only discards its result and
 // every later window. When the system throttles a backgrounded app, a window on
 // its single-threaded, low-priority worker can take tens of seconds while still
 // progressing, so this bound only has to catch work that has stopped.
 const INFERENCE_TIMEOUT_MS: number = 60000;
-// Windows are independent, so up to this many run at once, each on a
-// single-threaded encoder. A four-thread encoder pool busy-waits between
-// operators and, when the system restricts the app to a few cores, starves the
-// recognizer; two single-threaded windows keep the throughput without it.
-const ENCODER_LANES: number = 2;
+// History and overlap state require one ordered native lane per session.
+const ENCODER_LANES: number = 1;
 let nextDiarizationJobId: number = 1;
 
 export interface DiarizationLocalWindowResult {
@@ -28,7 +24,7 @@ export interface DiarizationLocalWindowResult {
   commitStartSample: number;
   stableEndSample: number;
   finalWindow: boolean;
-  result: CommunityDiarizationWindow;
+  result: NmnetDiarizationDelta;
   /**
    * This window's share of executor capacity: the wall time of its native call
    * divided by the lanes. Summed over a session, it stays below the audio
@@ -39,6 +35,7 @@ export interface DiarizationLocalWindowResult {
 
 export interface SpeakerDiarizationLocalObserver {
   onWindow(result: DiarizationLocalWindowResult): void;
+  onFlushed(delta: NmnetDiarizationDelta): void;
   onDrained(): void;
   onDegraded(reason: SpeakerDiarizationDegradedReason, message: string): void;
 }
@@ -61,7 +58,7 @@ export class SpeakerDiarizationStorageError extends Error {
 }
 
 export interface SpeakerDiarizationLocalClientOptions {
-  /** Community-1 keeps a 10 s native input; this only controls window cadence. */
+  /** NMNet requires a fixed 20 s window and 2 s cadence. */
   hopMs?: number;
   /** Maximum queued descriptors behind the single native in-flight job. */
   maxPendingJobs?: number;
@@ -82,7 +79,7 @@ export interface SpeakerDiarizationLocalClientOptions {
 
 /**
  * Incremental on-device executor. PCM stays in the application sandbox and one
- * bounded 10-second window is processed at a time by SDK-bundled models.
+ * bounded 20-second window is processed at a time by SDK-bundled models.
  */
 export class SpeakerDiarizationLocalClient {
   private static readonly sweptJobRoots: Set<string> = new Set<string>();
@@ -104,11 +101,11 @@ export class SpeakerDiarizationLocalClient {
   private readonly queue: DiarizationLocalJob[] = [];
   private readonly jobDir: string;
   private readonly spool: DiarizationPcmSpool;
-  private readonly evidence: DiarizationEvidenceSpool;
   private readonly observer: SpeakerDiarizationLocalObserver;
-  private readonly inference: CommunityDiarizationInference;
+  private readonly inference: NmnetDiarizationInference;
   private readonly maxPendingJobs: number;
-  private pendingClusters: number = 0;
+  private flushing: boolean = false;
+  private drainedNotified: boolean = false;
   private readonly inferenceLoad: Promise<void>;
   private readonly quiescentCallbacks: Array<() => void> = [];
   private nextJobId: number = 1;
@@ -125,40 +122,39 @@ export class SpeakerDiarizationLocalClient {
 
   constructor(context: Context, workPath: string, observer: SpeakerDiarizationLocalObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void,
-    options?: SpeakerDiarizationLocalClientOptions) {
+    options?: SpeakerDiarizationLocalClientOptions, maxSpeakers: number = 0) {
     this.observer = observer;
     this.diagnostic = diagnostic;
-    // Segmentation, Fbank and the encoder run once per window, so the hop sets
-    // what role separation costs; a 2 s hop halves it against Community-1's 1 s.
-    // The hop also sets the evidence density VBx sees. The native clusterer
-    // reads the spacing of the window starts and scales Fb to match, so the
-    // speakers kept apart at 1 s are not merged by the thinner evidence.
-    const hopMs = options?.hopMs ?? 2_000;
     this.maxPendingJobs = options?.maxPendingJobs ?? 2;
     if (!Number.isInteger(this.maxPendingJobs) || this.maxPendingJobs <= 0) {
       throw new Error('maxPendingJobs must be a positive integer');
     }
-    this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 10_000, hopMs, 1_500);
-    // The backend is only forwarded when a caller asks for one, so the native
-    // argument shape (and its contract tests) stay unchanged for the default.
-    const roleQos = options?.roleQos;
-    this.inference = roleQos !== undefined && roleQos !== 'inherit' ?
-      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default',
-        options?.encoderBackend ?? 'cpu', roleQos) :
-      options?.encoderBackend !== undefined ?
-      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default',
-        options.encoderBackend) :
-      new CommunityDiarizationInference(ENCODER_LANES, options?.recognizerQos ?? 'default');
+    if (options?.hopMs !== undefined && options.hopMs !== 2000) throw new Error('NMNet requires a 2 s hop');
+    if (options?.encoderBackend === 'npu') throw new Error('NMNet currently supports CPU inference only');
+    this.scheduler = new DiarizationWindowScheduler(SAMPLE_RATE, 20_000, 2_000, 18_000);
+    let roleQos = options?.roleQos ?? 'inherit';
+    if (roleQos === 'inherit') {
+      if (options?.recognizerQos === 'user-interactive') roleQos = 'user-initiated';
+      else if (options?.recognizerQos === 'user-initiated') roleQos = 'default';
+    }
+    this.inference = new NmnetDiarizationInference(maxSpeakers, roleQos);
     const localJobId = nextDiarizationJobId;
     nextDiarizationJobId += 1;
     SpeakerDiarizationLocalClient.sweepStaleJobs(`${workPath}/speaker-diarization-jobs`);
     this.jobDir = `${workPath}/speaker-diarization-jobs/job-${Date.now()}-${localJobId}`;
     this.ensureDir(this.jobDir);
     this.spool = new DiarizationPcmSpool(this.jobDir);
-    this.evidence = new DiarizationEvidenceSpool(this.jobDir);
+    const loadStartedMs = Date.now();
     this.inferenceLoad = this.inference.load(context);
     this.inferenceLoad.then((): void => {
+      if (this.diagnostic !== undefined) {
+        const fields: Record<string, Object> = {};
+        fields['loadMs'] = Date.now() - loadStartedMs;
+        this.diagnostic('DIARIZATION_LOCAL_MODEL_READY', fields);
+      }
       this.loadSettled = true;
+      this.pump();
+      this.maybeNotifyDrained();
       this.closeWhenQuiescent();
     }, (error: Object): void => {
       this.loadSettled = true;
@@ -223,36 +219,6 @@ export class SpeakerDiarizationLocalClient {
     if (this.closed) return;
     this.stopped = true;
     this.queue.splice(0, this.queue.length);
-  }
-
-  retainEvidence(window: CommunityDiarizationWindow): void {
-    try { this.evidence.append(window.segments, window.embeddings, window.runEmbeddings, window.runRanges, window.runRms); }
-    catch (error) { throw new SpeakerDiarizationStorageError(`${error}`); }
-  }
-
-  readEvidence(windowCount: number): DiarizationEvidence {
-    try { return this.evidence.read(windowCount); }
-    catch (error) {
-      this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE, `diarization evidence read failed: ${error}`);
-      throw new SpeakerDiarizationStorageError(`${error}`);
-    }
-  }
-
-  async cluster(segments: Float32Array, embeddings: Float32Array,
-    maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
-    runEmbeddings: Float32Array = new Float32Array(0), runRanges: Float32Array = new Float32Array(0),
-    runRms: Float32Array = new Float32Array(0)): Promise<CommunityDiarizationCluster> {
-    if (this.closed) throw new Error('speaker diarization client is closed');
-    this.pendingClusters += 1;
-    try {
-      await this.inferenceLoad;
-      if (this.closed) throw new Error('speaker diarization client is closed');
-      return await this.inference.cluster(segments, embeddings, runEmbeddings, runRanges,
-        maxSpeakers, windowStartSamples, beginSample, runRms);
-    } finally {
-      this.pendingClusters -= 1;
-      this.closeWhenQuiescent();
-    }
   }
 
   private submit(window: DiarizationInferenceWindow | undefined): void {
@@ -320,10 +286,10 @@ export class SpeakerDiarizationLocalClient {
     const job = batch[0];
     let timeout: number = -1;
     let inferenceTimedOut: boolean = false;
-    let inferencePromise: Promise<CommunityDiarizationWindow[]> | undefined;
+    let inferencePromise: Promise<NmnetDiarizationDelta[]> | undefined;
     try {
       const samples: Float32Array[] = batch.map((item: DiarizationLocalJob): Float32Array => this.readWindow(item));
-      const timeoutPromise = new Promise<CommunityDiarizationWindow[]>((_resolve,
+      const timeoutPromise = new Promise<NmnetDiarizationDelta[]>((_resolve,
         reject: (reason?: Object) => void): void => {
         timeout = setTimeout((): void => {
           inferenceTimedOut = true;
@@ -331,7 +297,8 @@ export class SpeakerDiarizationLocalClient {
         }, INFERENCE_TIMEOUT_MS);
       });
       inferencePromise = this.inferenceLoad.then(
-        (): Promise<CommunityDiarizationWindow[]> => this.inference.processBatch(samples));
+        (): Promise<NmnetDiarizationDelta[]> => this.inference.process(samples[0], job.sampleCount, job.windowStartSample / 32000)
+          .then((delta: NmnetDiarizationDelta): NmnetDiarizationDelta[] => [delta]));
       const results = await Promise.race([inferencePromise, timeoutPromise]);
       if (timeout >= 0) clearTimeout(timeout);
       timeout = -1;
@@ -378,9 +345,23 @@ export class SpeakerDiarizationLocalClient {
     }
   }
 
-  private deliver(job: DiarizationLocalJob, samples: Float32Array, result: CommunityDiarizationWindow,
+  private deliver(job: DiarizationLocalJob, samples: Float32Array, result: NmnetDiarizationDelta,
     wallShareMs: number): void {
-    this.recordWindowSamples(job, samples, result);
+    if (this.diagnostic !== undefined) {
+      const fields: Record<string, Object> = {};
+      fields['jobId'] = job.jobId;
+      fields['windowStartSample'] = job.windowStartSample;
+      fields['realEndSample'] = job.realEndSample;
+      fields['wallMs'] = wallShareMs;
+      fields['segmentationMs'] = result.segmentationMs;
+      fields['embeddingMs'] = result.embeddingMs;
+      fields['embeddingFeaturesMs'] = result.embeddingFeaturesMs ?? -1;
+      fields['embeddingEncoderMs'] = result.embeddingEncoderMs ?? -1;
+      fields['pendingWindows'] = this.pendingWindowCount();
+      fields['historyChunks'] = result.historyChunks;
+      fields['historyCompressed'] = result.historyCompressed;
+      this.diagnostic('DIARIZATION_LOCAL_WINDOW', fields);
+    }
     this.observer.onWindow({
       jobId: job.jobId,
       generation: job.generation,
@@ -388,7 +369,7 @@ export class SpeakerDiarizationLocalClient {
       contentStartInWindowSample: job.contentStartInWindowSample,
       realEndSample: job.realEndSample,
       commitStartSample: job.commitStartSample,
-      stableEndSample: job.stableEndSample,
+      stableEndSample: result.rolesCommittedThroughSample,
       finalWindow: job.finalWindow,
       result,
       inferenceWallMs: wallShareMs,
@@ -397,76 +378,6 @@ export class SpeakerDiarizationLocalClient {
 
   private async settleInference(promise: Promise<Object>): Promise<void> {
     try { await promise; } catch (_ignored) {}
-  }
-
-  private recordWindowSamples(job: DiarizationLocalJob, samples: Float32Array,
-    result: CommunityDiarizationWindow): void {
-    if (this.diagnostic === undefined) return;
-    try {
-      const queueFields: Record<string, Object> = {};
-      queueFields['jobId'] = job.jobId;
-      queueFields['pendingJobs'] = this.queue.length;
-      queueFields['nativeCallsInFlight'] = 1;
-      queueFields['audioEndSample'] = this.spool.endOffset() / 2;
-      queueFields['completedThroughSample'] = job.realEndSample;
-      queueFields['audioDelayMs'] = Math.max(0, this.spool.endOffset() / 2 - job.realEndSample) / 16;
-      queueFields['elapsedMs'] = Date.now() - this.activeJobStartedMs;
-      this.diagnostic('DIARIZATION_QUEUE', queueFields);
-      for (let channel = 0; channel < 3; channel++) {
-        const active: number[] = [];
-        const clean: number[] = [];
-        let cleanCount: number = 0;
-        for (let frame = 0; frame < 589; frame++) {
-          const count = result.segments[frame * 3] + result.segments[frame * 3 + 1] +
-            result.segments[frame * 3 + 2];
-          active.push(result.segments[frame * 3 + channel]);
-          clean.push(count === 1 ? active[frame] : 0);
-          cleanCount += clean[frame];
-        }
-        const mask = cleanCount > 2 ? clean : active;
-        const ranges: number[][] = [];
-        for (let frame = 0; frame < 589; frame++) {
-          if (mask[frame] === 0) continue;
-          const begin = frame * 270;
-          const end = Math.min(job.sampleCount, begin + 991);
-          if (begin >= end) continue;
-          const previous = ranges[ranges.length - 1];
-          if (previous !== undefined && previous[1] >= begin) previous[1] = end;
-          else ranges.push([begin, end]);
-        }
-        let energy: number = 0;
-        let count: number = 0;
-        for (const range of ranges) {
-          for (let sample = range[0]; sample < range[1]; sample++) {
-            energy += samples[sample] * samples[sample]; count += 1;
-          }
-        }
-        const valid = result.embeddings.slice(channel * 256, (channel + 1) * 256)
-          .every((value: number): boolean => Number.isFinite(value));
-        const fields: Record<string, Object> = {};
-        fields['jobId'] = job.jobId;
-        fields['evidenceKey'] = `${job.jobId}:${channel}`;
-        fields['localChannel'] = channel;
-        fields['realPcmRange'] = [job.windowStartSample, job.realEndSample];
-        fields['featurePcmRange'] = [job.windowStartSample, job.windowStartSample + WINDOW_SAMPLES];
-        fields['rightZeroPadSamples'] = WINDOW_SAMPLES - job.sampleCount;
-        fields['featureSampleRate'] = SAMPLE_RATE;
-        fields['featureFrames'] = 998;
-        fields['selectedSegmentationMask'] = mask;
-        fields['maskReason'] = cleanCount > 2 ? 'CLEAN_FRAMES' : 'FULL_ACTIVITY_TOO_FEW_CLEAN_FRAMES';
-        fields['cleanFrames'] = cleanCount;
-        fields['maskReceptivePcmRanges'] = ranges.map(range =>
-          [range[0] + job.windowStartSample, range[1] + job.windowStartSample]);
-        fields['maskReceptivePcmRms'] = count > 0 ? Math.sqrt(energy / count) : 0;
-        fields['levelFilter'] = 'NONE';
-        fields['embeddingSelection'] = 'FULL_WINDOW_FEATURES_WITH_MASKED_STATISTICS';
-        fields['clusteringEligibility'] = !valid ? 'INVALID_EMBEDDING' :
-          cleanCount >= 0.2 * 589 ? 'ELIGIBLE' : 'INSUFFICIENT_CLEAN_ACTIVITY';
-        this.diagnostic('DIARIZATION_COMMUNITY_SAMPLES', fields);
-      }
-    } catch (_ignored) {
-      // Diagnostic bookkeeping cannot alter sampling or publication.
-    }
   }
 
   private readWindow(job: DiarizationLocalJob): Float32Array {
@@ -504,14 +415,37 @@ export class SpeakerDiarizationLocalClient {
   }
 
   private maybeNotifyDrained(): void {
-    if (this.finishing && this.activeJob === undefined && this.queue.length === 0) {
+    if (!this.finishing || this.closed || this.drainedNotified || this.flushing ||
+      this.activeJob !== undefined || this.queue.length > 0 || !this.loadSettled) return;
+    if (this.degraded || this.stopped) {
+      this.drainedNotified = true;
       this.observer.onDrained();
+      return;
+    }
+    if (!this.finishWindowQueued) return;
+    this.flushing = true;
+    void this.flushNative();
+  }
+
+  private async flushNative(): Promise<void> {
+    try {
+      const delta = await this.inference.finish();
+      if (!this.closed && !this.stopped && !this.degraded) this.observer.onFlushed(delta);
+    } catch (error) {
+      if (!this.closed && !this.stopped) this.fail(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE, `${error}`);
+    } finally {
+      this.flushing = false;
+      if (!this.closed && !this.drainedNotified) {
+        this.drainedNotified = true;
+        this.observer.onDrained();
+      }
+      this.closeWhenQuiescent();
     }
   }
 
   private closeWhenQuiescent(): void {
     if (!this.closed || !this.loadSettled || this.activeJob !== undefined ||
-      this.pendingClusters > 0 || this.resourcesClosed) return;
+      this.flushing || this.resourcesClosed) return;
     this.resourcesClosed = true;
     this.inference.close();
     this.removeJobFiles();
@@ -519,12 +453,11 @@ export class SpeakerDiarizationLocalClient {
     for (let index = 0; index < callbacks.length; index++) callbacks[index]();
   }
 
-  private closeSpool(): void { this.spool.close(); this.evidence.close(); }
+  private closeSpool(): void { this.spool.close(); }
 
   private removeJobFiles(): void {
     try {
       this.spool.remove();
-      this.evidence.remove();
       fs.rmdirSync(this.jobDir);
     } catch (_ignored) {}
   }

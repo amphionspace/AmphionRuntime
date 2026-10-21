@@ -20,8 +20,8 @@ export class CreateEngineParams {
 }
 
 export class SpeakerDiarizationConfig {
-  /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
-  maxSpeakers: number = 4;
+  /** 0 means no global speaker limit; positive values impose an explicit public ID cap. */
+  maxSpeakers: number = 0;
 }
 
 export class StartParams {

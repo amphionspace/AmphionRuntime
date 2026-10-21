@@ -318,7 +318,7 @@ verify_args=(--root "${ASSET_ROOT}" --target-platform android)
 if [[ "$ZH_EN_ONLY" == true ]]; then
   verify_args+=(--zh-en-only)
 fi
-python3 "${SCRIPT_DIR}/verify_packed_model_assets.py" "${verify_args[@]}"
+"$CONVERTER_PYTHON" "${SCRIPT_DIR}/verify_packed_model_assets.py" "${verify_args[@]}"
 
 if [[ -e "$FINAL_ASSET_ROOT" ]]; then
   mv "$FINAL_ASSET_ROOT" "$BACKUP_ASSET_ROOT"

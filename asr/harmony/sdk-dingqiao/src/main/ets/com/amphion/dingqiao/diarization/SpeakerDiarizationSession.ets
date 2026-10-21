@@ -11,7 +11,8 @@ import { speakerIndexFromInternalId, speakerIndexesFromInternalIds } from './Spe
 import { SpeakerDiarizationTranscriptState, DiarizationTranscriptUpdate,
   DiarizedTranscriptUtterance, TranscriptTextNormalization, TranscriptTextPresentation,
   TranscriptNormalizationSpan } from './SpeakerDiarizationTranscriptState';
-import { CommunitySpeakerIdentity, communityTimeline } from './CommunitySpeakerIdentity';
+import { nmnetTimeline } from './NmnetTimeline';
+import { NmnetDiarizationDelta } from 'amphion_asr';
 import { PoliceTextProvenance, PoliceTextSpan } from '../PoliceEnhancementPolicy';
 
 const SAMPLE_RATE: number = 16000;
@@ -19,10 +20,6 @@ interface DiarizationEvidenceWindow {
   jobId: string;
   windowStartSample: number;
   realEndSample: number;
-  // Per-channel activity totals, summed once when the window completes. It cannot change
-  // afterwards, and recomputing it for the whole session on every commit is what
-  // made the cost of one commit grow with the length of the meeting.
-  activity: number[];
 }
 export interface SpeakerDiarizationSessionObserver {
   onSpeakerDiarizationUpdate(update: SpeakerDiarizationUpdate): void;
@@ -62,7 +59,8 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private readonly client: SpeakerDiarizationLocalClient;
   private readonly transcript: SpeakerDiarizationTranscriptState = new SpeakerDiarizationTranscriptState();
   private readonly commitClock: DiarizationCommitClock;
-  private readonly identities: CommunitySpeakerIdentity;
+  private rolesCommittedEndMs: number = 0;
+  private readonly committedTracks: number[][] = [];
   private readonly windows: DiarizationEvidenceWindow[] = [];
   private readonly observer: SpeakerDiarizationSessionObserver;
   private readonly maxSpeakers: number;
@@ -70,24 +68,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
   private inferenceEndMs: number = 0;
   private processedThroughMs: number = 0;
   private static readonly PREVIEW_INTERVAL_MS: number = 10000;
-  // A preview reclusters every window so far, so its cost grows with the meeting.
-  // Space previews so that their wall time stays within this fraction of the audio
-  // they cover. Short sessions keep a preview every 10 s; commits are unaffected.
-  //
-  // Measured on a 7332 s single session: at a tenth, previews were the largest
-  // single item in role separation, 534 s of its 1183 s of compute, against 451 s
-  // for window inference and 199 s for the commits they are superseded by. A
-  // twentieth halves that to about 279 s while the spacing late in that session,
-  // 109 s of audio, still lands inside the 120 s commit period, so a preview keeps
-  // refreshing provisional roles once per commit for the whole meeting. A fortieth
-  // saves another 137 s but spaces previews 208 s apart, past the commit period:
-  // previews would quietly stop mattering in exactly the long meetings they were
-  // throttled for.
-  //
-  // This changes only how often provisional roles refresh between commits. A
-  // preview forks the identity registry, never advances the commit clock or the
-  // published boundary, and each commit replaces the transcript turns outright, so
-  // the committed result does not depend on this value.
+  // Timeline projection cost grows with the number of pending turns.
+  // Space previews so that their wall time stays within a tenth of the audio they
+  // cover. Short sessions keep a preview every 10 s; commits are unaffected.
   private static readonly PREVIEW_COST_RATIO: number = 20;
   private previewThroughMs: number = 0;
   private lastPreviewClusterMs: number = 0;
@@ -130,10 +113,9 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
     this.commitClock = new DiarizationCommitClock(commitPeriodMs);
-    this.identities = new CommunitySpeakerIdentity(maxSpeakers);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
     try {
-      this.client = new SpeakerDiarizationLocalClient(context, workPath, this, diagnostic, clientOptions);
+      this.client = new SpeakerDiarizationLocalClient(context, workPath, this, diagnostic, clientOptions, maxSpeakers);
     }
     catch (error) {
       this.runtimeLease.release();
@@ -303,7 +285,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     // A drained session already owns a complete final commit; let it finish normally.
     if (this.finished || !this.finishRequested || this.processDrained ||
       this.salvagedThroughMs !== undefined) return;
-    this.salvagedThroughMs = this.inferenceEndMs;
+    this.salvagedThroughMs = this.rolesCommittedEndMs;
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['inferenceEndMs'] = this.inferenceEndMs;
@@ -312,7 +294,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
       this.recordDecision('DIARIZATION_FINISH_SALVAGE', fields);
     }
     this.client.stopInference();
-    this.transcript.limitEvidence(this.inferenceEndMs);
+    this.transcript.limitEvidence(this.rolesCommittedEndMs);
     this.processDrained = true;
     this.finalizeIfReady();
   }
@@ -343,53 +325,23 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   onWindow(window: DiarizationLocalWindowResult): void {
     if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
-    this.client.retainEvidence(window.result);
     this.inferredWindowCount += 1;
-    const totals: number[] = [0, 0, 0];
-    const windowSegments = window.result.segments;
-    for (let frame = 0; frame < 589; frame++) {
-      totals[0] += windowSegments[frame * 3];
-      totals[1] += windowSegments[frame * 3 + 1];
-      totals[2] += windowSegments[frame * 3 + 2];
-    }
-    this.windows.push({ jobId: window.jobId, windowStartSample: window.windowStartSample,
-      realEndSample: window.realEndSample, activity: totals });
-    this.inferenceEndMs = window.realEndSample * 1000 / SAMPLE_RATE;
-    // Lanes run windows in parallel; count each window's share of executor capacity.
+    this.inferenceEndMs = window.result.inferenceThroughSample / 16;
     this.inferenceMs += window.inferenceWallMs;
-    // Outside the diagnostic block on purpose: a caller on a release build is the
-    // one who needs to know the encoder fell back, and diagnostics are not built.
-    if (window.result.encoderBackend !== undefined) this.encoderBackend = window.result.encoderBackend;
-    if (this.diagnostic !== undefined) {
-      const fields: Record<string, Object> = {};
-      fields['jobId'] = window.jobId;
-      fields['model'] = 'Community-1';
-      fields['windowStartSample'] = window.windowStartSample;
-      fields['realEndSample'] = window.realEndSample;
-      fields['paddedEndSample'] = window.windowStartSample + 160000;
-      fields['frameCenterSample'] = 495.5;
-      fields['frameStepSamples'] = 270;
-      fields['frameReceptiveSamples'] = 991;
-      // Keep independent snapshots without retaining boxed copies of every tensor.
-      fields['segmentations'] = window.result.segments.slice();
-      fields['embeddings'] = window.result.embeddings.slice();
-      // Older test doubles and persisted diagnostic fixtures may predate the
-      // per-run evidence fields. Keep their snapshots readable as empty run
-      // evidence while native production windows always provide the arrays.
-      fields['runRanges'] = (window.result.runRanges ?? new Float32Array(0)).slice();
-      fields['runEmbeddings'] = (window.result.runEmbeddings ?? new Float32Array(0)).slice();
-      fields['runRms'] = (window.result.runRms ?? new Float32Array(0)).slice();
-      fields['segmentationMs'] = window.result.segmentationMs;
-      fields['featureMs'] = window.result.featureMs;
-      fields['embeddingMs'] = window.result.embeddingMs;
-      // Older test doubles predate encoder diagnostics; production supplies them.
-      fields['encoderMs'] = window.result.encoderMs ?? 0;
-      fields['encoderBackend'] = window.result.encoderBackend ?? 'cpu';
-      fields['encoderDevice'] = window.result.encoderDevice ?? 'cpu';
-      fields['inferenceWallMs'] = window.inferenceWallMs;
-      this.recordDecision('DIARIZATION_COMMUNITY_WINDOW', fields);
-    }
+    this.acceptDelta(window.result);
     this.flushReadyWindows();
+  }
+
+  private acceptDelta(delta: NmnetDiarizationDelta): void {
+    this.rolesCommittedEndMs = delta.rolesCommittedThroughSample / 16;
+    this.finalSpeakerCount = delta.speakerCount;
+    this.encoderBackend = 'cpu';
+    for (const turn of delta.turns) this.committedTracks.push(turn);
+  }
+
+  onFlushed(delta: NmnetDiarizationDelta): void {
+    if (this.finished || this.confirmedInitialSilence || this.salvagedThroughMs !== undefined) return;
+    this.acceptDelta(delta);
   }
 
   onDrained(): void {
@@ -412,7 +364,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     try {
       while (!this.finished) {
         const progress = this.degradedReason === SpeakerDiarizationDegradedReason.NONE ?
-          this.inferenceEndMs : Number.POSITIVE_INFINITY;
+          this.rolesCommittedEndMs : Number.POSITIVE_INFINITY;
         const boundary = this.commitClock.takeReady(progress);
         if (boundary !== undefined) {
           const result = await this.commitWindow(boundary.endTime, boundary.evidenceEndTime,
@@ -436,7 +388,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
         // and less often once a preview gets expensive. It never advances the
         // public commit clock or enrolls frozen IDs.
         const interval = SpeakerDiarizationSession.PREVIEW_INTERVAL_MS;
-        const previewEnd = Math.floor(Math.min(this.inferenceEndMs, this.processedThroughMs) / interval) * interval;
+        const previewEnd = Math.floor(Math.min(this.rolesCommittedEndMs, this.processedThroughMs) / interval) * interval;
         const previewGap = Math.max(interval,
           SpeakerDiarizationSession.PREVIEW_COST_RATIO * this.lastPreviewClusterMs);
         if (!this.finishRequested && this.degradedReason === SpeakerDiarizationDegradedReason.NONE &&
@@ -451,7 +403,7 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     } catch (error) {
       if (!this.finished) {
         this.onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
-          `Community finalization failed: ${error}`);
+          `NMNet finalization failed: ${error}`);
         if (!this.finished && this.finishRequested && this.processDrained && this.asrTailObserved) {
           const result = this.bestResult();
           result.isSessionFinal = true;
@@ -464,100 +416,17 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
 
   private async updateSpeakers(endTime: number, evidenceEndTime: number,
     isSessionFinal: boolean, beginTime: number, provisional: boolean = false): Promise<void> {
-    // Snapshot before awaiting native work. Later windows cannot change this commit.
-    const available = this.windows.filter(window => isSessionFinal ||
-      (window.windowStartSample + 160000) * 1000 / SAMPLE_RATE <= evidenceEndTime);
-    if (!this.confirmedInitialSilence && available.length > 0 &&
-      this.degradedReason === SpeakerDiarizationDegradedReason.NONE) {
-      // Completed windows arrive in order; the evidence cutoff selects a prefix.
-      // Read exactly that prefix, including history already frozen for callers.
-      const evidence = this.client.readEvidence(available.length);
-      const segments = evidence.segments;
-      const embeddings = evidence.embeddings;
-      const activity: number[] = new Array<number>(available.length * 3).fill(0);
-      const publishedActivity: number[] = new Array<number>(available.length * 3).fill(0);
-      for (let index = 0; index < available.length; index++) {
-        const evidenceWindow = available[index];
-        activity[index * 3] = evidenceWindow.activity[0];
-        activity[index * 3 + 1] = evidenceWindow.activity[1];
-        activity[index * 3 + 2] = evidenceWindow.activity[2];
-        // Only the published interval moves between commits. A window that ends
-        // before it or starts after it contributes nothing, so the per-frame walk
-        // covers the committed span instead of the whole session.
-        const firstFrameTime = (evidenceWindow.windowStartSample + 495.5) * 1000 / SAMPLE_RATE;
-        const lastFrameTime = (evidenceWindow.windowStartSample + 495.5 + 588 * 270) * 1000 / SAMPLE_RATE;
-        if (lastFrameTime < beginTime || firstFrameTime >= endTime) continue;
-        for (let frame = 0; frame < 589; frame++) {
-          const frameTime = (evidenceWindow.windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE;
-          if (frameTime < beginTime || frameTime >= endTime) continue;
-          for (let channel = 0; channel < 3; channel++) {
-            publishedActivity[index * 3 + channel] += segments[(index * 589 + frame) * 3 + channel];
-          }
-        }
-      }
-      const windowIds = available.map(window => window.jobId);
-      const starts = new Float64Array(available.map(window => window.windowStartSample));
-      const startedMs = Date.now();
-      const clustered = await this.client.cluster(segments, embeddings, this.maxSpeakers,
-        starts, beginTime * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges, evidence.runRms);
-      const clusterElapsedMs = Date.now() - startedMs;
-      if (this.finished || this.confirmedInitialSilence ||
-        this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
-      this.inferenceMs += clusterElapsedMs;
-      if (provisional) this.lastPreviewClusterMs = clusterElapsedMs;
-      else this.lastCommitClusterMs = clusterElapsedMs;
-      const visibleClusters: boolean[] = new Array<boolean>(clustered.speakerCount).fill(false);
-      const firstAppearanceTimes: number[] =
-        new Array<number>(clustered.speakerCount).fill(Number.POSITIVE_INFINITY);
-      for (const turn of clustered.turns) {
-        if (turn[0] < endTime && turn[1] > beginTime) {
-          visibleClusters[turn[2]] = true;
-          firstAppearanceTimes[turn[2]] = Math.min(firstAppearanceTimes[turn[2]], Math.max(beginTime, turn[0]));
-        }
-      }
-      const registry = provisional ? this.identities.fork() : this.identities;
-      const identity = registry.assign(windowIds, clustered.hard, clustered.speakerCount,
-        activity, publishedActivity, visibleClusters, firstAppearanceTimes);
-      if (!provisional) this.finalSpeakerCount = identity.after;
-      const turns = communityTimeline(clustered.turns, identity.mapping, beginTime, endTime);
-      const updates = this.transcript.applySpeakerTurns(turns, true);
-      for (const update of updates) {
-        this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(update));
-        if (this.finished) return;
-      }
-      if (this.diagnostic !== undefined) {
-        const fields: Record<string, Object> = {};
-        fields['publicWindowIndex'] = this.windowIndex;
-        fields['beginTime'] = beginTime;
-        fields['endTime'] = endTime;
-        fields['evidenceEndTime'] = Number.isFinite(evidenceEndTime) ? evidenceEndTime : -1;
-        fields['jobIds'] = windowIds;
-        fields['windowStartSamples'] = available.map(window => window.windowStartSample);
-        fields['trainingIndices'] = clustered.trainingIndices;
-        fields['ahc'] = clustered.ahc;
-        fields['priors'] = clustered.priors;
-        fields['hard'] = clustered.hard;
-        fields['frameHard'] = clustered.frameHard;
-        fields['trainingRunIndices'] = clustered.trainingRunIndices;
-        fields['model'] = 'Community-1 masked WeSpeaker / PLDA / VBx';
-        fields['similarityOffset'] = 1;
-        fields['embeddingToClusterScores'] = clustered.scores;
-        fields['clusterCentroids'] = clustered.centroids;
-        fields['trainingPosteriors'] = clustered.posteriors;
-        fields['usedKMeansCap'] = clustered.usedKMeans;
-        fields['capacityRms'] = clustered.capacityRms;
-        fields['retainedClusters'] = clustered.retainedClusters;
-        fields['activityVotes'] = identity.votes;
-        fields['publishedActivity'] = publishedActivity;
-        fields['visibleClusters'] = visibleClusters;
-        fields['firstAppearanceTimes'] = firstAppearanceTimes.map(time => Number.isFinite(time) ? time : -1);
-        fields['clusterToFrozenId'] = identity.mapping;
-        fields['registryBefore'] = identity.before;
-        fields['registryAfter'] = identity.after;
-        fields['clusterElapsedMs'] = clusterElapsedMs;
-        this.recordDecision(provisional ? 'DIARIZATION_COMMUNITY_PREVIEW' : 'DIARIZATION_COMMUNITY_COMMIT', fields);
-      }
+    if (this.confirmedInitialSilence || this.degradedReason !== SpeakerDiarizationDegradedReason.NONE) return;
+    const safeEnd = Math.min(endTime, this.rolesCommittedEndMs);
+    const mapping: number[] = [];
+    for (let id = 0; id < this.finalSpeakerCount; id++) mapping.push(id);
+    const turns = nmnetTimeline(this.committedTracks, mapping, beginTime, safeEnd);
+    const updates = this.transcript.applySpeakerTurns(turns, true);
+    for (const update of updates) {
+      this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(update));
+      if (this.finished) return;
     }
+    this.lastCommitClusterMs = 0;
   }
 
   private async commitWindow(endTime: number, evidenceEndTime: number,
@@ -590,8 +459,10 @@ export class SpeakerDiarizationSession implements SpeakerDiarizationLocalObserve
     }
     this.transcript.commitThrough(endTime);
     this.publishedThrough = endTime;
-    // Public commitment freezes display state, not the input distribution of
-    // the unchanged batch clusterer. Evidence stays on disk until client cleanup.
+    for (let i = this.committedTracks.length - 1; i >= 0; i--) {
+      if (this.committedTracks[i][1] <= endTime) this.committedTracks.splice(i, 1);
+    }
+    // History is owned by native state and survives public display commits.
     if (isSessionFinal) {
       this.windows.splice(0, this.windows.length);
     }

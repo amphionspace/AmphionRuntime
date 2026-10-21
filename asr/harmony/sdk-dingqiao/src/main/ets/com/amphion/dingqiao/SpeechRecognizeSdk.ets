@@ -707,10 +707,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (diarizationEncoder !== undefined && diarizationEncoder !== 'cpu') {
           diarizationOptions.encoderBackend = diarizationEncoder;
         }
-        // Same rule for the window cadence: only a non-default request travels,
-        // so the default path keeps the scheduler arguments it always had.
+        // Forward explicit cadence so the fixed 2 s student contract can reject unsupported values.
         const diarizationHopMs = this.params.scheduling?.diarizationHopMs;
-        if (diarizationHopMs !== undefined && diarizationHopMs !== 1000) {
+        if (diarizationHopMs !== undefined) {
           diarizationOptions.hopMs = diarizationHopMs;
         }
         try {

@@ -71,6 +71,8 @@ export interface CommunityDiarizationWindow {
   segmentationMs: number;
   featureMs: number;
   embeddingMs: number;
+  embeddingFeaturesMs?: number;
+  embeddingEncoderMs?: number;
   /** Encoder Run only; embeddingMs still includes encoding and all pooling. */
   encoderMs: number;
   /** "cpu" or "npu": the backend that produced this window's vectors. */
@@ -112,3 +114,7 @@ export function probeMindSporeChain(modelPaths: string, backend?: string,
 
 export function probeOrtModel(modelPath: string, threads?: number,
   iterations?: number): Promise<string>;
+export function loadNmnetDiarization(resourceManager: Object, maxSpeakers: number, roleQos: string): Promise<number>;
+export function processNmnetDiarization(handle: number, pcm: Float32Array, validSamples: number, chunkIndex: number): Promise<string>;
+export function finishNmnetDiarization(handle: number): Promise<string>;
+export function closeNmnetDiarization(handle: number): void;

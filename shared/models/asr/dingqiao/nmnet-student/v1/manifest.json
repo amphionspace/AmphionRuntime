@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "backend": "nmnet-student",
+  "modelVersion": "v1",
+  "ortVersion": "1.16.3",
+  "opset": 17,
+  "sampleRate": 16000,
+  "windowSamples": 320000,
+  "hopSamples": 32000,
+  "embeddingDimension": 192,
+  "speakerSlots": 8,
+  "checkpointSha256": "f980c146e2c59f723e3808d4a76adb4731ccd674537d3aae3dc23ef445fab7c7",
+  "frontendSha256": "f651f8d6255315657db026db9167c781f48287bc988d26e34940a7a0fa3ab398",
+  "history": {
+    "compressionChunks": 50,
+    "minClusterSize": 1,
+    "distanceThreshold": 0.67
+  },
+  "files": [
+    {
+      "file": "nmnet-student-mel.onnx",
+      "sizeBytes": 2705022,
+      "sha256": "095ca5d9b9adbe81bd99783e393776e1ef2431aa4920b35321c193a7a301ccb8"
+    },
+    {
+      "file": "nmnet-student-nest.onnx",
+      "sizeBytes": 194410171,
+      "sha256": "efa290a0c5331bc7a86a5aa78db3832ae3a9e00d79e661e1c84b4a5a8ced67c9"
+    },
+    {
+      "file": "nmnet-student-segmentation.onnx",
+      "sizeBytes": 47926428,
+      "sha256": "ee79af5195f9ce0168e93695b92bf5a3637d07a6774a2e2193655d3a485269b6"
+    },
+    {
+      "file": "nmnet-ecapa-mel.onnx",
+      "sizeBytes": 721331,
+      "sha256": "c938e002e20eec1ff0896b0bd306d21b1f37a08d015041559388b0d8342318d6"
+    },
+    {
+      "file": "nmnet-ecapa.onnx",
+      "sizeBytes": 83454402,
+      "sha256": "e6c335965ef13da0016209859693e08c0b07165d34c1c6ddf4ad55c7472d5290"
+    }
+  ],
+  "ecapaStftImplementation": "fixed-dft-convolution-400",
+  "ecapaPrecision": {
+    "weightType": "float32",
+    "activationType": "float32",
+    "prefixContextFrames": 65
+  },
+  "sourceProject": "diarization/conformer18",
+  "exportEvidence": "build/conformer18-onnx-20261016/report.json",
+  "embeddingMask": {
+    "source": "pyannote.audio 3.4.0",
+    "minSamples": 640,
+    "cleanFramesExclusiveMinimum": 1,
+    "repeatShortSpeech": false,
+    "batchScope": "current chunk only",
+    "tail": "fixed 250-frame mask clipped to real samples"
+  },
+  "maxSpeakers": 0
+}
