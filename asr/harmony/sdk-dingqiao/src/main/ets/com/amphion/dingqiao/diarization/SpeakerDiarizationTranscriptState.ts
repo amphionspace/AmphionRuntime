@@ -482,9 +482,15 @@ export class SpeakerDiarizationTranscriptState {
         const turns = this.turns.filter(turn =>
           overlapMs(utterance.beginTime, utterance.endTime, turn.beginTime, turn.endTime) > 0);
         const participants = new Set<string>();
+        // Secondary voices only, kept apart from primaries: a retained primary
+        // still has to publish the other voice this sentence observed.
+        const observedSecondaries = new Set<string>();
         for (const turn of turns) {
           participants.add(turn.speakerId);
-          for (const id of turn.secondarySpeakerIds) participants.add(id);
+          for (const id of turn.secondarySpeakerIds) {
+            participants.add(id);
+            observedSecondaries.add(id);
+          }
         }
         // An inferred tail may have no acoustic turn inside this display unit.
         // Its owner comes from the original utterance's bounded inference above.
@@ -510,7 +516,12 @@ export class SpeakerDiarizationTranscriptState {
           if (unknownEnd - unknownBegin > MAX_UNKNOWN_BACKFILL_MS &&
             overlapMs(utterance.beginTime, utterance.endTime, unknownBegin, unknownEnd) > 0) bounded = false;
         }
-        const single = known.length === 1 && !overlap && bounded && parts.length > 0 &&
+        // An unidentified secondary voice does not establish a different primary, so
+        // it must not strip a display sentence whose own acoustic turns and tokens
+        // already name one speaker. A known secondary or an overlap with no named
+        // source still blocks, and the marker itself stays in `overlap`.
+        const blocked = turns.some(turn => this.blocksBackfill(turn));
+        const single = known.length === 1 && !blocked && bounded && parts.length > 0 &&
           parts.every(part => part.speakerId === known[0]);
         const inferred = parts.some(part => part.speakerInferred) ||
           (single && turns.some(turn => turn.speakerId === UNKNOWN_SPEAKER));
@@ -522,7 +533,10 @@ export class SpeakerDiarizationTranscriptState {
           beginTime: utterance.beginTime,
           endTime: utterance.endTime,
           speakerId: single ? known[0] : UNKNOWN_SPEAKER,
-          secondarySpeakerIds: single ? [] : Array.from(participants).sort(),
+          // Keep the unidentified secondary even when the primary is kept: the
+          // sentence observed another voice, and that must not be swallowed.
+          secondarySpeakerIds: single ? visibleSecondaryIds(Array.from(observedSecondaries).sort(), known[0]) :
+            Array.from(participants).sort(),
           confidence: single && !inferred ? Math.min(...parts.map(part => part.confidence ?? 0)) : 0,
           overlap,
           speakerInferred: inferred,
