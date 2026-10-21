@@ -194,6 +194,9 @@ internal class DiarizationTranscriptState {
             val parts = aligned.filter { it.sourceUtteranceId == utterance.utteranceId }
             val covered = turns.filter { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
             val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
+            // Secondary voices only, kept apart from primaries: a retained primary
+            // still has to publish the other voice this sentence observed.
+            val observedSecondaries = covered.flatMap { it.secondarySpeakerIds }.toSortedSet()
             val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
             val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
             val unknown = covered.filter { it.speakerId == "UNKNOWN" }.sortedBy { it.beginTime }
@@ -207,7 +210,12 @@ internal class DiarizationTranscriptState {
                 unknownEnd = maxOf(unknownEnd, end)
                 if (unknownEnd - unknownBegin > 2_500) bounded = false
             }
-            val single = known.size == 1 && !overlap && bounded && parts.isNotEmpty() &&
+            // An unidentified secondary voice does not establish a different primary,
+            // so it must not strip a display sentence whose own acoustic turns and
+            // tokens already name one speaker. A known secondary or an overlap with
+            // no named source still blocks, and the marker itself stays in `overlap`.
+            val blocked = covered.any { blocksBackfill(it.secondarySpeakerIds, it.overlap) }
+            val single = known.size == 1 && !blocked && bounded && parts.isNotEmpty() &&
                 parts.all { it.speakerId == known.single() }
             val inferred = parts.any { it.speakerInferred } || (single && unknown.isNotEmpty())
             DiarizedTranscriptUtterance(
@@ -215,7 +223,10 @@ internal class DiarizationTranscriptState {
                 rawText = utterance.rawText, text = utterance.text,
                 beginTime = utterance.beginTime, endTime = utterance.endTime,
                 speakerId = if (single) known.single() else "UNKNOWN",
-                secondarySpeakerIds = if (single) emptyList() else participants.toList(),
+                // Keep the unidentified secondary even when the primary is kept: the
+                // sentence observed another voice, and that must not be swallowed.
+                secondarySpeakerIds = if (single) observedSecondaries.filter { it != known.single() }
+                    else participants.toList(),
                 confidence = if (single && !inferred) parts.minOf { it.confidence } else 0f,
                 overlap = overlap, speakerInferred = inferred,
             )
