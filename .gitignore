@@ -259,3 +259,13 @@ shared/models/asr/dingqiao/*.ms.provenance.json
 # Local measurement scratch: device captures keep raw customer PCM under
 # payload/audio, which must never reach the repository.
 /.local/
+
+# 本机调查用的原始日志/录音归档与阶段性中文报告（仅存本地，不入库）
+/日志/
+/日志 2/
+/日志3/
+/日志*.rar
+/音频*.rar
+/四轮长测对比报告-*.md
+/锁屏解析延迟-分析报告-*.md
+/长时豁免验证测试报告-*.md
