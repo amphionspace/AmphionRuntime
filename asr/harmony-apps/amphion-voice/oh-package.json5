@@ -1,0 +1,9 @@
+{
+  "modelVersion": "6.0.0",
+  "name": "amphion-voice",
+  "version": "1.0.0",
+  "description": "Amphion target-speaker voice app for HarmonyOS",
+  "license": "Commercial",
+  "dependencies": {},
+  "devDependencies": {}
+}
