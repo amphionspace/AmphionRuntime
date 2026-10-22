@@ -1,0 +1,16 @@
+{
+  "apiType": "stageMode",
+  "buildOption": {
+    "sourceOption": {
+      "workers": [
+        "./src/main/ets/workers/AudioCaptureWorker.ets"
+      ]
+    },
+    "nativeLib": {
+      "filter": {
+        "pickFirsts": ["**/libsherpa-onnx-c-api.so"]
+      }
+    }
+  },
+  "targets": [ { "name": "default" } ]
+}
