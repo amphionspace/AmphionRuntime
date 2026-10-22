@@ -255,3 +255,7 @@ shared/models/asr/dingqiao/*.ms.provenance.json
 
 # Stable lock for delivery archive index updates
 /delivery/.archive-delivery.lock
+
+# Local measurement scratch: device captures keep raw customer PCM under
+# payload/audio, which must never reach the repository.
+/.local/

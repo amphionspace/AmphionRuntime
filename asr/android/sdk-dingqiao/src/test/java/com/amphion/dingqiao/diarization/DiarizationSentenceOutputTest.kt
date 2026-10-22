@@ -140,7 +140,6 @@ class DiarizationSentenceOutputTest {
             listOf(turn(0, 600, "S1"), turn(600, 1000, "S2")),
             listOf(turn(0, 250, "S1"), turn(250, 270, "S2"), turn(270, 1000, "S1")),
             listOf(turn(0, 1000, "S1", listOf("S2"))),
-            listOf(turn(0, 1000, "S1", listOf("UNKNOWN"))),
             listOf(turn(0, 1000, "UNKNOWN")),
         )) {
             val state = sample(turns)
@@ -156,6 +155,22 @@ class DiarizationSentenceOutputTest {
             assertEquals(listOf(result), state.commitThrough(1000))
             assertTrue(state.sentenceUtterances().isEmpty())
         }
+    }
+
+    // An unidentified secondary voice does not establish a different primary, so the
+    // unanimous known primary keeps the sentence and the overlap marker is still
+    // published. See ASR_CONTRACTS.md and UNKNOWN_SPEAKER_BACKFILL.md.
+    @Test fun unidentifiedSecondaryKeepsTheUnanimousPrimary() {
+        val state = sample(listOf(turn(0, 1000, "S1", listOf("UNKNOWN"))))
+        val before = state.allTurns()
+        val result = state.sentenceUtterances().single()
+        assertEquals("张三。", result.text)
+        assertEquals("S1", result.speakerId)
+        assertTrue(result.overlap)
+        assertEquals(listOf("UNKNOWN"), result.secondarySpeakerIds)
+        assertFalse(result.speakerInferred)
+        assertEquals("UNKNOWN", state.currentAssignment("u1")!!.speakerId)
+        assertEquals(before, state.allTurns())
     }
 
     @Test fun boundedBackfillCannotChainUnknownCellsOrPropagateAcrossSentences() {
