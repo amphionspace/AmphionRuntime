@@ -1,0 +1,30 @@
+{
+  "app": {
+    "signingConfigs": [],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.0.0(12)",
+        "targetSdkVersion": "5.0.0(12)",
+        "runtimeOS": "HarmonyOS",
+        "buildOption": {
+          "strictMode": {
+            "caseSensitiveCheck": true
+          }
+        }
+      }
+    ],
+    "buildModeSet": [
+      { "name": "debug" },
+      { "name": "release" }
+    ]
+  },
+  "modules": [
+    { "name": "amphion_voice", "srcPath": "./entry" },
+    { "name": "amphion_asr", "srcPath": "../../harmony/sdk" },
+    { "name": "amphion_dingqiao", "srcPath": "../../harmony/sdk-dingqiao" },
+    { "name": "amphion_police", "srcPath": "../../harmony/sdk-police" },
+    { "name": "sherpa_onnx", "srcPath": "../../../third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx" }
+  ]
+}

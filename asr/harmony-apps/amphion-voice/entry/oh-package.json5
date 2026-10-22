@@ -1,0 +1,13 @@
+{
+  "name": "amphion_voice",
+  "version": "1.0.0",
+  "description": "Amphion target-speaker voice app",
+  "main": "",
+  "author": "Amphion",
+  "license": "Commercial",
+  "dependencies": {
+    "amphion_dingqiao": "file:../../../harmony/sdk-dingqiao",
+    "amphion_asr": "file:../../../harmony/sdk",
+    "amphion_police": "file:../../../harmony/sdk-police"
+  }
+}
