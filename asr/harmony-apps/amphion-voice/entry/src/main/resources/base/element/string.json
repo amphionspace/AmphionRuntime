@@ -1,0 +1,8 @@
+{
+  "string": [
+    { "name": "entry_label", "value": "Amphion" },
+    { "name": "module_desc", "value": "Amphion 目标说话人语音识别" },
+    { "name": "ability_desc", "value": "只转写已注册说话人的语音" },
+    { "name": "mic_reason", "value": "用于录制声纹和识别你的语音" }
+  ]
+}
