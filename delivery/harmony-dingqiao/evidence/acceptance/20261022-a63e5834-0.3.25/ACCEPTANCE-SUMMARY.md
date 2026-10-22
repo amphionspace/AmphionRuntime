@@ -1,0 +1,146 @@
+# Amphion HarmonyOS ASR 0.3.25 组包前验收摘要（a63e5834）
+
+本摘要是组包前证据，不是最终 ZIP 的验收结论。最终 ZIP 的验收报告绑定其自身 SHA-256，另行外置。
+
+本版相对 0.3.24 有两处产品变更：一处修角色归属（问题 #36），一处改调用方热词权重。
+**不动识别模型、角色分离算法、阈值、窗口长度、hop 与提交周期。**
+**本版会改变识别文本** —— 调用方热词由全局 1.0 提升为逐词 3.0。
+
+## 冻结身份
+
+| 项 | 值 |
+|---|---|
+| 版本 | 0.3.25，版本日期 2026-10-22 |
+| 源码提交 | `a63e5834`（分支 `release/harmony-0.3.25`，工作区干净） |
+| 语种范围 | 中英（ZH_EN） |
+| 设备 | 我方测试机 PSN-AL00（nova 15），OpenHarmony-6.0.2.130，arm64-v8a，SN `6CT9K26130017501` |
+| Diagnostics 子包构建模式 | `diagnostics` |
+| Release 子包构建模式 | `debug` |
+| 签名 | `~/.ohos/config` DevEco 自签证书，叶证书有效期至 2027-09-30 |
+
+## 取代说明
+
+本轮取代同版本早前那一轮（源码提交 `519bef84`，证据见
+`evidence/acceptance/20261022-519bef84-0.3.25/`）。原因：`AppScope/app.json5` 的 `versionCode`
+未随版本号推进，`test_release_defaults` 断言 `minor*100+patch`（期望 325，实际 324），CI 的
+harmony-contracts 门禁失败。`519bef84` 那轮的四个包**未交付**，已由本轮重建取代。
+两轮的 #36 验证与 `customer-ptt` 结论一致，说明该改动只影响清单、不影响运行行为。
+
+## 本版改动
+
+| 改动 | 文件 | 对应问题 |
+|---|---|---|
+| 显示句归属门禁复用 `blocksBackfill`：已识别次要人物或无具名来源的重叠才阻断，仅 UNKNOWN 的次要人物不阻断 | `SpeakerDiarizationTranscriptState.ts` | 问题 #36：仅有未识别次要人声重叠时整句丢失主讲人 |
+| 句子成功归属后不再清空已发布的次要人物编号 | 同上 | 同上（会吞掉句内观测到的未识别人声） |
+| 调用方热词逐词显式加权 3.0，预置池不带显式分数沿用全局 1.0 | `PoliceEngineConfig.ets` | 两字业务专名被同音常用词压过 |
+| `hotwordCount` 改为统计引擎级 `sysGeneralLexicon` | `SpeechRecognizeSdk.ets` | 诊断字段恒为 0，排查时误导 |
+
+## 真机证据
+
+### 1. 生命周期与资源（`customer-ptt`，12 cycle）
+
+| 项 | 结果 |
+|---|---|
+| 总判定 | **PASS**（`failures: []`） |
+| cycle 状态 | 12/12 全部 PASS |
+| SDK 契约 | `sdk=PASS` |
+| 空 final 率 | **0.000**（上限 0.05，计数 0） |
+| 内存 | `memory=PASS`，增长 36.81 MiB，峰值 495.7 MiB |
+| CPU | 12 逻辑核，单核等效均值见报告 |
+| 语料 | aishell3_test_hotwords_500，500 条有效、选取 24 条（85.9 s） |
+| 身份绑定 | 报告 `build_identity` 与 Diagnostics 子包逐字段一致（`--skip-build-install`，取构建身份而非安装包身份） |
+
+报告：`reports/customer-ptt-report.json`
+
+### 2. 问题 #36 修复验证（客户原始录音）
+
+输入为客户反馈的原始录音 `36问题语音.wav`，离线角色分离模式单轮。
+
+| 项 | 修复前 | 本版 |
+|---|---|---|
+| `speakerIndex = -1` 的句子 | 2 句 | **1 句** |
+
+本版残留的那 1 句（15720–21840 ms，「本次会议预计持续40min请大家把手机调成静音模式积极配合。」）其
+次要人物编号为 `[0, 1, -1]` —— 含**已识别**人物，按 `ASR_CONTRACTS.md` 的契约本就应阻断整句归属，
+属正确行为，不是残留缺陷。
+
+报告：`reports/issue36-diarization-report.json`（**作为支撑证据保留，未列入 manifest 的受检
+`reports`**）。
+
+该报告的 `sdk` 判定为 FAIL，原因是 `diarization-windows` 模式的 SDK 契约检查包含声纹注册项，
+而本次输入语料不含声纹注册样本；该判定与 #36 修复无关。组包门禁要求受检报告为 PASS，因此
+它不进受检列表，但文件随验收目录保留，归属结论以其中的诊断事件为准。生命周期与资源的 PASS
+结论以上节 `customer-ptt` 为准。
+
+### 3. 热词权重（未做本版真机 A/B）
+
+本轮**未**对热词变更做真机 A/B 实测。引用的 76.41% → 96.12%（热词精确命中率）来自既有评测
+`docs/asr/AISHELL3_HOTWORDS_EVAL.md`，**不是本版的设备证据**。该变更的正确性由单元测试
+`asr/tools/tests/test_user_hotword_weight.py` 与 `test_sherpa_hotword_score_syntax.py` 覆盖。
+
+### 4. 交付包级复测（从最终 ZIP 安装并复测）
+
+本节是对**交付包里的产物**的验证，区别于前三节对构建产物的验证。
+
+| 步骤 | 结果 |
+|---|---|
+| 解包最终完整包 | `release-sdk/`、`diagnostics-sdk/`、`diagnostics-demo/`、`demo-source/`、`docs/` 五项齐全 |
+| 安装**包内** demo HAP（412 MB） | 成功，`versionName 0.3.25` / `versionCode 325` |
+| 包内 demo 真机拉起 | 「默认中英模型已就绪 · 点击开始识别」 |
+| 包内 demo 跑 `customer-ptt` 12 轮 | **PASS**，`sdk=PASS memory=PASS`，空 final 率 0.000，内存增长 39.49 MiB / 峰值 496.7 MiB；`installed-bundle.json` 的 `versionCode=325` |
+| 包内 `demo-source/` 独立构建 | 由组包门禁自动完成（见下节 `self-contained compatibility HAR installed and compiled in a clean customer host`），该门禁建干净客户宿主工程、只装自包含 HAR、编译并要求产出 HAP |
+
+包内 demo HAP sha256：`5001371beab60f73d7b96f490785844e02d86ff81ca44ee6219be2a881c1caf3`
+报告：`reports/package-install-ptt-report.json`（未列入 manifest 受检 `reports`，受检项以 `customer-ptt` 为准）
+
+说明：本轮曾尝试用 `node hvigorw.js` 手工构建包内源码，失败于
+`Cannot find module '@ohos/hvigor-ohos-plugin'`。该命令在**仓库自身工程**上报同一错误
+（补跑 `ohpm install --all` 后仍然失败），属 hvigor 需经 DevEco/wrapper 引导插件的调用方式问题，
+不构成关于交付包的证据，故不作为结论。源码可独立构建的结论以组包门禁为准。
+
+## 组包门禁（Release 子包）
+
+| 门禁 | 结果 |
+|---|---|
+| 自包含 HAR 在干净客户宿主安装并编译 | PASS |
+| API 23 编译兼容性 | **PASS，52 个文件**（编译器 sha256 `279d82ed…`，与 0.3.23/0.3.24 同一只） |
+| 客户交付脱敏检查 | PASS，16 个文件 / 1 个 HAR |
+| HAR 版本与交付版本一致 | PASS（0.3.25） |
+| 模型清单 v2（9 个资产） | PASS |
+| ZH_EN ONNX MD5 固定值 | PASS |
+| UTF-8 ZIP + CRC 完整性 | PASS |
+
+## 交付边界
+
+- 语种范围为中英（ZH_EN），**不包含**粤英模型。
+- **不包含** TTS 模型，TTS 由独立 TTS SDK 交付。
+- 目标说话人增强仅保留接口，**不包含**所需模型，因此**不能启用**。
+- 公共商用授权文件 `amphion-license.lic` **不在 Release 包内**，继续使用既有交付版本。
+- Diagnostics 包内随附的签名 Demo HAP 内置一份**两个月试用、不绑设备**的授权（ASR+TTS，
+  2026-12-22 到期），仅供开箱试用，不替代正式授权。
+
+## 未覆盖与仍未解决
+
+- **热词变更无本版真机证据**（见上文第 3 节）。
+- **`speaker-vad-turn` 模式豁免**：该模式需要客户目标说话人夹具，本检出与两个受控数据包中均不存在，
+  无法产出有效证据。本版未改动该模式，沿用 0.3.20–0.3.24 的同一豁免。
+- **公开角色编号**：部分录音上编号不从「角色1」开始或中间跳号；说话人数较多时部分语音落入
+  「其他角色」。本版未改动编号发放逻辑。成因与处置见
+  `DIARIZATION_ROLE_NUMBERING_29_77_EXPLAINED_20261022.md`。
+- **长会话内存**（沿用 0.3.24）：2 小时会话进程内存峰值约 1.1 GB，增长定位在 ArkTS 堆，
+  对象级归因未完成；SDK 无遇热或按积压降级的机制。
+- **锁屏变慢**（沿用 0.3.23）：缺口 0.134×，SDK 侧无独立解法，确定有效的规避是屏幕常亮。
+- 本轮验收设备为 nova 15（Kirin 8020），**与 0.3.24 的 Mate 80（Kirin 9020）不是同一机型**，
+  资源类数字不可与 0.3.24 直接对比。
+
+## 本轮产物哈希
+
+| 产物 | 大小 | SHA-256 |
+|---|---|---|
+| `Amphion-Harmony-ASR-Complete-0.3.25.zip` | 1.6 GB | `e49bf91a930e9e64ceff6c72557253eaec6925e92eb926804cc9ef35ca26d635` |
+| `amphion-harmony-asr-sdk-v0.3.25-20261022.zip` | 330 MB | `8c693a159eeb1abd2964704c16827d35ce847f546ccfbdb771bc827fbf2d66b3` |
+| `Amphion-ASR-Diagnostics-SDK.zip` | 653 MB | `7ae5fdc6d10c9aa7b5d505d1c18a5376c7aeec92ad6acd4bc0de06049ef00c35` |
+| 安卓 `amphion-dingqiao-v0.3.9-customer-PREVIEW-NON-CANONICAL-20261022.zip` | 1.2 GB | `4d0109a26529703985a346ef8f7a6c1b50412474b64196ae0d3ca36ceb168857` |
+
+安卓包标记 `PREVIEW / NON-CANONICAL`：0.3.9 与源码提交 `a63e5834` 尚未登记发布台账，
+按组包脚本要求必须标注，登记后重打方可去除。

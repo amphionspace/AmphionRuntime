@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.25",
+  "source_commit": "a63e5834726bcc937e90ecdde2a85ef6c5dba20e",
+  "summary_sha256": "5e02c846714e181120e33183a3de687d1df881e63c57e9ecd56bced4bb094a03",
+  "reports": [
+    {
+      "mode": "customer-ptt",
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "9333300622edba6dbc4d9e0451a2269078188eb33054658941af86c1767edbb5"
+    }
+  ],
+  "waived_modes": [
+    {
+      "mode": "speaker-vad-turn",
+      "reason": "该模式需要客户目标说话人夹具，本检出与两个受控数据包中均不存在，无法产出有效证据。本版未改动该模式，沿用 0.3.20-0.3.24 的同一豁免。"
+    }
+  ]
+}
