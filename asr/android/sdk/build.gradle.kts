@@ -119,6 +119,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
 
     testImplementation(libs.junit)
+    testImplementation("org.json:json:20240303")
     testImplementation(libs.mockito.kotlin)
 
     androidTestImplementation(libs.androidx.junit)

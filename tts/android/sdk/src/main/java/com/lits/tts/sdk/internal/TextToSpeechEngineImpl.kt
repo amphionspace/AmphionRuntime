@@ -56,6 +56,13 @@ internal class TextToSpeechEngineImpl(
     }
 
     override fun speak(text: String, params: SpeakParams) {
+        try {
+            LicenseGuard.gate()
+        } catch (error: TextToSpeechException) {
+            val callback = listener ?: throw error
+            notifyError(callback, params.requestId, error.errorCode, "license no longer valid")
+            return
+        }
         if (destroyed) {
             val callback = listener
             if (callback != null) {
@@ -215,6 +222,7 @@ internal class TextToSpeechEngineImpl(
         val callback = listener
         try {
             if (callback == null || task.cancelled.get() || destroyed) return
+            LicenseGuard.gate()
             task.startedAtMs = elapsedRealtimeMs()
             var sequence = 0
             val useStreamingSynthesis = synthesizer.canStream(task.params, engineParams)
@@ -257,6 +265,7 @@ internal class TextToSpeechEngineImpl(
                     engineParams = engineParams,
                     isCancelled = { task.cancelled.get() || destroyed },
                 ) { chunk ->
+                    LicenseGuard.gateRuntimeTime()
                     if (!task.cancelled.get() && !destroyed) {
                         notifyData(
                             callback,
@@ -288,6 +297,7 @@ internal class TextToSpeechEngineImpl(
                             collectOutput = false,
                             isCancelled = { task.cancelled.get() || destroyed },
                         ) { chunk ->
+                            LicenseGuard.gateRuntimeTime()
                             if (!task.cancelled.get() && !destroyed) {
                                 chunkWriter(chunk)
                             }
@@ -325,6 +335,7 @@ internal class TextToSpeechEngineImpl(
                 notifyStop(callback, task)
                 return
             }
+            LicenseGuard.gateRuntimeTime()
             if (task.params.playType == PlayType.SYNTHESIZE_ONLY && !useStreamingSynthesis) {
                 emitAudioChunks(callback, task, audio, "buffered_pcm")
             }
@@ -376,6 +387,7 @@ internal class TextToSpeechEngineImpl(
         var offset = 0
         var sequence = 0
         while (offset < audio.pcm.size) {
+            LicenseGuard.gateRuntimeTime()
             if (task.cancelled.get() || destroyed) return
             val end = minOf(offset + AUDIO_CHUNK_BYTES, audio.pcm.size)
             notifyData(
@@ -523,6 +535,7 @@ internal class TextToSpeechEngineImpl(
     }
 
     private fun parseRuntimeError(error: RuntimeException): Pair<Int, String> {
+        if (error is TextToSpeechException) return error.errorCode to error.message
         val message = error.message.orEmpty()
         val code = message.substringBefore(':').toIntOrNull()
         return if (code != null) {

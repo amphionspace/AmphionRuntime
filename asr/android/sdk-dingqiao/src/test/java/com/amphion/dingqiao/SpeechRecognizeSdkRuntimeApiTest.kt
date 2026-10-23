@@ -196,6 +196,7 @@ class SpeechRecognizeSdkRuntimeApiTest {
         assertTrue(licenseDone.await(5, TimeUnit.SECONDS))
         assertEquals(licenseErrorMessage, null, licenseError)
         assertFalse(runtime.ready)
+        assertEquals(listOf("development-license"), runtime.activatedLicenses)
         assertEquals(0, SpeechRecognizeSdk.getLicenseInfo().status)
 
         SpeechRecognizeSdk.prepareRuntime(
@@ -850,6 +851,7 @@ class SpeechRecognizeSdkRuntimeApiTest {
         })
         assertTrue(prepared.await(5, TimeUnit.SECONDS))
         assertEquals("new-license", runtime.lastPreparedLicense)
+        assertEquals(listOf("new-license"), runtime.activatedLicenses)
         oldLicense.delete()
         newLicense.delete()
     }
@@ -897,6 +899,13 @@ class SpeechRecognizeSdkRuntimeApiTest {
         @Volatile var lastValidatedDeviceSerial: String? = null
         @Volatile var lastPreparedDeviceSerial: String? = null
         @Volatile var captureDeviceSerial: Boolean = false
+        val activatedLicenses = java.util.concurrent.CopyOnWriteArrayList<String>()
+
+        override fun activateLicense(context: Context, options: AmphionOptions): AmphionLicenseStatus {
+            val status = validateLicense(context, options)
+            options.license?.let { activatedLicenses.add(it) }
+            return status
+        }
 
         override fun validateLicense(
             context: Context,
