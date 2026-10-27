@@ -38,8 +38,18 @@ ES2ABC="${HARMONY_API23_ES2ABC:-}"
 PYTHON="${LICENSE_PYTHON:-python3}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 
-usage() { sed -n '2,25p' "${BASH_SOURCE[0]}"; }
-[[ "${1:-}" != "-h" && "${1:-}" != "--help" ]] || { usage; exit 0; }
+PREPARE_ONLY=false
+KEEP_WORKSPACE="${AMPHION_VARIANT_KEEP_WORKSPACE:-false}"
+ARGS=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help) sed -n '2,25p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    --prepare-only) PREPARE_ONLY=true; shift ;;
+    --keep-workspace) KEEP_WORKSPACE=true; shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+set -- ${ARGS[@]+"${ARGS[@]}"}
 
 require() {
   local value="$1" name="$2"
@@ -74,7 +84,14 @@ fi
 
 WORKSPACE=""
 STAGING=""
-cleanup() { [[ -z "$WORKSPACE" ]] || rm -rf "$WORKSPACE"; [[ -z "$STAGING" ]] || rm -rf "$STAGING"; }
+cleanup() {
+  if [[ "$KEEP_WORKSPACE" == true && -n "$WORKSPACE" ]]; then
+    echo "[INFO] 保留工作区待排查: $WORKSPACE" >&2
+  else
+    [[ -z "$WORKSPACE" ]] || rm -rf "$WORKSPACE"
+  fi
+  [[ -z "$STAGING" ]] || rm -rf "$STAGING"
+}
 trap cleanup EXIT
 trap 'cleanup; exit 130' INT TERM
 
@@ -141,6 +158,14 @@ JSON
     "$PYTHON" "$SCRIPT_DIR/point_fetchcontent_at_local_source.py" \
       --cmake "$sherpa_dst/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/CMakeLists.txt" \
       --source "$NODE_ADDON_API_PREPATCHED"
+  fi
+  # 工程的 build-profile 以固定路径引用 sherpa 模块，物化后必须能解析到。
+  local expected="$repo/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
+  if [[ ! -d "$expected" ]]; then
+    echo "[ERROR] 工程引用的 sherpa 模块路径不存在: $expected" >&2
+    echo "        prepare_sherpa_source.sh 返回: $sherpa_dst" >&2
+    ls -la "$repo/third_party/.derived" >&2 || true
+    exit 1
   fi
   WORKSPACE_REPO="$repo"
   WORKSPACE_SHERPA="$sherpa_dst"
@@ -298,6 +323,10 @@ publish() {
 }
 
 prepare_workspace
+if [[ "$PREPARE_ONLY" == true ]]; then
+  echo "[DONE] 隔离工作区准备完成（--prepare-only）"
+  exit 0
+fi
 apply_variant
 build_artifacts
 assemble_package
