@@ -12,20 +12,22 @@
 import json, os, resource, sys, time
 from pathlib import Path
 import numpy as np, soundfile as sf, sherpa_onnx
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_layout import transducer_paths
+
 
 SP=Path(os.environ["SP"]); M=os.environ["MODELS"]; TAG=os.environ["TAG"]
 files=json.loads(os.environ["FILES"])
 THREADS=int(os.environ.get("THREADS","2"))
 presets=[l.strip() for l in (SP/"hw_full_nouser.txt").read_text(encoding="utf-8").splitlines() if l.strip()]
 pbuf="\n".join(presets)
-enc=f"{M}/encoder.onnx" if os.path.exists(f"{M}/encoder.onnx") else f"{M}/encoder.int8.ort"
-dec=f"{M}/decoder.onnx" if os.path.exists(f"{M}/decoder.onnx") else f"{M}/decoder.ort"
-joi=f"{M}/joiner.onnx"  if os.path.exists(f"{M}/joiner.onnx")  else f"{M}/joiner.int8.ort"
+mp=transducer_paths(M)
+enc=mp["encoder"]; dec=mp["decoder"]; joi=mp["joiner"]
 t0=time.perf_counter()
 r=sherpa_onnx.OnlineRecognizer.from_transducer(
-    tokens=f"{M}/tokens.txt", encoder=enc, decoder=dec, joiner=joi,
+    tokens=mp["tokens"], encoder=enc, decoder=dec, joiner=joi,
     num_threads=THREADS, decoding_method="modified_beam_search", max_active_paths=8,
-    hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=f"{M}/bbpe.vocab",
+    hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=mp["bpe_vocab"],
     enable_endpoint_detection=True)
 load_ms=(time.perf_counter()-t0)*1000
 

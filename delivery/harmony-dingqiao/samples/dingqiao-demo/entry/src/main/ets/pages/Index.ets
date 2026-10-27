@@ -34,6 +34,7 @@ import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { WavIo } from '../util/WavIo';
 import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
+import { PoliceAssets } from 'amphion_police';
 
 const FRAME_AUDIO_MS = 20;
 const SDK_FRAME_BYTES = 640;
@@ -107,6 +108,8 @@ struct Index {
   @State speakerVadDesired: boolean = false;
   @State speakerDiarizationDesired: boolean = false;
   @State policeEnhancementDesired: boolean = true;
+  // 「四川话 / 无警务后处理」包不随包发行后处理资产，此时开关无意义，隐藏并恒为关。
+  @State policePostprocessingAvailable: boolean = true;
   @State captureReady: boolean = false;
   @State captureInfo: string = '尚未保存 SDK 输入 PCM';
   @State replaying: boolean = false;
@@ -171,8 +174,10 @@ struct Index {
   aboutToAppear(): void {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
     this.fileInput = AppStorage.get<boolean>('demoFileInput') ?? false;
-    this.policeEnhancementDesired = DemoPrefs.getPoliceEnhancementEnabled(
-      getContext(this) as common.UIAbilityContext);
+    const abilityContext = getContext(this) as common.UIAbilityContext;
+    this.policePostprocessingAvailable = PoliceAssets.postprocessingAvailable(abilityContext);
+    this.policeEnhancementDesired = this.policePostprocessingAvailable &&
+      DemoPrefs.getPoliceEnhancementEnabled(abilityContext);
     this.initWithPermission();
   }
 
@@ -416,7 +421,8 @@ struct Index {
     this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
     this.lastDiarizationWindowIndex = -1;
     this.diarizationDegraded = false;
-    this.capturedPoliceEnhancement = this.policeEnhancementDesired;
+    this.capturedPoliceEnhancement =
+      this.policePostprocessingAvailable && this.policeEnhancementDesired;
     this.capturedCustomerScenario = this.customerScenario;
     this.capturedAudioSource = this.audioSource;
     this.liveCompareText = '';
@@ -1511,19 +1517,24 @@ struct Index {
       .width('100%')
       .alignItems(VerticalAlign.Center)
 
-      Row() {
-        Column() {
-          Text('警务增强').fontSize(15)
-          Text('术语、车牌和派出所文本归一化').fontSize(12).fontColor(Color.Gray)
+      if (this.policePostprocessingAvailable) {
+        Row() {
+          Column() {
+            Text('警务增强').fontSize(15)
+            Text('术语、车牌和派出所文本归一化').fontSize(12).fontColor(Color.Gray)
+          }
+          .layoutWeight(1)
+          .alignItems(HorizontalAlign.Start)
+          Toggle({ type: ToggleType.Switch, isOn: this.policeEnhancementDesired })
+            .enabled(!this.listening && !this.replaying)
+            .onChange((isOn: boolean): void => this.onPoliceEnhancementSwitch(isOn))
         }
-        .layoutWeight(1)
-        .alignItems(HorizontalAlign.Start)
-        Toggle({ type: ToggleType.Switch, isOn: this.policeEnhancementDesired })
-          .enabled(!this.listening && !this.replaying)
-          .onChange((isOn: boolean): void => this.onPoliceEnhancementSwitch(isOn))
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      } else {
+        Text('本包未集成警务后处理，识别结果按原文发布')
+          .fontSize(12).fontColor(Color.Gray).width('100%')
       }
-      .width('100%')
-      .alignItems(VerticalAlign.Center)
 
       Text(customerScenarioProfile(this.customerScenario).allowVoiceprint ?
         this.voiceprintInfo : '该场景按客户参数不注入声纹字段')

@@ -15,6 +15,8 @@ export class PoliceAssetPair {
 
 export class PoliceAssets {
   private static readonly ROOT: string = 'amphion-police';
+  /** 只随包发行解码期热词表、不含后处理资产的发行变体标记。 */
+  private static readonly VARIANT_HOTWORDS_ONLY: string = 'hotwords-only';
 
   static readText(context: common.Context, path: string): string {
     const bytes = context.resourceManager.getRawFileContentSync(`${PoliceAssets.ROOT}/${path}`);
@@ -41,6 +43,27 @@ export class PoliceAssets {
     }
     pairs.sort((a: PoliceAssetPair, b: PoliceAssetPair): number => b.from.length - a.from.length);
     return pairs;
+  }
+
+  /**
+   * 后处理资产是否随包发行。
+   *
+   * 「四川话 / 无警务后处理」交付包用 trim_police_postprocessing.py 把术语、车牌、
+   * 派出所的 FST 词典与 LAC 人名模型裁掉（约 36 MB），只留 hotwords.json，并在
+   * 资产 manifest 上打 variant=hotwords-only。后处理在那种包里既不执行也无数据可读，
+   * 所以引擎据此判定不构造后处理流水线。
+   *
+   * 读不到或读不懂 manifest 时按「可用」处理：既有交付包的行为不因这段新增代码改变。
+   */
+  static postprocessingAvailable(context: common.Context): boolean {
+    let variant: Object | undefined = undefined;
+    try {
+      const parsed = JSON.parse(PoliceAssets.readText(context, 'manifest.json')) as Record<string, Object>;
+      variant = parsed['variant'];
+    } catch (e) {
+      return true;
+    }
+    return variant === undefined || `${variant}` !== PoliceAssets.VARIANT_HOTWORDS_ONLY;
   }
 
   static readHotwords(context: common.Context, domain: string): string[] {

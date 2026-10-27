@@ -8,6 +8,9 @@
 import json, os, sys
 from pathlib import Path
 import numpy as np, soundfile as sf, sherpa_onnx
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_layout import transducer_paths
+
 
 SP = Path(os.environ["SP"]); M = os.environ["MODELS"]; VP = os.environ["VP_MODEL"]
 VAR = os.environ.get("OV_SET", "clean")
@@ -28,10 +31,11 @@ def ed(a, b):
         p = c
     return p[-1]
 
+_mp = transducer_paths(M)
 r = sherpa_onnx.OnlineRecognizer.from_transducer(
-    tokens=f"{M}/tokens.txt", encoder=f"{M}/encoder.int8.ort", decoder=f"{M}/decoder.ort",
-    joiner=f"{M}/joiner.int8.ort", num_threads=4, decoding_method="modified_beam_search",
-    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=f"{M}/bbpe.vocab")
+    tokens=_mp["tokens"], encoder=_mp["encoder"], decoder=_mp["decoder"],
+    joiner=_mp["joiner"], num_threads=4, decoding_method="modified_beam_search",
+    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=_mp["bpe_vocab"])
 def dec(path):
     x, sr = sf.read(str(path), dtype="float32")
     s = r.create_stream(pbuf); s.accept_waveform(16000, x)
