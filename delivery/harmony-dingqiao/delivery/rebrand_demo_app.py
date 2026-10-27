@@ -30,6 +30,22 @@ def rewrite_bundle(project: Path, bundle: str) -> None:
     print(f"[OK] bundleName -> {bundle}")
 
 
+def rewrite_version_name(project: Path, version_name: str) -> None:
+    """变体包的 versionName 要与交付版本号一致，否则打包的版本一致性校验会失败。
+
+    versionCode 不动：它按 minor*100+patch 推进，变体与基线共用同一数字版本，
+    变体标识只体现在 versionName 的后缀上。
+    """
+    path = project / "AppScope/app.json5"
+    text = path.read_text(encoding="utf-8")
+    updated, count = re.subn(r'("versionName"\s*:\s*")[^"]+(")',
+                             lambda m: m.group(1) + version_name + m.group(2), text, count=1)
+    if count != 1:
+        raise SystemExit(f"[ERROR] 未在 {path} 找到 versionName")
+    path.write_text(updated, encoding="utf-8")
+    print(f"[OK] versionName -> {version_name}")
+
+
 def rewrite_label(project: Path, label: str) -> None:
     path = project / "AppScope/resources/base/element/string.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -50,6 +66,7 @@ def main(argv: list[str]) -> int:
                         help="隔离工作区里的 delivery/harmony-dingqiao 目录")
     parser.add_argument("--bundle-name", default="")
     parser.add_argument("--label", default="")
+    parser.add_argument("--version-name", default="")
     args = parser.parse_args(argv)
     if not (args.project / "AppScope/app.json5").is_file():
         raise SystemExit(f"[ERROR] 不是 demo 工程目录: {args.project}")
@@ -57,6 +74,8 @@ def main(argv: list[str]) -> int:
         rewrite_bundle(args.project, args.bundle_name)
     if args.label:
         rewrite_label(args.project, args.label)
+    if args.version_name:
+        rewrite_version_name(args.project, args.version_name)
     return 0
 
 
