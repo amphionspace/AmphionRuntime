@@ -11,7 +11,7 @@ LICENSE_FILE="$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/s
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
 HAP=""
-BUNDLE_NAME="com.amphion.asr.harmony.demo"
+BUNDLE_NAME="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
 # 换 ASR 模型出包时指向该模型自己的固定 MD5 策略；留空用 police-1.4.0 默认策略。
