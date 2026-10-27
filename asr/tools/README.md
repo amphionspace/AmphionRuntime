@@ -44,6 +44,7 @@ open asr/tools/QUICKSTART.md   # 推荐入口
 | `finalize_automatic_agc_release_gate.py` | B | 归档完整跨端证据并绑定、复核发布账本 |
 | `04_build_android_so.sh` | B | 一键交叉编译 arm64-v8a（可选 armeabi-v7a）的 .so |
 | `05_package_aar_libs.sh` | B | 把编出来的 .so 拷贝到 SDK 工程的 jniLibs/ 目录 |
+| `eval/README.md` | 验收 | 宿主侧指标评测工具链：与 SDK 同解码器代码批量测 CER/KWR/整串命中/DER/片段召回/声纹 EER/RTF/功耗 |
 
 ## 推荐执行顺序
 
