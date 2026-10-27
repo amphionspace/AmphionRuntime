@@ -1,0 +1,97 @@
+# 鸿蒙变体交付链路
+
+变体包 = 换 ASR 模型、（可选）不随包发行警务后处理、独立 bundleName 的交付包。
+四川话包是第一个用例。
+
+## 为什么独立成一条链路
+
+既有打包脚本把基线的模型身份、完整警务资产、版本号序列都写死为不变量 —— 那些断言
+对基线是对的。变体若去放宽它们，等于**让基线从此不再断言自己的身份**：比如把源包名
+校验从「写死比对 `…-1.4.0.tar.gz`」改成形状正则，基线也就跟着失去了这项保护。
+
+所以变体自带工作区、自带校验。**既有脚本一行不改** —— 打基线包或其他系统的包，
+走的代码路径与 main 完全相同。
+
+## 怎么出包
+
+```bash
+AMPHION_VARIANT_NAME=chuan-179m-tsx-v1 \
+AMPHION_VARIANT_MODEL_DIR=$PWD/asr/tools/demo-model/amphion-chuan-179m-tsx-v1-1.0.0-chunk32-lc256-edge-transducer \
+AMPHION_VARIANT_MODEL_POLICY=$PWD/delivery/harmony-dingqiao/delivery/dingqiao_chuan_model_md5.json \
+AMPHION_VARIANT_POLICE_POSTPROCESS=off \
+AMPHION_VARIANT_BUNDLE_NAME=com.amphion.asr.harmony.repro \
+AMPHION_VARIANT_APP_LABEL="Amphion 四川话识别" \
+HARMONY_SIGNING_CONFIG=$PWD/.secure/harmony-signing-repro.json \
+HARMONY_API23_ES2ABC=$PWD/.cache/harmony-api23-sdk-6.1-release/ets/build-tools/ets-loader/bin/ark/build-mac/bin/es2abc \
+NODE_ADDON_API_PREPATCHED=$PWD/.cache/speaker-screen-repro-acf477c2/node-addon-api \
+  bash delivery/harmony-dingqiao/delivery/pack_harmony_variant_delivery.sh
+```
+
+`--prepare-only` 只准备工作区（秒级验证隔离逻辑），`--keep-workspace` 失败后保留现场。
+
+## 产出
+
+```
+Amphion-Harmony-ASR-<变体>-<日期>/
+├── release-sdk/       自包含 amphion_dingqiao.har + 客户文档
+├── diagnostics-sdk/   四个 diagnostics HAR + 采集工具 + 诊断文档
+├── diagnostics-demo/  签名 demo HAP
+├── demo-source/       demo 源码（git archive 按提交固定，已剥离内部模块依赖）
+└── docs/              溯源、变体校验报告、API 23 兼容报告、校验清单
+```
+
+## 新增脚本
+
+| 脚本 | 作用 |
+|---|---|
+| `pack_harmony_variant_delivery.sh` | 主链路 |
+| `verify_variant_delivery.py` | 变体专属校验：模型身份、警务资产裁剪态、bundleName / 显示名 |
+| `prepare_variant_demo_source.py` | 交付源码依赖自洽：逐个裸模块导入核查 |
+| `install_variant_signing.py` | 把签名材料写进工作区构建配置 |
+| `write_variant_provenance.py` | 溯源跟随本次实际使用的模型策略 |
+| `point_fetchcontent_at_local_source.py` | CMake 探不到 git 时指向本地 node-addon-api |
+| `trim_police_postprocessing.py` | 裁掉后处理资产，只留解码期热词表 |
+| `rebrand_demo_app.py` | 改写 bundleName / 显示名 / 版本名 |
+
+复用既有只读校验（与变体无关）：API 23 编译器兼容性、交付脱敏、打包模型资产。
+
+## 隔离的四个要点
+
+1. **工作区是仓库的本地克隆**，不是手搭目录树。既有脚本要读 git 索引
+   （`rev-parse :third_party/sherpa-onnx`），手搭的树没有 git 就只能重写一份。
+2. **资产打包与自包含 HAR 组装一律调工作区副本** —— 这两个脚本按自身位置推导仓库根，
+   用真实仓库的副本会把变体资产写进真实仓库，下一次基线出包会悄悄用上变体模型。
+3. **`.derived/sherpa-onnx` 必须实体化为真实目录**。`prepare_sherpa_source.sh` 产出的是
+   generation 目录 + 符号链接，而 hvigor 不跟随符号链接，报 `00303149 Path not found`
+   —— 错误发生在配置阶段，离根因隔了一层。
+4. **构建前 `ohpm install --all`**。工作区不带被忽略的 `oh_modules`，否则会意外用上
+   开发机已装的包。
+
+## 变体身份靠什么承载
+
+版本号序列属于发布治理（`asr_release_tracker.py`），变体不去动它。身份由三处承载：
+
+- **包名**：`Amphion-Harmony-ASR-<变体>-<日期>`
+- **bundleName**：独立 bundle，可与基线包在同一台设备上共存、互不覆盖
+- **溯源**：`docs/BUILD_PROVENANCE.json` 的 `variant` / `model_id` / `model_md5_policy` /
+  `package_identity.police_postprocess`
+
+## 四川话包的实测
+
+设备 SN `7GK0226326015655`（OpenHarmony 7.0），语料 `aishell3_test_hotwords_500` 取 60 条，
+20 ms 实时节奏喂入，用**交付包内的 HAP** 装机实测：
+
+| 项 | 结果 |
+|---|---|
+| 会话 | 60/60 完成，错误 0，空 final 率 0.000 |
+| 字准确率 | 93.34% |
+| 整句全对 | 65.00% |
+| 峰值 RSS | 522.7 MB，内存门禁 PASS |
+
+与基线同批对照（同设备同语料）：基线 94.25% / 68.33%，本变体 −0.91pp 字准、−3.33pp 整句。
+
+**排错留档**：第一次复测得到的是基线的数字（94.25%，逐条文本与基线 60/60 完全相同）。
+原因是 `run_device_stress.py` 的 `BUNDLE` 写死为 `…demo`，而该文件按隔离要求还原到了
+main、不再有环境变量开关，于是压测打到的是仍装在机上的基线包。驱动变体包需要在仓库外
+用脚本副本改 `BUNDLE` 并设 `PYTHONPATH` 指向仓库根。**只看聚合指标不会发现这个错误 ——
+是逐条文本比对暴露的。**
