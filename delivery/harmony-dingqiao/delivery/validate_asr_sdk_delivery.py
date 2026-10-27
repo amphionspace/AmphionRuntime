@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path, PurePosixPath
 import re
 import shutil
@@ -15,7 +16,11 @@ import tempfile
 import zipfile
 
 
-MODEL_MD5_POLICY_PATH = Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+# 换 ASR 模型出包时跟随同一份固定策略；留空用 police-1.4.0 默认策略。
+MODEL_MD5_POLICY_PATH = Path(
+    os.environ.get("DINGQIAO_MODEL_MD5_POLICY")
+    or Path(__file__).with_name("dingqiao_zh_en_model_md5.json")
+)
 RUNTIME_IDENTITY_SOURCE_PATH = (
     Path(__file__).resolve().parents[3]
     / "asr/harmony/sdk/src/main/ets/com/amphion/asr/RuntimeIdentity.ts"

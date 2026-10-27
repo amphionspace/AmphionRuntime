@@ -418,6 +418,7 @@ fi
 python3 - "$REPO_ROOT" "$OUT_ROOT" "$VERSION" "$ASR_ONLY" "$SDK_ONLY" "$GIT_DIRTY" "$BUILD_IDENTITY" <<'PY'
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -460,10 +461,13 @@ with tarfile.open(out / "har/amphion_dingqiao.har", "r:gz") as archive:
         "package/_bundled/amphion_asr/src/main/resources/rawfile/amphion-models/manifest.json"
     ).read()
 delivered_manifest = json.loads(delivered_manifest_bytes)
-model_policy = json.loads(
-    (repo / "delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json")
-    .read_text(encoding="utf-8")
+# 换 ASR 模型出包时必须跟随同一份固定策略，否则溯源会写出基线模型的 model_id，
+# 而包里装的是另一个模型 —— 客户拿到的身份信息就是错的。
+model_policy_path = Path(
+    os.environ.get("DINGQIAO_MODEL_MD5_POLICY")
+    or repo / "delivery/harmony-dingqiao/delivery/dingqiao_zh_en_model_md5.json"
 )
+model_policy = json.loads(model_policy_path.read_text(encoding="utf-8"))
 approved_onnx_md5 = model_policy["onnx_files_md5"]
 converter_ids: set[str] = set()
 sdk_bundles = {"zh-en/v1", "punct-zhen/v1", "itn-zh/v1", "vad/v1"}
@@ -511,6 +515,7 @@ payload = {
         "manifest_version": delivered_manifest["manifest_version"],
         "converter_ids": sorted(converter_ids),
         "model_id": model_policy["model_id"],
+        "model_md5_policy": model_policy_path.name,
         "onnx_md5": dict(sorted(approved_onnx_md5.items())),
     },
     "local_native": {
