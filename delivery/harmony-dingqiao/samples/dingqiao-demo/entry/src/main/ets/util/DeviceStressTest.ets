@@ -1570,6 +1570,10 @@ async function runRecognitionCycle(engine: SpeechRecognitionEngine, entry: Corpu
     `vad-begin-no-early-last-speech-events-${events.speechBegins}` : 'finished';
   let failDetail = 'finish-contract';
   if (lastFinalsBeforeFinish > 0) failDetail = 'is-last-before-finish';
+  // SDK 的 onError 文本原先只在 start 阶段失败时带出来；会话中途的原生错误（例如
+  // handleAsrError 透上来的 `<nativeCode>: <message>`）既不进 hilog 也不进结果行，
+  // 这类失败在宿主侧完全不可定位。把首个错误文本附到 detail 上。
+  if (events.errorMessages.length > 0) failDetail = `${failDetail}-${events.errorMessages[0]}`;
   return finishCycle(index, entry.id, events, startedAt, ok, ok ? passDetail : failDetail);
 }
 
