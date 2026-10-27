@@ -121,6 +121,7 @@ prepare_workspace() {
   # 克隆只带被跟踪的文件；模型资产、原生库、license 等被 gitignore 的构建输入要补齐。
   mkdir -p "$repo/delivery"
   rsync -a --exclude='build/' --exclude='.hvigor/' --exclude='.idea/' \
+    --exclude='oh_modules/' \
     "$REPO_ROOT/$PROJECT_REL/" "$repo/$PROJECT_REL/"
   for tree in asr/harmony/sdk asr/harmony/sdk-police asr/harmony/sdk-dingqiao \
       shared/models/asr asr/native/audio-processing/include; do
@@ -152,6 +153,18 @@ JSON
   sherpa_src="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
   rsync -a "$sherpa_src/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
     "$sherpa_dst/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
+
+  # prepare_sherpa_source.sh 产出的是 generation 目录 + sherpa-onnx 符号链接，而工程
+  # build-profile 以 .derived/sherpa-onnx 固定引用该模块，hvigor 不跟随符号链接
+  # （报 Path not found）。实体化成真实目录。
+  local derived="$repo/third_party/.derived"
+  if [[ -L "$derived/sherpa-onnx" ]]; then
+    local generation
+    generation="$(readlink "$derived/sherpa-onnx")"
+    rm "$derived/sherpa-onnx"
+    mv "$derived/$generation" "$derived/sherpa-onnx"
+    sherpa_dst="$derived/sherpa-onnx"
+  fi
 
   # node-addon-api：CMake 探不到 git 时（GIT_VERSION_STRING=''），直接指向已打补丁的本地源。
   if [[ -n "${NODE_ADDON_API_PREPATCHED:-}" && -d "$NODE_ADDON_API_PREPATCHED" ]]; then
@@ -199,6 +212,9 @@ build_artifacts() {
   local project="$WORKSPACE_REPO/$PROJECT_REL"
   install_signing "$project"
   ( cd "$project"
+    # 工作区不带被忽略的 oh_modules，构建前按工程清单重建，避免意外用上开发机的包。
+    info "重建 oh_modules 依赖"
+    "$OHPM" install --all >/dev/null
     for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
       info "构建 $module (diagnostics)"
       "$NODE" "$HVIGOR" assembleHar --mode module \
