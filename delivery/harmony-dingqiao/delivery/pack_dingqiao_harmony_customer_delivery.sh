@@ -11,6 +11,7 @@ FINAL_OUT_ROOT=""
 ASR_ONLY=false
 SDK_ONLY=false
 ALLOW_DIRTY=false
+ZH_EN_ONLY=false
 
 usage() {
   cat <<'EOF'
@@ -19,6 +20,8 @@ Usage: pack_dingqiao_harmony_customer_delivery.sh [--asr-only|--sdk-only] [--all
 Options:
   --asr-only  Package the ASR SDK/demo without requiring TTS build artifacts.
   --sdk-only  Package only the zh-en ASR HAR and public customer documents.
+  --zh-en-only  Scope the ASR delivery to the zh-en carrier, without the unrelated
+              Yue-English model. Required when the packed assets carry no yue-en bundle.
   --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
 
@@ -32,6 +35,7 @@ while [[ $# -gt 0 ]]; do
     --asr-only) ASR_ONLY=true; shift ;;
     --sdk-only) SDK_ONLY=true; shift ;;
     --allow-dirty) ALLOW_DIRTY=true; shift ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
     *)
@@ -212,17 +216,16 @@ copy_har() {
 # 客户只需声明这一个 HAR,纯本地离线可解析,且 HAP 全量编译整链可解析(已真机验证)。
 # 为何不发分层 HAR:各 HAR 用仓库本地 file: 路径互依赖,外部工程既装不上(死路径)、剥离后又编不过
 # (幽灵依赖)——只有自包含两头都成立。详见 assemble_selfcontained_dingqiao_har.sh。
-if [[ "$SDK_ONLY" == true ]]; then
-  bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
-    --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
-  "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
-    --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
-else
-  bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
-  "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
+# --sdk-only 一直是 zh-en 作用域；ASR 交付此前写死为全量，导致 zh-en-only 资产
+# 在校验处报 missing=['yue-en/v1']。作用域改由 --zh-en-only 决定，两条分支共用。
+HAR_SCOPE_ARGS=()
+if [[ "$SDK_ONLY" == true || "$ZH_EN_ONLY" == true ]]; then
+  HAR_SCOPE_ARGS=(--zh-en-only)
 fi
+bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
+  ${HAR_SCOPE_ARGS[@]+"${HAR_SCOPE_ARGS[@]}"} "$OUT_ROOT/har/amphion_dingqiao.har"
+"$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
+  ${HAR_SCOPE_ARGS[@]+"${HAR_SCOPE_ARGS[@]}"} "$OUT_ROOT/har/amphion_dingqiao.har"
 python3 - "$OUT_ROOT/har/amphion_dingqiao.har" "$VERSION" <<'PY'
 import json
 import sys

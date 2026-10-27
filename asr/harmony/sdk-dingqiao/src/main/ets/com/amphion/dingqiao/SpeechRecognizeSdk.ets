@@ -1868,6 +1868,20 @@ export class SpeechRecognizeSdk {
   static getWorkPath(): string { return SpeechRecognizeSdk.workPath; }
 
   /**
+   * 本包是否集成警务后处理（术语 / 车牌 / 派出所归一化与人名纠正）。
+   *
+   * 「无警务后处理」交付包不随包发行后处理资产，此时 enablePoliceEnhancement 传 true
+   * 也不生效，调用方据此决定是否展示相关开关。读不到资产清单时按集成处理，既有交付包
+   * 的行为不变。
+   *
+   * 调用方只依赖 amphion_dingqiao，所以这里代为转发 —— 警务模块是本 HAR 的内部依赖，
+   * 不单独交付，调用方不能直接 import。
+   */
+  static isPoliceEnhancementAvailable(context: Context): boolean {
+    return PoliceAssets.postprocessingAvailable(context);
+  }
+
+  /**
    * Preload + warm the voiceprint extractor. Final-only verification already loads it in the
    * background; explicit preload removes its final-result wait and Speaker VAD cold-start cost.
    * Idempotent (no-op once pooled). Returns false if Runtime is not ready or model loading fails.
