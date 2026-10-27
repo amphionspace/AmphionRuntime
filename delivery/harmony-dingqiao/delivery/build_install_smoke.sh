@@ -28,8 +28,16 @@ LICENSE_PYTHON="${LICENSE_PYTHON:-python3}"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
 TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 SPEAKER_TURN_SEGMENTATION_MODEL="${SPEAKER_TURN_SEGMENTATION_MODEL:-}"
+# on（默认）照常打包警务后处理资产；off 只保留解码期热词表，
+# 后处理的 FST 词典与 LAC 人名模型（约 36 MB）不进 HAP。
+POLICE_POSTPROCESS="${DINGQIAO_POLICE_POSTPROCESS:-on}"
 BUILD_WORKSPACE=""
 TEMP_HAP_COPY=""
+
+case "$POLICE_POSTPROCESS" in
+  on|off) ;;
+  *) echo "[ERROR] DINGQIAO_POLICE_POSTPROCESS 只接受 on 或 off: $POLICE_POSTPROCESS" >&2; exit 1 ;;
+esac
 
 usage() {
   cat <<'EOF'
@@ -262,6 +270,9 @@ EOF
   find "$temp_repo/asr/harmony" \
     "$sherpa_destination" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
+  if [[ "$POLICE_POSTPROCESS" == off ]]; then
+    "$LICENSE_PYTHON" "$SCRIPT_DIR/trim_police_postprocessing.py" --repo-root "$temp_repo"
+  fi
   if [[ -n "$TARGET_SPEAKER_SEPARATOR_MODEL" ]]; then
     [[ -s "$TARGET_SPEAKER_SEPARATOR_MODEL" ]] || {
       echo "[ERROR] target-speaker separator model is unreadable: $TARGET_SPEAKER_SEPARATOR_MODEL" >&2

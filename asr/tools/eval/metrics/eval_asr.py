@@ -11,6 +11,9 @@
 import argparse, json, os, re, sys, time
 from pathlib import Path
 import numpy as np, soundfile as sf, sherpa_onnx
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_layout import transducer_paths
+
 
 PUNCS = set(" \t\r\n,.!?;:'\"，。！？；：、《》（）()[]{}-—…·")
 def nz(t): return "".join(c for c in (t or "") if c not in PUNCS)
@@ -73,13 +76,11 @@ status = (re.search(r'^annotation_status:\s*"?([^"\n]+)"?', yaml, re.M) or [None
 presets = [l.strip() for l in Path(a.presets).read_text(encoding="utf-8").splitlines() if l.strip()]
 pbuf = "\n".join(presets)
 M = a.models
+mp = transducer_paths(M)
 r = sherpa_onnx.OnlineRecognizer.from_transducer(
-    tokens=f"{M}/tokens.txt",
-    encoder=(f"{M}/encoder.onnx" if os.path.exists(f"{M}/encoder.onnx") else f"{M}/encoder.int8.ort"),
-    decoder=(f"{M}/decoder.onnx" if os.path.exists(f"{M}/decoder.onnx") else f"{M}/decoder.ort"),
-    joiner=(f"{M}/joiner.onnx" if os.path.exists(f"{M}/joiner.onnx") else f"{M}/joiner.int8.ort"),
+    tokens=mp["tokens"], encoder=mp["encoder"], decoder=mp["decoder"], joiner=mp["joiner"],
     num_threads=2, decoding_method="modified_beam_search",
-    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=f"{M}/bbpe.vocab")
+    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=mp["bpe_vocab"])
 
 def decode(x, hw):
     s = r.create_stream() if hw is None else r.create_stream(hw)

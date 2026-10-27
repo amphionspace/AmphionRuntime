@@ -1,0 +1,26 @@
+{
+  "schema_version": 3,
+  "model_id": "amphion-chuan-179m-tsx-v1-1.0.0-chunk32-lc256-edge-transducer",
+  "source_bundle": {
+    "name": "edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.0.0.tar.gz",
+    "md5": "0de887a0f5777f116b5c62ac1e960675",
+    "sha256": "2ca8e1b18c2cb6c4910dddfac7710d2ff72bf3bb26241b9ce83e8b05f8ffd6df",
+    "uri": "cos://icefall-checkpoints-1373259071/icefall/amphion/zh_en/checkpoints/candidate/chuan-179m-tsx-v1/onnx/chunk32-lc256/1.0.0/dist/edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.0.0.tar.gz"
+  },
+  "onnx_files_md5": {
+    "decoder.onnx": "f7cb46ab8f2e48e4e8f5ae473414b6ad",
+    "joiner.onnx": "ab7649956f72e183a965c9fcc443e6c1",
+    "encoder.int8.onnx": "8b9808fdd6bd8e834aac4c0f93fb110b"
+  },
+  "encoder_quantization": {
+    "origin": "upstream candidate bundle; no local requantization",
+    "encoder_sha256": "a689446a62339bb6d704ab724db43fdac02e70779572210135b400efc5751fea",
+    "precision": "int8",
+    "decoder_precision": "fp32",
+    "joiner_precision": "fp32"
+  },
+  "notes": {
+    "vocabulary": "tokens.txt 与 bbpe.vocab 与 police-179m-1.4.0 逐字节一致（md5 ff6d4c460f9c021fb29b1fc2a0abf968 / 09638658a4217d431c8c043c36deee00），故热词与 bbpe 建模单元不受换模型影响。",
+    "evaluation": "docs/asr/CHUAN_179M_TSX_V1_EVALUATION_20261026.md"
+  }
+}
