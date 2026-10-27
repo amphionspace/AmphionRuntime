@@ -278,6 +278,7 @@ EOF
   if [[ "$BUNDLE" != com.amphion.asr.harmony.demo || -n "$APP_LABEL" || -n "$APP_VERSION_NAME" ]]; then
     "$LICENSE_PYTHON" "$SCRIPT_DIR/rebrand_demo_app.py" \
       --project "$temp_repo/delivery/harmony-dingqiao" \
+      --repo-root "$temp_repo" \
       --bundle-name "$BUNDLE" --label "$APP_LABEL" \
       --version-name "$APP_VERSION_NAME"
   fi

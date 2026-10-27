@@ -30,20 +30,39 @@ def rewrite_bundle(project: Path, bundle: str) -> None:
     print(f"[OK] bundleName -> {bundle}")
 
 
-def rewrite_version_name(project: Path, version_name: str) -> None:
-    """变体包的 versionName 要与交付版本号一致，否则打包的版本一致性校验会失败。
+SDK_MODULES = (
+    "asr/harmony/sdk",
+    "asr/harmony/sdk-police",
+    "asr/harmony/sdk-dingqiao",
+)
 
-    versionCode 不动：它按 minor*100+patch 推进，变体与基线共用同一数字版本，
-    变体标识只体现在 versionName 的后缀上。
-    """
-    path = project / "AppScope/app.json5"
+
+def _replace_once(path: Path, pattern: str, value: str, what: str) -> None:
     text = path.read_text(encoding="utf-8")
-    updated, count = re.subn(r'("versionName"\s*:\s*")[^"]+(")',
-                             lambda m: m.group(1) + version_name + m.group(2), text, count=1)
+    updated, count = re.subn(pattern, lambda m: m.group(1) + value + m.group(2), text, count=1)
     if count != 1:
-        raise SystemExit(f"[ERROR] 未在 {path} 找到 versionName")
+        raise SystemExit(f"[ERROR] 未在 {path} 找到 {what}")
     path.write_text(updated, encoding="utf-8")
+
+
+def rewrite_version_name(project: Path, repo_root: Path, version_name: str) -> None:
+    """把交付版本号写进 HAP 的 versionName 与各 SDK 模块的 version。
+
+    打包会分别校验「HAP versionName == 交付版本号」与「HAR version == 交付版本号」，
+    两处都要改。HAR 的版本取自 amphion_dingqiao 模块的 oh-package.json5。
+
+    versionCode 不动：它按 minor*100+patch 推进（test_release_defaults 有断言），
+    变体与基线共用同一数字版本，变体标识只体现在版本名后缀上。
+    """
+    _replace_once(project / "AppScope/app.json5",
+                  r'("versionName"\s*:\s*")[^"]+(")', version_name, "versionName")
     print(f"[OK] versionName -> {version_name}")
+    for module in SDK_MODULES:
+        path = repo_root / module / "oh-package.json5"
+        if not path.is_file():
+            raise SystemExit(f"[ERROR] SDK 模块清单缺失: {path}")
+        _replace_once(path, r'("version"\s*:\s*")[^"]+(")', version_name, "version")
+    print(f"[OK] SDK 模块 version -> {version_name}（{len(SDK_MODULES)} 个）")
 
 
 def rewrite_label(project: Path, label: str) -> None:
@@ -64,6 +83,8 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--project", required=True, type=Path,
                         help="隔离工作区里的 delivery/harmony-dingqiao 目录")
+    parser.add_argument("--repo-root", type=Path,
+                        help="隔离工作区的 repo 根目录；改 versionName 时必需")
     parser.add_argument("--bundle-name", default="")
     parser.add_argument("--label", default="")
     parser.add_argument("--version-name", default="")
@@ -75,7 +96,8 @@ def main(argv: list[str]) -> int:
     if args.label:
         rewrite_label(args.project, args.label)
     if args.version_name:
-        rewrite_version_name(args.project, args.version_name)
+        repo_root = args.repo_root or args.project.parent.parent
+        rewrite_version_name(args.project, repo_root, args.version_name)
     return 0
 
 
