@@ -44,8 +44,7 @@ from tools.delivery.device_stress_metrics import (  # noqa: E402
 PROJECT_ROOT = REPO_ROOT / "delivery" / "harmony-dingqiao"
 BUILD_IDENTITY = PROJECT_ROOT / "build" / "smoke" / "build-identity.json"
 BUILD_IDENTITY_TOOL = SCRIPT_DIR / "harmony_build_identity.py"
-# 变体包换了 bundleName 才能与基线包共存，压测要能指向它。
-BUNDLE = os.environ.get("DINGQIAO_BUNDLE_NAME", "com.amphion.asr.harmony.demo")
+BUNDLE = "com.amphion.asr.harmony.demo"
 MODULE = "amphion_asr_demo"
 ABILITY = "EntryAbility"
 REMOTE_ROOT = "/data/storage/el2/base/files/asr-stress"

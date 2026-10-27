@@ -19,13 +19,6 @@ RUNTIME_TO_ONNX_SOURCE = {
     "joiner.int8.ort": "joiner.onnx",
 }
 MD5_RE = re.compile(r"[0-9a-f]{32}")
-# 源包名随模型版本变化，但端侧载体只接受这一种架构与精度布局：
-# int8 encoder + fp32 decoder/joiner、chunk32、left-context 256。
-# 形状校验保留了这个不变量，版本号由策略文件自己声明。
-SOURCE_BUNDLE_RE = re.compile(
-    r"edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-"
-    r"\d+\.\d+\.\d+\.tar\.gz"
-)
 
 
 class ModelIdentityError(RuntimeError):
@@ -61,11 +54,9 @@ def load_policy(path: Path = DEFAULT_POLICY_PATH) -> tuple[str, dict[str, str]]:
     if not isinstance(model_id, str) or not model_id:
         raise ModelIdentityError(f"model identity policy has no model_id: {path}")
     source_bundle = policy.get("source_bundle")
-    bundle_name = source_bundle.get("name") if isinstance(source_bundle, dict) else None
     if (
         not isinstance(source_bundle, dict)
-        or not isinstance(bundle_name, str)
-        or SOURCE_BUNDLE_RE.fullmatch(bundle_name) is None
+        or source_bundle.get("name") != "edge-transducer-enc-int8-dec-fp32-join-fp32-chunk32-lc256-1.4.0.tar.gz"
         or not isinstance(source_bundle.get("md5"), str)
         or MD5_RE.fullmatch(source_bundle["md5"]) is None
     ):

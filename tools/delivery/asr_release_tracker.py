@@ -68,12 +68,7 @@ PLATFORM_SOURCE_PREFIXES = {
         "asr/tools/license/issue_harmony_asr_eval.sh",
     ),
 }
-# 版本号可带变体通道后缀：MAJOR.MINOR.PATCH[-variant]，如 0.3.25-chuan1。
-#
-# 后缀不是 SemVer 预发布语义 —— 预发布会排在正式版之前，而变体是与基线并行的
-# 另一条交付通道（换模型、换功能集的包），两者没有先后关系。因此单调递增只在
-# 同一通道内要求，基线与各变体各自独立计数。
-SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[a-z][a-z0-9]*(?:-[a-z0-9]+)*)?$")
+SEMVER = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+$")
 FULL_COMMIT = re.compile(r"^[0-9a-f]{40}$")
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
 PLATFORM_SCOPE = re.compile(r"^[a-z0-9-]+(?:!)?\((android|harmony)\)(?:!)?:")
@@ -130,7 +125,7 @@ def load_history(path: Path) -> Dict[str, Any]:
     if not isinstance(deliveries, list):
         raise ReleaseTrackerError("release history deliveries must be a list")
     seen = set()
-    latest_versions: Dict[tuple[str, str], tuple[int, int, int]] = {}
+    latest_versions: Dict[str, tuple[int, int, int]] = {}
     for index, entry in enumerate(deliveries):
         if (
             not isinstance(entry, dict)
@@ -150,17 +145,13 @@ def load_history(path: Path) -> Dict[str, Any]:
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid platform {platform!r}")
         if not isinstance(version, str) or not SEMVER.fullmatch(version):
             raise ReleaseTrackerError(f"delivery #{index + 1} has invalid version {version!r}")
-        # 单调递增按「平台 + 变体通道」判定：变体是与基线并行的交付通道，
-        # 0.3.25-chuan1 不必比基线 0.3.25 更新，两者各自计数。
-        version_key, variant = _split_version(version)
-        lane = (platform, variant)
-        previous_key = latest_versions.get(lane)
+        version_key = _semver_key(version)
+        previous_key = latest_versions.get(platform)
         if previous_key is not None and version_key <= previous_key:
-            lane_label = platform if not variant else f"{platform} {variant}"
             raise ReleaseTrackerError(
-                f"{lane_label} delivery versions must strictly increase in ledger order"
+                f"{platform} delivery versions must strictly increase in ledger order"
             )
-        latest_versions[lane] = version_key
+        latest_versions[platform] = version_key
         if key in seen:
             raise ReleaseTrackerError(f"{platform} {version} is already recorded")
         seen.add(key)
@@ -216,34 +207,14 @@ def load_history(path: Path) -> Dict[str, Any]:
     return payload
 
 
-def _split_version(version: str) -> tuple[tuple[int, int, int], str]:
-    """返回 ((major, minor, patch), variant)。variant 为空字符串表示基线通道。"""
-    if not SEMVER.fullmatch(version):
-        raise ReleaseTrackerError(
-            f"version must be MAJOR.MINOR.PATCH[-variant]: {version}"
-        )
-    numeric, _, variant = version.partition("-")
-    key = tuple(int(part) for part in numeric.split("."))
-    return key, variant  # type: ignore[return-value]
-
-
 def _semver_key(version: str) -> tuple[int, int, int]:
-    return _split_version(version)[0]
+    if not SEMVER.fullmatch(version):
+        raise ReleaseTrackerError(f"version must be SemVer MAJOR.MINOR.PATCH: {version}")
+    return tuple(int(part) for part in version.split("."))  # type: ignore[return-value]
 
 
-def version_variant(version: str) -> str:
-    return _split_version(version)[1]
-
-
-def _previous_delivery(
-    history: Dict[str, Any], platform: str, variant: str = ""
-) -> Optional[Dict[str, str]]:
-    """同一平台、同一变体通道内最近一次交付。变体与基线互不干扰。"""
-    matches = [
-        entry for entry in history["deliveries"]
-        if entry["platform"] == platform
-        and version_variant(entry["version"]) == variant
-    ]
+def _previous_delivery(history: Dict[str, Any], platform: str) -> Optional[Dict[str, str]]:
+    matches = [entry for entry in history["deliveries"] if entry["platform"] == platform]
     return matches[-1] if matches else None
 
 
@@ -268,9 +239,7 @@ def _require_newer_version(
 def verify_next_version(*, history_path: Path, platform: str, version: str) -> None:
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
-    previous = _previous_delivery(
-        load_history(history_path), platform, version_variant(version)
-    )
+    previous = _previous_delivery(load_history(history_path), platform)
     _require_newer_version(platform, version, previous)
 
 
@@ -285,9 +254,7 @@ def verify_current_version(
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     _semver_key(version)
-    latest = _previous_delivery(
-        load_history(history_path), platform, version_variant(version)
-    )
+    latest = _previous_delivery(load_history(history_path), platform)
     if latest is None or latest["version"] != version:
         recorded = "none" if latest is None else latest["version"]
         raise ReleaseTrackerError(
@@ -316,9 +283,7 @@ def verify_packaging_version(
     if platform not in PLATFORMS:
         raise ReleaseTrackerError(f"unsupported platform: {platform}")
     requested = _semver_key(version)
-    latest = _previous_delivery(
-        load_history(history_path), platform, version_variant(version)
-    )
+    latest = _previous_delivery(load_history(history_path), platform)
     if latest is not None and requested == _semver_key(latest["version"]):
         recorded_commit = resolve_commit(repo, latest["source_commit"])
         package_commit = resolve_commit(repo, source_commit)
@@ -800,7 +765,7 @@ def record_delivery(
     with lock_path.open("a+") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         history = load_history(history_path)
-        previous = _previous_delivery(history, platform, version_variant(version))
+        previous = _previous_delivery(history, platform)
         _require_newer_version(platform, version, previous)
         history["deliveries"].append(entry)
         _write_history_atomic(history_path, history)
@@ -892,7 +857,7 @@ def record_delivery_with_evidence(
     with lock_path.open("a+") as lock:
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX)
         history = load_history(history_path)
-        previous = _previous_delivery(history, platform, version_variant(version))
+        previous = _previous_delivery(history, platform)
         _require_newer_version(platform, version, previous)
         history["deliveries"].append(entry)
         _write_history_atomic(history_path, history)

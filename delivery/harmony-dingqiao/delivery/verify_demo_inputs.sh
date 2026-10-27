@@ -11,13 +11,9 @@ LICENSE_FILE="$REPO_ROOT/delivery/harmony-dingqiao/samples/dingqiao-demo/entry/s
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
 HAP=""
-BUNDLE_NAME="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}"
+BUNDLE_NAME="com.amphion.asr.harmony.demo"
 MODULE_NAME="amphion_asr_demo"
 SIGNING_CONFIG="${HARMONY_SIGNING_CONFIG:-}"
-# 换 ASR 模型出包时指向该模型自己的固定 MD5 策略；留空用 police-1.4.0 默认策略。
-MODEL_MD5_POLICY="${DINGQIAO_MODEL_MD5_POLICY:-}"
-MODEL_MD5_ARGS=()
-[[ -z "$MODEL_MD5_POLICY" ]] || MODEL_MD5_ARGS=(--policy "$MODEL_MD5_POLICY")
 ZH_EN_ONLY=false
 source "$REPO_ROOT/asr/tools/harmony_env.sh"
 LICENSE_VENV="$REPO_ROOT/tools/license/.venv"
@@ -86,7 +82,7 @@ if [[ "$ZH_EN_ONLY" == true ]]; then
   MODEL_VERIFY_ARGS+=(--zh-en-only)
 fi
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
-"$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" ${MODEL_MD5_ARGS[@]+"${MODEL_MD5_ARGS[@]}"} --root "$MODEL_ROOT"
+"$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" "$SHERPA_ROOT" <<'PY'
 import struct
@@ -203,7 +199,7 @@ if [[ -n "$HAP" ]]; then
     HAP_MODEL_VERIFY_ARGS+=(--zh-en-only)
   fi
   "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${HAP_MODEL_VERIFY_ARGS[@]}"
-  "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" ${MODEL_MD5_ARGS[@]+"${MODEL_MD5_ARGS[@]}"} --archive "$HAP"
+  "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAP"
   "$PYTHON" "$SCRIPT_DIR/verify_harmony_native_abi.py" --hap "$HAP"
   "$PYTHON" - \
     "$HAP" \
@@ -269,31 +265,13 @@ with zipfile.ZipFile(hap) as package:
     if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
         raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
     if not zh_en_only:
-        source_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
-        packaged_manifest = json.loads(
-            package.read("resources/rawfile/amphion-police/manifest.json").decode("utf-8"))
-        # 「无警务后处理」包只带解码期热词表；其余资产由 trim_police_postprocessing.py
-        # 在隔离工作区移除。除这一种裁剪外，包内资产集合必须与 Android 源一致。
-        expected_files = dict(source_manifest["files"])
-        if packaged_manifest.get("variant") == "hotwords-only":
-            expected_files = {"hotwords.json": expected_files["hotwords.json"]}
-        if set(packaged_manifest["files"]) != set(expected_files):
-            raise SystemExit(
-                "[ERROR] HAP police asset set does not match the Android source or a known trim")
-        for relative, expected_sha256 in expected_files.items():
+        police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
+        for relative, expected_sha256 in police_manifest["files"].items():
             member = f"resources/rawfile/amphion-police/{relative}"
             if member not in names:
                 raise SystemExit(f"[ERROR] HAP missing police asset: {member}")
             if hashlib.sha256(package.read(member)).hexdigest() != expected_sha256:
                 raise SystemExit(f"[ERROR] HAP police asset differs from Android source: {member}")
-        stale = sorted(
-            name for name in names
-            if name.startswith("resources/rawfile/amphion-police/")
-            and name != "resources/rawfile/amphion-police/manifest.json"
-            and name[len("resources/rawfile/amphion-police/"):] not in expected_files
-        )
-        if stale:
-            raise SystemExit(f"[ERROR] HAP contains unexpected police assets: {stale}")
     if package.read("libs/arm64-v8a/libsherpa-onnx-c-api.so") != local_sherpa.read_bytes():
         raise SystemExit("[ERROR] HAP sherpa native library differs from the verified local library")
     if package.read("libs/arm64-v8a/libonnxruntime.so") != local_ort.read_bytes():
