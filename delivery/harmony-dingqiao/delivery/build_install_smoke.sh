@@ -12,7 +12,10 @@ BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
-BUNDLE="com.amphion.asr.harmony.demo"
+# 换 bundleName 可让变体包与基线包在同一台设备上共存（同名会互相覆盖）。
+# bundleName 绑定在 profile 里，所以必须同时换成对应 bundleName 的签名材料。
+BUNDLE="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}"
+APP_LABEL="${DINGQIAO_APP_LABEL:-}"
 MODULE="amphion_asr_demo"
 ABILITY="EntryAbility"
 DEVICE=""
@@ -270,6 +273,11 @@ EOF
   find "$temp_repo/asr/harmony" \
     "$sherpa_destination" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
+  if [[ "$BUNDLE" != com.amphion.asr.harmony.demo || -n "$APP_LABEL" ]]; then
+    "$LICENSE_PYTHON" "$SCRIPT_DIR/rebrand_demo_app.py" \
+      --project "$temp_repo/delivery/harmony-dingqiao" \
+      --bundle-name "$BUNDLE" --label "$APP_LABEL"
+  fi
   if [[ "$POLICE_POSTPROCESS" == off ]]; then
     "$LICENSE_PYTHON" "$SCRIPT_DIR/trim_police_postprocessing.py" --repo-root "$temp_repo"
   fi
@@ -463,7 +471,7 @@ LICENSE_PYTHON="$LICENSE_VENV/bin/python"
 
 ensure_demo_license
 VERIFY_SCOPE_ARGS=(--zh-en-only)
-"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
+DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
@@ -510,7 +518,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     exit 1
   fi
   resolve_built_hap
-  "$SCRIPT_DIR/verify_demo_inputs.sh" \
+  DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" \
     "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
@@ -546,7 +554,7 @@ VERIFY_ARGS+=("${VERIFY_SCOPE_ARGS[@]}")
 if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi
-"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
+DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
 "$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"

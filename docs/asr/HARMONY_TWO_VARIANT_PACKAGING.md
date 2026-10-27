@@ -133,6 +133,44 @@ PY
 `docs/asr/HARMONY_VAD_TYPEDARRAY_DEFECT.md`。**两个包都必须带该修复重出**，
 修复前构建的产物不可交付。
 
+## 让两个包装在同一台设备上
+
+同 bundleName 的两个 HAP 会互相覆盖。bundleName 绑定在 HarmonyAppProvision profile
+里，所以换 bundleName 必须同时换成对应 bundleName 的签名材料。
+
+本机已有一套可用的第二 bundle：`com.amphion.asr.harmony.repro`
+（app-id `6918743691540756437`，签名材料在 `~/.ohos/config/default_repro-project_*`，
+配置 `.secure/harmony-signing-repro.json`）。
+
+```bash
+DINGQIAO_BUNDLE_NAME=com.amphion.asr.harmony.repro \
+DINGQIAO_APP_LABEL="Amphion 四川话识别" \
+DINGQIAO_POLICE_POSTPROCESS=off \
+DINGQIAO_MODEL_MD5_POLICY=$PWD/delivery/harmony-dingqiao/delivery/dingqiao_chuan_model_md5.json \
+  bash delivery/harmony-dingqiao/delivery/build_install_smoke.sh \
+    --signing-config $PWD/.secure/harmony-signing-repro.json --device <SERIAL>
+```
+
+`rebrand_demo_app.py` 在隔离工作区改写 `AppScope/app.json5` 的 bundleName 与
+`AppScope/resources/base/element/string.json` 的 `app_name` / `EntryAbility_label`，
+仓库本体不变。`DINGQIAO_BUNDLE_NAME` 同时传给 `verify_demo_inputs.sh`（HAP 的
+`module.json` 会按它校验）与 `run_device_stress.py`（压测要能指向变体包）。
+
+出包后核一遍包内身份，别只看体积：
+
+```bash
+python3 -c 'import json,zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); \
+print(json.loads(z.read("module.json"))["app"]["bundleName"]); \
+print("新显示名在 resources.index 内:", "Amphion 四川话识别".encode() in z.read("resources.index"))' <HAP>
+```
+
+实测：`com.amphion.asr.harmony.repro` 与 `com.amphion.asr.harmony.demo` 在同一台设备上
+并存、互不覆盖；改名包真机 60 条跑出 93.34% 字准 / 65.00% 整句，与同模型、同代码的
+包 B 完全一致，说明改名不影响行为。
+
+**注意**：`repro` 这套 profile 只白名单了 4 台设备，与 demo 那套是**两份独立的设备列表**。
+给部门发改名包同样要先在 AGC 把他们的设备 UDID 加进 repro 的调试设备列表。
+
 ## 还没做的事
 
 - **设备 UDID 白名单**：profile 是 debug 类型 + `device-id-type: udid`，当前只白名单了
