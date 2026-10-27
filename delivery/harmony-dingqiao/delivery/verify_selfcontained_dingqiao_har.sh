@@ -51,7 +51,10 @@ if [[ "$ZH_EN_ONLY" == true ]]; then
   MODEL_VERIFY_ARGS+=(--zh-en-only)
 fi
 python3 "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
-python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" --archive "$HAR"
+# 换 ASR 模型出包时指向该模型自己的固定 MD5 策略；留空用 police-1.4.0 默认策略。
+MODEL_MD5_ARGS=()
+[[ -z "${DINGQIAO_MODEL_MD5_POLICY:-}" ]] || MODEL_MD5_ARGS=(--policy "$DINGQIAO_MODEL_MD5_POLICY")
+python3 "$SCRIPT_DIR/verify_dingqiao_model_md5.py" ${MODEL_MD5_ARGS[@]+"${MODEL_MD5_ARGS[@]}"} --archive "$HAR"
 
 python3 - \
   "$HAR" \
@@ -153,15 +156,44 @@ with tarfile.open(har, "r:gz") as package:
         for name in package_names
         if name.startswith(police_prefix)
     }
+    # 「无警务后处理」交付包只带解码期热词表，其余资产由 trim_police_postprocessing.py
+    # 在构建期移除，HAR 的资产 manifest 上会有 variant=hotwords-only 标记。除这一种
+    # 裁剪外，包内资产集合必须与仓库源一致。
+    packaged_manifest = {}
+    if f"{police_prefix}manifest.json" in package_names:
+        packaged_manifest = json.loads(
+            package.extractfile(f"{police_prefix}manifest.json").read()
+        )
+    if packaged_manifest.get("variant") == "hotwords-only":
+        expected_police_files = {
+            name: path for name, path in expected_police_files.items()
+            if name in ("hotwords.json", "manifest.json")
+        }
     if actual_police_files != set(expected_police_files):
         missing = sorted(set(expected_police_files) - actual_police_files)
         extra = sorted(actual_police_files - set(expected_police_files))
         raise SystemExit(
             f"[ERROR] self-contained HAR police assets mismatch: missing={missing} extra={extra}"
         )
+    trimmed = packaged_manifest.get("variant") == "hotwords-only"
     for relative, local_path in expected_police_files.items():
         member = package.extractfile(f"{police_prefix}{relative}")
-        if member is None or member.read() != local_path.read_bytes():
+        if member is None:
+            raise SystemExit(
+                f"[ERROR] self-contained HAR is missing police asset: {relative}"
+            )
+        if trimmed and relative == "manifest.json":
+            # 裁剪变体的 manifest 必然与仓库源不同（files 收窄 + variant 标记），逐字节
+            # 比对无意义。改为断言它确实是源 manifest 的合法裁剪：只保留热词表，且热词
+            # 表指纹与源一致 —— 热词是该变体仍然依赖的唯一警务资产。
+            source_manifest = json.loads(local_path.read_text(encoding="utf-8"))
+            expected_files = {"hotwords.json": source_manifest["files"]["hotwords.json"]}
+            if packaged_manifest.get("files") != expected_files:
+                raise SystemExit(
+                    "[ERROR] trimmed police manifest does not match the source hotwords entry"
+                )
+            continue
+        if member.read() != local_path.read_bytes():
             raise SystemExit(
                 f"[ERROR] self-contained HAR police asset differs from expected: {relative}"
             )

@@ -34,7 +34,6 @@ import { PcmFrameWriter } from '../util/PcmFrameWriter';
 import { DemoPrefs } from '../util/DemoPrefs';
 import { WavIo } from '../util/WavIo';
 import { BackgroundRecordingTask } from '../util/BackgroundRecordingTask';
-import { PoliceAssets } from 'amphion_police';
 
 const FRAME_AUDIO_MS = 20;
 const SDK_FRAME_BYTES = 640;
@@ -175,7 +174,7 @@ struct Index {
     this.workPath = SpeechRecognizeSdk.getWorkPath();
     this.fileInput = AppStorage.get<boolean>('demoFileInput') ?? false;
     const abilityContext = getContext(this) as common.UIAbilityContext;
-    this.policePostprocessingAvailable = PoliceAssets.postprocessingAvailable(abilityContext);
+    this.policePostprocessingAvailable = SpeechRecognizeSdk.isPoliceEnhancementAvailable(abilityContext);
     this.policeEnhancementDesired = this.policePostprocessingAvailable &&
       DemoPrefs.getPoliceEnhancementEnabled(abilityContext);
     this.initWithPermission();
