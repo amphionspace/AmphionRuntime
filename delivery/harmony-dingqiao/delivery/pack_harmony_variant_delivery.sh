@@ -94,7 +94,10 @@ prepare_workspace() {
   info "克隆仓库到隔离工作区（按提交 ${SOURCE_COMMIT:0:8} 固定）"
   git clone --quiet --local --no-hardlinks "$REPO_ROOT" "$repo"
   git -C "$repo" checkout --quiet --detach "$SOURCE_COMMIT"
+  # protocol.file.allow：git 2.38+ 默认禁用 submodule 的 file 传输（CVE-2022-39253
+  # 缓解）。这里的来源是本机同一个仓库的 submodule 检出，只在这一条命令上放开。
   git -C "$repo" \
+    -c protocol.file.allow=always \
     -c "submodule.third_party/sherpa-onnx.url=$REPO_ROOT/third_party/sherpa-onnx" \
     submodule update --quiet --init third_party/sherpa-onnx
 
