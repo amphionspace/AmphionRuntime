@@ -1,0 +1,101 @@
+From 4c839baf12f9fa7616c5976290f442fe72a94be1 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Mon, 26 Oct 2026 23:26:53 -0700
+Subject: [PATCH 34/35] fix(harmony): copy VAD speech segments instead of
+ aliasing native memory
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+VoiceActivityDetectorFront built its Float32Array over an externally backed
+ArrayBuffer. ArkTS does not honour such a buffer's byte length, so the
+napi_create_typedarray that follows fails with napi_invalid_arg and reaches
+ArkTS as a bare "Error: Invalid parameter". Instrumenting the wrapper showed
+the external ArrayBuffer being created and the typed array over it throwing.
+
+The ASR runtime guards front() with isEmpty() and cannot interpret or avoid
+that failure, so the throw propagated to onError as NATIVE_CRASH and tore the
+session down at the first completed VAD segment — every real session with a
+pause died after a few partials and never produced a final.
+
+Always copy. A segment is one utterance, so the copy is bounded and happens
+once per segment, and the result no longer aliases memory freed by a finalizer.
+Also reject a null segment explicitly, and back an empty sample view with one
+float, because a zero-byte ArrayBuffer is rejected the same way.
+---
+ .../sherpa_onnx/src/main/cpp/vad.cc           | 52 ++++++++++---------
+ 1 file changed, 27 insertions(+), 25 deletions(-)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
+index 5f75be86..6e8d6c35 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
+@@ -606,41 +606,43 @@ static Napi::Object VoiceActivityDetectorFrontWrapper(
+   const SherpaOnnxSpeechSegment *segment =
+       SherpaOnnxVoiceActivityDetectorFront(vad);
+ 
+-  if (enable_external_buffer) {
+-    Napi::ArrayBuffer arrayBuffer = Napi::ArrayBuffer::New(
+-        env, const_cast<float *>(segment->samples), sizeof(float) * segment->n,
+-        [](Napi::Env /*env*/, void * /*data*/,
+-           const SherpaOnnxSpeechSegment *hint) {
+-          SherpaOnnxDestroySpeechSegment(hint);
+-        },
+-        segment);
++  if (segment == nullptr) {
++    Napi::Error::New(env, "VAD front() returned no speech segment.")
++        .ThrowAsJavaScriptException();
+ 
+-    Napi::Float32Array float32Array =
+-        Napi::Float32Array::New(env, segment->n, arrayBuffer, 0);
++    return {};
++  }
+ 
+-    Napi::Object obj = Napi::Object::New(env);
+-    obj.Set(Napi::String::New(env, "start"), segment->start);
+-    obj.Set(Napi::String::New(env, "samples"), float32Array);
++  // enable_external_buffer is ignored on this platform: ArkTS does not honour an
++  // externally backed ArrayBuffer's byte length, so napi_create_typedarray over
++  // one fails with napi_invalid_arg, which reaches ArkTS as a bare
++  // "Error: Invalid parameter". The ASR runtime guards front() with isEmpty()
++  // and cannot interpret or avoid that, so the throw used to tear the whole
++  // session down at the first completed VAD segment. Always copy instead; the
++  // segment is one utterance, so the copy is bounded and happens once per
++  // segment. A segment can also carry no samples, and a zero-byte ArrayBuffer is
++  // rejected too, so back an empty view with one float.
++  (void)enable_external_buffer;
++  const bool has_samples = segment->n > 0 && segment->samples != nullptr;
+ 
+-    return obj;
+-  } else {
+-    Napi::ArrayBuffer arrayBuffer =
+-        Napi::ArrayBuffer::New(env, sizeof(float) * segment->n);
++  Napi::ArrayBuffer arrayBuffer =
++      Napi::ArrayBuffer::New(env, sizeof(float) * (has_samples ? segment->n : 1));
+ 
+-    Napi::Float32Array float32Array =
+-        Napi::Float32Array::New(env, segment->n, arrayBuffer, 0);
++  Napi::Float32Array float32Array =
++      Napi::Float32Array::New(env, has_samples ? segment->n : 0, arrayBuffer, 0);
+ 
++  if (has_samples) {
+     std::copy(segment->samples, segment->samples + segment->n,
+               float32Array.Data());
++  }
+ 
+-    Napi::Object obj = Napi::Object::New(env);
+-    obj.Set(Napi::String::New(env, "start"), segment->start);
+-    obj.Set(Napi::String::New(env, "samples"), float32Array);
++  Napi::Object obj = Napi::Object::New(env);
++  obj.Set(Napi::String::New(env, "start"), segment->start);
++  obj.Set(Napi::String::New(env, "samples"), float32Array);
+ 
+-    SherpaOnnxDestroySpeechSegment(segment);
++  SherpaOnnxDestroySpeechSegment(segment);
+ 
+-    return obj;
+-  }
++  return obj;
+ }
+ 
+ static void VoiceActivityDetectorResetWrapper(const Napi::CallbackInfo &info) {

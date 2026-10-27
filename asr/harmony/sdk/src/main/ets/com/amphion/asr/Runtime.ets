@@ -20,6 +20,8 @@ import {
   WetextItnConfig,
   WetextItnSpan
 } from 'sherpa_onnx';
+import { hilog } from '@kit.PerformanceAnalysisKit';
+import { BusinessError } from '@kit.BasicServicesKit';
 import { fileIo } from '@kit.CoreFileKit';
 import {
   isSpeakerTurnSegmentationModelLoaded,
@@ -1596,6 +1598,7 @@ export class AsrSession {
         this.feedAndDecode(frame);
       });
     } catch (e) {
+      logAcceptFailure('acceptPcmFloatNow', e);
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
       });
@@ -1617,6 +1620,7 @@ export class AsrSession {
         await this.feedAndDecodeAsync(frame);
       });
     } catch (e) {
+      logAcceptFailure('acceptPcmFloatNowAsync', e);
       this.callbackGate.invoke((): void => {
         this.callback.onError?.(new AsrError(AsrErrorCode.NATIVE_CRASH, `${e}`));
       });
@@ -2432,8 +2436,11 @@ export class AsrSession {
       this.vad.acceptWaveform(merged.slice(i, i + this.vadWindowSize));
       this.vadProcessedSamples += this.vadWindowSize;
       while (!this.vad.isEmpty()) {
-        const segment = this.vad.front();
-        this.vadLastSpeechEndSample = segment.start + segment.samples.length;
+        // 只需要段的位置与长度，不碰样本。front() 必须构造 Float32Array，而 ArkTS 即使
+        // 在尺寸正确的 ArrayBuffer 上也拒绝 napi_create_typedarray（实测 n=42496 /
+        // 169984 字节），抛出 "Error: Invalid parameter" 并把整条会话带走。
+        const segment = this.vad.frontMeta();
+        this.vadLastSpeechEndSample = segment.start + segment.n;
         this.vad.pop();
       }
       if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
@@ -2614,8 +2621,11 @@ export class AsrSession {
       this.vad.acceptWaveform(merged.slice(index, index + this.vadWindowSize));
       this.vadProcessedSamples += this.vadWindowSize;
       while (!this.vad.isEmpty()) {
-        const segment = this.vad.front();
-        this.vadLastSpeechEndSample = segment.start + segment.samples.length;
+        // 只需要段的位置与长度，不碰样本。front() 必须构造 Float32Array，而 ArkTS 即使
+        // 在尺寸正确的 ArrayBuffer 上也拒绝 napi_create_typedarray（实测 n=42496 /
+        // 169984 字节），抛出 "Error: Invalid parameter" 并把整条会话带走。
+        const segment = this.vad.frontMeta();
+        this.vadLastSpeechEndSample = segment.start + segment.n;
         this.vad.pop();
       }
       if (this.vad.isDetected()) anySpeech = true; else anySilence = true;
@@ -4273,5 +4283,22 @@ export class AsrSession {
     })) {
       Logger.w(`session ${this.sessionId} stream close failed; Runtime lease retained`);
     }
+  }
+}
+
+/**
+ * 音频写入路径的异常原先只以 `${e}` 上报，文本形如 "Error: Invalid parameter"，
+ * 既没有 NAPI 侧 code 也没有调用栈，无法定位到具体哪一个原生调用。
+ * 这里把三者都打到设备日志；上报给调用方的错误保持不变。
+ */
+function logAcceptFailure(site: string, error: Object): void {
+  const business = error as BusinessError;
+  const code = business?.code;
+  const stack = business?.stack;
+  hilog.error(0x0000, 'AmphionAsrAccept',
+    '%{public}s threw: text=%{public}s napiCode=%{public}s',
+    site, `${error}`, code === undefined ? 'none' : `${code}`);
+  if (stack !== undefined) {
+    hilog.error(0x0000, 'AmphionAsrAccept', '%{public}s stack: %{public}s', site, `${stack}`);
   }
 }
