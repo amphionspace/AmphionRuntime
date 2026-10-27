@@ -12,12 +12,7 @@ BUILD_IDENTITY="$PROJECT_ROOT/build/smoke/build-identity.json"
 LICENSE_FILE="$PROJECT_ROOT/samples/dingqiao-demo/entry/src/main/resources/rawfile/amphion-license.lic"
 DEVICE_ID_FILE="${DINGQIAO_DEVICE_ID_FILE:-$REPO_ROOT/.secure/amphion_asr_demo_device_ids.txt}"
 PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-private.pem}"
-# 换 bundleName 可让变体包与基线包在同一台设备上共存（同名会互相覆盖）。
-# bundleName 绑定在 profile 里，所以必须同时换成对应 bundleName 的签名材料。
-BUNDLE="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}"
-APP_LABEL="${DINGQIAO_APP_LABEL:-}"
-# 变体包的 versionName 需与交付版本号一致（如 0.3.25-chuan1）。
-APP_VERSION_NAME="${DINGQIAO_VERSION_NAME:-}"
+BUNDLE="com.amphion.asr.harmony.demo"
 MODULE="amphion_asr_demo"
 ABILITY="EntryAbility"
 DEVICE=""
@@ -33,16 +28,8 @@ LICENSE_PYTHON="${LICENSE_PYTHON:-python3}"
 NODE_ADDON_API_CACHE="${NODE_ADDON_API_CACHE:-$REPO_ROOT/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/.cxx/default/default/debug/arm64-v8a/_deps/node_addon_api-src}"
 TARGET_SPEAKER_SEPARATOR_MODEL="${TARGET_SPEAKER_SEPARATOR_MODEL:-}"
 SPEAKER_TURN_SEGMENTATION_MODEL="${SPEAKER_TURN_SEGMENTATION_MODEL:-}"
-# on（默认）照常打包警务后处理资产；off 只保留解码期热词表，
-# 后处理的 FST 词典与 LAC 人名模型（约 36 MB）不进 HAP。
-POLICE_POSTPROCESS="${DINGQIAO_POLICE_POSTPROCESS:-on}"
 BUILD_WORKSPACE=""
 TEMP_HAP_COPY=""
-
-case "$POLICE_POSTPROCESS" in
-  on|off) ;;
-  *) echo "[ERROR] DINGQIAO_POLICE_POSTPROCESS 只接受 on 或 off: $POLICE_POSTPROCESS" >&2; exit 1 ;;
-esac
 
 usage() {
   cat <<'EOF'
@@ -275,16 +262,6 @@ EOF
   find "$temp_repo/asr/harmony" \
     "$sherpa_destination" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
-  if [[ "$BUNDLE" != com.amphion.asr.harmony.demo || -n "$APP_LABEL" || -n "$APP_VERSION_NAME" ]]; then
-    "$LICENSE_PYTHON" "$SCRIPT_DIR/rebrand_demo_app.py" \
-      --project "$temp_repo/delivery/harmony-dingqiao" \
-      --repo-root "$temp_repo" \
-      --bundle-name "$BUNDLE" --label "$APP_LABEL" \
-      --version-name "$APP_VERSION_NAME"
-  fi
-  if [[ "$POLICE_POSTPROCESS" == off ]]; then
-    "$LICENSE_PYTHON" "$SCRIPT_DIR/trim_police_postprocessing.py" --repo-root "$temp_repo"
-  fi
   if [[ -n "$TARGET_SPEAKER_SEPARATOR_MODEL" ]]; then
     [[ -s "$TARGET_SPEAKER_SEPARATOR_MODEL" ]] || {
       echo "[ERROR] target-speaker separator model is unreadable: $TARGET_SPEAKER_SEPARATOR_MODEL" >&2
@@ -475,7 +452,7 @@ LICENSE_PYTHON="$LICENSE_VENV/bin/python"
 
 ensure_demo_license
 VERIFY_SCOPE_ARGS=(--zh-en-only)
-DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
+"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_SCOPE_ARGS[@]}"
 
 if [[ -z "$SIGNING_CONFIG" && -f "$REPO_ROOT/.secure/harmony-signing.json" ]]; then
   SIGNING_CONFIG="$REPO_ROOT/.secure/harmony-signing.json"
@@ -522,7 +499,7 @@ if [[ "$SKIP_BUILD" != true ]]; then
     exit 1
   fi
   resolve_built_hap
-  DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" \
+  "$SCRIPT_DIR/verify_demo_inputs.sh" \
     "${VERIFY_SCOPE_ARGS[@]}" \
     --hap "$BUILD_HAP" \
     --signing-config "$SIGNING_CONFIG"
@@ -558,7 +535,7 @@ VERIFY_ARGS+=("${VERIFY_SCOPE_ARGS[@]}")
 if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi
-DINGQIAO_BUNDLE_NAME="$BUNDLE" "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
+"$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
 
 echo "[INFO] installing HAP on the USB device"
 "$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"

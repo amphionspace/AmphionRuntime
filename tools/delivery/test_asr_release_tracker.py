@@ -100,59 +100,6 @@ class AsrReleaseTrackerTest(unittest.TestCase):
         self.assertIn("fix(android): preserve trailing words", rendered)
         self.assertNotIn("record ASR SDK delivery", rendered)
 
-    def test_variant_lane_is_independent_of_the_baseline(self) -> None:
-        """变体是并行交付通道：它不必比基线更新，也不占用基线的版本号序列。"""
-        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
-        baseline = dict(payload["deliveries"][0])
-        baseline["version"] = "0.3.3"
-        payload["deliveries"].append(baseline)
-        variant = dict(payload["deliveries"][0])
-        # 数字部分与基线 0.3.3 相同，仅通道不同 —— 按通道判定应当允许。
-        variant["version"] = "0.3.3-chuan1"
-        payload["deliveries"].append(variant)
-        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
-
-        history = MODULE.load_history(self.history_path)
-        versions = [e["version"] for e in history["deliveries"]]
-        self.assertEqual(versions, ["0.3.2", "0.3.3", "0.3.3-chuan1"])
-
-    def test_variant_lane_rejects_a_duplicate_inside_the_lane(self) -> None:
-        """同通道内重复版本由单调性检查拦下，错误信息带通道名。"""
-        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
-        for _ in range(2):
-            entry = dict(payload["deliveries"][0])
-            entry["version"] = "0.3.4-chuan1"
-            payload["deliveries"].append(entry)
-        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
-
-        with self.assertRaisesRegex(
-            MODULE.ReleaseTrackerError, "android chuan1 delivery versions must strictly increase"
-        ):
-            MODULE.load_history(self.history_path)
-
-    def test_variant_lane_rejects_a_regression_inside_the_lane(self) -> None:
-        payload = json.loads(self.history_path.read_text(encoding="utf-8"))
-        for version in ("0.3.5-chuan1", "0.3.4-chuan1"):
-            entry = dict(payload["deliveries"][0])
-            entry["version"] = version
-            payload["deliveries"].append(entry)
-        self.history_path.write_text(json.dumps(payload), encoding="utf-8")
-
-        with self.assertRaisesRegex(MODULE.ReleaseTrackerError, "strictly increase"):
-            MODULE.load_history(self.history_path)
-
-    def test_variant_suffix_must_be_lowercase_identifier(self) -> None:
-        for bad in ("0.3.3-", "0.3.3-Chuan1", "0.3.3-1chuan", "0.3.3+chuan1", "0.3"):
-            with self.subTest(version=bad):
-                with self.assertRaises(MODULE.ReleaseTrackerError):
-                    MODULE._split_version(bad)
-
-    def test_version_variant_extraction(self) -> None:
-        self.assertEqual(MODULE.version_variant("0.3.25"), "")
-        self.assertEqual(MODULE.version_variant("0.3.25-chuan1"), "chuan1")
-        self.assertEqual(MODULE.version_variant("0.3.25-no-police"), "no-police")
-        self.assertEqual(MODULE._semver_key("0.3.25-chuan1"), (0, 3, 25))
-
     def test_release_versions_must_increase_per_platform(self) -> None:
         payload = json.loads(self.history_path.read_text(encoding="utf-8"))
         stale = dict(payload["deliveries"][0])
