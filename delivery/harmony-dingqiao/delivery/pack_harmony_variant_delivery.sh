@@ -87,19 +87,18 @@ prepare_workspace() {
   command -v rsync >/dev/null || { echo "[ERROR] 需要 rsync" >&2; exit 1; }
   WORKSPACE="$(mktemp -d "${TMPDIR:-/tmp}/amphion-variant-build.XXXXXX")"
   local repo="$WORKSPACE/repo"
-  local sherpa_src sherpa_dst commit
-  sherpa_src="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
-  sherpa_dst="$repo/third_party/.derived/sherpa-onnx"
-  commit="$(git -C "$REPO_ROOT" ls-tree HEAD -- third_party/sherpa-onnx | awk '{print $3}')"
-  [[ -n "$commit" ]] || { echo "[ERROR] 无法解析 sherpa submodule 提交" >&2; exit 1; }
-  mkdir -p "$(dirname "$sherpa_dst")"
-  git clone --quiet --no-hardlinks "$REPO_ROOT/third_party/sherpa-onnx" "$sherpa_dst"
-  git -C "$sherpa_dst" checkout --quiet --detach "$commit"
-  rsync -a "$sherpa_src/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
-    "$sherpa_dst/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
-  AMPHION_SHERPA_ROOT="$sherpa_dst" AMPHION_SHERPA_BASE_COMMIT="$commit" \
-    bash "$REPO_ROOT/asr/tools/apply_sherpa_patches.sh"
 
+  # 工作区是仓库的本地克隆，而不是手搭的目录树：既有脚本（sherpa 源码物化、自包含
+  # HAR 组装）都要读 git 索引（如 rev-parse :third_party/sherpa-onnx），手搭的树没有
+  # git 就用不了它们，只能重写一份 —— 克隆让既有脚本在工作区里原样可用。
+  info "克隆仓库到隔离工作区（按提交 ${SOURCE_COMMIT:0:8} 固定）"
+  git clone --quiet --local --no-hardlinks "$REPO_ROOT" "$repo"
+  git -C "$repo" checkout --quiet --detach "$SOURCE_COMMIT"
+  git -C "$repo" \
+    -c "submodule.third_party/sherpa-onnx.url=$REPO_ROOT/third_party/sherpa-onnx" \
+    submodule update --quiet --init third_party/sherpa-onnx
+
+  # 克隆只带被跟踪的文件；模型资产、原生库、license 等被 gitignore 的构建输入要补齐。
   mkdir -p "$repo/delivery"
   rsync -a --exclude='build/' --exclude='.hvigor/' --exclude='.idea/' \
     "$REPO_ROOT/$PROJECT_REL/" "$repo/$PROJECT_REL/"
@@ -108,10 +107,6 @@ prepare_workspace() {
     mkdir -p "$repo/$(dirname "$tree")"
     rsync -a "$REPO_ROOT/$tree/" "$repo/$tree/"
   done
-  # 资产打包脚本按自身位置推导仓库根，必须用工作区副本才会把资产写进工作区。
-  # 只带 asr/tools 的顶层脚本；模型与缓存目录留在真实仓库，按环境变量只读复用。
-  mkdir -p "$repo/asr/tools"
-  find "$REPO_ROOT/asr/tools" -maxdepth 1 -type f -exec cp {} "$repo/asr/tools/" \;
   mkdir -p "$repo/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime"
   rsync -a "$REPO_ROOT/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include/" \
     "$repo/tts/harmony/sdk/src/main/cpp/third_party/onnxruntime/include/"
@@ -127,8 +122,16 @@ prepare_workspace() {
   "nodeOptions": {}
 }
 JSON
-  find "$repo/asr/harmony" "$sherpa_dst" -type d \
+  find "$repo/asr/harmony" -type d \
     \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
+
+  # 在克隆里物化打过补丁的 sherpa 源码，并补齐预编译原生库（被 gitignore）。
+  info "在工作区物化打补丁的 sherpa 源码"
+  local sherpa_dst sherpa_src
+  sherpa_dst="$(bash "$repo/asr/tools/prepare_sherpa_source.sh")"
+  sherpa_src="$(bash "$REPO_ROOT/asr/tools/prepare_sherpa_source.sh")"
+  rsync -a "$sherpa_src/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/" \
+    "$sherpa_dst/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/"
 
   # node-addon-api：CMake 探不到 git 时（GIT_VERSION_STRING=''），直接指向已打补丁的本地源。
   if [[ -n "${NODE_ADDON_API_PREPATCHED:-}" && -d "$NODE_ADDON_API_PREPATCHED" ]]; then
@@ -137,6 +140,7 @@ JSON
       --source "$NODE_ADDON_API_PREPATCHED"
   fi
   WORKSPACE_REPO="$repo"
+  WORKSPACE_SHERPA="$sherpa_dst"
   ok "隔离工作区就绪: $repo"
 }
 
@@ -206,7 +210,7 @@ assemble_package() {
     cp "$repo/asr/harmony/$dir/build/default/outputs/default/$har.har" \
       "$root/diagnostics-sdk/sdk/$har-diagnostics.har"
   done
-  cp "$repo/third_party/.derived/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
+  cp "$WORKSPACE_SHERPA/harmony-os/SherpaOnnxHar/sherpa_onnx/build/default/outputs/default/sherpa_onnx.har" \
     "$root/diagnostics-sdk/sdk/sherpa_onnx.har"
   cp "$SCRIPT_DIR/collect_asr_diagnostics.py" "$root/diagnostics-sdk/tools/"
   for doc in DIAGNOSTICS_GUIDE.md ISSUE_TEMPLATE.md PRIVACY_NOTICE.md; do
