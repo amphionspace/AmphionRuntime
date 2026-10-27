@@ -262,7 +262,11 @@ if [[ "$SDK_ONLY" != true ]]; then
     echo "[ERROR] customer packaging requires HARMONY_SIGNING_CONFIG or .secure/harmony-signing.json" >&2
     exit 1
   fi
+  # demo HAP 的模型资产作用域与 HAR 一致：zh-en-only 资产下不得期望 yue-en 包。
+  # bundleName 也要跟随，变体包换了 bundleName 才能与基线包共存。
+  DINGQIAO_BUNDLE_NAME="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}" \
   "$SCRIPT_DIR/verify_demo_inputs.sh" \
+    ${HAR_SCOPE_ARGS[@]+"${HAR_SCOPE_ARGS[@]}"} \
     --hap "$HAP_SRC" \
     --signing-config "$SIGNING_CONFIG"
   python3 - "$HAP_SRC" "$VERSION" <<'PY'
