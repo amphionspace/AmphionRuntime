@@ -1,7 +1,7 @@
 import hilog from '@ohos.hilog';
 import { common } from '@kit.AbilityKit';
 import { fileIo as fs } from '@kit.CoreFileKit';
-import { PoliceEnhancePipeline } from 'amphion_police';
+import { PoliceAssets, PoliceEnhancePipeline } from 'amphion_police';
 import {
   SpeechRecognizeSdk,
   CreateEngineParams,
@@ -201,7 +201,10 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
   hilog.info(DOMAIN, TAG, 'BEGIN self-test');
 
   // 手机反馈的确定性后处理回归；识别精度仍由真实音频单独验证。
-  const police = PoliceEnhancePipeline.create(context);
+  // 「无警务后处理」交付包不随包发行后处理资产，V2 normalizer 在构造期就读资产会抛，
+  // 自测在那种包里跳过这一组，其余用例照常执行。
+  const policeAvailable = PoliceAssets.postprocessingAvailable(context);
+  const police = policeAvailable ? PoliceEnhancePipeline.create(context) : undefined;
   const policeCases: string[][] = [
     ['讯问。', '讯问。'],
     ['询问。', '询问。'],
@@ -232,12 +235,16 @@ export async function runSdkSelfTest(context: common.UIAbilityContext): Promise<
     ['把记录仪音量调到最大。', '把记录仪音量调到最大。'],
     ['请您拨打855 4767电话。', '请您拨打855 4767电话。']
   ];
-  for (let i = 0; i < policeCases.length; i++) {
-    const actual = police.enhance(policeCases[i][0]).text;
-    r.check(`police feedback ${i}`, actual === policeCases[i][1],
-      `${policeCases[i][0]} -> ${actual}`);
+  if (police === undefined) {
+    hilog.info(DOMAIN, TAG, 'SKIP | police postprocessing cases | assets not shipped in this build');
+  } else {
+    for (let i = 0; i < policeCases.length; i++) {
+      const actual = police.enhance(policeCases[i][0]).text;
+      r.check(`police feedback ${i}`, actual === policeCases[i][1],
+        `${policeCases[i][0]} -> ${actual}`);
+    }
   }
-  police.close();
+  police?.close();
 
   // --- setWorkPath / getWorkPath ---
   const workPath = `${context.filesDir}/amphion_asr_work`;
