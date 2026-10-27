@@ -16,6 +16,8 @@ PRIVATE_KEY="${AMPHION_LICENSE_PRIVATE_KEY:-$REPO_ROOT/.secure/amphion-license-p
 # bundleName 绑定在 profile 里，所以必须同时换成对应 bundleName 的签名材料。
 BUNDLE="${DINGQIAO_BUNDLE_NAME:-com.amphion.asr.harmony.demo}"
 APP_LABEL="${DINGQIAO_APP_LABEL:-}"
+# 变体包的 versionName 需与交付版本号一致（如 0.3.25-chuan1）。
+APP_VERSION_NAME="${DINGQIAO_VERSION_NAME:-}"
 MODULE="amphion_asr_demo"
 ABILITY="EntryAbility"
 DEVICE=""
@@ -273,10 +275,11 @@ EOF
   find "$temp_repo/asr/harmony" \
     "$sherpa_destination" \
     -type d \( -name build -o -name .cxx -o -name .hvigor \) -prune -exec rm -rf {} +
-  if [[ "$BUNDLE" != com.amphion.asr.harmony.demo || -n "$APP_LABEL" ]]; then
+  if [[ "$BUNDLE" != com.amphion.asr.harmony.demo || -n "$APP_LABEL" || -n "$APP_VERSION_NAME" ]]; then
     "$LICENSE_PYTHON" "$SCRIPT_DIR/rebrand_demo_app.py" \
       --project "$temp_repo/delivery/harmony-dingqiao" \
-      --bundle-name "$BUNDLE" --label "$APP_LABEL"
+      --bundle-name "$BUNDLE" --label "$APP_LABEL" \
+      --version-name "$APP_VERSION_NAME"
   fi
   if [[ "$POLICE_POSTPROCESS" == off ]]; then
     "$LICENSE_PYTHON" "$SCRIPT_DIR/trim_police_postprocessing.py" --repo-root "$temp_repo"
