@@ -1,0 +1,147 @@
+From f76cb86e2d8840058a60952793b39bb32fbcddd4 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Mon, 26 Oct 2026 23:38:16 -0700
+Subject: [PATCH 35/35] feat(harmony): expose a VAD front accessor that skips
+ the sample array
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+ArkTS rejects napi_create_typedarray even over a correctly sized ArrayBuffer:
+with n=42496 the wrapper allocated 169984 bytes, logged the buffer as created,
+then threw napi_invalid_arg building the Float32Array over it. ArkTS surfaces
+that as a bare "Error: Invalid parameter". So front(), which must materialise
+the samples, cannot work on this platform at all — neither the external-buffer
+path nor the copying one.
+
+A caller that only needs where a segment starts and how long it is does not
+need the samples. voiceActivityDetectorFrontMeta returns {start, n} and frees
+the segment, and Vad.frontMeta() exposes it. front() is left alone.
+---
+ .../main/cpp/types/libsherpa_onnx/Index.d.ts  |  1 +
+ .../sherpa_onnx/src/main/cpp/vad.cc           | 52 +++++++++++++++++++
+ .../src/main/ets/components/Vad.ets           | 15 ++++++
+ 3 files changed, 68 insertions(+)
+
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+index 101f2d0f..a66bbf0b 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/types/libsherpa_onnx/Index.d.ts
+@@ -17,6 +17,7 @@ export const voiceActivityDetectorIsDetected: (handle: object) => boolean;
+ export const voiceActivityDetectorPop: (handle: object) => void;
+ export const voiceActivityDetectorClear: (handle: object) => void;
+ export const voiceActivityDetectorFront: (handle: object, enableExternalBuffer: boolean = true) => {samples: Float32Array, start: number};
++export const voiceActivityDetectorFrontMeta: (handle: object) => {start: number, n: number};
+ export const voiceActivityDetectorReset: (handle: object) => void;
+ export const voiceActivityDetectorFlush: (handle: object) => void;
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
+index 6e8d6c35..ac8639ac 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/vad.cc
+@@ -645,6 +645,55 @@ static Napi::Object VoiceActivityDetectorFrontWrapper(
+   return obj;
+ }
+ 
++// Returns only a segment's bounds, without materialising its samples.
++//
++// ArkTS rejects napi_create_typedarray over a correctly sized ArrayBuffer with
++// napi_invalid_arg (observed with n=42496 over a 169984-byte buffer), so any
++// accessor that has to produce a Float32Array throws "Error: Invalid parameter"
++// on this platform. A caller that only needs where the segment starts and how
++// long it is can use this instead and never touch the sample data.
++static Napi::Object VoiceActivityDetectorFrontMetaWrapper(
++    const Napi::CallbackInfo &info) {
++  Napi::Env env = info.Env();
++
++  if (info.Length() != 1) {
++    std::ostringstream os;
++    os << "Expect only 1 argument. Given: " << info.Length();
++
++    Napi::TypeError::New(env, os.str()).ThrowAsJavaScriptException();
++
++    return {};
++  }
++
++  if (!info[0].IsExternal()) {
++    Napi::TypeError::New(env, "Argument 0 should be a VAD pointer.")
++        .ThrowAsJavaScriptException();
++
++    return {};
++  }
++
++  const SherpaOnnxVoiceActivityDetector *vad =
++      info[0].As<Napi::External<SherpaOnnxVoiceActivityDetector>>().Data();
++
++  const SherpaOnnxSpeechSegment *segment =
++      SherpaOnnxVoiceActivityDetectorFront(vad);
++
++  if (segment == nullptr) {
++    Napi::Error::New(env, "VAD front() returned no speech segment.")
++        .ThrowAsJavaScriptException();
++
++    return {};
++  }
++
++  Napi::Object obj = Napi::Object::New(env);
++  obj.Set(Napi::String::New(env, "start"), segment->start);
++  obj.Set(Napi::String::New(env, "n"), segment->n);
++
++  SherpaOnnxDestroySpeechSegment(segment);
++
++  return obj;
++}
++
+ static void VoiceActivityDetectorResetWrapper(const Napi::CallbackInfo &info) {
+   Napi::Env env = info.Env();
+ 
+@@ -739,6 +788,9 @@ void InitVad(Napi::Env env, Napi::Object exports) {
+   exports.Set(Napi::String::New(env, "voiceActivityDetectorFront"),
+               Napi::Function::New(env, VoiceActivityDetectorFrontWrapper));
+ 
++  exports.Set(Napi::String::New(env, "voiceActivityDetectorFrontMeta"),
++              Napi::Function::New(env, VoiceActivityDetectorFrontMetaWrapper));
++
+   exports.Set(Napi::String::New(env, "voiceActivityDetectorReset"),
+               Napi::Function::New(env, VoiceActivityDetectorResetWrapper));
+ 
+diff --git a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/Vad.ets b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/Vad.ets
+index 3d9614d3..2ae071be 100644
+--- a/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/Vad.ets
++++ b/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/ets/components/Vad.ets
+@@ -11,6 +11,7 @@ import {
+   voiceActivityDetectorClear,
+   voiceActivityDetectorFlush,
+   voiceActivityDetectorFront,
++  voiceActivityDetectorFrontMeta,
+   voiceActivityDetectorIsDetected,
+   voiceActivityDetectorIsEmpty,
+   voiceActivityDetectorPop,
+@@ -108,6 +109,11 @@ export class CircularBuffer {
+   }
+ }
+ 
++export interface SpeechSegmentMeta {
++  start: number;
++  n: number;
++}
++
+ export interface SpeechSegment {
+   samples: Float32Array;
+   start: number;
+@@ -146,6 +152,15 @@ export class Vad {
+     return voiceActivityDetectorFront(this.handle, enableExternalBuffer);
+   }
+ 
++  /**
++   * The front segment's bounds without its samples. front() has to build a
++   * Float32Array, which ArkTS refuses even over a correctly sized buffer; use
++   * this when only the segment's position and length are needed.
++   */
++  frontMeta(): SpeechSegmentMeta {
++    return voiceActivityDetectorFrontMeta(this.handle);
++  }
++
+   reset(): void {
+     voiceActivityDetectorReset(this.handle);
+   }

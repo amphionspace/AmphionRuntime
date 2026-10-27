@@ -86,7 +86,7 @@ if [[ "$ZH_EN_ONLY" == true ]]; then
   MODEL_VERIFY_ARGS+=(--zh-en-only)
 fi
 "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${MODEL_VERIFY_ARGS[@]}"
-"$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" "${MODEL_MD5_ARGS[@]}" --root "$MODEL_ROOT"
+"$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" ${MODEL_MD5_ARGS[@]+"${MODEL_MD5_ARGS[@]}"} --root "$MODEL_ROOT"
 
 "$PYTHON" - "$REPO_ROOT" "$SHERPA_ROOT" <<'PY'
 import struct
@@ -203,7 +203,7 @@ if [[ -n "$HAP" ]]; then
     HAP_MODEL_VERIFY_ARGS+=(--zh-en-only)
   fi
   "$PYTHON" "$REPO_ROOT/asr/tools/verify_packed_model_assets.py" "${HAP_MODEL_VERIFY_ARGS[@]}"
-  "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" "${MODEL_MD5_ARGS[@]}" --archive "$HAP"
+  "$PYTHON" "$SCRIPT_DIR/verify_dingqiao_model_md5.py" ${MODEL_MD5_ARGS[@]+"${MODEL_MD5_ARGS[@]}"} --archive "$HAP"
   "$PYTHON" "$SCRIPT_DIR/verify_harmony_native_abi.py" --hap "$HAP"
   "$PYTHON" - \
     "$HAP" \
