@@ -2,7 +2,7 @@ import { DiarizationCommitClock } from './diarization/DiarizationCommitClock';
 import { SpeakerDiarizationTranscriptState } from './diarization/SpeakerDiarizationTranscriptState';
 import { ResultAudioTimeline, resolveDiarizationQos } from 'amphion_asr';
 import { AmphionDeviceIdProvider, AmphionLicenseStatus, AmphionLogLevel, AmphionRuntime, AmphionOptions, AsrCallback, AsrConfig, AsrEngine, AsrError, AsrErrorCode, AsrLanguage, AsrResult, AsrSession, SpeakerEnroller } from 'amphion_asr';
-import { PoliceEnhancePipeline } from 'amphion_police';
+import { PoliceEnhancePipeline, PoliceAssets } from 'amphion_police';
 import { PoliceEnhanceResult, PoliceTextSpan as PoliceEnhanceSpan } from 'amphion_police';
 import { fileIo as fs } from '@kit.CoreFileKit';
 import { common } from '@kit.AbilityKit';
@@ -348,7 +348,10 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private params: CreateEngineParams;
   private listener?: RecognitionListener;
   private asrEngine: AsrEngine;
-  private enhancePipeline: PoliceEnhancePipeline;
+  private enhancePipeline?: PoliceEnhancePipeline;
+  // 后处理资产是否随包发行。「四川话 / 无警务后处理」包只带解码期热词表，
+  // 这里为 false：流水线不构造，调用方传 enablePoliceEnhancement=true 也不生效。
+  private readonly policePostprocessingAvailable: boolean;
   private session?: AsrSession;
   private audioDispatcher?: SessionAudioDispatcher;
   private busy: boolean = false;
@@ -385,9 +388,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   constructor(context: Context, params: CreateEngineParams, preloadedEngine?: AsrEngine) {
     this.context = context;
     this.params = snapshotCreateEngineParams(params);
-    this.enhancePipeline = PoliceEnhancePipeline.create(context);
-    this.enhancePipeline.configurePersonNames(
-      parseLexicon(this.params.extraParams['sysGeneralLexicon']));
+    this.policePostprocessingAvailable = PoliceAssets.postprocessingAvailable(context);
+    if (this.policePostprocessingAvailable) {
+      const pipeline = PoliceEnhancePipeline.create(context);
+      pipeline.configurePersonNames(parseLexicon(this.params.extraParams['sysGeneralLexicon']));
+      this.enhancePipeline = pipeline;
+    } else {
+      hilog.info(0x0000, 'AmphionDingqiao',
+        'police postprocessing assets absent; final text is published unmodified');
+    }
     this.asrEngine = preloadedEngine ??
       AmphionRuntime.create(context, languageOf(this.params.language), buildAsrConfig(context, this.params));
     this.engineCfgKey = this.computeEngineCfgKey(false, false, undefined);
@@ -556,9 +565,11 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // Speaker VAD only corrects committed finals. Partials stay speculative and continue to
       // follow the caller's enablePartialResult setting for API compatibility.
       this.partialEnabled = this.partialRequested;
+      const pipeline = this.enhancePipeline;
       this.policeFinalSession = new PoliceFinalSession(
-        strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
-        (rawText: string): PoliceFinalText => policeFinalTextOf(this.enhancePipeline.enhance(rawText))
+        pipeline !== undefined &&
+          strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true),
+        (rawText: string): PoliceFinalText => policeFinalTextOf(pipeline!.enhance(rawText))
       );
       this.maxAudioBytes = maxAudioBytesOf(params.extraParams);
       this.audioBytesWritten = 0;
@@ -934,7 +945,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private releaseEngineResources(): void {
     this.tearDownSession();
     this.asrEngine.close();
-    this.enhancePipeline.close();
+    this.enhancePipeline?.close();
   }
 
   private deliverFinal(generation: number, result: AsrResult): void {
@@ -1855,6 +1866,20 @@ export class SpeechRecognizeSdk {
   }
 
   static getWorkPath(): string { return SpeechRecognizeSdk.workPath; }
+
+  /**
+   * 本包是否集成警务后处理（术语 / 车牌 / 派出所归一化与人名纠正）。
+   *
+   * 「无警务后处理」交付包不随包发行后处理资产，此时 enablePoliceEnhancement 传 true
+   * 也不生效，调用方据此决定是否展示相关开关。读不到资产清单时按集成处理，既有交付包
+   * 的行为不变。
+   *
+   * 调用方只依赖 amphion_dingqiao，所以这里代为转发 —— 警务模块是本 HAR 的内部依赖，
+   * 不单独交付，调用方不能直接 import。
+   */
+  static isPoliceEnhancementAvailable(context: Context): boolean {
+    return PoliceAssets.postprocessingAvailable(context);
+  }
 
   /**
    * Preload + warm the voiceprint extractor. Final-only verification already loads it in the

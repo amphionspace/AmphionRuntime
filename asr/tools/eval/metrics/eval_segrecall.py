@@ -11,6 +11,9 @@
 import argparse, json, os, re
 from pathlib import Path
 import numpy as np, soundfile as sf, sherpa_onnx
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from model_layout import transducer_paths
+
 
 ap=argparse.ArgumentParser()
 ap.add_argument("--root", required=True)
@@ -27,10 +30,11 @@ rows=[json.loads(l) for l in (base/"manifest.jsonl").open(encoding="utf-8")]
 presets=[l.strip() for l in Path(a.presets).read_text(encoding="utf-8").splitlines() if l.strip()]
 pbuf="\n".join(presets)
 M=a.models
+_mp = transducer_paths(M)
 r=sherpa_onnx.OnlineRecognizer.from_transducer(
-    tokens=f"{M}/tokens.txt", encoder=f"{M}/encoder.int8.ort", decoder=f"{M}/decoder.ort",
-    joiner=f"{M}/joiner.int8.ort", num_threads=2, decoding_method="modified_beam_search",
-    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=f"{M}/bbpe.vocab",
+    tokens=_mp["tokens"], encoder=_mp["encoder"], decoder=_mp["decoder"],
+    joiner=_mp["joiner"], num_threads=2, decoding_method="modified_beam_search",
+    max_active_paths=8, hotwords_score=1.0, modeling_unit="bbpe", bpe_vocab=_mp["bpe_vocab"],
     enable_endpoint_detection=True)
 
 SEG=re.compile(r'\[(S\d+)\]\[([\d.]+)-([\d.]+)\]')
