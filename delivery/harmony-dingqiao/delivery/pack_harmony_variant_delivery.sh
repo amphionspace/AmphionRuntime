@@ -39,12 +39,15 @@ PYTHON="${LICENSE_PYTHON:-python3}"
 BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 
 PREPARE_ONLY=false
+ARTIFACTS_ONLY=false
+ACCEPTANCE_DIR="${AMPHION_VARIANT_ACCEPTANCE_DIR:-}"
 KEEP_WORKSPACE="${AMPHION_VARIANT_KEEP_WORKSPACE:-false}"
 ARGS=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help) sed -n '2,25p' "${BASH_SOURCE[0]}"; exit 0 ;;
     --prepare-only) PREPARE_ONLY=true; shift ;;
+    --artifacts-only) ARTIFACTS_ONLY=true; shift ;;
     --keep-workspace) KEEP_WORKSPACE=true; shift ;;
     *) ARGS+=("$1"); shift ;;
   esac
@@ -60,6 +63,13 @@ require "$MODEL_DIR" AMPHION_VARIANT_MODEL_DIR
 require "$MODEL_POLICY" AMPHION_VARIANT_MODEL_POLICY
 require "$SIGNING_CONFIG" HARMONY_SIGNING_CONFIG
 require "$ES2ABC" HARMONY_API23_ES2ABC
+# 验收证据是组包的必需输入，且必须在同一提交的产物上跑出来 —— 与基线流程一致。
+# 用 --artifacts-only 先出受测 HAP，跑完验收再回来组包。
+if [[ "$PREPARE_ONLY" != true && "$ARTIFACTS_ONLY" != true ]]; then
+  require "$ACCEPTANCE_DIR" AMPHION_VARIANT_ACCEPTANCE_DIR
+  [[ -d "$ACCEPTANCE_DIR" ]] || {
+    echo "[ERROR] 验收证据目录不存在: $ACCEPTANCE_DIR" >&2; exit 1; }
+fi
 [[ -d "$MODEL_DIR" ]] || { echo "[ERROR] 模型目录不存在: $MODEL_DIR" >&2; exit 1; }
 [[ -s "$MODEL_POLICY" ]] || { echo "[ERROR] 模型策略不存在: $MODEL_POLICY" >&2; exit 1; }
 [[ -s "$SIGNING_CONFIG" ]] || { echo "[ERROR] 签名配置不存在: $SIGNING_CONFIG" >&2; exit 1; }
@@ -309,6 +319,13 @@ verify_package() {
     --har "$root/release-sdk/har/amphion_dingqiao.har" --es2abc "$ES2ABC" \
     --report "$root/docs/API23_COMPILER_COMPATIBILITY.json"
 
+  info "校验验收证据（须与本次出包同一提交）"
+  "$PYTHON" "$SCRIPT_DIR/verify_variant_acceptance.py" \
+    --acceptance-dir "$ACCEPTANCE_DIR" \
+    --variant "$VARIANT_NAME" --source-commit "$SOURCE_COMMIT"
+  mkdir -p "$root/docs/acceptance"
+  rsync -a "$ACCEPTANCE_DIR/" "$root/docs/acceptance/"
+
   info "复用既有校验：交付脱敏"
   "$PYTHON" "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
     "$root/release-sdk/docs" "$root/release-sdk/har/amphion_dingqiao.har"
@@ -345,6 +362,16 @@ if [[ "$PREPARE_ONLY" == true ]]; then
 fi
 apply_variant
 build_artifacts
+if [[ "$ARTIFACTS_ONLY" == true ]]; then
+  mkdir -p "$OUTPUT_ROOT/artifacts"
+  cp "$WORKSPACE_REPO/$PROJECT_REL/samples/dingqiao-demo/entry/build/default/outputs/default/amphion_asr_demo-default-signed.hap" \
+    "$OUTPUT_ROOT/artifacts/dingqiao-demo.hap"
+  ( cd "$OUTPUT_ROOT/artifacts" && shasum -a 256 dingqiao-demo.hap > dingqiao-demo.hap.sha256 )
+  ok "受测产物已导出: $OUTPUT_ROOT/artifacts/dingqiao-demo.hap"
+  echo "[DONE] 产物构建完成（--artifacts-only）。请在该 HAP 上跑验收，再用"
+  echo "       AMPHION_VARIANT_ACCEPTANCE_DIR=<证据目录> 重跑本脚本完成组包。"
+  exit 0
+fi
 assemble_package
 verify_package
 write_provenance
