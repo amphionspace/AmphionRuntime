@@ -124,7 +124,9 @@ class HarmonyVadTailClockTest(unittest.TestCase):
                 },
                 isDetected: () => classified < 44032,
                 isEmpty: () => !segmentPending,
-                front: () => ({ start: 0, samples: new Float32Array(40032) }),
+                // 门控只取段的起止，不碰样本。front() 必须物化 Float32Array，而 ArkTS
+                // 拒绝 napi_create_typedarray，故生产代码改用 frontMeta() 取 {start, n}。
+                frontMeta: () => ({ start: 0, n: 40032 }),
                 pop: () => { segmentPending = false; },
               };
               let fed = 0;
