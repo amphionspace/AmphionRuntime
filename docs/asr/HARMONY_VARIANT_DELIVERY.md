@@ -12,7 +12,37 @@
 所以变体自带工作区、自带校验。**既有脚本一行不改** —— 打基线包或其他系统的包，
 走的代码路径与 main 完全相同。
 
-## 怎么出包
+## 怎么出包（两阶段）
+
+验收证据必须在**组包前**、在**受测产物**上跑出来，再作为组包的必需输入 —— 与基线
+流程一致。所以链路是两阶段的，不能一步到底。
+
+### 阶段一：出受测产物
+
+```bash
+<同下方环境变量> bash delivery/harmony-dingqiao/delivery/pack_harmony_variant_delivery.sh \
+  --artifacts-only <输出目录>
+```
+
+产出 `<输出目录>/artifacts/dingqiao-demo.hap` 及其 sha256。
+
+### 阶段二：跑验收，再组包
+
+在该 HAP 上跑验收（真机），把 `ACCEPTANCE-SUMMARY.md` + `acceptance-manifest.json` +
+`reports/` 放进一个目录，然后：
+
+```bash
+AMPHION_VARIANT_ACCEPTANCE_DIR=<证据目录> <同下方环境变量> \
+  bash delivery/harmony-dingqiao/delivery/pack_harmony_variant_delivery.sh <输出目录>
+```
+
+组包会强校验：证据与出包**同一提交**、摘要与各报告指纹、每份报告判定为 PASS/MEASURED、
+豁免项必须写原因。校验通过后证据被纳入包内 `docs/acceptance/`。
+
+**证据绑定源码提交，不绑定最终 ZIP 哈希** —— 验收在组包前跑完，用 ZIP 哈希绑定会形成
+循环。基线摘要同样写明「最终 ZIP 的验收报告绑定其自身 SHA-256，另行外置」。
+
+## 环境变量
 
 ```bash
 AMPHION_VARIANT_NAME=chuan-179m-tsx-v1 \
