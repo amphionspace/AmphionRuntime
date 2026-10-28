@@ -97,6 +97,19 @@ Amphion-Harmony-ASR-<变体>-<日期>/
 4. **构建前 `ohpm install --all`**。工作区不带被忽略的 `oh_modules`，否则会意外用上
    开发机已装的包。
 
+## 已知限制：裁剪态包上的 selftest 诊断入口
+
+`--ps selftest true` 这个内部诊断入口在**不随包发行警务后处理**的变体包上会在警务用例处
+抛错 —— `SdkSelfTest.ets` 无条件构造 `PoliceEnhancePipeline`，而该变体没有后处理资产。
+
+**不去改 `SdkSelfTest.ets` 来适配**：`pack_complete_asr_delivery.sh` 对它做**精确文本改写**
+（剥掉引用内部模块 `amphion_police` 的那段，0.3.24「修复三」加的保护）。改动它的 import 行或
+`police.close();` 都会让改写匹配不到，`test_complete_delivery_package` 立刻报
+「expected one SdkSelfTest police import rewrite, found 0」—— 即**破坏基线交付打包**。
+
+selftest 是内部诊断，不在任何门禁或交付流程里，故接受该限制。变体包的端侧验证走
+`run_device_stress.py`（需在仓库外用脚本副本改 `BUNDLE`，见下文排错留档）。
+
 ## 变体身份靠什么承载
 
 版本号序列属于发布治理（`asr_release_tracker.py`），变体不去动它。身份由三处承载：
