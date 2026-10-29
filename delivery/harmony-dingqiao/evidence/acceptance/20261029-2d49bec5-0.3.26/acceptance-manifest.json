@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.26",
+  "source_commit": "2d49bec598a577ce9cce64f5d2e5bdd7ec8542e9",
+  "summary_sha256": "dce1e233897acb44c3a75406f22e2735483f35ad8b058bdd61b18999d231dd99",
+  "reports": [
+    {
+      "mode": "customer-ptt",
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "5b1666c40555576117867f63105b8752114c47d7f67920ecaae3e68c465a7b3d"
+    },
+    {
+      "mode": "diarization-windows",
+      "path": "reports/diarization-windows-dq4-report.json",
+      "sha256": "88f1f68cebc94d62f4a9b9a80a84eb2f18f564a03a9e9b0a966b27c28db75922"
+    }
+  ],
+  "waived_modes": [
+    {
+      "mode": "speaker-vad-turn",
+      "reason": "该模式需要客户目标说话人夹具，本检出与受控数据包中均不存在，无法产出有效证据。本版未改动该模式，沿用 0.3.20-0.3.25 的同一豁免。"
+    }
+  ]
+}
