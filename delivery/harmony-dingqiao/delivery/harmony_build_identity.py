@@ -17,7 +17,6 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[2]
 sys.path.insert(0, str(REPO_ROOT))
-from asr.tools import verify_community_encoder_mindir as community_mindir
 
 HAP = SCRIPT_DIR.parent / (
     "samples/dingqiao-demo/entry/build/default/outputs/default/"
@@ -46,20 +45,24 @@ NATIVE_LIBRARIES = {
 OPTIONAL_HAP_MODELS = {
     "speaker_complementary_embedding":
         "resources/rawfile/amphion-dingqiao/campplus.onnx",
-    "community_speaker_encoder":
-        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.int8.onnx",
-    "community_speaker_encoder_mindir":
-        "resources/rawfile/amphion-dingqiao/community-wespeaker-encoder.fp16.ms",
-    "community_speaker_pooling":
-        "resources/rawfile/amphion-dingqiao/community-wespeaker-pool.fp32.onnx",
-    "community_feature_transform":
-        "resources/rawfile/amphion-dingqiao/community-feature.f32",
-    "community_plda":
-        "resources/rawfile/amphion-dingqiao/community-plda.f64",
     "target_speaker_separator":
         "resources/rawfile/amphion-dingqiao/convtasnet_16k.onnx",
     "speaker_turn_segmentation":
         "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+    "sortformer_pre_encode":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/pre_encode.ort",
+    "sortformer_encoder_layers_int8":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/encoder_layers.int8.ort",
+    "sortformer_speaker_head":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/speaker_head.ort",
+    "sortformer_spkcache_update":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/spkcache_update.ort",
+    "sortformer_learnable_sil_emb":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/learnable_sil_emb.npy",
+    "sortformer_mel_window":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/mel_window_hann400_periodic_false.npy",
+    "sortformer_mel_filterbank":
+        "resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy",
 }
 TRACKED_BUILD_INPUTS = (
     "asr/harmony",
@@ -68,8 +71,6 @@ TRACKED_BUILD_INPUTS = (
     "asr/tools/04_build_harmony_so.sh",
     "asr/tools/build_harmony_onnxruntime.py",
     "asr/tools/harmony_onnxruntime_flags.cmake",
-    "asr/tools/convert_community_encoder.py",
-    "asr/tools/verify_community_encoder_mindir.py",
     "asr/tools/05_package_har_libs.sh",
     "asr/tools/apply_sherpa_patches.sh",
     "asr/tools/prepare_sherpa_source.sh",
@@ -147,9 +148,10 @@ def source_fingerprint() -> str:
     digest = hashlib.sha256()
     inputs = run(["git", "ls-files", "--cached", "--others", "--exclude-standard", "-z", "--", *TRACKED_BUILD_INPUTS])
     paths = {item.decode("utf-8") for item in inputs.split(b"\0") if item}
-    # Local-only model/evidence pairs are ignored by Git but change the actual NPU payload.
-    for name in (community_mindir.SOURCE_FILE, community_mindir.MODEL_FILE, community_mindir.PROVENANCE_FILE):
-        path = community_mindir.SHARED_DIR / name
+    # The Sortformer runtime assets are ignored by Git but are the role-separation
+    # payload; bind the bytes the manifest names so a swapped model changes identity.
+    for name in sortformer_asset_names():
+        path = SORTFORMER_SHARED_DIR / name
         if (REPO_ROOT / path).is_file():
             paths.add(str(path))
     for relative in sorted(paths):
@@ -163,20 +165,25 @@ def source_fingerprint() -> str:
     return digest.hexdigest()
 
 
+SORTFORMER_MANIFEST = REPO_ROOT / "delivery/harmony-dingqiao/delivery/sortformer_diarization_v1.json"
+SORTFORMER_SHARED_DIR = Path("shared/models/asr/dingqiao/sortformer-66M-4spk")
+
+
+def sortformer_asset_names() -> list[str]:
+    try:
+        manifest = json.loads(SORTFORMER_MANIFEST.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    return [str(entry["file"]) for entry in manifest.get("files", []) if "file" in entry]
+
+
 def optional_hap_models(dingqiao_har: Path | None = None) -> dict[str, dict[str, object]]:
     models: dict[str, dict[str, object]] = {}
-    archives = [HAP] if dingqiao_har is None else [HAP, dingqiao_har]
-    try:
-        mindir = community_mindir.verify_assets(REPO_ROOT, archives=archives)
-    except (community_mindir.VerificationError, OSError, tarfile.TarError, zipfile.BadZipFile, ValueError) as error:
-        raise IdentityFailure(str(error)) from error
+    del dingqiao_har  # every optional model is read from the HAP itself
     with zipfile.ZipFile(HAP) as archive:
         names = set(archive.namelist())
         for logical_name, member in OPTIONAL_HAP_MODELS.items():
             if member not in names:
-                continue
-            if logical_name == "community_speaker_encoder_mindir":
-                models[logical_name] = {"hap_path": member, **mindir}
                 continue
             digest = hashlib.sha256()
             size = 0
@@ -214,7 +221,7 @@ def current_identity(
         }
     return {
         "schema_version": 3,
-        "source_fingerprint_algorithm": "build-inputs+community-mindir+isolated-sherpa-v1.13.1-diff-v3",
+        "source_fingerprint_algorithm": "build-inputs+sortformer-assets+isolated-sherpa-v1.13.1-diff-v4",
         "zh_en_only": zh_en_only,
         "build_mode": build_mode,
         "git_commit": run(["git", "rev-parse", "HEAD"]).decode().strip(),

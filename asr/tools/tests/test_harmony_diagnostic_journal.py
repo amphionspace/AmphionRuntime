@@ -66,9 +66,9 @@ class HarmonyDiagnosticJournalTest(unittest.TestCase):
         self.run_journal('''
             let traversals=0;
             const matrix=Array.from({length:2402},(_,i)=>Array.from({length:105},(_,j)=>i===j?NaN:i/2402+j/105));
-            const fields={jobId:'w00002359',trainingPosteriors:matrix,labels:['中文','a\\nb','"'],empty:[]};
-            const records=[event(1,'START_LISTENING',{}),event(2,'DIARIZATION_COMMUNITY_COMMIT',fields),
-              event(3,'DIARIZATION_COMMUNITY_WINDOW',{jobId:'w00000001',segmentations:Float32Array.of(0,1,0),embeddings:Float32Array.of(.1,NaN)}),
+            const fields={jobId:'w00002359',runs:matrix,labels:['中文','a\\nb','"'],empty:[]};
+            const records=[event(1,'START_LISTENING',{}),event(2,'DIARIZATION_SORTFORMER_COMMIT',fields),
+              event(3,'DIARIZATION_SORTFORMER_CHUNK',{jobId:'w00000001',probs:Float32Array.of(0,1,0),probs:Float32Array.of(.1,NaN)}),
               event(4,'CANCEL_REQUESTED',{}),event(5,'CALLBACK_START',{},'session-2')];
             const expected=encoded(records),expectedArray=encoded(records,true);
             matrix.toJSON=function(){traversals++;return Array.from(this)};
@@ -79,8 +79,8 @@ class HarmonyDiagnosticJournalTest(unittest.TestCase):
               assert.equal(read(journal,records,true),expectedArray);
             }
             assert.equal(traversals,1,'historical model matrix was re-encoded');
-            assert.equal(records[1].fields.trainingPosteriors,undefined,'persisted matrix is still retained');
-            assert.equal(records[2].fields.embeddings,undefined);
+            assert.equal(records[1].fields.runs,undefined,'persisted matrix is still retained');
+            assert.equal(records[2].fields.probs,undefined);
             assert.equal(read(journal,records.slice(4)),encoded([records[4]]),'cross-session bytes');
             assert.equal(fs.readFileSync('events.full.ndjson','utf8'),expected);
             assert.equal(faults.open,0);
@@ -88,27 +88,27 @@ class HarmonyDiagnosticJournalTest(unittest.TestCase):
 
     def test_preview_releases_persisted_tensor_history_without_losing_export(self):
         self.run_journal('''
-            const records=[event(1,'DIARIZATION_COMMUNITY_PREVIEW',
-              {trainingPosteriors:[[.2,.8]],hard:[0,1],clusterElapsedMs:12})];
+            const records=[event(1,'DIARIZATION_SORTFORMER_PREVIEW',
+              {runs:[[.2,.8]],hard:[0,1],inferenceMs:12})];
             const expected=encoded(records);
             const journal=new DiagnosticEventJournal('events.full.ndjson');
             journal.persist(records);
-            assert.equal(records[0].fields.trainingPosteriors,undefined);
+            assert.equal(records[0].fields.runs,undefined);
             assert.equal(records[0].fields.hard,undefined);
-            assert.equal(records[0].fields.clusterElapsedMs,12);
+            assert.equal(records[0].fields.inferenceMs,12);
             assert.equal(read(journal,records),expected);
         ''')
 
     def test_partial_write_keeps_fields_and_retry_preserves_exact_history(self):
         self.run_journal('''
             const journal=new DiagnosticEventJournal('events.full.ndjson');
-            const a=event(1,'DIARIZATION_COMMUNITY_WINDOW',{embeddings:Float32Array.of(.1,.2)});
-            const b=event(2,'DIARIZATION_COMMUNITY_COMMIT',{trainingPosteriors:[[.2,.8]],jobId:'w2'});
+            const a=event(1,'DIARIZATION_SORTFORMER_CHUNK',{probs:Float32Array.of(.1,.2)});
+            const b=event(2,'DIARIZATION_SORTFORMER_COMMIT',{runs:[[.2,.8]],jobId:'w2'});
             const expected=encoded([a,b]);
             journal.persist([a]);const first=fs.readFileSync('events.full.ndjson','utf8');
             faults.shortWrite=true;
             assert.throws(()=>journal.persist([a,b]),/incomplete/);
-            assert.deepEqual(b.fields.trainingPosteriors,[[.2,.8]]);
+            assert.deepEqual(b.fields.runs,[[.2,.8]]);
             assert.equal(fs.readFileSync('events.full.ndjson','utf8'),first);
             assert.equal(faults.open,0);
             faults.shortWrite=false;journal.persist([a,b]);
@@ -125,8 +125,8 @@ class HarmonyDiagnosticJournalTest(unittest.TestCase):
     def test_rolling_snapshot_keeps_full_journal_without_duplicate_records(self):
         self.run_journal('''
             const journal=new DiagnosticEventJournal('events.full.ndjson');
-            const records=Array.from({length:4},(_,i)=>event(i+1,'DIARIZATION_COMMUNITY_SAMPLES',
-              {jobId:`w${i}`,selectedSegmentationMask:[0,1,0,1]}));
+            const records=Array.from({length:4},(_,i)=>event(i+1,'DIARIZATION_SORTFORMER_CHUNK',
+              {jobId:`w${i}`,runs:[0,1,0,1]}));
             const expected=encoded(records);
             journal.persist(records.slice(0,2));
             journal.persist(records.slice(1,3));

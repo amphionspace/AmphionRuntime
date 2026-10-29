@@ -7,6 +7,6 @@ export * from './src/main/ets/com/amphion/asr/License';
 export * from './src/main/ets/com/amphion/asr/SpeakerEnroller';
 export * from './src/main/ets/com/amphion/asr/LacPersonNer';
 export * from './src/main/ets/com/amphion/asr/SpeakerDiarizationInference';
-export * from './src/main/ets/com/amphion/asr/CommunityDiarizationInference';
+export * from './src/main/ets/com/amphion/asr/SortformerDiarizationInference';
 export * from './src/main/ets/com/amphion/asr/MindSporeProbe';
 export * from './src/main/ets/com/amphion/asr/ResultAudioTimeline';

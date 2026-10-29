@@ -5,38 +5,36 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
-CLIENT = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SpeakerDiarizationLocalClient.ets"
+CLIENT = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization/SortformerLocalClient.ets"
 
 
 class HarmonyDiarizationTimeoutReasonTest(unittest.TestCase):
     def run_executor(self, checks):
         source = CLIENT.read_text()
-        method = "private async execute(" + source.split("private async execute(", 1)[1].split("\n  private async settleInference", 1)[0]
+        method = "private async execute(" + source.split("private async execute(", 1)[1].split("\n  private deliver(", 1)[0]
         fail = "private fail(" + source.split("private fail(", 1)[1].split("\n  private maybeNotifyDrained", 1)[0]
         script = f"""
 import assert from 'node:assert/strict';
-const INFERENCE_TIMEOUT_MS = 10000, WINDOW_SAMPLES = 160000;
+const INFERENCE_TIMEOUT_MS = 10000;
 const SpeakerDiarizationDegradedReason = {{ INFERENCE_UNAVAILABLE: 1, MODEL_UNAVAILABLE: 2,
   INFERENCE_TIMEOUT: 3, STORAGE_UNAVAILABLE: 5 }};
-class SpeakerDiarizationStorageError extends Error {{}}
 const timers = [];
 globalThis.setTimeout = cb => {{ timers.push(cb); return timers.length - 1; }};
 globalThis.clearTimeout = () => {{}};
 let resolveInference;
 const inferencePromise = new Promise(resolve => {{ resolveInference = resolve; }});
 class Client {{
-  inferenceLoad = Promise.resolve();
-  inference = {{ processBatch: () => inferencePromise }};
-  closed = false; degraded = false; queue = [];
-  activeJob = {{ jobId: 'w1', windowStartSample: 16000, realEndSample: 176000 }};
-  activeJobStartedMs = Date.now(); finishing = false;
-  windows = []; failures = []; diagnostics = []; quiescent = 0;
-  observer = {{ onWindow: value => this.windows.push(value),
-    onDegraded: (reason, message) => this.failures.push({{reason, message}}) }};
+  inference = {{ feed: () => inferencePromise }};
+  closed = false; degraded = false; stopped = false; finishing = false; flushed = false;
+  pending = []; pendingSamples = 0; fedSamples = 0;
+  activeJobId = 'f1'; activeJobStartedMs = Date.now();
+  results = []; failures = []; diagnostics = []; quiescent = 0;
+  observer = {{ onFeedResult: value => this.results.push(value),
+    onDegraded: (reason, message) => this.failures.push({{reason, message}}),
+    onDrained: () => {{}} }};
   diagnostic = (event, fields) => this.diagnostics.push({{event, fields}});
-  spool = {{ endOffset: () => 0, discardBefore() {{}} }};
-  readWindow() {{ return new Float32Array(0); }}
-  async settleInference(promise) {{ try {{ await promise; }} catch (_) {{}} }}
+  async settle(promise) {{ try {{ await promise; }} catch (_) {{}} }}
+  deliver(jobId, result, wallMs, flush) {{ this.results.push({{jobId, result, wallMs, flush}}); }}
   {fail}
   closeWhenQuiescent() {{ this.quiescent++; }}
   pump() {{}}
@@ -44,8 +42,7 @@ class Client {{
   {method}
 }}
 const client = new Client();
-const job = client.activeJob;
-const task = client.execute([job]);
+const task = client.execute('f1', new Float32Array(16000), false);
 const flush = async () => {{ for (let i = 0; i < 10; i++) await Promise.resolve(); }};
 await flush();
 {checks}
@@ -55,11 +52,9 @@ await flush();
             path.write_text(script)
             subprocess.run(["node", "--experimental-strip-types", str(path)], check=True)
 
-    def test_timeout_does_not_abandon_throttled_background_windows(self):
-        # On a backgrounded app the system throttles CPU; a single-threaded,
-        # low-priority window then took about 24 s on the reference device while
-        # still progressing. Timing out cannot stop native work, it only discards
-        # every later speaker result, so the bound must sit well above that.
+    def test_timeout_does_not_abandon_throttled_background_chunks(self):
+        # Timing out cannot stop native work, it only discards every later
+        # speaker result, so the bound sits far above a throttled chunk pass.
         source = CLIENT.read_text()
         value = int(source.split("const INFERENCE_TIMEOUT_MS: number = ", 1)[1].split(";", 1)[0])
         self.assertGreaterEqual(value, 60000)
@@ -70,11 +65,11 @@ timers[0]();
 await flush();
 assert.equal(client.failures.length, 1);
 assert.equal(client.failures[0].reason, SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT);
-assert.equal(client.activeJob, job);
-resolveInference([{ segments: [], embeddings: [] }]);
+assert.equal(client.activeJobId, 'f1', 'the in-flight call stays owned until native work settles');
+resolveInference({ events: [], melFrames: 0, samples: 16000 });
 await task;
-assert.deepEqual(client.windows, []);
-assert.equal(client.activeJob, undefined);
+assert.deepEqual(client.results, []);
+assert.equal(client.activeJobId, '');
 assert.equal(client.failures.length, 1);
 """)
 
@@ -84,9 +79,9 @@ client.stopped = true;
 timers[0]();
 await flush();
 assert.deepEqual(client.failures, []);
-resolveInference([{ segments: [], embeddings: [] }]);
+resolveInference({ events: [], melFrames: 0, samples: 16000 });
 await task;
-assert.deepEqual(client.windows, []);
+assert.deepEqual(client.results, []);
 assert.deepEqual(client.failures, []);
 """)
 
@@ -97,30 +92,30 @@ timers[0]();
 await flush();
 assert.deepEqual(client.failures, []);
 assert.equal(client.quiescent, 0);
-resolveInference([{ segments: [], embeddings: [] }]);
+resolveInference({ events: [], melFrames: 0, samples: 16000 });
 await task;
-assert.deepEqual(client.windows, []);
-assert.equal(client.activeJob, undefined);
+assert.deepEqual(client.results, []);
+assert.equal(client.activeJobId, '');
 assert.equal(client.quiescent, 1);
 """)
 
-    def test_failure_records_the_job_and_pending_queue_before_discard(self):
+    def test_failure_records_the_job_and_pending_audio_before_discard(self):
         self.run_executor("""
-client.queue.push({jobId: 'w2'});
+client.pending.push(new Int16Array(320)); client.pendingSamples = 320;
 timers[0]();
 await flush();
 assert.equal(client.diagnostics.length, 1);
 const diagnostic = client.diagnostics[0];
 assert.equal(diagnostic.event, 'DIARIZATION_LOCAL_FAILURE');
-assert.equal(diagnostic.fields.jobId, 'w1');
-assert.deepEqual(diagnostic.fields.realPcmRange, [16000, 176000]);
-assert.equal(diagnostic.fields.pendingJobs, 1);
+assert.equal(diagnostic.fields.jobId, 'f1');
+assert.equal(diagnostic.fields.pendingSamples, 320);
 assert.equal(diagnostic.fields.reason, SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT);
 assert.ok(diagnostic.fields.elapsedMs >= 0);
-assert.equal(client.queue.length, 0);
-resolveInference([{ segments: [], embeddings: [] }]);
+assert.equal(client.pending.length, 0);
+assert.equal(client.pendingSamples, 0);
+resolveInference({ events: [], melFrames: 0, samples: 16000 });
 await task;
-assert.deepEqual(client.windows, []);
+assert.deepEqual(client.results, []);
 """)
 
     def test_diagnostic_failure_cannot_change_timeout_or_quiescence(self):
@@ -130,13 +125,21 @@ timers[0]();
 await flush();
 assert.equal(client.failures.length, 1);
 assert.equal(client.failures[0].reason, SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT);
-assert.equal(client.activeJob, job);
-resolveInference([{ segments: [], embeddings: [] }]);
+assert.equal(client.activeJobId, 'f1');
+resolveInference({ events: [], melFrames: 0, samples: 16000 });
 await task;
-assert.equal(client.activeJob, undefined);
-assert.deepEqual(client.windows, []);
+assert.equal(client.activeJobId, '');
+assert.deepEqual(client.results, []);
+""")
+
+    def test_model_errors_degrade_as_model_unavailable(self):
+        self.run_executor("""
+resolveInference(Promise.reject(new Error('Sortformer model asset unavailable: x')));
+await task;
+assert.equal(client.failures.length, 1);
+assert.equal(client.failures[0].reason, SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE);
 """)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
