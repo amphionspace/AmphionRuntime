@@ -8,6 +8,7 @@
 
 ## [Unreleased]
 
+- 主说话人 VAD（Speaker VAD）：目标人确认后出现连续低分窗口时，不再把混入接话人首句的整句当作目标人 final 发出。接入与鸿蒙同一套 `SpeakerTurnFinalizer`：以声学静音谷、分数转折和 ASR token 时间戳生成换人候选，取左右各一个窗长做目标/非目标声纹复核，目标人前缀在新 stream 上重新解码后作为 final 发出，换人点之后的音频重放到新一段并按非目标人走 `onFinalRejected`，直到声纹窗口重新确认目标人。找不到可复核边界时沿用原先的立即 endpoint。主机 aishell3 99 对异说话人无间隙拼接会话（默认 0.35 / 1.5 s / 0.5 s / 连续 2 次）：78.8% 得到切点，平均非目标泄露 1.58 s → 0.37 s，切点误差 p50 −0.10 s（p10 −0.48 s，p90 +0.25 s）；评测脚本 `asr/tools/speaker/16_eval_speaker_turn_split_aishell3.py`。未移植鸿蒙的 pyannote 换人分割辅助判定与 finish 时刻的换人恢复。公开 API 不变。
 - 调用方热词（`sysGeneralLexicon`）改为逐词加权 3.0，警务预置池（车牌/派出所/术语）保持 Police 1.4.0 校准的 1.0。此前两者共用 1.0，业务专名压不过同音常用词（「鼎桥」被识别成「顶桥」）。公开 API 与热词入参格式不变；`AsrConfig.hotwordsScore` 的语义收窄为「未逐词标注时的兜底分」。
 - 鸿蒙诊断流的 `hotwordCount` 修正为统计引擎级 `sysGeneralLexicon`。此前读的是 `StartParams` 上并不存在的 `hotwords`，该字段恒为 0，排查热词未生效时会误导成「热词没传进来」。
 
