@@ -184,13 +184,13 @@ def parse_args() -> argparse.Namespace:
                         default="auto",
                         help="Role-worker scheduler placement for the diarization burst.")
     parser.add_argument("--diarization-encoder", choices=["cpu", "npu", "auto"], default="auto",
-                        help="Where the Community speaker encoder runs; npu needs the MindIR asset and an NNRt accelerator.")
+                        help="Deprecated since 0.3.26: Sortformer always runs on the CPU; the value is forwarded but ignored.")
     parser.add_argument("--diarization-display-may-turn-off", action="store_true",
                         help="Tell the SDK this session may keep recording with the display off, "
                              "so an auto role QoS keeps its window-budget margin.")
     parser.add_argument("--diarization-hop-ms", type=int, default=2000,
-                        help="How often role separation opens a 10 s analysis window; the segmentation, "
-                             "feature, encoder and pooling cost scale inversely with it.")
+                        help="Deprecated since 0.3.26: Sortformer commits one 9.92 s chunk at a time; "
+                             "the value is forwarded but ignored.")
     parser.add_argument("--asr-cpu-ids", default="none", help="Experimental zero-based CPU IDs, comma-separated.")
     parser.add_argument("--asr-num-threads", type=int, choices=range(1, 9), default=4)
     parser.add_argument("--asr-disable-spinning", action="store_true")

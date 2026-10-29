@@ -69,11 +69,6 @@ cleanup_verify_dir() {
 source "$REPO_ROOT/asr/tools/license/ensure_python.sh"
 ensure_license_python "$LICENSE_VENV" "$REPO_ROOT/tools/license/requirements.txt"
 PYTHON="$LICENSE_VENV/bin/python"
-MINDIR_VERIFY_ARGS=(--repo-root "$REPO_ROOT" --source-only)
-if [[ -n "$HAP" ]]; then
-  MINDIR_VERIFY_ARGS+=(--archive "$HAP")
-fi
-"$PYTHON" "$REPO_ROOT/asr/tools/verify_community_encoder_mindir.py" "${MINDIR_VERIFY_ARGS[@]}"
 require_file "$LICENSE_FILE"
 
 "$PYTHON" "$REPO_ROOT/asr/tools/sync_harmony_police_assets.py" --check
@@ -247,6 +242,13 @@ required = {
     "resources/rawfile/amphion-dingqiao/campplus.onnx",
     "resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
 }
+sortformer_dir = local_speaker_turn.parent / "sortformer-66M-4spk"
+sortformer_files = [
+    "pre_encode.ort", "encoder_layers.int8.ort", "speaker_head.ort", "spkcache_update.ort",
+    "learnable_sil_emb.npy", "mel_window_hann400_periodic_false.npy", "mel_filterbank_128x257_slaney.npy",
+]
+for name in sortformer_files:
+    required.add(f"resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/{name}")
 with zipfile.ZipFile(hap) as package:
     names = set(package.namelist())
     missing = sorted(required - names)
@@ -264,6 +266,10 @@ with zipfile.ZipFile(hap) as package:
         raise SystemExit("[ERROR] HAP complementary speaker model differs from the verified SDK asset")
     if package.read("resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx") != local_speaker_turn.read_bytes():
         raise SystemExit("[ERROR] HAP speaker-turn model differs from the verified SDK asset")
+    for name in sortformer_files:
+        member = f"resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/{name}"
+        if package.read(member) != (sortformer_dir / name).read_bytes():
+            raise SystemExit(f"[ERROR] HAP Sortformer asset differs from the verified shared asset: {name}")
     if not zh_en_only:
         police_manifest = json.loads((police_root / "manifest.json").read_text(encoding="utf-8"))
         for relative, expected_sha256 in police_manifest["files"].items():

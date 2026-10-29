@@ -1,7 +1,7 @@
 """Whole ASR sentences must not imply a single speaker when evidence disagrees."""
 import unittest
 
-from asr.tools.tests.test_harmony_community_diarization import run_community_session as run_session
+from asr.tools.tests.test_harmony_sortformer_diarization import run_sortformer_session as run_session
 from asr.tools.tests.test_harmony_speaker_diarization_session import ROOT, TIMELINE, run_node
 
 
