@@ -7,6 +7,11 @@ export type SpeakerRangeScorer = (samples: Float32Array, startSample: number,
 export type SpeakerClusterScorer = (samples: Float32Array, speaker: number) => number | undefined;
 
 const MINIMUM_SPEAKER_SCORE_MARGIN = 0.15;
+// Floor an utterance must clear to be published as the target's when the streaming machine never
+// confirmed it; see speakerFinalGateScore. Measured on aishell3 with a three-segment ERes2Net
+// enrolment: over 1.0-2.0 s segments no other speaker reached it while the target's own score
+// never fell below 0.52.
+export const UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE = 0.45;
 const MINIMUM_NON_TARGET_THRESHOLD_MARGIN = 0.05;
 const SCORE_EPSILON = 0.000001;
 
@@ -14,6 +19,22 @@ const SCORE_EPSILON = 0.000001;
 export function shouldRejectSpeakerVadFinal(enabled: boolean, rejectCurrent: boolean,
   targetConfirmed: boolean, finalTargetMatch?: boolean): boolean {
   return enabled && (rejectCurrent || (!targetConfirmed && finalTargetMatch !== true));
+}
+
+/**
+ * Score an utterance has to clear to be published as the target's.
+ *
+ * Speaker VAD decides from its streaming windows and cannot reach any verdict before
+ * winSec + hopSec of audio. After a natural pause the next speaker's first sentence becomes its
+ * own, shorter utterance, which is then judged by the final score alone: on device one scored
+ * 0.362 against a 0.35 threshold and was published inside the owner's transcript. An utterance
+ * the streaming machine never confirmed therefore clears the measured floor as well as the
+ * configured threshold. A confirmed utterance keeps the configured threshold, and a caller who
+ * configures more than the floor keeps their own value.
+ */
+export function speakerFinalGateScore(threshold: number, targetConfirmed: boolean): number {
+  return targetConfirmed ? threshold :
+    Math.max(threshold, UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE);
 }
 
 export class SpeakerTurnSegment {

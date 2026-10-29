@@ -50,8 +50,8 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         script = textwrap.dedent(
             f"""
             import assert from 'node:assert/strict';
-            import {{ SpeakerTurnFinalizer, SpeakerTurnSegment, shouldRejectSpeakerVadFinal }}
-              from {FINALIZER.as_uri()!r};
+            import {{ SpeakerTurnFinalizer, SpeakerTurnSegment, shouldRejectSpeakerVadFinal,
+              speakerFinalGateScore }} from {FINALIZER.as_uri()!r};
             {body}
             """
         )
@@ -189,6 +189,32 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_unconfirmed_utterance_clears_the_measured_floor(self) -> None:
+        """短于一个窗+步长的句子只有句级分可依，必须过实测空带下沿 0.45。
+
+        设备实测：非机主独立成句的 1.6 s 打分 0.362，刚过默认阈值 0.35 就被当作机主发布。
+        aishell3 三段注册实测，1.0~2.0 s 段上非机主最高 0.432、机主自己最低 0.52。
+        """
+        self.run_finalizer(
+            """
+            // 未确认：阈值抬到实测空带下沿，设备上泄露的 0.362 被拒。
+            assert.equal(speakerFinalGateScore(0.35, false), 0.45);
+            // 已确认：保持调用方阈值，流式证据已经存在。
+            assert.equal(speakerFinalGateScore(0.35, true), 0.35);
+            // 调用方设得更严时以调用方为准。
+            assert.equal(speakerFinalGateScore(0.60, false), 0.60);
+            assert.equal(speakerFinalGateScore(0.60, true), 0.60);
+            """
+        )
+        source = RUNTIME.read_text(encoding="utf-8")
+        delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
+            "private flushPendingSpeakerFinals", 1
+        )[0]
+        self.assertIn(
+            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
+            delivery,
+        )
+
     def test_runtime_scores_short_speech_before_the_speaker_vad_final_gate(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         delivery = source.split("private deliverSpeakerFinal", 1)[1].split(
@@ -219,8 +245,9 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("pending.speakerVadThreshold", delivery)
         self.assertIn("pending.speakerVadRejectCurrent", delivery)
         self.assertIn("pending.speakerVadTargetConfirmed", delivery)
+        self.assertIn("pending.result.speakerScore >=", delivery)
         self.assertIn(
-            "pending.result.speakerScore >= pending.speakerVadThreshold",
+            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
             delivery,
         )
         self.assertLess(
