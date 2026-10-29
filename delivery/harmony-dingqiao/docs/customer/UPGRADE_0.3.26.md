@@ -1,7 +1,8 @@
 # HarmonyOS ASR SDK 0.3.26 升级说明
 
-本版相对 0.3.25 只有**一处产品变更**：角色分离（说话人分离）的模型与链路整体更换。
-识别模型、热词、公共接口、回调顺序与角色结果格式不变，接入代码无需修改。
+本版相对 0.3.25 有**两处产品变更**：角色分离（说话人分离）的模型与链路整体更换；
+角色分离结果里相邻的同一角色句子合并为一项（新增 `sourceUtteranceIds`）。
+识别模型、热词、公共接口与回调顺序不变；按 `sourceUtteranceId` 替换临时句的调用方需改为按 `sourceUtteranceIds`。
 
 运行时版本为 0.3.26，版本日期为 2026-10-29；商用授权的维护期限须覆盖该日期。
 
@@ -60,13 +61,41 @@
 
 ---
 
-## 二、未改变的部分
+## 二、角色分离结果：相邻同人句子合并
+
+### 2.1 现象
+
+原链路每条 ASR final 对应一项 `DiarizedUtterance`，同一个人连续说的几句话在纪要里被拆成多行。
+
+### 2.2 本版改法
+
+`SpeakerDiarizationResult.utterances` 内，相邻且 `speakerIndex` 相同、两句之间时间线上没有其他
+已确认角色发言的项合并为一项：
+
+- `text` / `rawText` 顺序拼接，`beginTime` / `endTime` 取首尾，`confidence` 取最小，
+  `overlap` / `speakerInferred` 取或，`speakerTextSpans` 偏移顺延（任一侧缺失时置空）。
+- `utteranceId` / `sourceUtteranceId` 取首句；**新增** `sourceUtteranceIds: string[]` 按时间列出
+  被合并的全部原 ASR final 的 ID（未合并时只含自身）。
+- `speakerIndex = -1`（多人／不确定）的句子不参与合并；不同角色之间不合并；
+  合并只发生在同一批窗口结果之内，不跨 120 s 提交周期。
+- `speakerTurns` 声学时间线不变，仍按原始区间给出。
+
+### 2.3 对接入方的影响
+
+- 原先按 `sourceUtteranceId` 替换本批临时句子的逻辑，需改为遍历 `sourceUtteranceIds` 替换；
+  只按首句替换会残留被合并掉的临时句。
+- 一条被拆分的多人 final（如 `u1` 前半为角色 1、后半为角色 2）的后半可与下一条同角色 final 合并，
+  此时该项 `utteranceId` 为 `u1.2`、`sourceUtteranceIds` 为 `[u1, u2]`。
+
+---
+
+## 三、未改变的部分
 
 - 识别模型、热词权重、文本后处理、警务词条处理与 0.3.25 相同。
-- 公共接口、回调顺序、`SpeakerTurn` / `DiarizedUtterance` / `SpeakerDiarizationUpdate` 字段不变。
+- 公共接口、回调顺序、`SpeakerTurn` / `SpeakerDiarizationUpdate` 字段不变；`DiarizedUtterance` 只新增 `sourceUtteranceIds`。
 - 语种范围仍为中英（ZH_EN）；不包含粤英、TTS 与目标说话人增强模型。
 
-## 三、已知未解决项
+## 四、已知未解决项
 
 - Sortformer 的算法时延为 10 s：预览缩短的是首次看到角色的等待，最终确认仍需块完成。
 - 现场录音 111223-816 上新模型出现约 4 s 混淆，该条 0.3.25 表现更好；整体仍以 23.10% → 12.10% 为准。

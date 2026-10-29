@@ -371,7 +371,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 
 | 字段 | 类型 | 说明 |
 | --- | --- | --- |
-| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字；每项完整保留一条原 ASR final，`utteranceId` 与 `sourceUtteranceId` 相同；包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
+| `utterances` | `DiarizedUtterance[]` | 本窗口定稿文字。**0.3.26 起**相邻且同一已确认角色、中间无其他已确认角色发言的原 ASR final 合并为一项：`utteranceId` / `sourceUtteranceId` 取首句，`sourceUtteranceIds` 按时间列出被合并的全部原 final；`speakerIndex=-1` 的句子不参与合并。包含 `rawText`、`text`、全局时间、speaker 索引、`confidence` 和 `overlap` |
 | `speakerTurns` | `SpeakerTurn[]` | 本窗口 speaker timeline；保留 primary、secondary、`confidence` 和 `overlap` |
 | `windowIndex` | `number` | session 内从 0 开始递增；用于批次去重 |
 | `windowBeginTime` / `windowEndTime` | `number` | 本批音频起止位置，session-global 毫秒 |
@@ -426,7 +426,7 @@ overlap 或推断状态变化本身不构成新段落边界，不能机械拆开
 4. 唯一 `onComplete`。
 
 会话进行中可多次返回 `isSessionFinal=false` 的窗口结果，不能据此停止录音或清空全文。
-调用方按 `sourceUtteranceId` 替换本批临时句子并累积保存；窗口发布后不再收到对应句子的 update。
+调用方按 `sourceUtteranceIds`（0.3.26 前为 `sourceUtteranceId`）替换本批临时句子并累积保存；窗口发布后不再收到对应句子的 update。
 `onResult.isFinal` 只定稿文字，只有窗口结果才定稿身份，整场完成仍以 `onComplete` 为准。
 此处是 Harmony／Android 的新语义，旧调用方必须同步迁移；iOS 本轮未改，不能套用本分窗契约。
 

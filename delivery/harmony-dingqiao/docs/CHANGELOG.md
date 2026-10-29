@@ -8,6 +8,7 @@
 - **算力**（同一台我方测试机、丁桥 5 条、识别与角色分离同时运行的产品链路实测）：角色分离推理墙钟 RTF **0.25~0.27**（0.3.25 为 0.07~0.09，约 3 倍）；整进程 CPU 均值 1.76 核（0.3.25 为 1.58 核，+11%），p95 2.68 核（2.21 核）；进程峰值 RSS 711 MB（581 MB，+130 MB）；结束到最终角色结果 1.1~2.4 s（0.7 s）。单独运行（无识别竞争）时每块推理约 0.4 s、整文件 RTF 0.045，含 5 s 预览 0.075~0.080。2 小时长会内存待复测。
 - **包体**：角色分离模型由 21.3 MB 变为 73.2 MB（+51.9 MB）；Community-1 资产（WeSpeaker encoder/pool、PLDA、特征表、MindIR）不再随包。
 - **字段弃用但保留**：`scheduling.diarizationEncoder`、`scheduling.diarizationHopMs` 不再改变行为（无 NPU 路径、无滑动窗），取值校验不变；`SpeakerDiarizationResult.encoderBackend` 恒为 `cpu`。
+- **相邻同人句子合并**：`SpeakerDiarizationResult.utterances` 内相邻、同一已确认角色、中间无其他已确认角色发言的原 ASR final 合并为一项；新增 `DiarizedUtterance.sourceUtteranceIds` 列出被合并的原 final，`utteranceId` / `sourceUtteranceId` 取首句；`speakerIndex=-1` 不参与合并；`speakerTurns` 不变。调用方按 `sourceUtteranceIds` 替换临时句。
 - 身份策略：四个槽位是模型按出场顺序给出的整场稳定身份；公开角色号在槽位首次出现在最终块时分配，`maxSpeakers` 封顶、超出保持匿名；仅出现在预览里的新槽位在其块提交前显示为未归属（-1）。
 - 诊断事件：`DIARIZATION_SORTFORMER_CHUNK` / `_PREVIEW` / `_COMMIT` 取代 `DIARIZATION_COMMUNITY_*`；`DIARIZATION_QUEUE` 字段语义保持（积压秒数、在飞调用、音频延迟）。
 - **交付边界**：本批语种范围为中英（ZH_EN），**不包含**粤英模型；**不包含** TTS 模型；目标说话人增强仅保留接口，**不包含**所需模型，因此**不能启用**。

@@ -554,7 +554,7 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
     result.windowBeginTime = Math.round(beginTime);
     result.windowEndTime = Math.round(endTime);
     result.encoderBackend = this.encoderBackend;
-    const utterances = this.transcript.sentenceUtterances(endTime);
+    const utterances = this.transcript.aggregatedUtterances(endTime);
     for (let i = 0; i < utterances.length; i++) {
       result.utterances.push(this.toPublicUtterance(utterances[i]));
     }
@@ -598,6 +598,7 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
     const result = new DiarizedUtterance();
     result.utteranceId = value.utteranceId;
     result.sourceUtteranceId = value.sourceUtteranceId;
+    result.sourceUtteranceIds = (value.sourceUtteranceIds ?? [value.sourceUtteranceId]).slice();
     result.rawText = value.rawText;
     result.text = value.text;
     result.beginTime = value.beginTime;
