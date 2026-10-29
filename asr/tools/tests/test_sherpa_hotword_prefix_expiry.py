@@ -21,6 +21,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[3]
 PATCH_DIR = REPO_ROOT / "third_party/patches/sherpa-amphion"
 PATCH = PATCH_DIR / "0036-fix-asr-expire-stale-hotword-prefixes.patch"
+FIRST_TOKEN_PATCH = PATCH_DIR / "0037-fix-asr-cap-first-token-hotword-bonus.patch"
 
 
 def derived_root() -> "Path | None":
@@ -43,9 +44,19 @@ class SherpaHotwordPrefixExpiryTest(unittest.TestCase):
         self.assertIn("new_hyp.context_bonus_suppressed = true;", text)
         self.assertIn("if (new_hyp.context_bonus_suppressed) {", text)
 
+    def test_first_token_bonus_is_capped(self) -> None:
+        """0037：首字加分封顶，且扣下的额度不补发到第二个 token。"""
+        text = FIRST_TOKEN_PATCH.read_text(encoding="utf-8")
+        self.assertIn("static constexpr float kFirstTokenMaxContextScore = 1.0f;", text)
+        self.assertIn("std::min(score, kFirstTokenMaxContextScore)", text)
+        # 单字短语必须保持原加分；补发会把劫持挪到第二个字，不能出现 2.0f * score。
+        self.assertIn("j == 0 && phrase_length > 1", text)
+        self.assertNotIn("2.0f * score", text)
+
     def test_patch_is_registered(self) -> None:
         readme = (PATCH_DIR / "README.md").read_text(encoding="utf-8")
         self.assertIn("`0036-*`", readme)
+        self.assertIn("`0037-*`", readme)
 
     def test_prepared_source_carries_the_expiry(self) -> None:
         root = derived_root()
@@ -56,6 +67,8 @@ class SherpaHotwordPrefixExpiryTest(unittest.TestCase):
         self.assertIn("kMaxContextBlankFrames", text)
         hypothesis = (root / "sherpa-onnx/csrc/hypothesis.h").read_text(encoding="utf-8")
         self.assertIn("int32_t context_blank_frames = 0;", hypothesis)
+        graph = (root / "sherpa-onnx/csrc/context-graph.cc").read_text(encoding="utf-8")
+        self.assertIn("kFirstTokenMaxContextScore", graph)
 
 
 if __name__ == "__main__":
