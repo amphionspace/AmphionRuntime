@@ -23,7 +23,7 @@
   "final_zip_verification": "PASS: outer SHA-256 verified, the shipped docs/checksums.txt verifies all 50 entries, docs/build-identity.json equals the Diagnostics subpackage identity (created_at excluded), no probe, evaluation, corpus or internal tool paths in any entry name. The in-package amphion_asr_demo-diagnostics-signed.hap (sha256 9f1e023b771eaf1d7c021b2054c3cc2448487261f863f389571d92088701865e) was extracted, installed (versionName 0.3.26 / versionCode 326) and re-run: customer-ptt 12/12 PASS, emptyFinalRate 0.000, memory PASS (growth 17.47 MiB, peak 415.1 MiB).",
   "independent_demo_source_build": "PASS by the packaging gate only (self-contained HAR installed and compiled in a clean customer host); no separate manual hvigor build of demo-source this round.",
   "demo_source_note": "demo-source still ships util/MindirProbe.ets as the public stub it has carried since earlier releases ('mindir probe is only available in the diagnostics SDK'); it references the removed Community NPU path by name only and is a cleanup candidate for 0.3.27.",
-  "long_run_memory": "NOT_RUN for 2-hour sessions on the new chain (0.3.25 recorded about 1.1 GB peak); the 17-minute meeting corpus peaks at 711-804 MB.",
+  "long_run_memory": "MEASURED after packaging on the in-package Diagnostics Demo (same identity): 7381 s single diarization-windows session (field 4-speaker recording looped 20x), PASS, 605 finals, 71 diarization results, degraded 0, threads stable at 75. RSS head 768 MB -> tail 866 MB, peak 911 MB, kernel HWM peak 926 MB, slope 1.13 MB/min (0.3.24: peak 1160 MB, HWM 1222 MB, ~2.0 MB/min). ArkTS-heap growth is still monotonic; not attributed. See docs/speaker/SORTFORMER_2H_SESSION_20261029.md.",
   "network_observation": "NOT_RUN",
   "android_parity": "NOT_RUN: Android keeps the Community chain; only the Harmony HARs changed.",
   "uncovered_scenarios": "AliMeeting not re-run on the product chain; absolute power not measurable over USB (current reading unavailable), CPU time used as the proxy; preview-off (diarizationPreviewMs=0) cost not measured on the product chain.",
@@ -44,5 +44,6 @@
   "acceptance_summary_sha256": "dce1e233897acb44c3a75406f22e2735483f35ad8b058bdd61b18999d231dd99",
   "staging_root": "~/.cache/amphion-runtime/delivery-staging/asr/harmony/0.3.26/2d49bec5/",
   "device": "HUAWEI VYG-AL30, HarmonyOS 7.0.0.109, arm64-v8a",
-  "signing_and_license_provenance": "Local DevEco signing-project material (leaf certificate valid to 2049-03-16); demo trial license DINGQIAO-TDTECH-202610-001 unbound, ASR+TTS, expires 2026-12-22; device whitelist file empty for verification."
+  "signing_and_license_provenance": "Local DevEco signing-project material (leaf certificate valid to 2049-03-16); demo trial license DINGQIAO-TDTECH-202610-001 unbound, ASR+TTS, expires 2026-12-22; device whitelist file empty for verification.",
+  "thermal_two_hours": "Battery 26.0 -> 37.0 C peak over 123 min (0.081 C/min), shell back 26.9 -> 36.6 C, system 25.9 -> 37.9 C, ambient rose 22.7 -> 28.3 C. 0.3.24 measured 31.8 -> 39.8 C (0.066 C/min) from a warmer start; same order of magnitude, no thermal degradation mechanism in the SDK. Whole-process CPU mean 1.86 cores, p95 2.83 cores. Battery current over USB is the net charging current and cannot measure device power."
 }
