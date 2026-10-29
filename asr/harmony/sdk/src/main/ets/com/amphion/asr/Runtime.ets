@@ -71,7 +71,8 @@ import {
   SpeakerTurnFinalizer,
   SpeakerTurnSegment,
   SpeakerTurnSplit,
-  shouldRejectSpeakerVadFinal
+  shouldRejectSpeakerVadFinal,
+  speakerFinalGateScore
 } from './SpeakerTurnFinalizer';
 import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
@@ -2270,10 +2271,11 @@ export class AsrSession {
     }
     // Score-only verification intentionally uses TargetSpeakerConfig.threshold (Dingqiao sets -1
     // so every real score is reported). Speaker VAD owns a separate business gate and must always
-    // reinterpret the same numeric score with SpeakerVadConfig.threshold.
+    // reinterpret the same numeric score with its own threshold, raised to the measured floor
+    // when its streaming machine never confirmed this utterance.
     if (pending.speakerVadEnabled && pending.result.speakerScore !== undefined) {
-      pending.result.isTargetSpeaker =
-        pending.result.speakerScore >= pending.speakerVadThreshold;
+      pending.result.isTargetSpeaker = pending.result.speakerScore >=
+        speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed);
     }
     const speakerVadReject = shouldRejectSpeakerVadFinal(
       pending.speakerVadEnabled, pending.speakerVadRejectCurrent,
