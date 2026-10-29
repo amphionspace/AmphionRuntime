@@ -33,6 +33,7 @@ Amphion-specific JNI is applied on top via `git am`:
 | `0028-*` | 主动 VAD 切句前，在临时 encoder/decoder 状态上检查待处理真实帧；补齐的右上下文不进入 token 解码或公共结果。发现未决语音时按 PCM 时钟复查，等待自然解码提交后才允许销毁旧流；JNI、C API 和 Harmony 异步入口保持同一语义 |
 | `0030-*` | 在已选中的 WeText tagger 路径上保留原文到转换单元的来源范围；新增 C API / Harmony 对齐元数据，既有 Normalize 输出不变，无法明确映射时返回空来源范围 |
 | `0036-*` | modified beam search 给停在未完成热词前缀上的假设设 1 s（25 帧）blank 上限，到期结算回退扣分、回到根节点并在回根前停发加分；避免调用方热词 3.0 时解码器"宁可沉默"把后续整段数字删掉，最多损失约 1 s；命中的热词与未标注预置池行为不变 |
+| `0037-*` | 热词短语首个 token 的加分封顶 1.0（逐词分数引入前的历史档），其后每个 token 保持调用方分数且扣下的额度不补发；首字加分不再随分数放大，避免单个字被凭空劫持（`三思 :30` 曾把 `幺三幺幺二三四五六七八` 变成 `幺三三`），预置池 1.0 与单字热词行为不变 |
 
 Apply automatically from the Harmony `04_build_harmony_so.sh` entry point (Android also applies the same series from its native build flow):
 
