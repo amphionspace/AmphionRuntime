@@ -192,6 +192,7 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
     result.utterances = this.transcript.finalUtterances(endTime).map(value => {
       const utterance = new DiarizedUtterance();
       utterance.utteranceId = value.utteranceId; utterance.sourceUtteranceId = value.sourceUtteranceId;
+      utterance.sourceUtteranceIds = [value.sourceUtteranceId];
       utterance.rawText = value.rawText; utterance.text = value.text;
       utterance.beginTime = value.beginTime; utterance.endTime = value.endTime;
       return utterance;

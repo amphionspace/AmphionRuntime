@@ -640,5 +640,104 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
         """)
 
 
+class HarmonyDiarizationAggregationTest(unittest.TestCase):
+    """Adjacent finals of one confirmed speaker publish as one item; UNKNOWN and other voices split."""
+
+    def test_adjacent_same_speaker_finals_join_into_one_public_item(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9,overlap:false,...extra}});
+          const add=(s,raw,beginTime,endTime)=>s.addUtterance({{rawText:raw,text:raw+'。',tokens:[...raw],
+            tokenTimesMs:[...raw].map((_,i)=>beginTime+i*100),beginTime,endTime}});
+          const s=new State();add(s,'你好',0,1000);add(s,'大家',1000,2000);add(s,'再见',2000,3000);
+          s.applySpeakerTurns([turn(0,2000,'S1'),turn(2000,3000,'S2')]);
+          const units=s.sentenceUtterances();assert.equal(units.length,3,'sentence units stay per final');
+          assert.ok(units.every(u=>u.sourceUtteranceIds===undefined));
+          const out=s.aggregatedUtterances();
+          assert.deepEqual(out.map(u=>[u.utteranceId,u.sourceUtteranceId,u.sourceUtteranceIds,u.rawText,u.text,
+            u.beginTime,u.endTime,u.speakerId]),
+            [['u1','u1',['u1','u2'],'你好大家','你好。大家。',0,2000,'S1'],['u3','u3',['u3'],'再见','再见。',2000,3000,'S2']]);
+          assert.equal(out[0].confidence,Math.min(units[0].confidence,units[1].confidence));
+          for(const u of out) {{
+            const spans=u.speakerTextSpans??[];
+            if(spans.length>0) {{
+              assert.equal(spans.map(p=>u.text.slice(p.textBegin,p.textEnd)).join(''),u.text,'joined spans cover the joined text');
+              assert.equal(spans.map(p=>u.rawText.slice(p.sourceBegin,p.sourceEnd)).join(''),u.rawText);
+              assert.ok(spans.every(p=>p.speakerId===u.speakerId));
+            }}
+          }}
+          assert.deepEqual(units.map(u=>u.text),['你好。','大家。','再见。'],'aggregation does not mutate sentence units');
+          const frozen=s.commitThrough(3000);assert.equal(frozen.length,3);
+          assert.deepEqual(s.aggregatedUtterances(),[]);
+        """)
+
+    def test_other_voice_or_unknown_summary_blocks_joining(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId,extra={{}})=>
+            ({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9,overlap:false,...extra}});
+          const sample=(turns)=>{{const s=new State();
+            for(const [raw,b,e] of [['你好',0,1000],['大家',1500,2500]])
+              s.addUtterance({{rawText:raw,text:raw+'。',tokens:[...raw],tokenTimesMs:[b,b+100],beginTime:b,endTime:e}});
+            s.applySpeakerTurns(turns);return s;}};
+          // A confirmed second voice in the silent gap ends the paragraph.
+          assert.deepEqual(sample([turn(0,1000,'S1'),turn(1000,1500,'S2'),turn(1500,2500,'S1')])
+            .aggregatedUtterances().map(u=>u.sourceUtteranceIds),[['u1'],['u2']]);
+          // A known secondary voice in the gap also ends it.
+          assert.deepEqual(sample([turn(0,1000,'S1'),turn(1000,1500,'S1',{{overlap:true,secondarySpeakerIds:['S2']}}),turn(1500,2500,'S1')])
+            .aggregatedUtterances().map(u=>u.sourceUtteranceIds),[['u1'],['u2']]);
+          // Unattributed speech in the gap does not.
+          assert.deepEqual(sample([turn(0,1000,'S1'),turn(1000,1500,'UNKNOWN'),turn(1500,2500,'S1')])
+            .aggregatedUtterances().map(u=>u.sourceUtteranceIds),[['u1','u2']]);
+          // Silence in the gap does not.
+          assert.deepEqual(sample([turn(0,1000,'S1'),turn(1500,2500,'S1')])
+            .aggregatedUtterances().map(u=>u.sourceUtteranceIds),[['u1','u2']]);
+          // Two UNKNOWN sentences never join, even back to back.
+          const unknown=sample([turn(0,500,'S1'),turn(500,1000,'S2'),turn(1500,2000,'S1'),turn(2000,2500,'S2')]).aggregatedUtterances();
+          assert.deepEqual(unknown.map(u=>[u.speakerId,u.sourceUtteranceIds]),[['UNKNOWN',['u1']],['UNKNOWN',['u2']]]);
+          // A different speaker never joins.
+          assert.deepEqual(sample([turn(0,1000,'S1'),turn(1500,2500,'S2')]).aggregatedUtterances().map(u=>u.speakerId),['S1','S2']);
+        """)
+
+    def test_split_mixed_final_tail_joins_the_next_final_of_its_speaker(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const turn=(beginTime,endTime,speakerId)=>({{beginTime,endTime,speakerId,secondarySpeakerIds:[],confidence:.9,overlap:false}});
+          const s=new State();
+          s.addUtterance({{rawText:'先说这件事我来回答',text:'先说这件事。我来回答。',tokens:[...'先说这件事我来回答'],
+            tokenTimesMs:[100,220,300,500,700,1500,1600,1700,1800],beginTime:100,endTime:1900}});
+          s.addUtterance({{rawText:'好的',text:'好的。',tokens:[...'好的'],tokenTimesMs:[1900,2000],beginTime:1900,endTime:2100}});
+          s.applySpeakerTurns([turn(0,1500,'S1'),turn(1500,2100,'S2')]);
+          const units=s.sentenceUtterances();
+          assert.deepEqual(units.map(u=>[u.utteranceId,u.sourceUtteranceId,u.speakerId]),[['u1','u1','S1'],['u1.2','u1','S2'],['u2','u2','S2']]);
+          const out=s.aggregatedUtterances();
+          assert.deepEqual(out.map(u=>[u.utteranceId,u.sourceUtteranceId,u.sourceUtteranceIds,u.text,u.speakerId,u.beginTime,u.endTime]),
+            [['u1','u1',['u1'],'先说这件事。','S1',100,1500],['u1.2','u1',['u1','u2'],'我来回答。好的。','S2',1500,2100]]);
+        """)
+
+    def test_public_window_items_carry_source_ids_and_join_same_speaker(self):
+        run_session("""
+          const s=session();
+          for(const [rawText,beginTime,endTime] of [['你好',0,1000],['大家',1000,2000],['再见',2000,3000],['嗯',3000,3300]])
+            s.transcript.addUtterance({rawText,text:rawText+'。',tokens:[],tokenTimesMs:[],beginTime,endTime});
+          s.transcript.applySpeakerTurns([{beginTime:0,endTime:2000,speakerId:'S1',secondarySpeakerIds:[]},
+            {beginTime:2000,endTime:3000,speakerId:'S2',secondarySpeakerIds:[]},
+            {beginTime:3000,endTime:3150,speakerId:'S1',secondarySpeakerIds:[]},
+            {beginTime:3150,endTime:3300,speakerId:'S2',secondarySpeakerIds:[]}]);
+          s.totalSamples=3300*16;
+          const result=s.buildResult(0,undefined,3300,0);
+          assert.deepEqual(result.utterances.map(x=>[x.utteranceId,x.sourceUtteranceId,x.sourceUtteranceIds,x.text,x.speakerIndex]),
+            [['u1','u1',['u1','u2'],'你好。大家。',0],['u3','u3',['u3'],'再见。',1],['u4','u4',['u4'],'嗯。',-1]]);
+          assert.deepEqual(result.utterances[2].secondarySpeakerIndexes,[0,1]);
+          assert.deepEqual(result.speakerTurns.map(x=>x.speakerIndex),[0,1,0,1],'acoustic turns are not joined');
+          const frozen=s.transcript.commitThrough(3300);assert.equal(frozen.length,4);
+          assert.deepEqual(s.buildResult(0,undefined,3300,0).utterances,[]);
+        """)
+
+
 if __name__ == '__main__':
     unittest.main()

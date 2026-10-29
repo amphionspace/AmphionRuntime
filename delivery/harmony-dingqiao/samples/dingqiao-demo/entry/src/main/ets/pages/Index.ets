@@ -1206,7 +1206,11 @@ struct Index {
     if (result.windowIndex <= this.lastDiarizationWindowIndex) return;
     this.lastDiarizationWindowIndex = result.windowIndex;
     this.diarizationDegraded = this.diarizationDegraded || result.degraded;
-    const sources = new Set<string>(result.utterances.map(item => item.sourceUtteranceId));
+    const sources = new Set<string>();
+    for (const item of result.utterances) {
+      sources.add(item.sourceUtteranceId);
+      for (const source of item.sourceUtteranceIds) sources.add(source);
+    }
     const next = this.finalSegments.filter(item =>
       item.speakerAssignmentFinal || !sources.has(item.utteranceId ?? ''));
     for (const utterance of result.utterances) {
