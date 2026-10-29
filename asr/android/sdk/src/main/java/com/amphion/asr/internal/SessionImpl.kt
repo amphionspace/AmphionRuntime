@@ -405,6 +405,7 @@ internal class SessionImpl(
             decoderHandler.post {
                 val agcOk = agcIngress.flush("agc.flush(stop)", ::feedAndDecode)
                 if (agcOk) {
+                    maybeCommitFinishDeparture()
                     val r = NativeGuard.run("stream.inputFinished+drain") {
                         if (speakerVadEnabled) {
                             flushAdaptiveFinalTail(
@@ -1258,6 +1259,54 @@ internal class SessionImpl(
         return true
     }
 
+    /**
+     * Score a short trailing slice when the utterance is finalized and split the turn if it no
+     * longer belongs to the target.
+     *
+     * The streaming rule needs two consecutive low windows, which a trailing window diluted by the
+     * owner's own tail never produces for a short interjection; the owner's final then carries the
+     * next speaker's first sentence. Measured on 99 speaker-disjoint aishell3 target+other pairs
+     * (default 0.35 / 1.5 s / 0.5 s / 2): of the 13 departures the streaming rule missed this
+     * recovers 12, average non-target leak drops 0.37 s -> 0.19 s, and 99 owner-only control
+     * sessions fire no new departure. A 0.8 s slice recovers all 13 but raises the control false
+     * departure rate from 1% to 4%, so the slice is kept at 1.2 s.
+     */
+    private fun maybeCommitFinishDeparture() {
+        if (!speakerVadEnabled || closed.get()) return
+        val config = effectiveSpeakerVad ?: return
+        val finalizer = svTurnFinalizer ?: return
+        if (!finalizer.isTargetConfirmed() || finalizer.hasPendingDeparture()) return
+        val target = targetEmbedding ?: return
+        val verifier = ensureVerifier() ?: return
+        val sliceSamples = (sampleRate.toLong() * FINISH_DEPARTURE_SLICE_MS / 1000L).toInt()
+        if (sliceSamples <= 0 || finalizer.sampleCount() < sliceSamples) return
+        val tail = speakerPcmBuffers.speakerVadTail(sliceSamples)
+        if (tail.size < sliceSamples) return
+        val startedNs = System.nanoTime()
+        val score = verifier.windowScore(tail, target) ?: return
+        val elapsedMs = (System.nanoTime() - startedNs) / 1_000_000.0
+        val rtf = elapsedMs / (sliceSamples * 1000.0 / sampleRate)
+        if (!finalizer.observeFinishSlice(score, config.threshold)) {
+            postSpeakerVadDebug("finish_target", score, config.threshold, elapsedMs, rtf)
+            return
+        }
+        syncSpeakerTurnState(finalizer)
+        postSpeakerVadDebug("finish_departure", score, config.threshold, elapsedMs, rtf)
+        val split = finalizer.resolveContainment()
+        if (split == null) {
+            Logger.metric(
+                "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-no-prefix " +
+                    "reason=${finalizer.lastResolutionReason()}",
+            )
+            return
+        }
+        Logger.metric(
+            "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-contain " +
+                "cutSample=${split.cutSample} score=$score",
+        )
+        commitCleanSpeakerTurn(split, finishTriggered = true)
+    }
+
     private fun speakerTurnFinalizer(config: SpeakerVadConfig): SpeakerTurnFinalizer {
         svTurnFinalizer?.let { return it }
         val windowSamples = (config.winSec * sampleRate).toInt().coerceAtLeast(1)
@@ -1311,7 +1360,7 @@ internal class SessionImpl(
      * reconfirmed utterance. Any failure terminates the session; a known contaminated result is
      * never used as an error fallback.
      */
-    private fun commitCleanSpeakerTurn(split: SpeakerTurnSplit) {
+    private fun commitCleanSpeakerTurn(split: SpeakerTurnSplit, finishTriggered: Boolean = false) {
         val finalizer = svTurnFinalizer ?: return
         Logger.metric(
             "kind=SPEAKER_TURN sessionId=$sessionId decision=split cutSample=${split.cutSample} " +
@@ -1401,11 +1450,29 @@ internal class SessionImpl(
         // window reconfirms the target; a real final score is still attempted for the record.
         svAwaitingTargetAfterDeparture = true
         svRejectCurrentUtterance = true
-        replaySpeakerSuffix(split)
+        // A finish-triggered split already established that the suffix is not the target. Seed the
+        // fresh stream directly so shutdown performs one final decode instead of replaying the
+        // real-time Speaker VAD pipeline, which could publish another endpoint mid-replay.
+        if (finishTriggered) seedSpeakerSuffix(split) else replaySpeakerSuffix(split)
         postDebug(
             "speaker turn clean split: cutSample=${split.cutSample} " +
                 "prefix=${split.prefix.size} suffix=${split.suffix.size}",
         )
+    }
+
+    private fun seedSpeakerSuffix(split: SpeakerTurnSplit) {
+        if (closed.get()) return
+        effectiveSpeechBuffer.observe(split.suffix)
+        speakerPcmBuffers.observe(
+            split.suffix,
+            captureSpeakerVad = true,
+            captureFallback = targetSpeakerEnabled || speakerVadEnabled,
+        )
+        svTurnFinalizer?.accept(split.suffix, split.processedSuffix)
+        val r = NativeGuard.run("speakerTurn.seedSuffix") {
+            stream.acceptWaveform(split.processedSuffix, sampleRate)
+        }
+        if (r is NativeResult.Err) postError(r.error)
     }
 
     private fun replaySpeakerSuffix(split: SpeakerTurnSplit) {
@@ -1600,6 +1667,9 @@ internal class SessionImpl(
         const val FINAL_TAIL_REQUIRED_DECODES = 2
         const val FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS = 320
         const val SPEAKER_FINAL_TAIL_MIN_PADDING_MS = 800
+
+        /** Trailing audio scored at finish to catch a departure the streaming rule diluted. */
+        const val FINISH_DEPARTURE_SLICE_MS = 1_200L
 
         /**
          * silero VAD 强约束：必须按窗口对齐喂入 [Vad.acceptWaveform]。
