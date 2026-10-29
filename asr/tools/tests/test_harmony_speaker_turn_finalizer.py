@@ -967,6 +967,36 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_finish_departure_reaches_the_acoustic_resolver(self) -> None:
+        """设备实测：pyannote 聚类把两个人并成一个标签时，finish 不能直接 fail-open。
+
+        会话 5 的诊断链是 score 0.70 -> 0.17 判定离场、
+        `reason=diarization-speaker-count:1`、`decision=fail-open`，非机主首句随机主 final
+        发了出去。声学解析器自带左右目标分验证，不依赖 diarization 的聚类，finish 时必须也走到。
+        """
+        source = RUNTIME.read_text(encoding="utf-8")
+        for resolver_name in ("private resolveSpeakerTurnSplit", "private async resolveSpeakerTurnSplitAsync"):
+            resolver = source.split(resolver_name, 1)[1].split("private resolveSpeakerTurnAcoustic", 1)[0]
+            self.assertNotIn("if (finishTriggered) return undefined", resolver)
+            self.assertNotIn("|| finishTriggered ||", resolver)
+
+    def test_confirmed_departure_contains_instead_of_publishing_a_mixture(self) -> None:
+        """两次低分已独立证明机主离场时，任一解析器定不出边界都应退到保守前缀，而不是 fail-open。"""
+        source = RUNTIME.read_text(encoding="utf-8")
+        containment = source.split("private canContainSpeakerTurn", 1)[1].split(
+            "private resolveSpeakerTurnSplit", 1
+        )[0]
+        self.assertIn("this.svTurnFinalizer?.hasPendingDeparture()", containment)
+        self.assertIn("SPEAKER_TURN_CONTAINABLE_REASONS.some", containment)
+        # 重叠与缓冲越界不可包含：同时说话没有单一切点。
+        self.assertIn("if (unresolvedReason === 'unsupported-overlap') return false", containment)
+        reasons = source.split("const SPEAKER_TURN_CONTAINABLE_REASONS", 1)[1].split(
+            "= [", 1)[1].split("];", 1)[0]
+        self.assertIn("'diarization-speaker-count:'", reasons)
+        self.assertIn("'no-verified-boundary:'", reasons)
+        self.assertNotIn("buffer-capped", reasons)
+        self.assertNotIn("unsupported-overlap", reasons)
+
     def test_runtime_contains_sequential_ambiguity_but_preserves_overlap_scope(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
         containment = source.split("private canContainSpeakerTurn", 1)[1].split(
