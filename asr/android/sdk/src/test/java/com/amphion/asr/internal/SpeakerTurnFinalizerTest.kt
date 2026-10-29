@@ -137,6 +137,49 @@ class SpeakerTurnFinalizerTest {
     }
 
     @Test
+    fun finishSliceDeclaresADepartureTheStreamingRuleMissed() {
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        finalizer.observeScore(2_000, 0.65f, 0.35f)
+        // A trailing window diluted by the owner's own tail never drops twice.
+        assertEquals(SpeakerTurnScoreState.BELOW, finalizer.observeScore(3_000, 0.30f, 0.35f))
+        assertEquals(false, finalizer.hasPendingDeparture())
+        assertNull(finalizer.resolveContainment())
+
+        assertTrue(finalizer.observeFinishSlice(0.10f, 0.35f))
+        assertTrue(finalizer.hasPendingDeparture())
+        val split = finalizer.resolveContainment()
+        assertNotNull(split)
+        // The cut predates the whole last target-positive window, as for a streaming containment.
+        assertEquals(1_000, split!!.cutSample)
+        assertEquals(0.10f, finalizer.lastScore()!!, 0f)
+    }
+
+    @Test
+    fun finishSliceLeavesAConfirmedTargetAndAnAlreadyDepartedTurnAlone() {
+        val target = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        target.accept(squareWave(3_600, 2_000, 2_200))
+        target.observeScore(2_000, 0.65f, 0.35f)
+        // Still the owner at finish: no departure, and no cut is offered.
+        assertEquals(false, target.observeFinishSlice(0.60f, 0.35f))
+        assertEquals(false, target.hasPendingDeparture())
+        assertNull(target.resolveContainment())
+
+        val departed = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        departed.accept(squareWave(3_600, 2_000, 2_200))
+        departed.observeScore(2_000, 0.65f, 0.35f)
+        departed.observeScore(3_000, 0.20f, 0.35f)
+        departed.observeScore(3_200, 0.10f, 0.35f)
+        // The streaming rule already resolved this turn; the finish slice must not re-declare it.
+        assertEquals(false, departed.observeFinishSlice(0.10f, 0.35f))
+
+        val unconfirmed = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        unconfirmed.accept(squareWave(3_600, 2_000, 2_200))
+        // The owner was never confirmed, so there is no target prefix to protect.
+        assertEquals(false, unconfirmed.observeFinishSlice(0.10f, 0.35f))
+    }
+
+    @Test
     fun targetReturnClearsADepartureInProgress() {
         val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
         finalizer.accept(squareWave(3_600, 2_000, 2_200))

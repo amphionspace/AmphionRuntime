@@ -146,6 +146,27 @@ internal class SpeakerTurnFinalizer(
 
     fun hasPendingDeparture(): Boolean = departureSeen
 
+    /**
+     * Finish-time departure test.
+     *
+     * The streaming rule scores the utterance's trailing window, which the owner's own tail keeps
+     * above the threshold when the next speaker's turn is shorter than about one window plus one
+     * hop, so a short interjection can end up inside the owner's final. At finish the caller scores
+     * a short trailing slice instead, where whoever spoke last dominates, and reports it here.
+     * A confirmed departure makes [resolveContainment] available; the precise resolver is not used
+     * because a finish slice locates no boundary of its own.
+     */
+    fun observeFinishSlice(score: Float, threshold: Float): Boolean {
+        if (!targetSeen || departureSeen || capped || lastTargetEndSample < 0) return false
+        if (score >= threshold) return false
+        latestScore = score
+        if (belowCount < 1) belowCount = 1
+        if (firstBelowEndSample < 0) firstBelowEndSample = retainedSamples
+        departureSeen = true
+        resolutionReason = "finish-slice-departure"
+        return true
+    }
+
     fun hasPendingFinishDeparture(): Boolean {
         val minimumTrailingSamples = max(1, (sampleRate * 0.4).roundToInt())
         return !departureSeen && !capped && targetSeen && belowCount > 0 &&

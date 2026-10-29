@@ -111,6 +111,7 @@ def replay(
     hop: int,
     consecutive_below: int,
     max_buffer: int,
+    finish_slice: int = 0,
 ) -> Resolution:
     """Replay the streaming schedule and resolve the first confirmed departure."""
     embeddings = 0
@@ -204,6 +205,19 @@ def replay(
             return Resolution("endpoint", end / SAMPLE_RATE, None,
                               f"no-verified-boundary:candidates={len(candidates)}", embeddings)
         return Resolution("split", end / SAMPLE_RATE, best / SAMPLE_RATE, "split", embeddings)
+    if target_seen and finish_slice > 0:
+        # The streaming test scores the utterance's trailing window, which a
+        # departing owner's own tail keeps above threshold when the next
+        # speaker's turn is shorter than about one window plus one hop. At the
+        # moment the utterance is finalized, score only the last `finish_slice`
+        # instead: whoever spoke last dominates a short slice.
+        tail = session[max(0, session.size - finish_slice):]
+        s_tail = score(tail)
+        if s_tail is not None and s_tail < threshold:
+            cut = max(0, last_target_end - win) if last_target_end > 0 else 0
+            return Resolution("finish_departure", session.size / SAMPLE_RATE,
+                              (cut / SAMPLE_RATE) if cut > 0 else None,
+                              f"finish-slice:{s_tail:.3f}", embeddings)
     state = "target_confirmed_no_endpoint" if target_seen else "target_not_confirmed"
     return Resolution(state, None, None, state, embeddings)
 
@@ -213,9 +227,11 @@ def describe(values: list[float]) -> dict:
 
 
 def evaluate(pairs: list[dict], *, label: str, threshold: float, win_sec: float, hop_sec: float,
-             consecutive_below: int, extractor, truncation_tolerance_sec: float) -> dict:
+             consecutive_below: int, extractor, truncation_tolerance_sec: float,
+             finish_slice_sec: float = 0.0, controls: list[dict] | None = None) -> dict:
     win = int(win_sec * SAMPLE_RATE)
     hop = int(hop_sec * SAMPLE_RATE)
+    finish_slice = int(finish_slice_sec * SAMPLE_RATE)
     states: dict[str, int] = {}
     reasons: dict[str, int] = {}
     cut_errors: list[float] = []
@@ -230,7 +246,8 @@ def evaluate(pairs: list[dict], *, label: str, threshold: float, win_sec: float,
         other_sec = rec["other_sec"]
         total_sec = target_sec + other_sec
         r = replay(extractor, rec["target_emb"], rec["session"], threshold=threshold, win=win, hop=hop,
-                   consecutive_below=consecutive_below, max_buffer=25 * SAMPLE_RATE)
+                   consecutive_below=consecutive_below, max_buffer=25 * SAMPLE_RATE,
+                   finish_slice=finish_slice)
         embeddings += r.embeddings
         states[r.state] = states.get(r.state, 0) + 1
         reasons[r.reason.split(":")[0]] = reasons.get(r.reason.split(":")[0], 0) + 1
@@ -247,14 +264,28 @@ def evaluate(pairs: list[dict], *, label: str, threshold: float, win_sec: float,
         else:
             leak_with_split.append(leak_endpoint)
     n = len(pairs)
+    control_fires = 0
+    control_states: dict[str, int] = {}
+    for rec in controls or []:
+        c = replay(extractor, rec["target_emb"], rec["target_only"], threshold=threshold, win=win,
+                   hop=hop, consecutive_below=consecutive_below, max_buffer=25 * SAMPLE_RATE,
+                   finish_slice=finish_slice)
+        control_states[c.state] = control_states.get(c.state, 0) + 1
+        if c.state in ("split", "endpoint", "finish_departure", "pre_target_endpoint"):
+            control_fires += 1
     return {
         "label": label,
+        "finish_slice_sec": finish_slice_sec,
+        "control_pairs": len(controls or []),
+        "control_false_fire_rate": control_fires / max(1, len(controls or [])),
+        "control_states": control_states,
         "threshold": threshold, "win_sec": win_sec, "hop_sec": hop_sec, "consecutive_below": consecutive_below,
         "n_pairs": n,
         "states": states,
         "resolution_reasons": reasons,
         "split_rate": states.get("split", 0) / n,
-        "departure_rate": (states.get("split", 0) + states.get("endpoint", 0)) / n,
+        "departure_rate": (states.get("split", 0) + states.get("endpoint", 0) +
+                           states.get("finish_departure", 0)) / n,
         "cut_error_sec": describe(cut_errors),
         "avg_leak_endpoint_only_sec": sum(leak_endpoint_only) / n,
         "avg_leak_with_split_sec": sum(leak_with_split) / n,
@@ -295,29 +326,33 @@ def main() -> int:
             "target_id": target.recording_id, "other_id": other.recording_id,
             "target_sec": ta.size / SAMPLE_RATE, "other_sec": oa.size / SAMPLE_RATE,
             "session": np.concatenate([ta, oa]), "target_emb": embs[target.recording_id],
+            # Control: the same owner speaking alone. Any departure fired here would
+            # truncate the owner's own sentence.
+            "target_only": ta,
         })
         if args.max_pairs and len(pairs) >= args.max_pairs:
             break
     print(f"[INFO] {len(samples)} samples, {len(pairs)} speaker-disjoint pairs", file=sys.stderr)
     configs = [
-        ("android-default 0.35/1.5/0.5/2", 0.35, 1.5, 0.5, 2),
-        ("eval 0.40/1.0/0.3/2", 0.40, 1.0, 0.3, 2),
+        ("android-default 0.35/1.5/0.5/2", 0.35, 1.5, 0.5, 2, 0.0),
+        ("+finish 0.8s", 0.35, 1.5, 0.5, 2, 0.8),
+        ("+finish 1.2s", 0.35, 1.5, 0.5, 2, 1.2),
     ]
     rows = []
-    for label, thr, win, hop, below in configs:
+    for label, thr, win, hop, below, fin in configs:
         row = evaluate(pairs, label=label, threshold=thr, win_sec=win, hop_sec=hop, consecutive_below=below,
-                       extractor=extractor, truncation_tolerance_sec=hop)
+                       extractor=extractor, truncation_tolerance_sec=hop, finish_slice_sec=fin,
+                       controls=pairs)
         rows.append(row)
         print(json.dumps({k: v for k, v in row.items() if k != "elapsed_sec"}, ensure_ascii=False), file=sys.stderr)
     (args.out_dir / "summary.json").write_text(json.dumps(rows, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    lines = ["| 配置 | 对数 | 触发离场 | 得到切点 | 切点误差 p10/p50/p90 (s) | 平均泄露 仅endpoint→切分 (s) | 截断率 仅endpoint→切分 |",
-             "|---|---:|---:|---:|---|---|---|"]
+    lines = ["| 配置 | 对数 | 未检出离场 | 触发离场 | 得到切点 | 平均泄露 (s) | 对照组误触发 |",
+             "|---|---:|---:|---:|---:|---:|---:|"]
     for r in rows:
-        ce = r["cut_error_sec"]
-        ce_txt = (f"{ce['p10']:+.2f} / {ce['p50']:+.2f} / {ce['p90']:+.2f}" if ce.get("n") else "-")
-        lines.append(f"| {r['label']} | {r['n_pairs']} | {r['departure_rate']:.1%} | {r['split_rate']:.1%} | {ce_txt} | "
-                     f"{r['avg_leak_endpoint_only_sec']:.2f} → {r['avg_leak_with_split_sec']:.2f} | "
-                     f"{r['truncation_rate_endpoint_only']:.1%} → {r['truncation_rate_with_split']:.1%} |")
+        missed = r["states"].get("target_confirmed_no_endpoint", 0) + r["states"].get("target_not_confirmed", 0)
+        lines.append(f"| {r['label']} | {r['n_pairs']} | {missed} ({missed / r['n_pairs']:.1%}) | "
+                     f"{r['departure_rate']:.1%} | {r['split_rate']:.1%} | "
+                     f"{r['avg_leak_with_split_sec']:.2f} | {r['control_false_fire_rate']:.1%} |")
     (args.out_dir / "summary.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
     print("\n".join(lines))
     return 0
