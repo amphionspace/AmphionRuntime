@@ -16,6 +16,23 @@
 | Diagnostics 子包 | `Amphion-ASR-Diagnostics-SDK.zip`，773,888,466 字节，`8bc78869ffeae3d941368991018eb68a4785c71fcd4f1b82b673816abc5a3ed6` |
 | 设备 | HUAWEI VYG-AL30，HarmonyOS 7.0.0.109，arm64-v8a |
 
+## 产物已被源码超越（不可直接交付）
+
+本文记录的四个包、两份真机报告与全部哈希都是在 `2d49bec5` 上构建的。交付分支此后推进到
+`6e1836d8`，多出的修复**不在**这些产物里：
+
+- docs(speaker): 机主接话泄露的真机定位、夹具与阈值依据
+- fix(harmony): 未经流式确认的句子要过实测空带下沿才算机主
+- fix(harmony): 机主离场在 diarization 定不出配对时不再 fail-open
+- fix(asr): 热词首字加分封顶 1.0，根除单字被劫持
+- docs(asr): 补丁 0036 的鸿蒙真机验证结果
+- fix(asr): 热词半匹配前缀设 1 s 过期上限，避免整段数字被删
+- docs(asr): 0.3.26 两小时会话实测与热词半匹配删数字分析
+- docs(delivery): 0.3.26 组包前验收证据与未发布候选报告
+
+因此这些包不可直接交付。重新组包需要在新提交上重做：Diagnostics 构建、两份真机验收报告、
+Debug 构建、SDK-only 与完整 ZIP、以及从最终 ZIP 装包的复测。
+
 ## 本版改动（相对 0.3.25 `a63e5834`）
 
 | 改动 | 落点 | 说明 |
