@@ -7,16 +7,24 @@ val generatedDingqiaoModelAssets = layout.buildDirectory.dir("generated/sharedDi
 val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     from("../../../shared/models/asr/dingqiao") {
         include(
+            // 声纹（机主识别）与换人分割：Community 角色分离链路移除后这两项仍在用。
             "eres2net.onnx",
-            "community-wespeaker-encoder.int8.onnx",
-            "community-wespeaker-pool.fp32.onnx",
-            "community-feature.f32",
-            "community-plda.f64",
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
+            // Sortformer-66M-4spk：Android 用原始 .onnx，不用交付的 .ort（onnxruntime 1.24.3
+            // 不接受 1.16.3 转的 .ort，详见 sortformer_diarization_jni.inc）。
+            "sortformer-66M-4spk-onnx/pre_encode.onnx",
+            "sortformer-66M-4spk-onnx/encoder_layers.int8.onnx",
+            "sortformer-66M-4spk-onnx/speaker_head.onnx",
+            "sortformer-66M-4spk-onnx/spkcache_update.onnx",
+            "sortformer-66M-4spk-onnx/learnable_sil_emb.npy",
+            "sortformer-66M-4spk-onnx/mel_window_hann400_periodic_false.npy",
+            "sortformer-66M-4spk-onnx/mel_filterbank_128x257_slaney.npy",
         )
     }
+    // 落地目录名保持 sortformer-66M-4spk：原生侧与安装器都按这个路径找。
+    eachFile { path = path.replace("sortformer-66M-4spk-onnx/", "sortformer-66M-4spk/") }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
 }
 
@@ -100,4 +108,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
+    // 本模块 unitTests.isReturnDefaultValues=true，android.jar 的 org.json 是空壳（方法返回默认值），
+    // 会让 JSON 解析静默得到空结果。与 samples/internal-eval 一致，测试期引真实实现。
+    testImplementation("org.json:json:20231013")
 }

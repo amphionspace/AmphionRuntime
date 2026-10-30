@@ -1,13 +1,14 @@
 package com.amphion.dingqiao.diarization
 
+/**
+ * 分割器的一段输出。角色分离换成 Sortformer 后，声纹查询那几个字段随 Community 链路一起去掉，
+ * 这里只剩换人切分（机主识别）要用的时间与通道信息。
+ */
 internal data class SpeakerSegmentationSegment(
     val startSample: Int,
     val endSample: Int,
     val speaker: Int,
     val speakerMask: Int,
-    val queryEmbedding: FloatArray? = null,
-    val complementaryEmbedding: FloatArray? = null,
-    val localQueries: List<DiarizationLocalIdentityQuery> = emptyList(),
 )
 
 /** JNI wrapper around the same pyannote powerset decoder used by HarmonyOS. */

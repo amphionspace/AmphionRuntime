@@ -16,12 +16,19 @@
 // whole-file reference pipeline frame for frame: the front end sees real
 // samples on both sides of every frame, zero padding only at session start
 // and at flush, exactly as the reference pads.
+// 两端共用这一份实现：算法、mel 前端与状态机完全相同，只有资产读取、线程 QoS、日志与语言
+// 绑定按平台分开。Android 不过 NAPI，改为在文件末尾包含 sortformer_diarization_jni.inc。
 #include "onnxruntime_cxx_api.h"
 
+#ifndef __ANDROID__
 #include <hilog/log.h>
 #include <node_api.h>
 #include <qos/qos.h>
 #include <rawfile/raw_file_manager.h>
+#else
+#include <android/log.h>
+#include <cstdio>
+#endif
 #include <sys/resource.h>
 #include <unistd.h>
 
@@ -65,8 +72,21 @@ double Ms(Clock::time_point start) {
   return std::chrono::duration<double, std::milli>(Clock::now() - start).count();
 }
 
+// 日志：鸿蒙走 hilog 的 %{public} 格式，Android 走 logcat。只有两处调用点。
+#ifdef __ANDROID__
+#define AMPHION_SF_LOGI(harmony_fmt, android_fmt, ...) \
+  __android_log_print(ANDROID_LOG_INFO, kLogTag, android_fmt, __VA_ARGS__)
+#else
+#define AMPHION_SF_LOGI(harmony_fmt, android_fmt, ...) \
+  OH_LOG_Print(LOG_APP, LOG_INFO, kLogDomain, kLogTag, harmony_fmt, __VA_ARGS__)
+#endif
+
 // ------------------------------------------------------------ assets --------
 
+// 资产按名字读取，前缀由各平台的读取器自己拼：鸿蒙读 rawfile，Android 读模型目录下的文件。
+using AssetReader = std::function<std::vector<uint8_t>(const std::string&)>;
+
+#ifndef __ANDROID__
 std::vector<uint8_t> ReadAsset(NativeResourceManager* manager, const std::string& name) {
   std::unique_ptr<RawFile, decltype(&OH_ResourceManager_CloseRawFile)> file(
     OH_ResourceManager_OpenRawFile(manager, name.c_str()), OH_ResourceManager_CloseRawFile);
@@ -86,6 +106,24 @@ std::vector<uint8_t> ReadAsset(NativeResourceManager* manager, const std::string
   }
   return bytes;
 }
+#else
+// Android 侧模型以普通文件落在 SDK 解包目录下，读法与 Community 链路一致。
+std::vector<uint8_t> ReadAssetFile(const std::string& path) {
+  std::unique_ptr<std::FILE, decltype(&std::fclose)> file(std::fopen(path.c_str(), "rb"), &std::fclose);
+  if (!file) throw std::runtime_error("Sortformer model asset unavailable: " + path);
+  if (std::fseek(file.get(), 0, SEEK_END) != 0) {
+    throw std::runtime_error("Sortformer model asset unreadable: " + path);
+  }
+  const long size = std::ftell(file.get());
+  if (size <= 0) throw std::runtime_error("Sortformer model asset is empty: " + path);
+  std::rewind(file.get());
+  std::vector<uint8_t> bytes(static_cast<size_t>(size));
+  if (std::fread(bytes.data(), 1, bytes.size(), file.get()) != bytes.size()) {
+    throw std::runtime_error("Sortformer model asset read failed: " + path);
+  }
+  return bytes;
+}
+#endif
 
 // Minimal .npy reader for the delivered float32 tables (v1/v2 header, C order).
 std::vector<float> ParseNpyFloat32(const std::vector<uint8_t>& bytes, size_t expected, const char* what) {
@@ -117,6 +155,7 @@ std::vector<float> ParseNpyFloat32(const std::vector<uint8_t>& bytes, size_t exp
 // The same owned worker the Community chain used: role work runs behind the
 // recognizer (nice 10) and, where the system honours it, at a requested QoS.
 
+#ifndef __ANDROID__
 int RoleQos(const std::string& recognizer_qos) {
   if (recognizer_qos == "default") return -1;
   if (recognizer_qos == "user-initiated") return QOS_DEFAULT;
@@ -131,6 +170,7 @@ int RoleQosOverride(const std::string& role_qos, int inherited) {
   if (role_qos == "default") return QOS_DEFAULT;
   throw std::runtime_error("invalid Sortformer role QoS");
 }
+#endif
 
 class RoleWorker {
  public:
@@ -155,6 +195,8 @@ class RoleWorker {
   static constexpr int kRoleNice = 10;
   void Loop() {
     setpriority(PRIO_PROCESS, static_cast<id_t>(gettid()), kRoleNice);
+#ifndef __ANDROID__
+    // Android 没有对等的 QoS 接口，只保留上面的 nice 10：角色分离让位于识别，策略意图相同。
     if (qos_ >= 0) {
       const int result = OH_QoS_SetThreadQoS(static_cast<QoS_Level>(qos_));
       QoS_Level effective = QOS_DEFAULT;
@@ -163,6 +205,7 @@ class RoleWorker {
                    "sortformer role-qos requested=%{public}d result=%{public}d effective=%{public}d",
                    qos_, result, read ? static_cast<int>(effective) : -1);
     }
+#endif
     for (;;) {
       std::packaged_task<void()> task;
       {
@@ -348,7 +391,7 @@ struct State {
 
 class Engine {
  public:
-  Engine(NativeResourceManager* manager, int threads, int preview_frames)
+  Engine(const AssetReader& read_asset, int threads, int preview_frames)
       : env_(ORT_LOGGING_LEVEL_WARNING, "amphion-sortformer"),
         memory_(Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault)),
         preview_frames_(preview_frames) {
@@ -363,7 +406,7 @@ class Engine {
     // from the recognizer, which is the same policy its own sessions follow.
     options.AddConfigEntry("session.force_spinning_stop", "1");
     auto open = [&](const char* name, Ort::Session& into, double& ms) {
-      const std::vector<uint8_t> bytes = ReadAsset(manager, std::string(kAssetDir) + name);
+      const std::vector<uint8_t> bytes = read_asset(name);
       const auto started = Clock::now();
       into = Ort::Session(env_, bytes.data(), bytes.size(), options);
       ms = Ms(started);
@@ -372,13 +415,14 @@ class Engine {
     open("encoder_layers.int8.ort", enc_, load_ms_[1]);
     open("speaker_head.ort", head_, load_ms_[2]);
     open("spkcache_update.ort", state_, load_ms_[3]);
-    sil_ = ParseNpyFloat32(ReadAsset(manager, std::string(kAssetDir) + "learnable_sil_emb.npy"), kDim, "sil_emb");
+    sil_ = ParseNpyFloat32(read_asset("learnable_sil_emb.npy"), kDim, "sil_emb");
     mel_ = std::make_unique<MelStream>(
-      ParseNpyFloat32(ReadAsset(manager, std::string(kAssetDir) + "mel_window_hann400_periodic_false.npy"), kWin, "window"),
-      ParseNpyFloat32(ReadAsset(manager, std::string(kAssetDir) + "mel_filterbank_128x257_slaney.npy"), kMel * kBins, "filterbank"));
-    OH_LOG_Print(LOG_APP, LOG_INFO, kLogDomain, kLogTag,
-                 "sortformer-load threads=%{public}d previewFrames=%{public}d encoderLoadMs=%{public}.1f",
-                 threads, preview_frames_, load_ms_[1]);
+      ParseNpyFloat32(read_asset("mel_window_hann400_periodic_false.npy"), kWin, "window"),
+      ParseNpyFloat32(read_asset("mel_filterbank_128x257_slaney.npy"), kMel * kBins, "filterbank"));
+    AMPHION_SF_LOGI(
+      "sortformer-load threads=%{public}d previewFrames=%{public}d encoderLoadMs=%{public}.1f",
+      "sortformer-load threads=%d previewFrames=%d encoderLoadMs=%.1f",
+      threads, preview_frames_, load_ms_[1]);
   }
 
   // Feeds samples (or flushes) and returns every event that became final or
@@ -576,11 +620,63 @@ std::string RenderEvents(const std::vector<Event>& events, const Engine& engine)
   return json.str();
 }
 
-// ------------------------------------------------------------- NAPI ---------
+// --------------------------------------------------- shared bindings --------
+// 两端的语言绑定都只调这两个函数，保证会话建立与推进的时序、线程归属完全一致。
 
 std::mutex sessions_mutex;
 std::unordered_map<uint32_t, std::shared_ptr<Session>> sessions;
 uint32_t next_handle = 1;
+
+
+std::shared_ptr<Session> LookupSession(uint32_t handle) {
+  std::lock_guard<std::mutex> lock(sessions_mutex);
+  auto found = sessions.find(handle);
+  return found == sessions.end() ? nullptr : found->second;
+}
+
+uint32_t CreateSession(const AssetReader& read_asset, int threads, int role_qos, int preview_frames) {
+  auto session = std::make_shared<Session>();
+  session->worker = std::make_unique<RoleWorker>(role_qos);
+  // 在 worker 上建，ORT 自己的线程才会继承它的调度策略。
+  std::future<void> built = session->worker->Post([&] {
+    session->engine = std::make_unique<Engine>(read_asset, threads, preview_frames);
+  });
+  built.get();
+  std::lock_guard<std::mutex> lock(sessions_mutex);
+  const uint32_t handle = next_handle++;
+  sessions[handle] = session;
+  return handle;
+}
+
+std::string FeedSession(const std::shared_ptr<Session>& session,
+                        const std::vector<float>& pcm, bool flush) {
+  std::vector<Event> events;
+  std::future<void> done = session->worker->Post([&] {
+    events = session->engine->Feed(pcm, flush);
+  });
+  done.get();
+  return RenderEvents(events, *session->engine);
+}
+
+void DestroySession(uint32_t handle) {
+  std::shared_ptr<Session> session;
+  {
+    std::lock_guard<std::mutex> lock(sessions_mutex);
+    auto found = sessions.find(handle);
+    if (found == sessions.end()) return;
+    session = found->second;
+    sessions.erase(found);
+  }
+  session.reset();
+}
+
+#ifdef __ANDROID__
+}  // namespace
+
+#include "sortformer_diarization_jni.inc"
+
+#else
+// ------------------------------------------------------------- NAPI ---------
 
 enum class Operation { Load, Feed };
 
@@ -610,16 +706,12 @@ void Execute(napi_env, void* data) {
   auto& task = *static_cast<Work*>(data);
   try {
     if (task.operation == Operation::Load) {
-      auto session = std::make_shared<Session>();
-      session->worker = std::make_unique<RoleWorker>(task.role_qos);
-      // Build on the worker so the ORT sessions' own threads inherit its policy.
-      std::future<void> built = session->worker->Post([&] {
-        session->engine = std::make_unique<Engine>(task.resource_manager.get(), task.threads, task.preview_frames);
-      });
-      built.get();
-      std::lock_guard<std::mutex> lock(sessions_mutex);
-      task.handle = next_handle++;
-      sessions[task.handle] = session;
+      NativeResourceManager* manager = task.resource_manager.get();
+      task.handle = CreateSession(
+        [manager](const std::string& name) {
+          return ReadAsset(manager, std::string(kAssetDir) + name);
+        },
+        task.threads, task.role_qos, task.preview_frames);
     } else {
       std::vector<Event> events;
       std::future<void> done = task.session->worker->Post([&] {
@@ -772,3 +864,4 @@ void RegisterSortformerDiarization(napi_env env, napi_value exports) {
   };
   napi_define_properties(env, exports, sizeof(methods) / sizeof(methods[0]), methods);
 }
+#endif  // __ANDROID__

@@ -273,6 +273,10 @@ shared/models/asr/dingqiao/*.ms.provenance.json
 # Sortformer-66M-4spk runtime assets: restored from the delivery package per
 # delivery/harmony-dingqiao/delivery/sortformer_diarization_v1.json, never tracked.
 shared/models/asr/dingqiao/sortformer-66M-4spk/*.ort
+# Android 链的是 onnxruntime 1.24.3，而那批 .ort 是用 1.16.3 转的（厂商连编码器都单独做了
+# ort1163 变体），1.24 会在 TopK 的形状推断上拒绝加载。安卓改用版本无关的原始 .onnx。
+shared/models/asr/dingqiao/sortformer-66M-4spk-onnx/*.onnx
+shared/models/asr/dingqiao/sortformer-66M-4spk-onnx/*.npy
 shared/models/asr/dingqiao/sortformer-66M-4spk/*.npy
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.ort
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.npy

@@ -3,6 +3,7 @@ package com.amphion.dingqiao.diarization
 import android.content.Context
 import com.amphion.asr.AsrResult
 import com.amphion.asr.internal.ResultAudioTimeline
+import com.amphion.dingqiao.DingqiaoSpeakerModelAssets
 import com.amphion.dingqiao.DiarizedUtterance
 import com.amphion.dingqiao.SpeakerDiarizationDegradedReason
 import com.amphion.dingqiao.SpeakerDiarizationResult
@@ -41,21 +42,30 @@ internal class SpeakerDiarizationSession(
     workPath: File,
     private val maxSpeakers: Int,
     private val observer: SpeakerDiarizationSessionObserver,
-) : SpeakerDiarizationLocalObserver, SpeakerDiarizationController {
+) : SortformerLocalObserver, SpeakerDiarizationController {
     // Internal opt-in white-box observer. No capture or allocation in ordinary sessions.
     @Volatile internal var diagnostic: ((String, Map<String, Any?>) -> Unit)? = null
     private var diagnosticProcessedMs = 0
     private fun recordDecision(event: String, fields: Map<String, Any?>) {
         runCatching { diagnostic?.invoke(event, fields) }
     }
-    private val client = SpeakerDiarizationLocalClient(context, workPath, this)
+    private val client = SortformerLocalClient(
+        this,
+        {
+            SortformerDiarizationInference(
+                modelDir = DingqiaoSpeakerModelAssets.ensureSortformerInstalled(context, workPath).absolutePath,
+            )
+        },
+        { event, fields -> recordDecision(event, fields) },
+    )
     private val transcript = DiarizationTranscriptState()
     private val commitClock = DiarizationCommitClock()
-    private val identities = CommunitySpeakerIdentity(maxSpeakers)
+    private val identities = SortformerSpeakerIdentity(maxSpeakers)
     private val callbacks = DiarizationCallbackQueue()
-    // Completed-window order only; model inputs stay in the client's evidence spool.
-    private data class EvidenceWindow(val jobId: String, val windowStartSample: Long, val realEndSample: Long)
-    private val windows = mutableListOf<EvidenceWindow>()
+    // 模型自己的四个槽位轨道。final 块推进说话人缓存，preview 只是当前块的一瞥、会被同段 final 取代。
+    private val finalTracks = mutableListOf<SortformerTrack>()
+    private var previewTracks = listOf<SortformerTrack>()
+    private var committedTurns = listOf<SpeakerTimelineTurn>()
     private var totalSamples = 0L
     private var lastAsrEndMs = 0
     private var inferenceEndMs = 0
@@ -78,7 +88,11 @@ internal class SpeakerDiarizationSession(
     // Audio end covered by inferred windows when a finish timeout stopped inference.
     private var salvagedThroughMs: Int? = null
 
-    init { require(maxSpeakers in 1..4) }
+    init {
+        require(maxSpeakers in 1..4)
+        // 所有字段都就位之后才让客户端开工，否则加载失败的回调会落到半构造的会话上。
+        client.start()
+    }
 
     @Synchronized
     override fun append(audio: ByteArray) {
@@ -173,7 +187,7 @@ internal class SpeakerDiarizationSession(
             if (finished || !finishRequested || processDrained || salvagedThroughMs != null) return
             salvagedThroughMs = inferenceEndMs
             if (diagnostic != null) recordDecision("DIARIZATION_FINISH_SALVAGE", mapOf(
-                "inferenceEndMs" to inferenceEndMs, "audioEndSample" to totalSamples, "windows" to windows.size))
+                "inferenceEndMs" to inferenceEndMs, "audioEndSample" to totalSamples, "finalTracks" to finalTracks.size))
             client.stopInference()
             transcript.limitEvidence(inferenceEndMs)
             processDrained = true
@@ -195,24 +209,66 @@ internal class SpeakerDiarizationSession(
         client.cleanup(onQuiescent)
     }
 
-    override fun onWindow(result: DiarizationLocalWindowResult) {
+    override fun onFeedResult(result: SortformerLocalFeedResult) {
         synchronized(this) {
             if (finished || confirmedInitialSilence || salvagedThroughMs != null) return
-            if (diagnostic != null) recordDecision("DIARIZATION_COMMUNITY_WINDOW", mapOf(
-                "jobId" to result.jobId, "windowStartSample" to result.windowStartSample,
-                "realEndSample" to result.realEndSample, "segmentations" to result.result.segments,
-                "embeddings" to result.result.embeddings, "segmentationMs" to result.result.segmentationMs,
-                "featureMs" to result.result.featureMs, "embeddingMs" to result.result.embeddingMs,
-                "runEmbeddings" to result.result.runEmbeddings, "runRanges" to result.result.runRanges,
-                "runRms" to result.result.runRms,
-                "appendedEndSample" to totalSamples, "processedThroughMs" to processedThroughMs))
-            client.retainEvidence(result.result)
-            windows += EvidenceWindow(result.jobId, result.windowStartSample, result.realEndSample)
-            inferenceEndMs = (result.realEndSample * 1000 / SAMPLE_RATE).toInt()
-            inferenceMs += (result.result.segmentationMs + result.result.featureMs + result.result.embeddingMs).toLong()
+            for (event in result.events) {
+                inferenceMs += event.inferenceMs.toLong()
+                if (event.preview) {
+                    // 预览只刷新临时角色：不推进身份、不推进提交时钟、不动已发布边界。
+                    previewTracks = event.runs.flatMapIndexed { slot, spans ->
+                        spans.map { SortformerTrack(it.begin, it.end, slot) }
+                    }
+                    if (diagnostic != null) recordDecision("DIARIZATION_SORTFORMER_PREVIEW", mapOf(
+                        "jobId" to result.jobId, "beginTime" to event.beginTime, "endTime" to event.endTime,
+                        "inferenceMs" to event.inferenceMs, "tracks" to previewTracks.size,
+                        "slotToPublicId" to identities.mapping().toList()))
+                } else {
+                    val firstSpeech = IntArray(4) { -1 }
+                    event.runs.forEachIndexed { slot, spans ->
+                        if (slot < 4) for (span in spans) {
+                            finalTracks += SortformerTrack(span.begin, span.end, slot)
+                            if (firstSpeech[slot] < 0) firstSpeech[slot] = span.begin.toInt()
+                        }
+                    }
+                    val identity = identities.commit(firstSpeech)
+                    finalSpeakerCount = identity.after
+                    // 同段音频的 final 取代它的预览。
+                    previewTracks = previewTracks.filter { it.beginTime >= event.endTime }
+                    inferenceEndMs = maxOf(inferenceEndMs, event.endTime.toInt())
+                    if (diagnostic != null) recordDecision("DIARIZATION_SORTFORMER_CHUNK", mapOf(
+                        "jobId" to result.jobId, "model" to "Sortformer-66M-4spk",
+                        "beginTime" to event.beginTime, "endTime" to event.endTime,
+                        "inferenceMs" to event.inferenceMs,
+                        "runs" to event.runs.map { slot -> slot.map { listOf(it.begin, it.end) } },
+                        "firstSpeechTimes" to firstSpeech.toList(),
+                        "slotToPublicId" to identity.mapping.toList(),
+                        "registryBefore" to identity.before, "registryAfter" to identity.after,
+                        "encoderBackend" to "cpu", "inferenceWallMs" to result.inferenceWallMs))
+                }
+            }
+            refreshProvisionalLocked()
             flushReadyWindowsLocked()
         }
         callbacks.drain()
+    }
+
+    /** 未提交区间的临时角色，每次引擎报告都刷新。已提交的 turn 原样复用为冻结状态。 */
+    private fun refreshProvisionalLocked() {
+        if (finished || degradedReason != SpeakerDiarizationDegradedReason.NONE) return
+        val turns = committedTurns + timelineFromLocked(publishedThrough, Int.MAX_VALUE, true)
+        transcript.applySpeakerTurns(turns, true).forEach { update ->
+            callbacks.enqueue { observer.onUpdate(update.toPublic()) }
+        }
+    }
+
+    private fun timelineFromLocked(beginTime: Int, endTime: Int, includePreview: Boolean): List<SpeakerTimelineTurn> {
+        val begin = beginTime.toLong()
+        val end = if (endTime == Int.MAX_VALUE) Long.MAX_VALUE else endTime.toLong()
+        val tracks = ArrayList<SortformerTrack>(finalTracks.size + previewTracks.size)
+        finalTracks.filterTo(tracks) { it.endTime > begin && it.beginTime < end }
+        if (includePreview) previewTracks.filterTo(tracks) { it.endTime > begin && it.beginTime < end }
+        return timelineTurns(tracks, identities.mapping(), begin, end)
     }
 
     override fun onDrained() {
@@ -253,85 +309,51 @@ internal class SpeakerDiarizationSession(
             else -> return
         }
         committing = true
-        val available = windows.filter { commit.final ||
-            (it.windowStartSample + 160_000) * 1000 / SAMPLE_RATE <= commit.evidenceEnd }
-        if (confirmedInitialSilence || available.isEmpty() || degradedReason != SpeakerDiarizationDegradedReason.NONE) {
+        try {
+            updateSpeakersLocked(commit)
             completeCommitLocked(commit)
+        } finally {
             committing = false
-            flushReadyWindowsLocked()
+        }
+        flushReadyWindowsLocked()
+    }
+
+    /**
+     * 只有 final 轨道进提交：提交时钟会等到覆盖 evidenceEnd 的那一块变成 final，所以该区间
+     * 已经定稿。预览只参与未提交区间的临时角色。
+     */
+    private fun updateSpeakersLocked(commit: Commit) {
+        if (confirmedInitialSilence || degradedReason != SpeakerDiarizationDegradedReason.NONE) {
             return
         }
-        // Completed windows arrive in order; the evidence cutoff selects a prefix. Read
-        // exactly that prefix, including history already frozen for callers (as Harmony).
-        val evidence = try { client.readEvidence(available.size) } catch (t: Throwable) {
-            onDegraded(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
-                "diarization evidence read failed: ${t.message ?: t.javaClass.simpleName}")
-            completeCommitLocked(commit)
-            committing = false
-            flushReadyWindowsLocked()
+        if (commit.provisional) {
+            refreshProvisionalLocked()
             return
         }
-        val segments = evidence.segments
-        val publishedActivity = IntArray(available.size * 3)
-        available.forEachIndexed { index, window ->
-            for (frame in 0 until 589) {
-                val time = (window.windowStartSample + 495.5 + frame * 270) * 1000 / SAMPLE_RATE
-                if (time >= commit.begin && time < commit.end) for (channel in 0..2) {
-                    publishedActivity[index * 3 + channel] += segments[(index * 589 + frame) * 3 + channel].toInt()
-                }
-            }
+        val startedNs = System.nanoTime()
+        val frozen = timelineFromLocked(commit.begin, commit.end, false)
+        committedTurns = committedTurns + frozen
+        val turns = if (commit.final) {
+            committedTurns
+        } else {
+            committedTurns + timelineFromLocked(commit.end, Int.MAX_VALUE, true)
         }
-        val started = System.nanoTime()
-        client.cluster(segments, evidence.embeddings, maxSpeakers,
-            available.map { it.windowStartSample.toDouble() }.toDoubleArray(),
-            commit.begin.toDouble() * SAMPLE_RATE / 1000, evidence.runEmbeddings, evidence.runRanges,
-            evidence.runRms) { outcome ->
-            synchronized(this) {
-                if (!finished) {
-                    outcome.onSuccess { clustered ->
-                        if (!confirmedInitialSilence && degradedReason == SpeakerDiarizationDegradedReason.NONE) {
-                            inferenceMs += (System.nanoTime() - started) / 1_000_000
-                            val visible = BooleanArray(clustered.speakerCount)
-                            val firstAppearance = DoubleArray(clustered.speakerCount) { Double.POSITIVE_INFINITY }
-                            clustered.turns.filter { it[0] < commit.end && it[1] > commit.begin }.forEach {
-                                val label = it[2].toInt()
-                                if (label in visible.indices) {
-                                    visible[label] = true
-                                    firstAppearance[label] = minOf(firstAppearance[label], maxOf(commit.begin.toDouble(), it[0]))
-                                }
-                            }
-                            val registry = if (commit.provisional) identities.fork() else identities
-                            val identity = registry.assign(available.map { it.jobId }, clustered.hard,
-                                clustered.speakerCount, publishedActivity, visible, firstAppearance)
-                            if (diagnostic != null) recordDecision(
-                                if (commit.provisional) "DIARIZATION_COMMUNITY_PREVIEW" else "DIARIZATION_COMMUNITY_COMMIT",
-                                mapOf("beginTime" to commit.begin, "endTime" to commit.end,
-                                    "evidenceEndTime" to commit.evidenceEnd, "jobIds" to available.map { it.jobId },
-                                    "windowStartSamples" to available.map { it.windowStartSample },
-                                    "hard" to clustered.hard.toList(), "speakerCount" to clustered.speakerCount,
-                                    "publishedActivity" to publishedActivity.toList(), "visibleClusters" to visible.toList(),
-                                    "clusterToFrozenId" to identity.mapping.toList(), "registryBefore" to identity.before,
-                                    "registryAfter" to identity.after, "clusterWallMs" to (System.nanoTime()-started)/1_000_000,
-                                    "turns" to clustered.turns.map { it.toList() }))
-                            if (!commit.provisional) finalSpeakerCount = identity.after
-                            val turns = communityTimeline(clustered.turns, identity.mapping, commit.begin, commit.end)
-                            transcript.applySpeakerTurns(turns, true).forEach { update ->
-                                callbacks.enqueue { observer.onUpdate(update.toPublic()) }
-                            }
-                        }
-                    }.onFailure {
-                        onDegraded(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE,
-                            "Community finalization failed: ${it.message}")
-                    }
-                    completeCommitLocked(commit)
-                }
-                committing = false
-            }
-            // Let reentrant cancellation run before scheduling another commit.
-            callbacks.drain()
-            synchronized(this) { flushReadyWindowsLocked() }
-            callbacks.drain()
+        transcript.applySpeakerTurns(turns, true).forEach { update ->
+            callbacks.enqueue { observer.onUpdate(update.toPublic()) }
         }
+        finalSpeakerCount = identities.publishedCount()
+        if (diagnostic != null) recordDecision("DIARIZATION_SORTFORMER_COMMIT", mapOf(
+            "publicWindowIndex" to windowIndex,
+            "beginTime" to commit.begin,
+            "endTime" to commit.end,
+            "evidenceEndTime" to if (commit.evidenceEnd == Int.MAX_VALUE) -1 else commit.evidenceEnd,
+            "model" to "Sortformer-66M-4spk",
+            "frozenTurns" to frozen.size,
+            "committedTurns" to committedTurns.size,
+            "slotToPublicId" to identities.mapping().toList(),
+            "registryAfter" to identities.publishedCount(),
+            "assembleMs" to (System.nanoTime() - startedNs) / 1_000_000,
+            "isSessionFinal" to commit.final))
     }
 
     private fun completeCommitLocked(commit: Commit) {
@@ -347,7 +369,8 @@ internal class SpeakerDiarizationSession(
         // Public commitment freezes display state, not the input distribution of the
         // unchanged batch clusterer. Evidence stays on disk until client cleanup.
         if (commit.final) {
-            windows.clear()
+            finalTracks.clear()
+            previewTracks = emptyList()
             finished = true
             callbacks.enqueue { observer.onFinished(committed) }
         } else {

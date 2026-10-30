@@ -9,20 +9,24 @@ ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = ROOT / 'asr/tools/delivery/dingqiao_build_provenance.sh'
 
 
-class CommunityDeliveryAssetsTest(unittest.TestCase):
+class DiarizationDeliveryAssetsTest(unittest.TestCase):
     def test_current_models_pass_and_missing_or_truncated_models_fail(self):
+        # 角色分离换成 Sortformer 后，受检资产是它的七个文件；声纹与换人分割仍在用前两个。
         models = {
             'eres2net.onnx': 30 * 1024 * 1024,
             'pyannote-segmentation-3.0.onnx': 5 * 1024 * 1024,
-            'community-wespeaker-encoder.int8.onnx': 5_468_354,
-            'community-wespeaker-pool.fp32.onnx': 5_264_664,
-            'community-feature.f32': 83_840,
-            'community-plda.f64': 398_352,
+            'sortformer-66M-4spk/pre_encode.onnx': 2_100_710,
+            'sortformer-66M-4spk/encoder_layers.int8.onnx': 69_571_156,
+            'sortformer-66M-4spk/speaker_head.onnx': 4_094_557,
+            'sortformer-66M-4spk/spkcache_update.onnx': 463_881,
+            'sortformer-66M-4spk/learnable_sil_emb.npy': 2_176,
+            'sortformer-66M-4spk/mel_window_hann400_periodic_false.npy': 1_728,
+            'sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy': 131_712,
         }
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / 'fixture.zip'
             cases = [(None, False)] + [(name, truncated)
-                for name in models if name.startswith('community-')
+                for name in models if name.startswith('sortformer-')
                 for truncated in (False, True)]
             for bad, truncated in cases:
                 with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as z:
