@@ -269,3 +269,13 @@ shared/models/asr/dingqiao/*.ms.provenance.json
 /四轮长测对比报告-*.md
 /锁屏解析延迟-分析报告-*.md
 /长时豁免验证测试报告-*.md
+
+# Sortformer-66M-4spk runtime assets: restored from the delivery package per
+# delivery/harmony-dingqiao/delivery/sortformer_diarization_v1.json, never tracked.
+shared/models/asr/dingqiao/sortformer-66M-4spk/*.ort
+shared/models/asr/dingqiao/sortformer-66M-4spk/*.npy
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.ort
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.npy
+
+# Claude Code personal overrides
+.claude/settings.local.json

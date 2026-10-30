@@ -62,40 +62,27 @@ export const processTargetSpeakerChunk: (
   samples: Float32Array
 ) => Promise<TargetSpeakerEnhancementNativeResult>;
 export const closeTargetSpeakerEnhancer: (handle: TargetSpeakerEnhancerHandle) => void;
-export interface CommunityDiarizationWindow {
-  segments: Float32Array;
-  embeddings: Float32Array;
-  runEmbeddings: Float32Array;
-  runRanges: Float32Array;
-  runRms: Float32Array;
-  segmentationMs: number;
-  featureMs: number;
-  embeddingMs: number;
-  /** Encoder Run only; embeddingMs still includes encoding and all pooling. */
-  encoderMs: number;
-  /** "cpu" or "npu": the backend that produced this window's vectors. */
-  encoderBackend: string;
-  /** Actual selected NNRt device name, or "cpu" for the ORT encoder. */
-  encoderDevice: string;
-}
 /**
- * encoderBackend: "cpu" (default) keeps the ORT encoder; "npu" requires a
- * Kirin-named NNRt accelerator and the MindIR encoder asset; "auto" can fall back
- * to CPU only if NPU construction fails, never after inference has started.
+ * Sortformer-66M-4spk streaming speaker diarization. One handle is one
+ * session: audio is fed in order, the engine cuts 9.92 s chunks (124 encoder
+ * frames) against its speaker cache and reports per-slot speech runs at 10 ms.
+ * `previewFrames` > 0 (mel frames, a multiple of 8 below 992) adds one
+ * cache-preserving pass over the first part of every chunk, reported as a
+ * "preview" event before that chunk's "final" event replaces it. Slots are the
+ * model's arrival-ordered identities and stay stable for the session.
+ * `threads` is the encoder's intra-op thread count; `recognizerQos` and
+ * `roleQos` place the owned worker like the Community chain's role workers.
  */
-export function loadCommunityDiarization(segmentation: Uint8Array, encoder: Uint8Array,
-  pooling: Uint8Array, features: Uint8Array, plda: Uint8Array, lanes?: number,
-  recognizerQos?: string, encoderBackend?: string, roleQos?: string): Promise<number>;
-export function loadCommunityDiarizationResources(resourceManager: Object, lanes?: number,
-  recognizerQos?: string, encoderBackend?: string, roleQos?: string): Promise<number>;
-export function processCommunityDiarization(handle: number, pcm: Float32Array): Promise<CommunityDiarizationWindow>;
-export function processCommunityDiarizationBatch(handle: number,
-  pcm: Float32Array[]): Promise<CommunityDiarizationWindow[]>;
-export function clusterCommunityDiarization(handle: number, segments: Float32Array,
-  embeddings: Float32Array, runEmbeddings: Float32Array, runRanges: Float32Array,
-  maxSpeakers: number, windowStartSamples: Float64Array, beginSample: number,
-  runRms: Float32Array): Promise<string>;
-export function closeCommunityDiarization(handle: number): void;
+export function loadSortformerDiarizationResources(resourceManager: Object,
+  threads?: number, recognizerQos?: string, roleQos?: string, previewFrames?: number): Promise<number>;
+/**
+ * Feeds 16 kHz mono PCM in [-1, 1) and resolves a JSON document
+ * `{events:[{kind:"final"|"preview",beginFrame,frames,inferenceMs,runs:[[[b,e],...]x4]}],melFrames,samples}`
+ * with absolute 10 ms frame indexes. `flush` ends the stream: the tail chunk
+ * is inferred without right context and no later feed is accepted.
+ */
+export function feedSortformerDiarization(handle: number, pcm: Float32Array, flush: boolean): Promise<string>;
+export function closeSortformerDiarization(handle: number): void;
 
 /**
  * Diagnostics-only MindSpore Lite backend probe. Builds the MindIR at

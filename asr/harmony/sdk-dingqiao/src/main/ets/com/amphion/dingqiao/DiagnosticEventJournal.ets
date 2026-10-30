@@ -35,10 +35,9 @@ export class DiagnosticEventJournal {
         }
         this.locations.set(event.sequence, { offset: this.length, length: bytes.byteLength });
         this.length += bytes.byteLength;
-        if (event.event === 'DIARIZATION_COMMUNITY_WINDOW' ||
-          event.event === 'DIARIZATION_COMMUNITY_SAMPLES' ||
-          event.event === 'DIARIZATION_COMMUNITY_PREVIEW' ||
-          event.event === 'DIARIZATION_COMMUNITY_COMMIT') {
+        if (event.event === 'DIARIZATION_SORTFORMER_CHUNK' ||
+          event.event === 'DIARIZATION_SORTFORMER_PREVIEW' ||
+          event.event === 'DIARIZATION_SORTFORMER_COMMIT') {
           // The full decision remains in the journal; summaries need only scalars.
           // Do not retain every historical posterior matrix on the ArkTS heap.
           const scalars: Record<string, Object> = {};

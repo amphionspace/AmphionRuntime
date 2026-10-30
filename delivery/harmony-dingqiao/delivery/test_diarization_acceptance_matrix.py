@@ -53,9 +53,9 @@ class DiagnosticsAnalyzerTest(unittest.TestCase):
             event(1, "START_LISTENING"),
             event(2, "AUDIO_FIRST_FRAME", {"frames": 1, "audioBytesWritten": 640}),
             event(3, "DIARIZATION_ASR_ALIGNMENT", {"text": "你好"}),
-            event(4, "DIARIZATION_COMMUNITY_WINDOW", {"segmentations": [1], "embeddings": [0.1]}),
-            event(5, "DIARIZATION_COMMUNITY_SAMPLES", {"embeddingSelection": [0]}),
-            event(6, "DIARIZATION_COMMUNITY_COMMIT", {"clusterToFrozenId": ["speaker-0"], "registryAfter": ["speaker-0"]}),
+            event(4, "DIARIZATION_SORTFORMER_CHUNK", {"runs": [[[0, 9920]], [], [], []], "slotToPublicId": [0, -1, -1, -1], "registryAfter": 1}),
+            event(5, "DIARIZATION_SORTFORMER_PREVIEW", {"runs": [[[9920, 14880]], [], [], []]}),
+            event(6, "DIARIZATION_SORTFORMER_COMMIT", {"slotToPublicId": [0, -1, -1, -1], "registryAfter": 1}),
             event(7, "DIARIZATION_PUBLIC_RESULT", {"speakerCount": 1, "isSessionFinal": True}),
             event(8, "FINISH_REQUESTED"),
             event(9, "CALLBACK_RESULT", {"isFinal": True, "isLast": True}),
@@ -77,8 +77,7 @@ class DiagnosticsAnalyzerTest(unittest.TestCase):
             event(1, "START_LISTENING"),
             event(2, "AUDIO_FIRST_FRAME", {"frames": 1}),
             event(3, "DIARIZATION_ASR_PROCESSED", {"audioEndSample": 32000}),
-            event(4, "DIARIZATION_COMMUNITY_WINDOW", {"segmentations": [1]}),
-            event(5, "DIARIZATION_COMMUNITY_SAMPLES", {"embeddingSelection": [0]}),
+            event(4, "DIARIZATION_SORTFORMER_CHUNK", {"runs": [[[0, 9920]], [], [], []]}),
         ]
         result = ANALYZER.summarize(events)
         self.assertIsNone(result["firstDivergenceStage"])
@@ -142,9 +141,9 @@ class DiagnosticsAnalyzerTest(unittest.TestCase):
             event(1, "START_LISTENING"),
             event(2, "AUDIO_FIRST_FRAME", {"frames": 1}),
             event(3, "DIARIZATION_ASR_PROCESSED", {"audioEndSample": 32000}),
-            event(4, "DIARIZATION_COMMUNITY_WINDOW", {"segmentations": [1], "embeddings": [0.1]}),
-            event(5, "DIARIZATION_COMMUNITY_SAMPLES", {"embeddingSelection": [0]}),
-            event(6, "DIARIZATION_COMMUNITY_COMMIT", {"clusterToFrozenId": ["speaker-0"]}),
+            event(4, "DIARIZATION_SORTFORMER_CHUNK", {"runs": [[[0, 9920]], [], [], []], "slotToPublicId": [0, -1, -1, -1], "registryAfter": 1}),
+            event(5, "DIARIZATION_SORTFORMER_PREVIEW", {"runs": [[[9920, 14880]], [], [], []]}),
+            event(6, "DIARIZATION_SORTFORMER_COMMIT", {"slotToPublicId": [0, -1, -1, -1]}),
             event(7, "DIARIZATION_PUBLIC_RESULT", {"speakerCount": 1, "isSessionFinal": True}),
         ]
         summary = ANALYZER.summarize(events, evaluation={

@@ -1,0 +1,125 @@
+From 3c9b5764cc3e4ba84e3953c2588cc72b986a8821 Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Thu, 29 Oct 2026 17:12:57 +0800
+Subject: [PATCH] fix(asr): expire stale hotword prefixes in modified beam
+ search
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+A partially matched hotword keeps its accumulated bonus for as long as the
+path emits blanks, while any non-matching token pays the whole bonus back at
+once. With per-word scores of 3.0 the beam then prefers silence and deletes
+the rest of the segment: a caller hotword "遣返" swallowed an 11-digit phone
+number after "幺" was decoded as "遣".
+
+Withdraw the pending bonus after 25 consecutive blank frames (one second at
+25 Hz) on a non-root context state, return the path to the root and grant no
+further bonus until a real token brings the path back to the root. The
+suppression keeps a sibling from re-emitting the first character to collect
+the bonus a second time; the one-second bound keeps a boosted first character
+that is emitted early during leading silence waiting for its continuation.
+
+Host check on aishell3_test_hotwords_500 with per-utterance hotwords at 3.0
+plus the police preset pool: CER 1.02% -> 1.04%, hotword recall 97.25% ->
+97.58%; the forced-prefix reproduction now loses about one second of digits
+instead of all of them.
+---
+ sherpa-onnx/csrc/hypothesis.h                 | 12 ++++++
+ ...transducer-modified-beam-search-decoder.cc | 39 +++++++++++++++++++
+ 2 files changed, 51 insertions(+)
+
+diff --git a/sherpa-onnx/csrc/hypothesis.h b/sherpa-onnx/csrc/hypothesis.h
+index 6086aeeb..a29a4e23 100644
+--- a/sherpa-onnx/csrc/hypothesis.h
++++ b/sherpa-onnx/csrc/hypothesis.h
+@@ -80,6 +80,18 @@ struct Hypothesis {
+ 
+   int32_t num_trailing_blanks = 0;
+ 
++  // Consecutive blank frames emitted while context_state sits on a partially
++  // matched hotword. A partial match keeps its bonus until a non-matching
++  // token pays it back, so a path can sit on a boosted prefix for free and
++  // starve the real tokens; the decoder expires such prefixes after a bound.
++  int32_t context_blank_frames = 0;
++
++  // Set when an expired prefix was paid back. Until the path is back at the
++  // graph root through a real token, no further bonus is granted, so a
++  // sibling that re-emits the same first token cannot collect the bonus a
++  // second time (that produced duplicated leading characters).
++  bool context_bonus_suppressed = false;
++
+   Hypothesis() = default;
+   Hypothesis(const std::vector<int64_t> &ys, double log_prob,
+              const ContextState *context_state = nullptr)
+diff --git a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+index 2cce2dff..3ab2289a 100644
+--- a/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
++++ b/sherpa-onnx/csrc/online-transducer-modified-beam-search-decoder.cc
+@@ -15,6 +15,15 @@
+ 
+ namespace sherpa_onnx {
+ 
++// Encoder output frames (after subsampling) a hypothesis may spend on a
++// partially matched hotword without emitting a token before the pending
++// bonus is withdrawn. A boosted first character is routinely emitted up to a
++// second early during leading silence and must keep waiting for its
++// continuation, so the bound is a full second: 25 frames at the 25 Hz frame
++// rate of the zipformer2 models shipped here. A wrong prefix therefore costs
++// at most about one second of the following speech instead of the segment.
++static constexpr int32_t kMaxContextBlankFrames = 25;
++
+ static void UseCachedDecoderOut(
+     const std::vector<int32_t> &hyps_row_splits,
+     const std::vector<OnlineTransducerDecoderResult> &results,
+@@ -191,17 +200,47 @@ void OnlineTransducerModifiedBeamSearchDecoder::Decode(
+           new_hyp.ys.push_back(new_token);
+           new_hyp.timestamps.push_back(t + frame_offset);
+           new_hyp.num_trailing_blanks = 0;
++          new_hyp.context_blank_frames = 0;
+           if (ss != nullptr && ss[b]->GetContextGraph() != nullptr) {
+             auto context_res = ss[b]->GetContextGraph()->ForwardOneStep(
+                 context_state, new_token, false /*strict mode*/);
+             context_score = std::get<0>(context_res);
+             new_hyp.context_state = std::get<1>(context_res);
++            if (new_hyp.context_bonus_suppressed) {
++              // Nothing was granted since the expiry, so there is nothing to
++              // pay back either; the graph is only tracked, not scored.
++              context_score = 0;
++              if (new_hyp.context_state ==
++                  ss[b]->GetContextGraph()->Root()) {
++                new_hyp.context_bonus_suppressed = false;
++              }
++            }
+           }
+           if (lm_ && shallow_fusion_) {
+             lm_->ComputeLMScoreSF(lm_scale_, &new_hyp);
+           }
+         } else {
+           ++new_hyp.num_trailing_blanks;
++          // A hotword prefix that stops being continued keeps its bonus for
++          // as long as the path emits blanks, while every real token has to
++          // pay the whole bonus back at once. With a strong per-word score
++          // the beam then prefers silence and deletes the rest of the
++          // utterance (observed: "遣返" at 3.0 swallowing an 11-digit phone
++          // number). Expire the prefix after a bounded run of blanks so the
++          // damage is limited to that run instead of the whole segment.
++          if (ss != nullptr && ss[b]->GetContextGraph() != nullptr &&
++              context_state != nullptr &&
++              context_state != ss[b]->GetContextGraph()->Root()) {
++            ++new_hyp.context_blank_frames;
++            if (new_hyp.context_blank_frames >= kMaxContextBlankFrames) {
++              auto finalized =
++                  ss[b]->GetContextGraph()->Finalize(context_state);
++              context_score = finalized.first;
++              new_hyp.context_state = finalized.second;
++              new_hyp.context_blank_frames = 0;
++              new_hyp.context_bonus_suppressed = true;
++            }
++          }
+         }
+         if (lm_ && shallow_fusion_) {
+            new_hyp.log_prob = p_logprob[k] + context_score -
+-- 
+2.54.0 (Apple Git-157)
+
