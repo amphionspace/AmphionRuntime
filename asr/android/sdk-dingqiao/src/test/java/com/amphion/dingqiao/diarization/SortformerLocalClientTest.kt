@@ -67,7 +67,7 @@ class SortformerLocalClientTest {
     fun audioIsBatchedAndFlushedOnceWithOneCallInFlight() {
         val engine = FakeEngine()
         val recorder = Recorder()
-        val client = SortformerLocalClient(recorder, { engine })
+        val client = SortformerLocalClient(recorder, { engine }).also { it.start() }
 
         // 不足半秒不交给引擎：引擎只在块与预览边界动作，批量不改变结果。
         client.append(pcm(1_000))
@@ -93,7 +93,7 @@ class SortformerLocalClientTest {
     fun aFlushHappensEvenWithoutEnoughAudioToBatch() {
         val engine = FakeEngine()
         val recorder = Recorder()
-        val client = SortformerLocalClient(recorder, { engine })
+        val client = SortformerLocalClient(recorder, { engine }).also { it.start() }
         client.append(pcm(100))
         client.finish()
         assertTrue(recorder.drained.await(5, TimeUnit.SECONDS))
@@ -106,7 +106,7 @@ class SortformerLocalClientTest {
         val blocked = CountDownLatch(1)
         val engine = FakeEngine { _, _ -> blocked.await(5, TimeUnit.SECONDS) }
         val recorder = Recorder()
-        val client = SortformerLocalClient(recorder, { engine })
+        val client = SortformerLocalClient(recorder, { engine }).also { it.start() }
         client.append(pcm(SortformerLocalClient.FEED_MIN_SAMPLES))
         Thread.sleep(50)
         client.append(pcm(SortformerLocalClient.MAX_PENDING_SAMPLES + 1))
@@ -121,7 +121,7 @@ class SortformerLocalClientTest {
     @Test
     fun aModelThatCannotOpenDegradesAndDrains() {
         val recorder = Recorder()
-        SortformerLocalClient(recorder, { throw IllegalStateException("model missing") })
+        SortformerLocalClient(recorder, { throw IllegalStateException("model missing") }).start()
         assertTrue(recorder.drained.await(5, TimeUnit.SECONDS))
         assertEquals(1, recorder.degraded.size)
         assertEquals(SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE, recorder.degraded[0].first)
@@ -131,7 +131,7 @@ class SortformerLocalClientTest {
     fun cancelClosesTheEngineAndReportsQuiescent() {
         val engine = FakeEngine()
         val recorder = Recorder()
-        val client = SortformerLocalClient(recorder, { engine })
+        val client = SortformerLocalClient(recorder, { engine }).also { it.start() }
         Thread.sleep(50)
         val quiescent = CountDownLatch(1)
         client.cancel { quiescent.countDown() }
@@ -144,7 +144,7 @@ class SortformerLocalClientTest {
     fun stopInferenceKeepsDeliveredResultsAndStartsNothingNew() {
         val engine = FakeEngine()
         val recorder = Recorder()
-        val client = SortformerLocalClient(recorder, { engine })
+        val client = SortformerLocalClient(recorder, { engine }).also { it.start() }
         Thread.sleep(50)
         client.stopInference()
         client.append(pcm(SortformerLocalClient.FEED_MIN_SAMPLES))
@@ -175,7 +175,7 @@ class SortformerLocalClientTest {
 
             override fun close() = engine.close()
         }
-        val client = SortformerLocalClient(recorder, { withEvents })
+        val client = SortformerLocalClient(recorder, { withEvents }).also { it.start() }
         client.append(pcm(SortformerLocalClient.FEED_MIN_SAMPLES))
         client.finish()
         assertTrue(recorder.drained.await(5, TimeUnit.SECONDS))

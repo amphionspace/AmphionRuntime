@@ -33,15 +33,28 @@ std::vector<float> SortformerFloats(JNIEnv* env, jfloatArray array) {
 #define SORTFORMER_JNI(name) \
   Java_com_amphion_dingqiao_diarization_SortformerDiarizationInference_##name
 
-// 模型目录下应有 pre_encode.ort / encoder_layers.int8.ort / speaker_head.ort /
-// spkcache_update.ort 与三个 .npy 表，名字与交付清单一致。
+// Android 链的是 onnxruntime 1.24.3，而交付的 .ort 是用 1.16.3 转的（厂商连编码器都单独做了
+// ort1163 变体），1.24 在 spkcache_update 的 TopK 上做形状推断时直接拒绝加载。所以 Android 装的
+// 是版本无关的原始 .onnx，这里把共享实现请求的 .ort 名字映射到对应的 .onnx 文件。
+// 图是同一张（.ort 本身由它派生），数值路径不变；代价是加载时多做一次图优化。
+std::string SortformerAndroidAssetName(const std::string& name) {
+  static const char kOrt[] = ".ort";
+  const size_t suffix = sizeof(kOrt) - 1;
+  if (name.size() > suffix && name.compare(name.size() - suffix, suffix, kOrt) == 0) {
+    return name.substr(0, name.size() - suffix) + ".onnx";
+  }
+  return name;
+}
+
 extern "C" JNIEXPORT jint JNICALL SORTFORMER_JNI(nativeLoad)(
     JNIEnv* env, jobject, jstring model_dir, jint threads, jint preview_frames) {
   try {
     std::string dir = SortformerString(env, model_dir);
     if (!dir.empty() && dir.back() != '/') dir.push_back('/');
     const uint32_t handle = CreateSession(
-      [dir](const std::string& name) { return ReadAssetFile(dir + name); },
+      [dir](const std::string& name) {
+        return ReadAssetFile(dir + SortformerAndroidAssetName(name));
+      },
       threads, -1, preview_frames);
     return static_cast<jint>(handle);
   } catch (const Ort::Exception& error) {
