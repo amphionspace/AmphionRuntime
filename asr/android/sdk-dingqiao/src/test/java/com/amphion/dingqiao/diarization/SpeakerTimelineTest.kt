@@ -6,7 +6,7 @@ import org.junit.Test
 
 /** 对齐鸿蒙 `SpeakerTimeline.ts` 与 test_harmony_sortformer_diarization.py 的同一组期望。 */
 class SpeakerTimelineTest {
-    private fun shape(turns: List<TimelineTurn>) =
+    private fun shape(turns: List<SpeakerTimelineTurn>) =
         turns.map { listOf(it.beginTime, it.endTime, it.speakerId, it.overlap) }
 
     @Test
@@ -19,9 +19,9 @@ class SpeakerTimelineTest {
         val turns = timelineTurns(tracks, intArrayOf(1, 0, -1, -1), 0, 9_920)
         assertEquals(
             listOf(
-                listOf(0L, 4_000L, "S1", false),
-                listOf(4_000L, 4_500L, "S1", true),
-                listOf(4_500L, 9_920L, "S2", false),
+                listOf(0, 4_000, "S1", false),
+                listOf(4_000, 4_500, "S1", true),
+                listOf(4_500, 9_920, "S2", false),
             ),
             shape(turns),
         )
@@ -47,7 +47,7 @@ class SpeakerTimelineTest {
         )
         val turns = timelineTurns(tracks, intArrayOf(0, -1, -1, -1), 0, 4_000)
         assertEquals(
-            listOf(listOf(0L, 1_000L, "S1", false), listOf(3_000L, 4_000L, "S1", false)),
+            listOf(listOf(0, 1_000, "S1", false), listOf(3_000, 4_000, "S1", false)),
             shape(turns),
         )
     }
@@ -60,14 +60,14 @@ class SpeakerTimelineTest {
         )
         val turns = timelineTurns(tracks, intArrayOf(0, -1, -1, -1), 0, 2_000)
         assertEquals(1, turns.size)
-        assertEquals(0L to 2_000L, turns[0].beginTime to turns[0].endTime)
+        assertEquals(0 to 2_000, turns[0].beginTime to turns[0].endTime)
     }
 
     @Test
     fun theRangeClipsTracksOnBothSides() {
         val tracks = listOf(SortformerTrack(0, 9_920, slot = 0))
         val turns = timelineTurns(tracks, intArrayOf(0, -1, -1, -1), 2_000, 5_000)
-        assertEquals(listOf(listOf(2_000L, 5_000L, "S1", false)), shape(turns))
+        assertEquals(listOf(listOf(2_000, 5_000, "S1", false)), shape(turns))
     }
 
     @Test

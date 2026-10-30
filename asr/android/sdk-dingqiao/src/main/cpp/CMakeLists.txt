@@ -3,14 +3,9 @@ project(amphion_dingqiao_native)
 
 set(CMAKE_CXX_STANDARD 17)
 
-# community_diarization.cpp and its headers used to be compiled straight out of the Harmony
-# module. 0.3.26 replaced Harmony's diarization chain with Sortformer and deleted them there,
-# while Android still ships the Community chain, so this module now owns the sources. The file
-# keeps its `#ifndef __ANDROID__` guards and includes community_diarization_jni.inc on Android.
+# Sortformer 与鸿蒙共用同一份实现，平台差异在文件内按 __ANDROID__ 分开；
+# JNI 绑定由该文件在 Android 下包含 sortformer_diarization_jni.inc 提供。
 add_library(amphion_diarization_jni SHARED speaker_turn_segmenter_jni.cpp
-  community_diarization.cpp
-  # Sortformer 与鸿蒙共用同一份实现，平台差异在文件内按 __ANDROID__ 分开；
-  # JNI 绑定由该文件在 Android 下包含 sortformer_diarization_jni.inc 提供。
   sortformer_diarization.cpp)
 
 target_include_directories(amphion_diarization_jni PRIVATE
