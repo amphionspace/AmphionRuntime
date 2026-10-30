@@ -1278,7 +1278,13 @@ internal class SessionImpl(
         if (!speakerVadEnabled || closed.get()) return
         val config = effectiveSpeakerVad ?: return
         val finalizer = svTurnFinalizer ?: return
-        if (!finalizer.isTargetConfirmed() || finalizer.hasPendingDeparture()) return
+        if (!finalizer.isTargetConfirmed()) return
+        if (finalizer.hasPendingDeparture()) {
+            // 流式分数已确认离场，但声学解析器定不出边界、还在等更多上下文，而音频到此为止
+            // （换人后非机主只说了 1~2 s 正是这种）。此时退机主的保守前缀，不放行已知混合的那一句。
+            containFinishDeparture(finalizer, finalizer.lastScore(), "finish-pending-departure")
+            return
+        }
         val target = targetEmbedding ?: return
         val verifier = ensureVerifier() ?: return
         val sliceSamples = (sampleRate.toLong() * FINISH_DEPARTURE_SLICE_MS / 1000L).toInt()
@@ -1289,23 +1295,36 @@ internal class SessionImpl(
         val score = verifier.windowScore(tail, target) ?: return
         val elapsedMs = (System.nanoTime() - startedNs) / 1_000_000.0
         val rtf = elapsedMs / (sliceSamples * 1000.0 / sampleRate)
-        if (!finalizer.observeFinishSlice(score, config.threshold)) {
-            postSpeakerVadDebug("finish_target", score, config.threshold, elapsedMs, rtf)
+        // 收尾切片只有 1.2 s，正落在实测空带那一段：机主自己的短句最低 0.525，非机主最高 0.459。
+        // 所以这里按实测下沿判离场，而不是只按配置阈值；判错的代价是机主尾部被保守切点截掉，
+        // 判漏的代价是把别人的话录成机主的。
+        val gate = speakerFinishSliceGateScore(config.threshold)
+        if (!finalizer.observeFinishSlice(score, gate)) {
+            postSpeakerVadDebug("finish_target", score, gate, elapsedMs, rtf)
             return
         }
         syncSpeakerTurnState(finalizer)
-        postSpeakerVadDebug("finish_departure", score, config.threshold, elapsedMs, rtf)
+        postSpeakerVadDebug("finish_departure", score, gate, elapsedMs, rtf)
+        containFinishDeparture(finalizer, score, "finish-slice-departure")
+    }
+
+    /** 收尾处退保守前缀：定不出边界时切在最后一次确认是机主的位置，其后作为非机主重放。 */
+    private fun containFinishDeparture(
+        finalizer: SpeakerTurnFinalizer,
+        score: Float?,
+        trigger: String,
+    ) {
         val split = finalizer.resolveContainment()
         if (split == null) {
             Logger.metric(
                 "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-no-prefix " +
-                    "reason=${finalizer.lastResolutionReason()}",
+                    "trigger=$trigger reason=${finalizer.lastResolutionReason()}",
             )
             return
         }
         Logger.metric(
             "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-contain " +
-                "cutSample=${split.cutSample} score=$score",
+                "trigger=$trigger cutSample=${split.cutSample} score=$score",
         )
         commitCleanSpeakerTurn(split, finishTriggered = true)
     }

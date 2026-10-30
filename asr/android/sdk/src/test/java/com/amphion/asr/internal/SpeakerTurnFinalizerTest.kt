@@ -210,5 +210,35 @@ class SpeakerTurnFinalizerTest {
     fun aStricterCallerThresholdWins() {
         assertEquals(0.60f, speakerFinalGateScore(0.60f, false))
         assertEquals(0.60f, speakerFinalGateScore(0.60f, true))
+        assertEquals(0.60f, speakerFinishSliceGateScore(0.60f))
+    }
+
+    @Test
+    fun finishSliceUsesTheMeasuredFloorEvenAfterConfirmation() {
+        // 真机 turn-05：收尾那 1.2 s 切片打 0.445，高于默认阈值 0.35，离场没被认定。
+        assertEquals(0.45f, speakerFinishSliceGateScore(0.35f))
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        finalizer.observeScore(2_000, 0.65f, 0.35f)
+        assertEquals(false, finalizer.observeFinishSlice(0.445f, 0.35f))
+        assertTrue(finalizer.observeFinishSlice(0.445f, speakerFinishSliceGateScore(0.35f)))
+        assertTrue(finalizer.hasPendingDeparture())
+    }
+
+    @Test
+    fun aPendingDepartureStillHasASafePrefixToContain() {
+        // 真机 turn-02/03/04：流式确认了离场，声学解析器等上下文而音频到此为止。
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        finalizer.observeScore(2_000, 0.65f, 0.35f)
+        finalizer.observeScore(3_000, 0.20f, 0.35f)
+        assertEquals(SpeakerTurnScoreState.DEPARTURE, finalizer.observeScore(3_200, 0.10f, 0.35f))
+        assertTrue(finalizer.hasPendingDeparture())
+        val contained = finalizer.resolveContainment()
+        assertNotNull(contained)
+        // 切点就是保守前缀的末尾：最后一次确认还是机主的位置，不猜边界
+        assertEquals(finalizer.safePrefixEndSample(), contained!!.cutSample)
+        assertTrue(contained.cutSample > 0)
+        assertTrue(contained.suffix.isNotEmpty())
     }
 }

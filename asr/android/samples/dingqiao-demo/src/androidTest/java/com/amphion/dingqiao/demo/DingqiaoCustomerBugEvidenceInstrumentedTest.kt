@@ -501,24 +501,26 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         val voiceprintId = registration.voiceprintId.keys.single()
         writer.append(
             "voiceprint-registration",
-            mapOf("enrollments" to JSONArray(enrollmentPaths.size), "voiceprintId" to voiceprintId),
+            mapOf("enrollments" to enrollmentPaths.size, "voiceprintId" to voiceprintId),
         )
 
         // required 取机主那半段单独解码的结果，forbidden 取非机主那半段的，都避开数字并控制在 2~3 字，
         // 以躲开设备侧的标点插入与 ITN 改写。
+        // forbidden 给的是同音异写的全部变体：夹具里的写法取自主机解码，设备侧可能写成别的同音字
+        // （实测「永洪」在这台机子上解成「永红」，只钉一种写法会漏判真实泄露）。
         val cases = listOf(
-            Triple("turn-00", "而目", "香木"),
-            Triple("turn-01", "昆仑", "满园"),
-            Triple("turn-02", "对于", "永洪"),
-            Triple("turn-03", "祥和", "大臣"),
-            Triple("turn-04", "搜狐", "周杰"),
-            Triple("turn-05", "首死", "金莎"),
+            Triple("turn-00", "而目", listOf("香木", "香墓", "香慕")),
+            Triple("turn-01", "昆仑", listOf("满园", "满圆")),
+            Triple("turn-02", "对于", listOf("永洪", "永红", "药店")),
+            Triple("turn-03", "祥和", listOf("大臣", "大陈")),
+            Triple("turn-04", "搜狐", listOf("周杰")),
+            Triple("turn-05", "首死", listOf("金莎", "金沙")),
         )
         val engine = createEngine()
         try {
             val failures = mutableListOf<String>()
             for ((index, case) in cases.withIndex()) {
-                val (id, required, forbidden) = case
+                val (id, required, forbiddenVariants) = case
                 val asset = "speaker-turn/turn-%02d.wav".format(index)
                 val outcome = decode(
                     engine,
@@ -531,14 +533,16 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
                 val published = normalizeText(outcome.finalText)
                 val nonEmpty = outcome.finals.filter { it.text.isNotBlank() }
                 val ownerKept = published.contains(normalizeText(required))
-                val otherLeaked = published.contains(normalizeText(forbidden))
+                val leaked = forbiddenVariants.filter { published.contains(normalizeText(it)) }
+                val otherLeaked = leaked.isNotEmpty()
                 writer.append(
                     "owner-handoff-assertion",
                     mapOf(
                         "case" to id,
                         "asset" to asset,
                         "required" to required,
-                        "forbidden" to forbidden,
+                        "forbidden" to JSONArray(forbiddenVariants),
+                        "leakedVariants" to JSONArray(leaked),
                         "ownerKept" to ownerKept,
                         "otherLeaked" to otherLeaked,
                         "nonEmptyFinals" to nonEmpty.size,
@@ -548,7 +552,7 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
                 )
                 if (lifecycle.isNotEmpty()) failures += "$id lifecycle=$lifecycle"
                 if (!ownerKept) failures += "$id dropped the owner text '$required': ${outcome.finalText}"
-                if (otherLeaked) failures += "$id leaked the next speaker '$forbidden': ${outcome.finalText}"
+                if (otherLeaked) failures += "$id leaked the next speaker $leaked: ${outcome.finalText}"
                 if (nonEmpty.size != 1) failures += "$id published ${nonEmpty.size} non-empty finals, expected 1"
             }
             assertTrue("owner handoff failures: $failures", failures.isEmpty())
