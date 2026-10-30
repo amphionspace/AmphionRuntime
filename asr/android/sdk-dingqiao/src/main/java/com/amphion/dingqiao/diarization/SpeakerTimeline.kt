@@ -3,17 +3,10 @@ package com.amphion.dingqiao.diarization
 /**
  * 并发的逐人轨道变成 SDK 的不重叠时间线。与鸿蒙 `SpeakerTimeline.ts` 同一套规则：
  * 每个边界开一段 turn，主说话人优先延续上一段，其余进 secondary，一条轨道都不丢。
+ *
+ * 直接产出转写状态已有的 [SpeakerTimelineTurn]（毫秒为 Int），不再额外定义一种 turn 类型。
  */
 internal data class SortformerTrack(val beginTime: Long, val endTime: Long, val slot: Int)
-
-internal data class TimelineTurn(
-    val beginTime: Long,
-    var endTime: Long,
-    val speakerId: String,
-    val secondarySpeakerIds: List<String>,
-    val confidence: Double = 0.0,
-    val overlap: Boolean = false,
-)
 
 /** 把并发轨道切成时间线，范围限定在 [beginTime, endTime)。 */
 internal fun timelineTurns(
@@ -21,15 +14,16 @@ internal fun timelineTurns(
     mapping: IntArray,
     beginTime: Long,
     endTime: Long,
-): List<TimelineTurn> {
-    val boundaries = sortedSetOf(beginTime, endTime)
+): List<SpeakerTimelineTurn> {
+    val boundaries = sortedSetOf(beginTime)
+    if (endTime != Long.MAX_VALUE) boundaries.add(endTime)
     for (track in tracks) {
         if (track.beginTime >= endTime || track.endTime <= beginTime) continue
         boundaries.add(maxOf(beginTime, track.beginTime))
         boundaries.add(minOf(endTime, track.endTime))
     }
     val ordered = boundaries.toList()
-    val result = mutableListOf<TimelineTurn>()
+    val result = mutableListOf<SpeakerTimelineTurn>()
     var previous = ""
     for (index in 1 until ordered.size) {
         val begin = ordered[index - 1]
@@ -50,15 +44,16 @@ internal fun timelineTurns(
         val secondary = ids.filter { it != primary }
         val overlap = covering.size > 1
         val last = result.lastOrNull()
-        if (last != null && last.endTime == begin && last.speakerId == primary &&
+        if (last != null && last.endTime.toLong() == begin && last.speakerId == primary &&
             last.secondarySpeakerIds == secondary && last.overlap == overlap
         ) {
-            last.endTime = end
+            // SpeakerTimelineTurn.endTime 不可变：用延长后的副本替换最后一段。
+            result[result.lastIndex] = last.copy(endTime = end.toInt())
         } else {
             result.add(
-                TimelineTurn(
-                    beginTime = begin,
-                    endTime = end,
+                SpeakerTimelineTurn(
+                    beginTime = begin.toInt(),
+                    endTime = end.toInt(),
                     speakerId = primary,
                     secondarySpeakerIds = secondary,
                     overlap = overlap,

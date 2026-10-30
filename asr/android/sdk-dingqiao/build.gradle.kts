@@ -7,14 +7,19 @@ val generatedDingqiaoModelAssets = layout.buildDirectory.dir("generated/sharedDi
 val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     from("../../../shared/models/asr/dingqiao") {
         include(
+            // 声纹（机主识别）与换人分割：Community 角色分离链路移除后这两项仍在用。
             "eres2net.onnx",
-            "community-wespeaker-encoder.int8.onnx",
-            "community-wespeaker-pool.fp32.onnx",
-            "community-feature.f32",
-            "community-plda.f64",
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
+            // Sortformer-66M-4spk 的七个资产，名字必须与交付清单一致（原生侧按固定名字读）。
+            "sortformer-66M-4spk/pre_encode.ort",
+            "sortformer-66M-4spk/encoder_layers.int8.ort",
+            "sortformer-66M-4spk/speaker_head.ort",
+            "sortformer-66M-4spk/spkcache_update.ort",
+            "sortformer-66M-4spk/learnable_sil_emb.npy",
+            "sortformer-66M-4spk/mel_window_hann400_periodic_false.npy",
+            "sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy",
         )
     }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
