@@ -73,8 +73,12 @@ export class SpeakerTextSpan {
 }
 
 export class DiarizedUtterance {
-  /** One intact original ASR final; it may contain multiple speakers. */
+  /** First original ASR final of this item. Adjacent finals of the same
+   * confirmed speaker are joined into one item; see sourceUtteranceIds. */
   sourceUtteranceId: string = '';
+  /** Every original ASR final this item covers, in time order. A split
+   * mixed-speaker final can appear in more than one item. */
+  sourceUtteranceIds: string[] = [];
   utteranceId: string = '';
   rawText: string = '';
   text: string = '';

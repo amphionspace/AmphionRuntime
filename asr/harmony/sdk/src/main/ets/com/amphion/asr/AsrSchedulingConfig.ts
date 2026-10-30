@@ -82,6 +82,21 @@ export class AsrSchedulingConfig {
    * Recognition is unaffected: the window cadence never reaches the recognizer.
    */
   diarizationHopMs: number = 2000;
+  /**
+   * How often role separation refreshes provisional roles ahead of a chunk's
+   * final result, in milliseconds. The Sortformer chain commits speakers once
+   * per 9.92 s chunk; a preview pass over the chunk's first part gives callers
+   * roles about this long after speech instead of waiting for the chunk. Each
+   * preview costs about one chunk inference (measured 328-344 ms against 389
+   * ms for the chunk itself), so 5000 roughly doubles role-separation compute
+   * and 2500 triples it. 0 disables previews. Values are rounded down to the
+   * 80 ms encoder frame.
+   *
+   * diarizationHopMs and diarizationEncoder described the earlier windowed
+   * chain and no longer change behaviour; they stay accepted so existing
+   * configurations keep compiling.
+   */
+  diarizationPreviewMs: number = 5000;
 }
 
 /**
@@ -122,6 +137,11 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   if (!Number.isInteger(diarizationHopMs) || diarizationHopMs < 250 || diarizationHopMs > 10000) {
     throw new Error('ASR diarizationHopMs must be an integer in [250, 10000] milliseconds');
   }
+  const diarizationPreviewMs = source.diarizationPreviewMs ?? 5000;
+  if (!Number.isInteger(diarizationPreviewMs) || diarizationPreviewMs < 0 ||
+    (diarizationPreviewMs > 0 && diarizationPreviewMs < 2500) || diarizationPreviewMs > 9920) {
+    throw new Error('ASR diarizationPreviewMs must be 0 or an integer in [2500, 9920] milliseconds');
+  }
   // A lower operating point stretches every per-window stage. Measured on
   // Mate 80 at the default 1000 ms hop, 'background' takes the worst-case
   // embedding from 647 ms to 1421 ms against a 1500 ms window budget, leaving
@@ -144,6 +164,7 @@ export function snapshotAsrScheduling(source: AsrSchedulingConfig = new AsrSched
   copy.allowSpinning = source.allowSpinning;
   copy.diarizationEncoder = diarizationEncoder;
   copy.diarizationHopMs = diarizationHopMs;
+  copy.diarizationPreviewMs = diarizationPreviewMs;
   copy.displayMayTurnOff = displayMayTurnOff;
   for (const cpu of source.cpuIds) {
     if (!Number.isInteger(cpu) || cpu < 0 || cpu >= 128 || copy.cpuIds.indexOf(cpu) >= 0) {

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.26",
+  "source_commit": "927bda6eb122f5a0ad25dd4ec04b8316237bc026",
+  "summary_sha256": "ef634d129aab80441cd5b04e66ded4419df8c3047988c1efec93081720bf83e7",
+  "reports": [
+    {
+      "mode": "customer-ptt",
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "07174aa08f4abc1c6e4fc85de5bbe8b46850fbee33e0988ac032100a61082027"
+    },
+    {
+      "mode": "diarization-windows",
+      "path": "reports/diarization-windows-dq4-report.json",
+      "sha256": "d0bc9f7a2d2278e4c8e0f010d18438da3a116a3113d58623f4fd3442747d7112"
+    }
+  ],
+  "waived_modes": [
+    {
+      "mode": "speaker-vad-turn",
+      "reason": "目标说话人夹具本轮首次具备，6 例归属断言全部通过（机主的话在、非机主的话不在）；但该模式单轮判定仍为 FAIL——载体自设的“收尾补救 finish 到非空 final 不超过 1200 ms”预算未达成，实测 1652~1732 ms，该时延在本次修复前后基本不变，且在随包声明的结束到最终角色结果 1.1~2.4 s 之内。因受检报告只收 PASS 的模式，本模式按豁免处理，理由与证据在验收摘要中披露。"
+    }
+  ]
+}

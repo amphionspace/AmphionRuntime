@@ -71,7 +71,8 @@ import {
   SpeakerTurnFinalizer,
   SpeakerTurnSegment,
   SpeakerTurnSplit,
-  shouldRejectSpeakerVadFinal
+  shouldRejectSpeakerVadFinal,
+  speakerFinalGateScore
 } from './SpeakerTurnFinalizer';
 import { selectSpeakerScoreSamples, speakerScoreSelectionDiagnostic } from './SpeakerScoreFallback';
 import { SessionCallbackGate } from './SessionCallbackGate';
@@ -153,6 +154,26 @@ const FINAL_TAIL_SINGLE_DECODE_MIN_PADDING_MS: number = 320;
 // cut-point differentials show the police model preserves the fixed-tail tokens from 800 ms onward.
 const SPEAKER_FINAL_TAIL_MIN_PADDING_MS: number = 800;
 const SPEAKER_TURN_SEGMENTATION_MODEL: string = 'pyannote-segmentation-3.0.onnx';
+
+// Unresolved reasons that mean "the boundary could not be placed", as opposed to "this is not a
+// sequential turn at all". With a departure already confirmed by the streaming target scores, the
+// conservative containment prefix applies to these; overlap and a capped buffer are excluded.
+const SPEAKER_TURN_CONTAINABLE_REASONS: string[] = [
+  'diarization-speaker-count:',
+  'diarization-insufficient-segments',
+  'diarization-turn-order:',
+  'diarization-finish-turn-order:',
+  'diarization-score-margin:',
+  'diarization-finish-score-margin:',
+  'diarization-finish-score-unavailable',
+  'diarization-no-sequential-departure',
+  'diarization-contiguous-boundary:',
+  'diarization-boundary-before-score-transition:',
+  'no-verified-boundary:',
+  'no-boundary-candidates',
+  'insufficient-refine-context',
+  'invalid-search-range',
+];
 
 
 // ct-transformer only inserts punctuation, but it also re-spaces ASCII runs, so
@@ -2250,10 +2271,11 @@ export class AsrSession {
     }
     // Score-only verification intentionally uses TargetSpeakerConfig.threshold (Dingqiao sets -1
     // so every real score is reported). Speaker VAD owns a separate business gate and must always
-    // reinterpret the same numeric score with SpeakerVadConfig.threshold.
+    // reinterpret the same numeric score with its own threshold, raised to the measured floor
+    // when its streaming machine never confirmed this utterance.
     if (pending.speakerVadEnabled && pending.result.speakerScore !== undefined) {
-      pending.result.isTargetSpeaker =
-        pending.result.speakerScore >= pending.speakerVadThreshold;
+      pending.result.isTargetSpeaker = pending.result.speakerScore >=
+        speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed);
     }
     const speakerVadReject = shouldRejectSpeakerVadFinal(
       pending.speakerVadEnabled, pending.speakerVadRejectCurrent,
@@ -3927,11 +3949,21 @@ export class AsrSession {
   }
 
   private canContainSpeakerTurn(unresolvedReason: string): boolean {
-    // A falling target score alone cannot distinguish sequential speech from overlap. Containment
-    // is allowed only when diarization already found target -> other and merely disagreed on the
-    // exact cut with the independent score-transition band.
-    return unresolvedReason.startsWith('sequential-boundary-ambiguous:') &&
-      isSpeakerTurnSegmentationModelLoaded();
+    if (!isSpeakerTurnSegmentationModelLoaded()) return false;
+    // A falling target score alone cannot distinguish sequential speech from overlap, and
+    // simultaneous speech has no single cut, so overlap stays outside this contract.
+    if (unresolvedReason === 'unsupported-overlap') return false;
+    // Diarization found target -> other and merely disagreed on the exact cut with the
+    // independent score-transition band.
+    if (unresolvedReason.startsWith('sequential-boundary-ambiguous:')) return true;
+    // Two consecutive windows below the threshold after a confirmed target are independent proof
+    // that the target left. When neither resolver can place the boundary -- diarization could not
+    // prove the pair, or the acoustic candidates failed their left/right verification -- the
+    // conservative prefix holds only audio that predates the last target-positive window. That is
+    // strictly better than publishing a known mixture, which is what failing open did on device.
+    return (this.svTurnFinalizer?.hasPendingDeparture() ?? false) &&
+      SPEAKER_TURN_CONTAINABLE_REASONS.some(
+        (prefix: string): boolean => unresolvedReason.startsWith(prefix));
   }
 
   private resolveSpeakerTurnSplit(finalizer: SpeakerTurnFinalizer,
@@ -3972,9 +4004,12 @@ export class AsrSession {
       `decision=${diarizedSplit === undefined ? 'ambiguous' : 'split'} ` +
       `reason=${diarizationReason}`);
     if (diarizedSplit !== undefined) return diarizedSplit;
-    // Finish-time recovery is deliberately high-confidence-only. If diarization cannot prove a
-    // simple target -> other sequence, keep the speculative result in balanced mode.
-    if (finishTriggered) return undefined;
+    // A finish-time departure used to stop here, publishing the speculative mixture whenever
+    // diarization could not prove a target -> other pair. Measured on device: pyannote clustering
+    // collapsed both voices into one label (diarization-speaker-count:1) while the streaming
+    // scores had already fallen 0.70 -> 0.17, and the next speaker's first sentence was published
+    // inside the owner's final. The acoustic resolver verifies its own candidate with independent
+    // left/right target scores, so it is reached at finish too.
     // Overlap is explicitly outside this feature's contract. For every other ambiguous or
     // contradictory diarization result, fall back to the independently bounded acoustic/token
     // resolver instead of either trusting a false local-speaker change or abandoning the endpoint.
@@ -4198,7 +4233,9 @@ export class AsrSession {
       `rtf=${(diarizationMs / Math.max(1, audioMs)).toFixed(3)} ` +
       `decision=${diarizedSplit === undefined ? 'ambiguous' : 'split'} ` +
       `reason=${diarizationReason}`);
-    if (diarizedSplit !== undefined || finishTriggered ||
+    // See resolveSpeakerTurnSplit: a finish-time departure also reaches the acoustic resolver,
+    // which verifies its candidate independently of diarization's clustering.
+    if (diarizedSplit !== undefined ||
       diarizationReason === 'unsupported-overlap') return diarizedSplit;
     const boundaryHints = resolvedSegments.slice(1).map(
       (segment: SpeakerTurnSegment): number => segment.startSample);
