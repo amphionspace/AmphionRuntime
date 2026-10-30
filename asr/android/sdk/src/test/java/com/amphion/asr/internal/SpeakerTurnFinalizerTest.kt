@@ -190,4 +190,25 @@ class SpeakerTurnFinalizerTest {
         assertEquals(false, finalizer.hasPendingDeparture())
         assertEquals(2_200, finalizer.safePrefixEndSample())
     }
+
+    @Test
+    fun unconfirmedUtteranceMustClearTheMeasuredFloor() {
+        // 真机上那段 1.6 s 的非机主句子打 0.362，越过默认阈值 0.35 被当作机主发布。
+        assertEquals(0.45f, speakerFinalGateScore(0.35f, false))
+        assertTrue(0.362f < speakerFinalGateScore(0.35f, false))
+        // 机主自己的短句最低实测 0.525，仍在门上。
+        assertTrue(0.525f >= speakerFinalGateScore(0.35f, false))
+    }
+
+    @Test
+    fun confirmedUtteranceKeepsTheCallerThreshold() {
+        assertEquals(0.35f, speakerFinalGateScore(0.35f, true))
+        assertTrue(0.362f >= speakerFinalGateScore(0.35f, true))
+    }
+
+    @Test
+    fun aStricterCallerThresholdWins() {
+        assertEquals(0.60f, speakerFinalGateScore(0.60f, false))
+        assertEquals(0.60f, speakerFinalGateScore(0.60f, true))
+    }
 }
