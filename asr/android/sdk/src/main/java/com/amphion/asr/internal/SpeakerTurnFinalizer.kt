@@ -26,6 +26,15 @@ internal fun speakerFinalGateScore(threshold: Float, targetConfirmed: Boolean): 
     if (targetConfirmed) threshold else max(threshold, UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE)
 
 /**
+ * 收尾切片门：切片只有一两秒，落在实测空带那一段，所以一律按实测下沿判离场。
+ *
+ * 判错（把机主自己的尾巴当成换人）的代价是机主尾部被保守切点截掉几个字；判漏的代价是把别人的话
+ * 录成机主的。实测机主短句最低 0.525，离这条线还有余量。
+ */
+internal fun speakerFinishSliceGateScore(threshold: Float): Float =
+    max(threshold, UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE)
+
+/**
  * Speaker VAD score state after one trailing-window score. Mirrors the Harmony
  * `SpeakerTurnFinalizer.ts` contract so both platforms gate target -> other turns the same way.
  */
