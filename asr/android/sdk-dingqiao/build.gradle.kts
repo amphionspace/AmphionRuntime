@@ -12,16 +12,19 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
-            // Sortformer-66M-4spk 的七个资产，名字必须与交付清单一致（原生侧按固定名字读）。
-            "sortformer-66M-4spk/pre_encode.ort",
-            "sortformer-66M-4spk/encoder_layers.int8.ort",
-            "sortformer-66M-4spk/speaker_head.ort",
-            "sortformer-66M-4spk/spkcache_update.ort",
-            "sortformer-66M-4spk/learnable_sil_emb.npy",
-            "sortformer-66M-4spk/mel_window_hann400_periodic_false.npy",
-            "sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy",
+            // Sortformer-66M-4spk：Android 用原始 .onnx，不用交付的 .ort（onnxruntime 1.24.3
+            // 不接受 1.16.3 转的 .ort，详见 sortformer_diarization_jni.inc）。
+            "sortformer-66M-4spk-onnx/pre_encode.onnx",
+            "sortformer-66M-4spk-onnx/encoder_layers.int8.onnx",
+            "sortformer-66M-4spk-onnx/speaker_head.onnx",
+            "sortformer-66M-4spk-onnx/spkcache_update.onnx",
+            "sortformer-66M-4spk-onnx/learnable_sil_emb.npy",
+            "sortformer-66M-4spk-onnx/mel_window_hann400_periodic_false.npy",
+            "sortformer-66M-4spk-onnx/mel_filterbank_128x257_slaney.npy",
         )
     }
+    // 落地目录名保持 sortformer-66M-4spk：原生侧与安装器都按这个路径找。
+    eachFile { path = path.replace("sortformer-66M-4spk-onnx/", "sortformer-66M-4spk/") }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
 }
 

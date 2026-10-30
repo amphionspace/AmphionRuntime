@@ -88,7 +88,11 @@ internal class SpeakerDiarizationSession(
     // Audio end covered by inferred windows when a finish timeout stopped inference.
     private var salvagedThroughMs: Int? = null
 
-    init { require(maxSpeakers in 1..4) }
+    init {
+        require(maxSpeakers in 1..4)
+        // 所有字段都就位之后才让客户端开工，否则加载失败的回调会落到半构造的会话上。
+        client.start()
+    }
 
     @Synchronized
     override fun append(audio: ByteArray) {

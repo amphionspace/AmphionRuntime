@@ -68,7 +68,12 @@ internal class SortformerLocalClient(
     private val drainedNotified = AtomicBoolean(false)
     private val quiescentCallbacks = mutableListOf<() -> Unit>()
 
-    init {
+    /**
+     * 打开引擎并开始排队。必须由持有者在**自身构造完成后**调用：引擎加载失败会回调
+     * `onDegraded`，在属性初始化器里就开工会让回调落到半构造的对象上，真实错误消息会被
+     * 随后的属性初始化器冲掉（实测过一次）。
+     */
+    fun start() {
         worker.execute {
             try {
                 val opened = openInference()
