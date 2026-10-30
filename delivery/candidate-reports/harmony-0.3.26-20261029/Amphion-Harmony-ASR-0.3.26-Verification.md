@@ -18,8 +18,12 @@
 | Diagnostics 子包 | `Amphion-ASR-Diagnostics-SDK.zip`，773,898,586 字节，`618e20a645adda58e74fbc47781eded6898bf441478226393ff9955d97b6858a` |
 | 设备 | HUAWEI VYG-AL30，HarmonyOS 7.0.0.109，arm64-v8a |
 
-交付分支头部此后只多出「记录本轮验收证据」这一个提交（脱敏证据目录与本报告），不含任何产品
-代码改动，也不改随包文档，因此本轮四个产物仍可直接交付。
+交付分支头部此后多出的是「记录本轮验收证据」的提交与一处 Android 构建修复，都不改鸿蒙产品
+代码、也不改随包文档，因此本轮四个产物仍可直接交付。该 Android 修复是把
+`community_diarization.cpp` 与三个头文件挪进 `asr/android/sdk-dingqiao/src/main/cpp/`：
+Sortformer 那个提交把它们从鸿蒙模块删掉了，而 Android 的角色分离 JNI 目标一直按相对路径
+编译鸿蒙那棵树里的这份源码，删除后 Android CI 的 CMake 配置失败。Android 仍是 Community
+链路，所以源码落到仍在用它的那个模块里。
 
 ## 本版改动（相对 0.3.25 `a63e5834`）
 
