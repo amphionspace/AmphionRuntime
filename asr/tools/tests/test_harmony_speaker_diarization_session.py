@@ -7,7 +7,6 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 DIARIZATION = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization"
-SCHEDULER = DIARIZATION / "DiarizationWindowScheduler.ts"
 REGISTRY = DIARIZATION / "OnlineSpeakerRegistry.ts"
 BARRIER = DIARIZATION / "SpeakerDiarizationFinishBarrier.ts"
 TIMELINE = DIARIZATION / "SpeakerDiarizationTranscriptState.ts"
@@ -21,7 +20,7 @@ CORE_DIARIZATION = ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerD
 PUBLIC_MODELS = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
 CONFIG_POLICY = DIARIZATION / "SpeakerDiarizationConfigPolicy.ts"
 SPEAKER_INDEX_POLICY = DIARIZATION / "SpeakerDiarizationSpeakerIndex.ts"
-LOCAL_CLIENT = DIARIZATION / "SpeakerDiarizationLocalClient.ets"
+LOCAL_CLIENT = DIARIZATION / "SortformerLocalClient.ets"
 SESSION = DIARIZATION / "SpeakerDiarizationSession.ets"
 ADAPTER = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/SpeechRecognizeSdk.ets"
 DEVICE_STRESS = ROOT / (
@@ -137,11 +136,11 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertNotIn("SpeakerDiarizationChild", entry_ability)
 
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("CommunityDiarizationInference", client)
+        self.assertIn("SortformerDiarizationInference", client)
         self.assertIn("this.inference.load(context)", client)
-        inference = (CORE_DIARIZATION.parent / "CommunityDiarizationInference.ets").read_text()
+        inference = (CORE_DIARIZATION.parent / "SortformerDiarizationInference.ets").read_text()
         self.assertIn("context.resourceManager", inference)
-        self.assertIn("loadCommunityDiarizationResources(context.resourceManager)", inference)
+        self.assertIn("loadSortformerDiarizationResources(context.resourceManager", inference)
         self.assertNotIn("NetworkKit", client)
         self.assertNotIn("http.createHttp", client)
         self.assertNotIn("startArkChildProcess", client)
@@ -150,7 +149,6 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertNotIn("ohos.permission.INTERNET", manifest)
         self.assertFalse((DIARIZATION / "SpeakerDiarizationRemoteClient.ets").exists())
         self.assertFalse((ROOT / "delivery/harmony-dingqiao/delivery/run_speaker_diarization_service.py").exists())
-
     def test_engine_scheduling_qos_reaches_the_role_executor(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         construction = adapter[adapter.index("new SpeakerDiarizationSession("):]
@@ -163,10 +161,9 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         inference = CORE_DIARIZATION.read_text(encoding="utf-8")
         self.assertIn("private loadSettled: boolean = false", client)
         self.assertIn("!this.loadSettled", client)
-        self.assertIn("await this.settleInference(inferencePromise)", client)
+        self.assertIn("await this.settle(call)", client)
         self.assertIn("AmphionRuntime.getOrCreateSpeakerTurnSegmenterAsync", inference)
         self.assertNotIn("unloadSpeakerTurnSegmentationModel", inference)
-
     def test_internal_speaker_ids_map_to_absolute_zero_based_public_indexes(self) -> None:
         run_node(
             f"""
@@ -222,7 +219,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         self.assertIn("speakerMask: number", types)
 
         session = SESSION.read_text(encoding="utf-8")
-        self.assertIn("communityTimeline(clustered.turns, identity.mapping", session)
+        self.assertIn("timelineTurns(tracks, this.identities.mapping()", session)
         self.assertIn("assignment.secondarySpeakerIds, this.maxSpeakers, true", session)
 
     def test_rejected_speaker_vad_final_redacts_raw_and_processed_text(self) -> None:
@@ -271,140 +268,33 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             process_client,
         )
         self.assertIn("SpeakerDiarizationDegradedReason.INFERENCE_UNAVAILABLE", process_client)
-        self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", process_client)
+        self.assertIn("SpeakerDiarizationDegradedReason.INFERENCE_TIMEOUT", process_client)
         self.assertIn("SpeakerDiarizationDegradedReason.MODEL_UNAVAILABLE", process_client)
         session = SESSION.read_text(encoding="utf-8")
         self.assertNotIn("function degradedReasonOf", session)
         self.assertIn("speaker diarization initialization failed", diarization_start)
-
-    def test_local_executor_preserves_padded_window_offset(self) -> None:
+    def test_local_executor_scales_pcm_without_a_file_window(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        method = client[client.index("  private readWindow("):client.index("  private fail(")]
-        method = method.replace("private ", "").replace(": DiarizationLocalJob", "").replace(": Float32Array", "").replace(": ArrayBuffer", "")
-        run_node("class Reader {\n" + method + "}\n" + """
-          import assert from 'node:assert/strict';
-          const WINDOW_SAMPLES=160000;
-          const samples=new Int16Array([-32768,16384,0,32767]);
-          const r=new Reader();let observed;
-          r.spool={read(offset,bytes){observed=[offset,bytes];return samples.buffer;}};
-          const pcm=r.readWindow({offsetBytes:32000,sampleCount:4});
-          assert.deepEqual(observed,[32000,8]);
-          assert.equal(pcm.length,160000);
-          assert.deepEqual(Array.from(pcm.slice(0,4)),[-1,.5,0,32767/32768]);
-          assert.ok(pcm.slice(4).every(v=>v===0),'right padding cannot move real PCM');
-        """)
-
-    def test_spool_failure_is_isolated_from_asr_and_finish(self) -> None:
+        # Int16 frames become [-1, 1) floats straight from memory; an odd trailing
+        # byte is dropped rather than read as half a sample.
+        self.assertIn("samples[offset + index] = part[index] / 32768.0", client)
+        self.assertIn("audio.byteLength - audio.byteLength % 2", client)
+        self.assertNotIn("WINDOW_SAMPLES", client, "the engine cuts its own chunks; no padded window exists here")
+    def test_local_executor_writes_no_files_and_names_no_session(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        append_body = client.split("append(audio: ArrayBuffer)", 1)[1].split(
-            "finish(): void", 1
-        )[0]
-        finish_body = client.split("finish(): void", 1)[1].split("cancel(): void", 1)[0]
-        self.assertIn(
-            "this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE",
-            append_body,
-        )
-        self.assertIn("speaker diarization spool failed:", append_body)
-        self.assertIn(
-            "this.fail(SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE",
-            finish_body,
-        )
-        self.assertIn("speaker diarization finish spool failed:", finish_body)
-        self.assertIn("Promise.race([inferencePromise, timeoutPromise])", client)
-        self.assertIn("await this.settleInference(inferencePromise)", client)
-        self.assertIn("this.closeWhenQuiescent()", client)
-        self.assertIn("client.cleanup((): void => { this.releaseRuntimeLease(); })",
-                      SESSION.read_text(encoding="utf-8"))
-
-    def test_local_result_storage_failures_are_classified_as_storage_failures(self) -> None:
-        client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        self.assertIn("SpeakerDiarizationStorageError", client)
-        self.assertIn("error instanceof SpeakerDiarizationStorageError", client)
-        self.assertIn("SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE", client)
-
-        session = SESSION.read_text(encoding="utf-8")
-        self.assertNotIn("appendCheckpoint", session)
-        self.assertIn("this.spool.read", client)
-
-    def test_caller_session_id_never_participates_in_job_paths(self) -> None:
-        client = LOCAL_CLIENT.read_text(encoding="utf-8")
-        constructor = client.split("constructor(context:", 1)[1].split(
-            "append(audio:", 1
-        )[0]
-        self.assertIn("/speaker-diarization-jobs/job-${Date.now()}-${localJobId}", constructor)
-        self.assertNotIn("/speaker-diarization-jobs/${sessionId}", constructor)
-
-    def test_segments_crossing_a_stable_boundary_are_clipped_not_dropped(self) -> None:
-        run_node(f"""
-          import assert from 'node:assert/strict';
-          import {{ communityTimeline }} from {(DIARIZATION/'CommunitySpeakerIdentity.ts').as_uri()!r};
-          const tracks=[[100,1500,0],[900,1100,1]];
-          const first=communityTimeline(tracks,[0,1],0,1000);
-          const next=communityTimeline(tracks,[0,1],1000,2000);
-          assert.deepEqual(first.map(t=>[t.beginTime,t.endTime,t.speakerId,t.secondarySpeakerIds]),
-            [[100,900,'S1',[]],[900,1000,'S1',['S2']]]);
-          assert.deepEqual(next.map(t=>[t.beginTime,t.endTime,t.speakerId,t.secondarySpeakerIds]),
-            [[1000,1100,'S1',['S2']],[1100,1500,'S1',[]]]);
-        """)
-
-    def test_window_schedule_is_frame_independent_and_finish_flushes_tail(self) -> None:
-        run_node(
-            f"""
-            import assert from 'node:assert/strict';
-            import {{ DiarizationWindowScheduler }} from {SCHEDULER.as_uri()!r};
-
-            const whole = new DiarizationWindowScheduler(16_000);
-            const framed = new DiarizationWindowScheduler(16_000);
-            const wholeWindows = whole.acceptSamples(16_000 * 17);
-            const framedWindows = [];
-            for (let i = 0; i < 17 * 50; i++) {{
-              framedWindows.push(...framed.acceptSamples(320));
-            }}
-            assert.deepEqual(framedWindows, wholeWindows);
-            assert.deepEqual(wholeWindows.map(window => [window.startSample, window.endSample]),
-              Array.from({{length:8}},(_,i)=>[i*16000,(i+10)*16000]));
-            assert.equal(whole.finish(),undefined,'an exact complete window must not be duplicated');
-            framed.acceptSamples(320);
-            const tail=framed.finish();
-            assert.equal(tail.startSample,128000);
-            assert.equal(tail.endSample,288000);
-            assert.equal(tail.realEndSample,272320);
-            assert.equal(tail.stableEndSample,272320);
-            """
-        )
-
-    def test_window_schedule_can_pull_a_two_second_hop_without_dropping_windows(self) -> None:
-        run_node(
-            f"""
-            import assert from 'node:assert/strict';
-            import {{ DiarizationWindowScheduler }} from {SCHEDULER.as_uri()!r};
-            const scheduler = new DiarizationWindowScheduler(16_000, 10_000, 2_000, 1_500);
-            scheduler.acceptSamples(16_000 * 30, 0);
-            assert.equal(scheduler.hasAvailable(), true);
-            const first = scheduler.takeAvailable(2);
-            assert.deepEqual(first.map(w => [w.startSample, w.endSample]),
-              [[0, 160000], [32000, 192000]]);
-            const rest = scheduler.takeAvailable(99);
-            assert.equal(first.length + rest.length, 11);
-            assert.deepEqual(rest.at(-1) && [rest.at(-1).startSample, rest.at(-1).endSample],
-              [320000, 480000]);
-            assert.equal(scheduler.finish(), undefined,
-              'an exact full final window must not be duplicated at a 2 s hop');
-            """
-        )
-
-    def test_local_executor_uses_bounded_pull_queue_and_window_generation_identity(self) -> None:
+        self.assertNotIn("speaker-diarization-jobs", client)
+        self.assertNotIn("fileIo", client)
+        self.assertNotIn("sessionId", client)
+    def test_local_executor_feeds_in_order_with_one_call_in_flight(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding='utf-8')
-        self.assertIn('maxPendingJobs', client)
-        self.assertIn('scheduler.takeAvailable(capacity)', client)
-        self.assertIn('activeJob?.generation !== job.generation', client)
-        self.assertIn('finishWindowQueued', client)
+        self.assertIn('this.activeJobId.length > 0) return;', client)
+        self.assertIn('MAX_PENDING_SAMPLES', client)
+        self.assertIn('FEED_MIN_SAMPLES', client)
+        self.assertIn('flushQueued', client)
+        self.assertIn('INFERENCE_TIMEOUT_MS', client)
         session = SESSION.read_text(encoding='utf-8')
-        self.assertIn('clientOptions?: SpeakerDiarizationLocalClientOptions', session)
+        self.assertIn('clientOptions?: SortformerLocalClientOptions', session)
         self.assertIn('diagnostic, clientOptions)', session)
-        # Pruning and returning-voice ownership are exercised by the Community
-        # batch regression, rather than requiring a particular splice shape.
-
     def test_registry_keeps_ids_stable_and_never_forces_a_fifth_speaker(self) -> None:
         run_node(
             f"""
@@ -636,34 +526,24 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
-    def test_preview_spacing_stays_inside_the_commit_period(self) -> None:
-        """A preview must keep refreshing provisional roles at least once per commit."""
-        # Previews are throttled to a fraction of the audio they cover because their
-        # cost grows with the meeting. Raise that fraction far enough and the spacing
-        # overtakes the commit period, at which point previews stop adding anything
-        # in exactly the long meetings the throttle exists for. Measured on a 7332 s
-        # session, one preview late in it cost 4858 ms, so the spacing there is the
-        # ratio times that; it has to stay inside the default commit period.
+    def test_preview_cadence_is_a_bounded_config_not_a_recluster(self) -> None:
+        """Provisional roles come from the engine's preview pass at a fixed cadence."""
+        # The windowed chain re-clustered the whole meeting for a preview and had to
+        # throttle itself against the commit period. The Sortformer chain previews
+        # one chunk prefix against the live speaker cache, so the only knob is the
+        # cadence, and it has to stay inside the chunk and above the point where a
+        # preview costs more than the chunk it precedes.
+        config = (ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/AsrSchedulingConfig.ts").read_text(encoding="utf-8")
+        default = int(re.search(r"diarizationPreviewMs: number = (\d+)", config).group(1))
+        self.assertEqual(default, 5000)
+        self.assertIn("diarizationPreviewMs < 2500", config)
+        self.assertIn("diarizationPreviewMs > 9920", config)
         source = SESSION.read_text(encoding="utf-8")
-        ratio = int(re.search(r"PREVIEW_COST_RATIO: number = (\d+)", source).group(1))
-        interval = int(re.search(r"PREVIEW_INTERVAL_MS: number = (\d+)", source).group(1))
+        self.assertNotIn("PREVIEW_COST_RATIO", source)
+        self.assertIn("refreshProvisional", source)
         clock = (DIARIZATION / "DiarizationCommitClock.ts").read_text(encoding="utf-8")
-        commit_period = int(
-            re.search(r"commitPeriodMs: number = (\d+)", clock).group(1)
-        )
-        measured_late_preview_ms = 4858
-        spacing = max(interval, ratio * measured_late_preview_ms)
-        self.assertLessEqual(
-            spacing,
-            commit_period,
-            f"preview spacing {spacing} ms of audio exceeds the {commit_period} ms "
-            "commit period, so previews would be sparser than the commits that "
-            "supersede them",
-        )
-        # The floor still has to be a floor: a cheap preview early on must not be
-        # spaced by the ratio alone.
-        self.assertGreaterEqual(interval, 1000)
-
+        commit_period = int(re.search(r"commitPeriodMs: number = (\d+)", clock).group(1))
+        self.assertLess(default, commit_period)
     def test_diarization_timeout_never_replaces_pending_asr_tail(self) -> None:
         """A spent deadline still cannot publish before the recognizer's tail."""
         run_node(

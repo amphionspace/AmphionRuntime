@@ -1,0 +1,109 @@
+From 80d52afe183aa203613a69eb75bd4cf9addbcfeb Mon Sep 17 00:00:00 2001
+From: Amphion <dev@amphion.local>
+Date: Thu, 29 Oct 2026 18:03:58 +0800
+Subject: [PATCH] fix(asr): cap the hotword bonus a phrase's first token may
+ collect
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The bonus on a phrase's first token is paid before anything shows that the
+phrase is being spoken, so one boosted character can outrank the correct one
+on its own. A caller hotword at 3.0 turned the spoken "幺" into "遣" and the
+digits that followed were lost; raising the score raises the reach of a single
+character without bounds.
+
+Cap what a first token may add at 1.0, the weight every hotword carried before
+per-word scores existed, and keep the caller's score for every token after it:
+reaching those requires the previous characters of the same phrase to have
+matched, which is the evidence the first token lacks. The withheld amount is
+not paid back on the second token, because that would let a phrase whose first
+character is common ("观" of "观音桥派出所") decide the second character with
+more weight than the caller asked for. Scores at or below the cap, including
+the calibrated preset pools, and one-token phrases are unaffected.
+
+Host check on aishell3_test_hotwords_500 with per-utterance hotwords at 3.0
+plus the police preset pool: CER 1.04% -> 1.08%, hotword recall 97.58% ->
+97.09%, one hotword instance lost. In exchange a two-token hotword can no
+longer force its first character at any score: "三思" at 30.0 turned
+"幺三幺幺二三四五六七八" into "幺三三" before and is exact now.
+---
+ sherpa-onnx/csrc/context-graph.cc | 44 +++++++++++++++++++++++++------
+ 1 file changed, 36 insertions(+), 8 deletions(-)
+
+diff --git a/sherpa-onnx/csrc/context-graph.cc b/sherpa-onnx/csrc/context-graph.cc
+index 39685eac..bf2f307e 100644
+--- a/sherpa-onnx/csrc/context-graph.cc
++++ b/sherpa-onnx/csrc/context-graph.cc
+@@ -16,6 +16,13 @@
+ #include "sherpa-onnx/csrc/macros.h"
+ 
+ namespace sherpa_onnx {
++
++// Most a phrase's first token may add on its own. 1.0 is the weight every
++// hotword carried before per-word scores were introduced; it keeps a weak but
++// correct first character competitive in the beam without letting a large
++// caller score decide a single character by itself.
++static constexpr float kFirstTokenMaxContextScore = 1.0f;
++
+ void ContextGraph::Build(const std::vector<std::vector<int32_t>> &token_ids,
+                          const std::vector<float> &scores,
+                          const std::vector<std::string> &phrases,
+@@ -37,25 +44,46 @@ void ContextGraph::Build(const std::vector<std::vector<int32_t>> &token_ids,
+     ac_threshold = ac_threshold == 0.0f ? ac_threshold_ : ac_threshold;
+     std::string phrase = phrases.empty() ? std::string() : phrases[i];
+ 
+-    for (int32_t j = 0; j < static_cast<int32_t>(token_ids[i].size()); ++j) {
++    int32_t phrase_length = static_cast<int32_t>(token_ids[i].size());
++    for (int32_t j = 0; j < phrase_length; ++j) {
+       int32_t token = token_ids[i][j];
++      // The bonus on a phrase's first token is paid before anything shows that
++      // the phrase is being spoken, so one boosted character can outrank the
++      // correct one on its own: a caller hotword "遣返" turned "幺" into "遣"
++      // and the digits that followed were lost. Cap what the first token may
++      // collect and defer the remainder onto the second token, which arrives
++      // only once a second character of the same phrase has been decoded. The
++      // first token therefore carries a bounded bonus no matter how large the
++      // caller's score is. The withheld amount is not paid back later: moving
++      // it onto the second token would let a phrase whose first character is
++      // common ("观" of "观音桥派出所") decide the second character with more
++      // weight than the caller asked for, which is the same failure one
++      // position to the right. Every token keeps its own score as the ceiling,
++      // so a matched phrase is worth (length - 1) * score + min(score, cap)
++      // and a leaving path pays back exactly what it collected. Scores at or
++      // below the cap, including the calibrated preset pools, are untouched,
++      // and a one-token phrase keeps its bonus because matching it is already
++      // the whole evidence.
++      float token_bonus =
++          j == 0 && phrase_length > 1
++              ? std::min(score, kFirstTokenMaxContextScore)
++              : score;
+       if (0 == node->next.count(token)) {
+-        bool is_end = j == (static_cast<int32_t>(token_ids[i].size()) - 1);
++        bool is_end = j == (phrase_length - 1);
+         node->next[token] = std::make_unique<ContextState>(
+-            token, score, node->node_score + score,
+-            is_end ? node->node_score + score : 0, j + 1,
++            token, token_bonus, node->node_score + token_bonus,
++            is_end ? node->node_score + token_bonus : 0, j + 1,
+             is_end ? ac_threshold : 0.0f, is_end,
+             is_end ? phrase : std::string());
+       } else {
+-        float token_score = std::max(score, node->next[token]->token_score);
++        float token_score = std::max(token_bonus, node->next[token]->token_score);
+         node->next[token]->token_score = token_score;
+         float node_score = node->node_score + token_score;
+         node->next[token]->node_score = node_score;
+-        bool is_end = (j == static_cast<int32_t>(token_ids[i].size()) - 1) ||
+-                      node->next[token]->is_end;
++        bool is_end = (j == phrase_length - 1) || node->next[token]->is_end;
+         node->next[token]->output_score = is_end ? node_score : 0.0f;
+         node->next[token]->is_end = is_end;
+-        if (j == static_cast<int32_t>(token_ids[i].size()) - 1) {
++        if (j == phrase_length - 1) {
+           node->next[token]->phrase = phrase;
+           node->next[token]->ac_threshold = ac_threshold;
+         }
+-- 
+2.54.0 (Apple Git-157)
+

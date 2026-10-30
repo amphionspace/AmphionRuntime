@@ -176,7 +176,7 @@
       "evidence": [
         {
           "kind": "contract-tests",
-          "path": "asr/tools/tests/test_harmony_community_diarization.py",
+          "path": "asr/tools/tests/test_harmony_sortformer_diarization.py",
           "binding": "current-source",
           "reason": "覆盖短段和同人连续段的状态约束；仍需真实多人短插话录音"
         }

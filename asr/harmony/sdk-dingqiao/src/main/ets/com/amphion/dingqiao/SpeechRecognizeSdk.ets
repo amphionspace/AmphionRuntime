@@ -58,7 +58,7 @@ import {
   VoiceprintRegisterResult
 } from './DingqiaoModels';
 import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
-import { SpeakerDiarizationLocalClientOptions } from './diarization/SpeakerDiarizationLocalClient';
+import { SortformerLocalClientOptions } from './diarization/SortformerLocalClient';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
 import { SpeakerDiarizationRuntimeLeaseRegistry } from
@@ -192,6 +192,7 @@ class DegradedSpeakerDiarizationSession implements SpeakerDiarizationSessionCont
     result.utterances = this.transcript.finalUtterances(endTime).map(value => {
       const utterance = new DiarizedUtterance();
       utterance.utteranceId = value.utteranceId; utterance.sourceUtteranceId = value.sourceUtteranceId;
+      utterance.sourceUtteranceIds = [value.sourceUtteranceId];
       utterance.rawText = value.rawText; utterance.text = value.text;
       utterance.beginTime = value.beginTime; utterance.endTime = value.endTime;
       return utterance;
@@ -700,29 +701,20 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             });
           });
         // Engine-wide ASR QoS also lifts role work, one level below recognition.
-        const diarizationOptions: SpeakerDiarizationLocalClientOptions = {
+        const diarizationPreviewMs = this.params.scheduling?.diarizationPreviewMs ?? 5000;
+        const diarizationOptions: SortformerLocalClientOptions = {
           recognizerQos: this.params.scheduling?.qos,
+          previewMs: diarizationPreviewMs,
         };
-        // Only a non-default encoder request is forwarded; the CPU path keeps
-        // the exact native argument shape it has always had.
-        // 'auto' is a request, not a placement: resolve it against the window
-        // cadence so the client, the diagnostics and the snapshot all agree.
+        // 'auto' is a request, not a placement: resolve it against the role
+        // refresh cadence so the client, the diagnostics and the snapshot agree.
+        // A chunk commits every 9.92 s, so a disabled preview is that cadence.
         const diarizationQos = resolveDiarizationQos(
           this.params.scheduling?.diarizationQos ?? 'auto',
-          this.params.scheduling?.diarizationHopMs ?? 2000,
+          diarizationPreviewMs > 0 ? diarizationPreviewMs : 9920,
           this.params.scheduling?.displayMayTurnOff === true);
         if (diarizationQos !== 'inherit') {
           diarizationOptions.roleQos = diarizationQos;
-        }
-        const diarizationEncoder = this.params.scheduling?.diarizationEncoder;
-        if (diarizationEncoder !== undefined && diarizationEncoder !== 'cpu') {
-          diarizationOptions.encoderBackend = diarizationEncoder;
-        }
-        // Same rule for the window cadence: only a non-default request travels,
-        // so the default path keeps the scheduler arguments it always had.
-        const diarizationHopMs = this.params.scheduling?.diarizationHopMs;
-        if (diarizationHopMs !== undefined && diarizationHopMs !== 1000) {
-          diarizationOptions.hopMs = diarizationHopMs;
         }
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(

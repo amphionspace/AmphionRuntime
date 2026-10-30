@@ -50,6 +50,9 @@ export interface DiarizationTranscriptUpdate extends SpeakerTimelineTurn {
 
 export interface DiarizedTranscriptUtterance extends SpeakerTimelineTurn {
   sourceUtteranceId: string;
+  // Every original ASR final this item was aggregated from, in time order.
+  // Absent on sentence units; aggregatedUtterances() always fills it.
+  sourceUtteranceIds?: string[];
   utteranceId: string;
   rawText: string;
   text: string;
@@ -579,6 +582,59 @@ export class SpeakerDiarizationTranscriptState {
       utterance.speakerTextSpans = merged;
     }
     return result;
+  }
+
+  /**
+   * Public window items: sentence units joined across adjacent ASR finals while
+   * the same confirmed speaker continues and no other confirmed voice spoke in
+   * between. UNKNOWN units never join. `sourceUtteranceIds` lists every source
+   * final so callers can replace their provisional sentences.
+   */
+  aggregatedUtterances(throughTime: number = Number.POSITIVE_INFINITY): DiarizedTranscriptUtterance[] {
+    const result: DiarizedTranscriptUtterance[] = [];
+    for (const unit of this.sentenceUtterances(throughTime)) {
+      const part: DiarizedTranscriptUtterance = { ...unit,
+        secondarySpeakerIds: unit.secondarySpeakerIds.slice(),
+        speakerTextSpans: (unit.speakerTextSpans ?? []).map(span =>
+          ({ ...span, secondarySpeakerIds: span.secondarySpeakerIds.slice() })),
+        sourceUtteranceIds: [unit.sourceUtteranceId] };
+      const previous = result[result.length - 1];
+      if (previous === undefined || !this.continuesSpeaker(previous, part)) {
+        result.push(part);
+        continue;
+      }
+      const sourceBegin = previous.rawText.length, textBegin = previous.text.length;
+      const previousSpans = previous.speakerTextSpans ?? [], partSpans = part.speakerTextSpans ?? [];
+      // Partial provenance would misstate ownership; keep spans only when both sides have them.
+      previous.speakerTextSpans = previousSpans.length > 0 && partSpans.length > 0 ?
+        previousSpans.concat(partSpans.map(span => ({ ...span,
+          sourceBegin: span.sourceBegin + sourceBegin, sourceEnd: span.sourceEnd + sourceBegin,
+          textBegin: span.textBegin + textBegin, textEnd: span.textEnd + textBegin }))) : [];
+      previous.rawText += part.rawText;
+      previous.text += part.text;
+      previous.endTime = part.endTime;
+      previous.confidence = Math.min(previous.confidence ?? 0, part.confidence ?? 0);
+      previous.overlap = (previous.overlap ?? false) || (part.overlap ?? false);
+      previous.speakerInferred = (previous.speakerInferred ?? false) || (part.speakerInferred ?? false);
+      previous.secondarySpeakerIds = Array.from(new Set([...previous.secondarySpeakerIds,
+        ...part.secondarySpeakerIds])).sort();
+      const sources = previous.sourceUtteranceIds ?? [previous.sourceUtteranceId];
+      if (!sources.includes(part.sourceUtteranceId)) sources.push(part.sourceUtteranceId);
+      previous.sourceUtteranceIds = sources;
+    }
+    return result;
+  }
+
+  private continuesSpeaker(previous: DiarizedTranscriptUtterance, part: DiarizedTranscriptUtterance): boolean {
+    if (previous.speakerId === UNKNOWN_SPEAKER || part.speakerId !== previous.speakerId) return false;
+    if (part.beginTime < previous.endTime) return false;
+    // Another confirmed voice between the two sentences ends the paragraph even
+    // when it produced no recognised text of its own. UNKNOWN does not.
+    return !this.turns.some(turn =>
+      overlapMs(previous.endTime, part.beginTime, turn.beginTime, turn.endTime) > 0 &&
+      ((turn.speakerId !== previous.speakerId && turn.speakerId !== UNKNOWN_SPEAKER) ||
+        turn.secondarySpeakerIds.some(id =>
+          id !== previous.speakerId && id !== UNKNOWN_SPEAKER && id !== 'UNKNOWN_SECONDARY')));
   }
 
   private alignedTextSpans(original: StoredUtterance, parts: DiarizedTranscriptUtterance[],

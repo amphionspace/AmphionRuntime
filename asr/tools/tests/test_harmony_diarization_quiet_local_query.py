@@ -1,4 +1,4 @@
-"""Community sampling preserves quiet PCM without an adapter admission filter."""
+"""Quiet local identity queries preserve PCM without an adapter admission filter."""
 import subprocess
 import tempfile
 import unittest
@@ -9,31 +9,6 @@ SOURCE = ROOT / 'asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerDiarization
 
 
 class HarmonyDiarizationQuietLocalQueryTest(unittest.TestCase):
-    def test_quiet_pcm_is_preserved_and_only_the_missing_tail_is_padded(self):
-        source = (DIARIZATION / 'SpeakerDiarizationLocalClient.ets').read_text()
-        read = 'private readWindow(' + source.split('private readWindow(', 1)[1].split('\n  private fail(', 1)[0]
-        script = """
-          import assert from 'node:assert/strict';
-          const WINDOW_SAMPLES=160000;
-          class SpeakerDiarizationStorageError extends Error {}
-          const pcm=Int16Array.from({length:8000},(_,i)=>i%2===0?1:-100);
-          const calls=[];
-          class Client {
-            spool={read:(offset,length)=>{calls.push([offset,length]);return pcm.buffer;}};
-        """ + read + """
-          }
-          const samples=new Client().readWindow({offsetBytes:32000,sampleCount:8000});
-          assert.deepEqual(calls,[[32000,16000]]);
-          assert.equal(samples.length,160000);
-          for(let i=0;i<8000;i++)assert.equal(samples[i],pcm[i]/32768);
-          assert.ok(samples.slice(8000).every(x=>x===0));
-          assert.notEqual(samples[0],0,'quiet real PCM cannot be dropped by an amplitude gate');
-        """
-        with tempfile.TemporaryDirectory() as directory:
-            harness = Path(directory) / 'quiet.mts'
-            harness.write_text(script)
-            subprocess.run(['node', '--experimental-strip-types', str(harness)], check=True, cwd=ROOT)
-
     def test_local_pcm_uses_absolute_grid_and_never_reads_padding_or_future(self):
         source=SOURCE.read_text();source=source[source.index('const SAMPLE_RATE:'):]
         driver="""

@@ -7,7 +7,7 @@
 #include "agc_bridge.h"
 #include "lac_person_ner.h"
 
-void RegisterCommunityDiarization(napi_env env, napi_value exports);
+void RegisterSortformerDiarization(napi_env env, napi_value exports);
 void RegisterMindSporeProbe(napi_env env, napi_value exports);
 void RegisterOrtProbe(napi_env env, napi_value exports);
 
@@ -33,7 +33,7 @@ static napi_value Init(napi_env env, napi_value exports) {
   napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
   RegisterTargetSpeakerEnhancer(env, exports);
   RegisterSpeakerTurnSegmenter(env, exports);
-  RegisterCommunityDiarization(env, exports);
+  RegisterSortformerDiarization(env, exports);
   RegisterAgcBridge(env, exports);
   RegisterLacPersonNer(env, exports);
   RegisterMindSporeProbe(env, exports);

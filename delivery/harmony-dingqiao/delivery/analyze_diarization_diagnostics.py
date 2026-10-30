@@ -129,26 +129,24 @@ def _stage_results(events: list[dict[str, Any]], caller: dict[str, Any] | None) 
     )
     asr_status = "INCONCLUSIVE" if asr else "UNVERIFIED"
 
-    window = _first(events, {"DIARIZATION_COMMUNITY_WINDOW"})
-    segmentation_status = "INCONCLUSIVE" if window else "UNVERIFIED"
+    chunk = _first(events, {"DIARIZATION_SORTFORMER_CHUNK"})
+    segmentation_status = "INCONCLUSIVE" if chunk else "UNVERIFIED"
 
-    samples = _first(events, {"DIARIZATION_COMMUNITY_SAMPLES"})
-    window_embeddings = _first(
-        events, {"DIARIZATION_COMMUNITY_WINDOW"},
-        lambda event: isinstance(_fields(event).get("embeddings"), list) and
-        bool(_fields(event).get("embeddings")),
+    # The Sortformer chain has no separate embedding stage; its evidence of
+    # per-slot activity is the chunk's run list (preview or final).
+    embedding = _first(
+        events, {"DIARIZATION_SORTFORMER_CHUNK", "DIARIZATION_SORTFORMER_PREVIEW"},
+        lambda event: isinstance(_fields(event).get("runs"), list) and bool(_fields(event).get("runs")),
     )
-    embedding = samples or window_embeddings
     embedding_status = "INCONCLUSIVE" if embedding else "UNVERIFIED"
 
-    cluster = _first(events, {"DIARIZATION_COMMUNITY_PREVIEW", "DIARIZATION_COMMUNITY_COMMIT"})
+    cluster = _first(events, {"DIARIZATION_SORTFORMER_PREVIEW", "DIARIZATION_SORTFORMER_COMMIT"})
     clustering_status = "INCONCLUSIVE" if cluster else "UNVERIFIED"
 
-    commit = _first(events, {"DIARIZATION_COMMUNITY_COMMIT"})
+    commit = _first(events, {"DIARIZATION_SORTFORMER_COMMIT", "DIARIZATION_SORTFORMER_CHUNK"})
     commit_has_identity = bool(commit and (
-        _fields(commit).get("clusterToFrozenId") or
-        _fields(commit).get("registryAfter") or
-        _fields(commit).get("firstAppearanceTimes")
+        _fields(commit).get("slotToPublicId") or
+        _fields(commit).get("registryAfter")
     ))
     identity_status = "INCONCLUSIVE" if commit_has_identity else "UNVERIFIED"
 
@@ -168,10 +166,10 @@ def _stage_results(events: list[dict[str, Any]], caller: dict[str, Any] | None) 
     return {
         "input": _result(input_status, "录音帧已进入 SDK" if audio else "没有正的音频输入证据", audio, evidence=["audio counters"] if audio else []),
         "asr": _result(asr_status, "存在 ASR 处理或带文本回调" if asr else "音频进入后没有 ASR 处理/文本证据", asr, evidence=["ASR alignment/processed"] if asr else []),
-        "segmentation": _result(segmentation_status, "存在 Community window" if window else "没有 Community window", window, evidence=["DIARIZATION_COMMUNITY_WINDOW"] if window else []),
-        "embedding": _result(embedding_status, "存在样本或 embedding" if embedding else "窗口存在但没有样本/embedding 证据", embedding, evidence=["community samples/window embeddings"] if embedding else []),
-        "clustering": _result(clustering_status, "存在 preview/commit 聚类结果" if cluster else "没有聚类结果", cluster, evidence=["community preview/commit"] if cluster else []),
-        "identity_freeze": _result(identity_status, "commit 包含身份注册表" if commit_has_identity else "最终公开结果缺少身份冻结证据", commit, evidence=["clusterToFrozenId/registryAfter"] if commit_has_identity else []),
+        "segmentation": _result(segmentation_status, "存在 Sortformer chunk" if chunk else "没有 Sortformer chunk", chunk, evidence=["DIARIZATION_SORTFORMER_CHUNK"] if chunk else []),
+        "embedding": _result(embedding_status, "存在逐槽位活动段" if embedding else "chunk 存在但没有活动段证据", embedding, evidence=["sortformer chunk/preview runs"] if embedding else []),
+        "clustering": _result(clustering_status, "存在 preview/commit 结果" if cluster else "没有 preview/commit 结果", cluster, evidence=["sortformer preview/commit"] if cluster else []),
+        "identity_freeze": _result(identity_status, "commit 包含身份注册表" if commit_has_identity else "最终公开结果缺少身份冻结证据", commit, evidence=["slotToPublicId/registryAfter"] if commit_has_identity else []),
         "sdk_alignment": _result(sdk_status, "存在公开角色结果" if public else "没有公开角色结果", public, evidence=["DIARIZATION_PUBLIC_RESULT"] if public else []),
         "caller_display": caller_result,
     }
