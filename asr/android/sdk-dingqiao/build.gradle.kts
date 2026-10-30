@@ -100,4 +100,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
+    // 本模块 unitTests.isReturnDefaultValues=true，android.jar 的 org.json 是空壳（方法返回默认值），
+    // 会让 JSON 解析静默得到空结果。与 samples/internal-eval 一致，测试期引真实实现。
+    testImplementation("org.json:json:20231013")
 }
