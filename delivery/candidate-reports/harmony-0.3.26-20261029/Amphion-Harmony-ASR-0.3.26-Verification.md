@@ -44,6 +44,8 @@
 | 最终 ZIP 校验和 | PASS，`docs/checksums.txt` 全部 50 项一致；包内 identity 与 Diagnostics 子包逐字段一致 |
 | 披露检查 | 包内无评测探针、评测脚本、评测语料与内部路径；Release 子包脱敏门禁 PASS（16 文件 / 1 HAR） |
 | API 23 编译兼容 | PASS，52 个文件 |
+| 包内 `demo-source/` 独立构建 | PASS，34 个构建任务全通过、未改任何一行源码；产出签名 HAP `60af50c5` |
+| 独立构建产物装机复测 | PASS，热词 7 例与包内 Diagnostics Demo 逐字相同；`customer-ptt` 12/12，增长 7.29 MiB、峰值 401.6 MiB |
 | 主机门禁 | 仓库布局 / 可观测性 / 版本一致性 PASS；交付 270 个测试 PASS；`asr/tools/tests` 634 个测试中 2 失败 1 错误，均为既有问题（见下） |
 
 ## 代价与未覆盖
@@ -77,6 +79,15 @@
   在本解释器下无法导入 `sherpa_onnx`。
 - **安卓端**：热词两个补丁两端共用，但安卓的换人切分与收尾短窗补判在
   `fix/android-speaker-turn-split` 分支，等安卓真机验证；安卓角色分离仍为 Community 链路。
+
+## 外置交付材料
+
+| 文件 | 说明 |
+|---|---|
+| `FINAL-ZIP-ACCEPTANCE.md` | 绑定完整 ZIP 的 SHA-256；按设计记载测试机型号与序列号（随包摘要中这两项被脱敏门禁拒绝） |
+| `交付邮件-0.3.26-20261030.md` | 中文交付邮件草稿，未发送 |
+
+两份都在 `delivery/harmony-dingqiao/evidence/acceptance/20261029-927bda6e-0.3.26/`，均不随包。
 
 ## 取代关系
 
