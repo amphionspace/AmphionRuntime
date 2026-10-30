@@ -1124,7 +1124,10 @@ internal class SessionImpl(
                 val score = verifier.segmentScore(selection.samples, target)
                 if (score != null) {
                     val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
-                    prepared = terminal.copy(speakerScore = score, isTargetSpeaker = score >= threshold)
+                    // 流式机器没确认过目标的句子（换人瞬间接上的 1~2 s 短句就是这种），
+                    // 只剩句级分可依，需同时过调用方阈值和实测空带下沿。
+                    val gate = speakerFinalGateScore(threshold, svTargetConfirmed)
+                    prepared = terminal.copy(speakerScore = score, isTargetSpeaker = score >= gate)
                 }
             }
         }

@@ -9,6 +9,23 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /**
+ * 流式机器从未确认过目标说话人的句子，句级分还要过这条实测下沿。
+ *
+ * 依据 `asr/tools/speaker/18_eval_short_segment_threshold.py`：同一注册下机主短句最低
+ * 0.525 / 0.600 / 0.603 / 0.636（1.0~3.0 s），非机主最高 0.400 / 0.377 / 0.432 / 0.459，
+ * 0.35 到 0.52 之间是一条空带。鸿蒙真机上一段 1.6 s 的非机主句子打到 0.362，越过默认阈值
+ * 0.35 被当作机主发布；该句太短，流式判定（winSec + hopSec）来不及出结论，只剩句级分可依。
+ *
+ * 与 Harmony 的 `UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE` 同值。注册音与测试音同一会话时机主一侧
+ * 偏乐观，跨会话注册需用客户真实声纹复测后才能认为该下沿在生产上成立。
+ */
+internal const val UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE = 0.45f
+
+/** 句级门：已确认目标用调用方阈值；未确认时取调用方阈值与实测下沿的较大者（调用方更严时以其为准）。 */
+internal fun speakerFinalGateScore(threshold: Float, targetConfirmed: Boolean): Float =
+    if (targetConfirmed) threshold else max(threshold, UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE)
+
+/**
  * Speaker VAD score state after one trailing-window score. Mirrors the Harmony
  * `SpeakerTurnFinalizer.ts` contract so both platforms gate target -> other turns the same way.
  */

@@ -408,6 +408,155 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         }
     }
 
+    /**
+     * 0.3.26 复测：客户报的「数字被识别成遣或整段变空」。
+     *
+     * 七个用例与鸿蒙 0.3.26 的同一夹具逐条对应（录音、热词表、判据都相同），便于两端对照。
+     * 每例先不带热词解一遍作基线，再带热词解一遍。`qf-06` 是我方构造的七字前缀最坏情况探针，
+     * 热词前六字与录音里的话一字不差，鸿蒙上修复后仍丢 5 位数字；它只记录证据、不参与断言。
+     */
+    @Test
+    fun bug12HotwordDigits_customerListDoesNotSwallowThePhoneNumber() {
+        val writer = EvidenceWriter(targetContext, "bug12-hotword-digits")
+        prepare(writer)
+        val digits = "13112345678"
+        val customerList = listOf(
+            "遣返", "谴责", "和光", "鼎桥", "银色", "金色", "灰色", "白色", "黑色", "橙色",
+            "紫色", "黄色", "粉色", "绿色", "蓝色", "红色", "黄昏", "清晨", "冬天", "秋天",
+            "夏天", "春天", "假期", "周末", "午夜", "黎明", "深夜", "傍晚", "下午", "中午",
+            "早晨", "干旱", "高温", "寒潮", "冰雹", "阵雨", "暴雨", "台风", "雾霾", "闪电",
+            "打雷", "大风", "雪天", "雨天", "阴天", "晴天", "布控", "乖乖", "李总哦", "张总",
+            "文赋成", "王奥玉", "余祈根",
+        )
+        val cases = listOf(
+            Triple("qf-01-with-53words", "hotword-qf/with.wav", customerList),
+            Triple("qf-02-without-minus-qf", "hotword-qf/without.wav", customerList.filterNot { it == "遣返" }),
+            Triple("qf-03-without-53words", "hotword-qf/without.wav", customerList),
+            Triple("qf-04-with-qf-only", "hotword-qf/with.wav", listOf("遣返")),
+            Triple("qf-05-with-shiqf", "hotword-qf/with.wav", listOf("是遣返")),
+            Triple("qf-06-with-prefix-qf", "hotword-qf/with.wav", listOf("新手机号是遣返")),
+            Triple("qf-07-without-prefix-qf", "hotword-qf/without.wav", listOf("手机号是遣返")),
+        )
+        val probeCases = setOf("qf-06-with-prefix-qf")
+        val failures = mutableListOf<String>()
+        val baseline = createEngine()
+        try {
+            for ((id, asset, hotwords) in cases) {
+                val baselineText = decode(baseline, asset, 0, standardParams(), writer).finalText
+                val engine = createEngine(hotwords)
+                val outcome = try {
+                    decode(engine, asset, 0, standardParams(), writer)
+                } finally {
+                    engine.shutdown()
+                }
+                val lifecycle = lifecycleErrors(outcome)
+                val text = outcome.finalText
+                val digitsKept = text.contains(digits)
+                val hijacked = text.contains("遣")
+                writer.append(
+                    "hotword-digit-assertion",
+                    mapOf(
+                        "case" to id,
+                        "asset" to asset,
+                        "hotwordCount" to hotwords.size,
+                        "baselineText" to baselineText,
+                        "hotwordText" to text,
+                        "digitsKept" to digitsKept,
+                        "hijacked" to hijacked,
+                        "probeOnly" to (id in probeCases),
+                        "lifecycleErrors" to JSONArray(lifecycle),
+                    ),
+                )
+                if (lifecycle.isNotEmpty()) failures += "$id lifecycle=$lifecycle"
+                // 基线必须认得出这串数字，否则这条用例判不了热词
+                if (!baselineText.contains(digits)) failures += "$id baseline lost the digits: $baselineText"
+                if (id in probeCases) continue
+                if (!digitsKept) failures += "$id lost the digits: $text"
+                if (hijacked) failures += "$id hijacked a digit into 遣: $text"
+            }
+            assertTrue("hotword digit failures: $failures", failures.isEmpty())
+        } finally {
+            baseline.shutdown()
+        }
+    }
+
+    /**
+     * 0.3.26 复测：客户报的「机主停止说话瞬间非机主接上，非机主首句被录入」。
+     *
+     * 夹具与鸿蒙 0.3.26 的同一份（aishell3 构造，三条注册 + 六例「机主一段后无间隙接另一人
+     * 1.4~1.6 s」）。判据是归属而非识别准确率：机主的话在、非机主的话不在、非空 final 条数为 1。
+     * 被拒绝的那段应发空 final，非机主文字不进调用方。
+     */
+    @Test
+    fun bug13OwnerHandoff_doesNotRecordTheNextSpeakersFirstUtterance() {
+        val writer = EvidenceWriter(targetContext, "bug13-owner-handoff")
+        prepare(writer)
+        val enrollmentPaths = (0..2).map { index ->
+            val asset = "speaker-turn/enroll-%02d.wav".format(index)
+            stageAsset(testContext, targetContext, asset, "owner_handoff/enroll-%02d.wav".format(index))
+        }
+        val registration = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(enrollmentPaths, AudioInfo()),
+        )
+        val voiceprintId = registration.voiceprintId.keys.single()
+        writer.append(
+            "voiceprint-registration",
+            mapOf("enrollments" to JSONArray(enrollmentPaths.size), "voiceprintId" to voiceprintId),
+        )
+
+        // required 取机主那半段单独解码的结果，forbidden 取非机主那半段的，都避开数字并控制在 2~3 字，
+        // 以躲开设备侧的标点插入与 ITN 改写。
+        val cases = listOf(
+            Triple("turn-00", "而目", "香木"),
+            Triple("turn-01", "昆仑", "满园"),
+            Triple("turn-02", "对于", "永洪"),
+            Triple("turn-03", "祥和", "大臣"),
+            Triple("turn-04", "搜狐", "周杰"),
+            Triple("turn-05", "首死", "金莎"),
+        )
+        val engine = createEngine()
+        try {
+            val failures = mutableListOf<String>()
+            for ((index, case) in cases.withIndex()) {
+                val (id, required, forbidden) = case
+                val asset = "speaker-turn/turn-%02d.wav".format(index)
+                val outcome = decode(
+                    engine,
+                    asset,
+                    runnerLong("ownerHandoffFrameSleepMs", 0L),
+                    voiceprintParams(voiceprintId),
+                    writer,
+                )
+                val lifecycle = lifecycleErrors(outcome)
+                val published = normalizeText(outcome.finalText)
+                val nonEmpty = outcome.finals.filter { it.text.isNotBlank() }
+                val ownerKept = published.contains(normalizeText(required))
+                val otherLeaked = published.contains(normalizeText(forbidden))
+                writer.append(
+                    "owner-handoff-assertion",
+                    mapOf(
+                        "case" to id,
+                        "asset" to asset,
+                        "required" to required,
+                        "forbidden" to forbidden,
+                        "ownerKept" to ownerKept,
+                        "otherLeaked" to otherLeaked,
+                        "nonEmptyFinals" to nonEmpty.size,
+                        "publishedText" to outcome.finalText,
+                        "lifecycleErrors" to JSONArray(lifecycle),
+                    ),
+                )
+                if (lifecycle.isNotEmpty()) failures += "$id lifecycle=$lifecycle"
+                if (!ownerKept) failures += "$id dropped the owner text '$required': ${outcome.finalText}"
+                if (otherLeaked) failures += "$id leaked the next speaker '$forbidden': ${outcome.finalText}"
+                if (nonEmpty.size != 1) failures += "$id published ${nonEmpty.size} non-empty finals, expected 1"
+            }
+            assertTrue("owner handoff failures: $failures", failures.isEmpty())
+        } finally {
+            engine.shutdown()
+        }
+    }
+
     private fun prepare(writer: EvidenceWriter) {
         targetContext.startActivity(
             Intent(targetContext, DeviceTestKeepAliveActivity::class.java)
