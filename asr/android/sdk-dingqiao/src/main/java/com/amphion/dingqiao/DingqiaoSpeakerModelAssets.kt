@@ -11,6 +11,19 @@ internal object DingqiaoSpeakerModelAssets {
     private const val SEGMENTATION_FILENAME = "pyannote-segmentation-3.0.onnx"
     private const val SEGMENTATION_ASSET_PATH = "amphion-dingqiao/$SEGMENTATION_FILENAME"
     private const val SEGMENTATION_MIN_BYTES = 5L * 1024L * 1024L
+    private const val SORTFORMER_DIRNAME = "sortformer-66M-4spk"
+    private const val SORTFORMER_ASSET_DIR = "amphion-dingqiao/$SORTFORMER_DIRNAME"
+
+    // 大小取交付清单 sortformer_diarization_v1.json 的 sizeBytes，用作安装完整性下限。
+    private val SORTFORMER_ASSETS = listOf(
+        "pre_encode.ort" to 2_113_472L,
+        "encoder_layers.int8.ort" to 69_971_216L,
+        "speaker_head.ort" to 4_111_384L,
+        "spkcache_update.ort" to 535_480L,
+        "learnable_sil_emb.npy" to 2_176L,
+        "mel_window_hann400_periodic_false.npy" to 1_728L,
+        "mel_filterbank_128x257_slaney.npy" to 131_712L,
+    )
 
     @Synchronized
     fun ensureInstalled(context: Context, dest: File): File {
@@ -39,6 +52,24 @@ internal object DingqiaoSpeakerModelAssets {
         // The INT8 encoder replaced the FP32 one; drop the superseded 21 MB copy.
         File(workPath, "community-wespeaker-encoder.fp32.onnx").delete()
         return communityAssets(context, workPath)
+    }
+
+    /**
+     * 装好 Sortformer 的七个资产并返回它们所在的目录。文件名必须与交付清单一致：原生侧按
+     * 固定名字从该目录读（`sortformer_diarization_v1.json` 的 `files`）。
+     */
+    @Synchronized
+    fun ensureSortformerInstalled(context: Context, workPath: File): File {
+        val dir = File(workPath, SORTFORMER_DIRNAME)
+        for ((name, size) in SORTFORMER_ASSETS) {
+            ensureAssetInstalled(context, "$SORTFORMER_ASSET_DIR/$name", File(dir, name), size)
+        }
+        return dir
+    }
+
+    fun isSortformerReady(workPath: File): Boolean {
+        val dir = File(workPath, SORTFORMER_DIRNAME)
+        return SORTFORMER_ASSETS.all { (name, size) -> isReady(File(dir, name), size) }
     }
 
     private fun communityAssets(context: Context, workPath: File): List<File> = listOf(
