@@ -18,6 +18,11 @@
 -keep class com.amphion.asr.internal.SpeakerScoreSelection { *; }
 -keep class com.amphion.asr.internal.SpeakerScoreSource { *; }
 -keep class com.amphion.asr.internal.EffectiveSpeechBufferKt { *; }
+# 换人切分与句级门：release 单测直接调它们，顶层函数编进 SpeakerTurnFinalizerKt。
+-keep class com.amphion.asr.internal.SpeakerTurnFinalizer { *; }
+-keep class com.amphion.asr.internal.SpeakerTurnFinalizerKt { *; }
+-keep class com.amphion.asr.internal.SpeakerTurnSplit { *; }
+-keep class com.amphion.asr.internal.SpeakerTurnScoreState { *; }
 -keep class com.amphion.asr.internal.RecognizerResetGeneration { *; }
 -keep class com.amphion.asr.internal.NativeEndpointTransition { *; }
 -keep class com.amphion.asr.internal.NativeEndpointTransitionPolicy { *; }
