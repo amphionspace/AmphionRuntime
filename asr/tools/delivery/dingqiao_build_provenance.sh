@@ -241,10 +241,10 @@ import zipfile
 aar_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/pre_encode.ort": 2_113_472,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/encoder_layers.int8.ort": 69_971_216,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/speaker_head.ort": 4_111_384,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/spkcache_update.ort": 535_480,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/pre_encode.onnx": 2_100_710,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/encoder_layers.int8.onnx": 69_571_156,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/speaker_head.onnx": 4_094_557,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/spkcache_update.onnx": 463_881,
     "assets/amphion-dingqiao/sortformer-66M-4spk/learnable_sil_emb.npy": 2_176,
     "assets/amphion-dingqiao/sortformer-66M-4spk/mel_window_hann400_periodic_false.npy": 1_728,
     "assets/amphion-dingqiao/sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy": 131_712,
@@ -377,10 +377,10 @@ import zipfile
 apk_path = sys.argv[1]
 required = {
     "assets/amphion-dingqiao/eres2net.onnx": 30 * 1024 * 1024,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/pre_encode.ort": 2_113_472,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/encoder_layers.int8.ort": 69_971_216,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/speaker_head.ort": 4_111_384,
-    "assets/amphion-dingqiao/sortformer-66M-4spk/spkcache_update.ort": 535_480,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/pre_encode.onnx": 2_100_710,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/encoder_layers.int8.onnx": 69_571_156,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/speaker_head.onnx": 4_094_557,
+    "assets/amphion-dingqiao/sortformer-66M-4spk/spkcache_update.onnx": 463_881,
     "assets/amphion-dingqiao/sortformer-66M-4spk/learnable_sil_emb.npy": 2_176,
     "assets/amphion-dingqiao/sortformer-66M-4spk/mel_window_hann400_periodic_false.npy": 1_728,
     "assets/amphion-dingqiao/sortformer-66M-4spk/mel_filterbank_128x257_slaney.npy": 131_712,
