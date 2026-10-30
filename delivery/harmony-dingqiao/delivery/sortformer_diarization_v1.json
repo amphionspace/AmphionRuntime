@@ -1,0 +1,110 @@
+{
+  "schemaVersion": 1,
+  "model": "Sortformer-66M-4spk (streaming, latency_10.0s preset)",
+  "status": "candidate",
+  "deliveryPackage": {
+    "file": "sortformer-66M-4spk-delivery-v1（1）.zip",
+    "sha256": "0c8b4427426b322a0cb28fe0227430bdd7352d671b562e623e3e7279c1936335",
+    "sizeBytes": 260652258
+  },
+  "runtime": {
+    "onnxruntime": "1.16.3",
+    "format": "ort",
+    "executionProvider": "CPUExecutionProvider",
+    "opset": 17
+  },
+  "streaming": {
+    "sampleRate": 16000,
+    "chunkLen": 124,
+    "spkcacheLen": 188,
+    "fifoLen": 188,
+    "chunkRightContext": 1,
+    "spkcacheUpdatePeriod": 144,
+    "algorithmicLatencySec": 10.0,
+    "scoresBoostLatest": 0.0,
+    "subsamplingFactor": 8
+  },
+  "melFrontend": {
+    "nFft": 512,
+    "winLength": 400,
+    "hopLength": 160,
+    "features": 128,
+    "preemph": 0.97,
+    "window": "hann periodic=False",
+    "filterbank": "librosa slaney 0-8000 Hz",
+    "log": "log(mel + 2^-24)",
+    "normalize": "NA"
+  },
+  "destination": "shared/models/asr/dingqiao/sortformer-66M-4spk",
+  "rawfile": "amphion-dingqiao/sortformer-66M-4spk",
+  "files": [
+    {
+      "file": "pre_encode.ort",
+      "sizeBytes": 2113472,
+      "sha256": "c69cb8be2442a6b869f4b62141b4c5d984735984093387c12c8f9700465d53fc",
+      "derivedFrom": "models/pre_encode.onnx",
+      "sourceSha256": "92f08037097df25dde1d2b59d5cec0cf3dd0f89d0e0aa9559d5060126ae60cc0",
+      "sourceSizeBytes": 2100710,
+      "conversion": "onnxruntime 1.16.3 convert_onnx_models_to_ort optimization_style=Fixed target_platform=arm"
+    },
+    {
+      "file": "encoder_layers.int8.ort",
+      "sizeBytes": 69971216,
+      "sha256": "2afb40a2f503b1dd7127122cf06a64be564669a3f8e0441a087caaa4f939d3e4",
+      "derivedFrom": "models/int8/encoder_layers.int8.ort1163.onnx",
+      "sourceSha256": "dfbea009b677d79adc4551ad7497e30d8df0c3effd5b9224fd24dafe9be3f99c",
+      "sourceSizeBytes": 69570969,
+      "conversion": "onnxruntime 1.16.3 convert_onnx_models_to_ort optimization_style=Fixed target_platform=arm"
+    },
+    {
+      "file": "speaker_head.ort",
+      "sizeBytes": 4111384,
+      "sha256": "3a1a73a3c9c1ae47eeb6c8342db326241812a2fdcb53f525b788c94e42ac653a",
+      "derivedFrom": "models/speaker_head.onnx",
+      "sourceSha256": "c7c32d241c887caae9926491ead679bd2c946f078362706c84a4f45d7c1f695d",
+      "sourceSizeBytes": 4094557,
+      "conversion": "onnxruntime 1.16.3 convert_onnx_models_to_ort optimization_style=Fixed target_platform=arm"
+    },
+    {
+      "file": "spkcache_update.ort",
+      "sizeBytes": 535480,
+      "sha256": "168e77ca9958d597093a77781a9b0d15efc79b987b0dfa9d194b3c4e52542d02",
+      "derivedFrom": "models/spkcache_update.onnx",
+      "sourceSha256": "0c7aa030999f999152b2e3af839a24ded2a58ead57f81639af8faf29301b5b4a",
+      "sourceSizeBytes": 464032,
+      "conversion": "onnxruntime 1.16.3 convert_onnx_models_to_ort optimization_style=Fixed target_platform=arm"
+    },
+    {
+      "file": "learnable_sil_emb.npy",
+      "sizeBytes": 2176,
+      "sha256": "574896c455412b3250db88c85947476dea7ae13ef6642f0909612094710217d9",
+      "derivedFrom": "models/learnable_sil_emb.npy",
+      "sourceSha256": "574896c455412b3250db88c85947476dea7ae13ef6642f0909612094710217d9",
+      "sourceSizeBytes": 2176,
+      "conversion": "byte-for-byte copy"
+    },
+    {
+      "file": "mel_window_hann400_periodic_false.npy",
+      "sizeBytes": 1728,
+      "sha256": "9e462aa9689d858c4c2b7d70c565290249bedca2b227fc5738c5a0790dac5302",
+      "derivedFrom": "golden/frontend/mel_window_hann400_periodic_false.npy",
+      "sourceSha256": "9e462aa9689d858c4c2b7d70c565290249bedca2b227fc5738c5a0790dac5302",
+      "sourceSizeBytes": 1728,
+      "conversion": "byte-for-byte copy"
+    },
+    {
+      "file": "mel_filterbank_128x257_slaney.npy",
+      "sizeBytes": 131712,
+      "sha256": "4280080f51e71f0e45143f36a02fa1e4010f6610f0460a13331668681a554d72",
+      "derivedFrom": "golden/frontend/mel_filterbank_128x257_slaney.npy",
+      "sourceSha256": "4280080f51e71f0e45143f36a02fa1e4010f6610f0460a13331668681a554d72",
+      "sourceSizeBytes": 131712,
+      "conversion": "byte-for-byte copy"
+    }
+  ],
+  "runtimeNetworkRequired": false,
+  "validation": {
+    "hostGolden": "golden/* stage-by-stage max|Δ| mel 2.3e-5, pre_encode 1.4e-4, speaker_head 1.9e-5, end-to-end 0.016 (device, 2026-10-28)",
+    "device": "VYG-AL30 dq5 UEM DER 12.10%, AliMeeting 20 windows 12.74% (2026-10-28)"
+  }
+}

@@ -1,7 +1,7 @@
 """Window publication is an irreversible speaker assignment boundary."""
 import unittest
 from asr.tools.tests.test_harmony_speaker_diarization_session import run_node, TIMELINE, DIARIZATION
-from asr.tools.tests.test_harmony_community_diarization import run_community_session as run_session
+from asr.tools.tests.test_harmony_sortformer_diarization import run_sortformer_session as run_session
 
 
 class DiarizationWindowFinalizationTest(unittest.TestCase):
@@ -44,23 +44,26 @@ class DiarizationWindowFinalizationTest(unittest.TestCase):
             s.observeAsrFinal({result:text,beginTime:begin,endTime:end,isLast:last},result);
             if(!last)s.asrFinalDelivered(result);
           }
-          s.client.cluster=async (segments)=>{
-            const count=segments.length/(589*3),hard=Array(count*3).fill(-2);
-            for(let i=0;i<count;i++)hard[i*3]=i<87?0:1;
-            return {speakerCount:2,hard,turns:[[0,96320,0],[96320,180000,1]]};
-          };
+          // Slot 0 speaks until 96320 ms, slot 1 afterwards; chunks commit every 9920 ms.
+          function chunk(index) {
+            const begin=index*9920,end=begin+9920,runs={};
+            if(begin<96320)runs[0]=[[begin,Math.min(end,96320)]];
+            if(end>96320)runs[1]=[[Math.max(begin,96320),end]];
+            return feed(`c${index}`,'final',begin,end,runs);
+          }
           sentence(0,30240,'甲句');sentence(30240,96320,'乙句');
-          for(let i=0;i<113;i++)s.onWindow(window(i));
+          for(let i=0;i<12;i++)s.onFeedResult(chunk(i));   // final through 119040 ms
           s.asrAudioProcessed(120000*16);
           await new Promise(r=>setImmediate(r));
           assert.equal(published.length,0,'ASR progress alone cannot bypass acoustic lookahead');
-          s.onWindow(window(113));
+          s.onFeedResult(chunk(12));                        // final through 128960 >= evidence end 122500
           await new Promise(r=>setImmediate(r));
           assert.equal(published.length,1);
           assert.equal(published[0].windowEndTime,96320);
           assert.equal(published[0].utterances.map(u=>u.text).join(''),'甲句乙句');
           const frozen=JSON.stringify(published[0]);
-          for(let i=114;i<171;i++)s.onWindow(window(i));
+          for(let i=13;i<18;i++)s.onFeedResult(chunk(i));  // through 178560
+          s.onFeedResult(feed('tail','final',178560,180000,{1:[[178560,180000]]},{flushed:true,melEndTime:180000}));
           s.finishRequested=true;s.processDrained=true;
           sentence(96320,180000,'丙句',true);
           await new Promise(r=>setImmediate(r));
@@ -71,7 +74,6 @@ class DiarizationWindowFinalizationTest(unittest.TestCase):
           assert.equal(published[1].utterances.map(u=>u.text).join(''),'丙句');
           assert.notEqual(published[0].speakerTurns[0].speakerIndex,published[1].speakerTurns[0].speakerIndex);
         """)
-
     def test_completed_sentences_publish_at_audio_deadline_during_a_long_next_sentence(self):
         run_node(f"""
           import assert from 'node:assert/strict';

@@ -310,12 +310,14 @@ class StressListener implements RecognitionListener {
       this.events.speakerDiarizationViolations += 1;
     }
     for (const utterance of result.utterances) {
+      const sources = [utterance.sourceUtteranceId, ...(utterance.sourceUtteranceIds ?? [])];
       if (this.events.frozenUtterances.has(utterance.utteranceId) ||
-        this.events.frozenUtterances.has(utterance.sourceUtteranceId)) this.events.speakerDiarizationViolations += 1;
+        sources.some(source => this.events.frozenUtterances.has(source))) this.events.speakerDiarizationViolations += 1;
     }
     for (const utterance of result.utterances) {
       this.events.frozenUtterances.add(utterance.utteranceId);
       this.events.frozenUtterances.add(utterance.sourceUtteranceId);
+      for (const source of utterance.sourceUtteranceIds ?? []) this.events.frozenUtterances.add(source);
     }
     recordDiarizationResult(this.events, result);
     this.record(sessionId, result.isSessionFinal ? 'diarization-result' : `diarization-window-${result.windowIndex}`);
