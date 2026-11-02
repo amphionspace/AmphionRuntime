@@ -14,9 +14,15 @@ SPEC = importlib.util.spec_from_file_location("speaker_vad_dataset", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
-SPEC.loader.exec_module(MODULE)
+try:
+    SPEC.loader.exec_module(MODULE)
+    MISSING_DEPENDENCY = ""
+except ImportError as error:  # 本测试要 numpy + sherpa_onnx，只有 .venv-speaker/ 装齐了
+    # 这里不能只抓 ModuleNotFoundError：ts_asr/core.py 对缺失的 sherpa_onnx 是主动抛裸 ImportError。
+    MISSING_DEPENDENCY = getattr(error, "name", None) or "numpy / sherpa_onnx"
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 .venv-speaker/ 的依赖（缺 {MISSING_DEPENDENCY}）")
 class SpeakerVadDatasetTest(unittest.TestCase):
     def test_aishell3_obs_bundle_manifests_are_supported(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
