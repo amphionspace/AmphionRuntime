@@ -1,4 +1,6 @@
 """Fixtures for the dynamic-quantisation rewrite that makes the ASR encoder convertible."""
+from __future__ import annotations  # 让 np.ndarray 等注解延后求值，缺依赖时仍可导入并跳过
+
 
 import json
 from pathlib import Path
@@ -7,11 +9,16 @@ import sys
 import tempfile
 import unittest
 
-import numpy as np
-import onnx
-from onnx import TensorProto, helper, numpy_helper
-
-from asr.tools import dequantize_asr_encoder as tool
+try:
+    import numpy as np
+    import onnx
+    from onnx import TensorProto, helper, numpy_helper
+    from asr.tools import dequantize_asr_encoder as tool
+    MISSING_DEPENDENCY = ""
+except ModuleNotFoundError as error:  # 系统解释器没有 numpy / onnx，用仓库的 venv 才有
+    MISSING_DEPENDENCY = error.name or "numpy / onnx"
+    np = None  # type: ignore[assignment]
+    tool = None  # type: ignore[assignment]
 
 
 def quantized_matmul_graph(*, weight: np.ndarray, zero_point: int = 0, scale: float = 0.25,
@@ -51,6 +58,7 @@ def quantized_matmul_graph(*, weight: np.ndarray, zero_point: int = 0, scale: fl
     return model
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class RewriteTest(unittest.TestCase):
     def setUp(self):
         self.rng = np.random.default_rng(11)
@@ -133,6 +141,7 @@ class RewriteTest(unittest.TestCase):
             tool.synthetic_inputs([{"name": "b", "dtype": "BOOL", "shape": [1]}], 1, 7)
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class CommandLineTest(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory(prefix="asr encoder dequant ")
