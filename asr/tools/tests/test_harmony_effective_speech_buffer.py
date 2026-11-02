@@ -273,6 +273,9 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             };
             const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
             buffer.observe(constantEnvelope(1.5 * sampleRate));
+            // 这里要的是独立于识别器的证据。原先只传 asrSpeechConfirmed=true，而那来自识别器
+            // 自己，现在不再能让文本发布。生产里 VAD 检出语音时就会调它。
+            buffer.confirmSpeech();
 
             const tokenOnly = buffer.resolveFinal('', true, false);
             assert.equal(tokenOnly.publish, false);
@@ -303,6 +306,73 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             const afterTerminal = buffer.resolveFinal('late', true, false);
             assert.equal(afterTerminal.publish, true);
             assert.equal(afterTerminal.samples.length, 0);
+            """
+        )
+
+    def test_asr_evidence_alone_does_not_publish_without_independent_support(self) -> None:
+        """客户复现音频那一类输入：量化抖动级别，识别器却吐出了"嗯"。"""
+        self.run_buffer(
+            """
+            const nearSilence = new Float32Array(2 * sampleRate);
+            for (let i = 0; i < nearSilence.length; i++) {
+              nearSilence[i] = i % 16 < 8 ? 0.0001 : -0.0001;
+            }
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(nearSilence);
+
+            const decision = buffer.resolveFinal('嗯', true, false);
+            assert.equal(decision.publish, false);
+            assert.equal(decision.samples.length, 0);
+            """
+        )
+
+    def test_asr_evidence_alone_does_not_publish_on_the_final_flush_either(self) -> None:
+        """会话收尾那次 flush 同样会暴露投机 token，不能因为 isLast 就放行。"""
+        self.run_buffer(
+            """
+            const nearSilence = new Float32Array(2 * sampleRate);
+            for (let i = 0; i < nearSilence.length; i++) {
+              nearSilence[i] = i % 16 < 8 ? 0.0001 : -0.0001;
+            }
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(nearSilence);
+
+            assert.equal(buffer.resolveFinal('嗯', true, true).publish, false);
+            """
+        )
+
+    def test_quiet_far_field_speech_publishes_without_vad_evidence(self) -> None:
+        """真实远场语音落在 0.01 之下、0.0002 之上；用 0.01 当发布门禁会丢 13.3%。"""
+        self.run_buffer(
+            """
+            const levels = [0.001, 0.006, 0.0015, 0.008];
+            const quiet = new Float32Array(sampleRate);
+            for (let offset = 0; offset < quiet.length; offset += frameSamples) {
+              const level = levels[Math.floor(offset / frameSamples) % levels.length];
+              for (let i = offset; i < Math.min(quiet.length, offset + frameSamples); i++) {
+                quiet[i] = (i - offset) % 16 < 8 ? level : -level;
+              }
+            }
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(quiet);
+
+            assert.equal(buffer.resolveFinal('远场也要发', true, false).publish, true);
+            """
+        )
+
+    def test_vad_confirmed_constant_envelope_speech_still_publishes(self) -> None:
+        """低音量恒定包络过不了包络起伏那关，靠原生 VAD 这条独立信号救回。"""
+        self.run_buffer(
+            """
+            const constant = new Float32Array(sampleRate);
+            for (let i = 0; i < constant.length; i++) {
+              constant[i] = i % 16 < 8 ? 0.002 : -0.002;
+            }
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(constant);
+            buffer.confirmSpeech();
+
+            assert.equal(buffer.resolveFinal('低音量恒定包络', true, false).publish, true);
             """
         )
 
