@@ -32,6 +32,16 @@ DESTINATION="$DERIVED_PARENT/$GENERATION"
 CURRENT_LINK="$DERIVED_PARENT/sherpa-onnx"
 IDENTITY="$PINNED_COMMIT:$PATCH_SIG"
 
+# $CURRENT_LINK 必须是符号链接。如果它是真目录，`ln -sfn` 不会替换它，而是把链接丢进它**里面**，
+# 脚本照样打印成功路径，于是调用方拿到的是那个陈旧真目录——pin 或补丁换了也不会被发现。
+# 本仓曾踩过：实测 third_party/.derived/sherpa-onnx 变成真目录后，里面积了 7 个自指向的死链接，
+# 而所有 SHERPA_ROOT="$(bash prepare_sherpa_source.sh)" 的构建都在用那棵未校验的树。
+if [[ -e "$CURRENT_LINK" && ! -L "$CURRENT_LINK" ]]; then
+  echo "[ERROR] $CURRENT_LINK is not a symlink; refusing to leave builds on an unverified tree" >&2
+  echo "        preserve or inspect it, then move it aside and re-run" >&2
+  exit 1
+fi
+
 validate_destination() {
   [[ -e "$DESTINATION/.git" ]] || return 1
   [[ -f "$DESTINATION/.amphion-source-identity" ]] || return 1
@@ -70,4 +80,8 @@ if [[ ! -e "$DESTINATION" ]]; then
 fi
 
 ln -sfn "$GENERATION" "$CURRENT_LINK"
+[[ -L "$CURRENT_LINK" && "$(readlink "$CURRENT_LINK")" == "$GENERATION" ]] || {
+  echo "[ERROR] failed to point $CURRENT_LINK at $GENERATION" >&2
+  exit 1
+}
 printf '%s\n' "$CURRENT_LINK"

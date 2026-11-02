@@ -2,6 +2,7 @@ from pathlib import Path
 import os
 import re
 import subprocess
+import tempfile
 import unittest
 
 
@@ -131,6 +132,25 @@ class SherpaSourceIsolationTest(unittest.TestCase):
         self.assertEqual(head_before, git("rev-parse", "HEAD", cwd=CANONICAL))
         self.assertEqual(status_before, git("status", "--porcelain", cwd=CANONICAL))
         self.assertEqual("", git("status", "--porcelain", "--untracked-files=no", cwd=derived))
+
+    @unittest.skipUnless((CANONICAL / ".git").exists(), "sherpa submodule is not initialized")
+    def test_prepare_refuses_when_the_current_link_is_a_real_directory(self) -> None:
+        """真目录会让 `ln -sfn` 把链接丢进它里面，脚本还打印成功——必须拒绝而不是静默沿用。"""
+        with tempfile.TemporaryDirectory() as directory:
+            parent = Path(directory)
+            (parent / "sherpa-onnx").mkdir()
+            result = subprocess.run(
+                ["bash", str(PREPARE)],
+                cwd=ROOT,
+                env={**os.environ, "AMPHION_SHERPA_DERIVED_PARENT": str(parent)},
+                text=True,
+                capture_output=True,
+            )
+            self.assertNotEqual(0, result.returncode, result.stdout)
+            self.assertIn("is not a symlink", result.stderr)
+            # 拒绝必须发生在克隆之前，否则每次都要白跑一次全量 clone
+            self.assertNotIn("Creating isolated sherpa source", result.stderr)
+            self.assertEqual([], list((parent / "sherpa-onnx").iterdir()))
 
     @unittest.skipUnless((CANONICAL / ".git").exists(), "sherpa submodule is not initialized")
     def test_low_level_patch_command_refuses_canonical_submodule(self) -> None:
