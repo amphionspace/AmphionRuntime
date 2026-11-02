@@ -1,0 +1,16 @@
+{
+  "device": "TECNO KI8",
+  "android": 13,
+  "apkSha256": "b2685ffce81481f1b43a11784d481efb55152d4c7bbbf4810d3b9513376cefc3",
+  "model": "IMF 170000",
+  "modelCheckpointSha256": "fbaf5c4f7f96cf5864164c66b371f68994da54472b3e67fa1005df7a61c50c8a",
+  "chunkFrames": 50,
+  "sampleRateHz": 24000,
+  "temperature": 0,
+  "voiceId": "lits-female-02",
+  "language": "zh-en",
+  "speed": 1.0,
+  "sampleBit": 16,
+  "channels": 1,
+  "playType": "SYNTHESIZE_ONLY"
+}

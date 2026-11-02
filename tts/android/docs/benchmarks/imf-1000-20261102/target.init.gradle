@@ -1,0 +1,13 @@
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path == ':aarHost') p.android.defaultConfig.applicationId = 'com.lits.tts.demo31'
+    }
+}
+allprojects { p ->
+    p.afterEvaluate {
+        if (p.path == ':aarHost') {
+            p.dependencies.add('implementation', 'androidx.appcompat:appcompat:1.7.0')
+            p.dependencies.add('implementation', 'androidx.core:core-ktx:1.13.1')
+        }
+    }
+}

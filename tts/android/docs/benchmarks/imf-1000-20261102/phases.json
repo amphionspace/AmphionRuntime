@@ -1,0 +1,42 @@
+[
+  {
+    "phase": "before_sdk_init",
+    "elapsedMs": 1.043769,
+    "rssKiB": 106796
+  },
+  {
+    "phase": "after_sdk_init",
+    "elapsedMs": 30.296692,
+    "rssKiB": 108808
+  },
+  {
+    "phase": "after_model_load",
+    "elapsedMs": 4107.878846,
+    "rssKiB": 409448
+  },
+  {
+    "phase": "after_cold_synthesis",
+    "elapsedMs": 5062.141923,
+    "rssKiB": 422920
+  },
+  {
+    "phase": "after_1000_synthesis",
+    "elapsedMs": 1741808.55918,
+    "rssKiB": 428180
+  },
+  {
+    "phase": "before_engine_shutdown",
+    "elapsedMs": 1741823.957719,
+    "rssKiB": 428392
+  },
+  {
+    "phase": "after_engine_shutdown",
+    "elapsedMs": 1741978.345027,
+    "rssKiB": 226772
+  },
+  {
+    "phase": "two_seconds_after_shutdown",
+    "elapsedMs": 1743979.179488,
+    "rssKiB": 228276
+  }
+]

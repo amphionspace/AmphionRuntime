@@ -1,0 +1,23 @@
+{
+  "conditionsBefore": {
+    "batteryTemperatureC": 31.6,
+    "thermalStatus": 0
+  },
+  "initMs": 20.720231,
+  "createEngineMs": 4076.462154,
+  "modelInfo": "source=bundled model=dingqiao_imf_step00170000_streaming_vocos24k version=0.1.0 mode=streaming chunkSize=50 path=\/data\/user\/0\/com.lits.tts.demo31\/files\/lits-tts-work\/tts\/dingqiao_imf_step00170000_streaming_vocos24k\/0.1.0",
+  "loadProfileInfo": "layout=12ms frontendPreload=2252ms ortCreate=1809ms ortWarmup=0ms sessions=ortcreateWall=1770ms,parallel=true,vocoder=501ms,hidden=1767ms,condChunk=39ms,condFinal=39ms,stepCacheInit=1048ms,stepCache=1013ms",
+  "coldInitToFirstPacketMs": 4501.124847,
+  "sampleRate": 24000,
+  "sampleBit": 16,
+  "audioChannel": 1,
+  "chunkSize": 50,
+  "pcmQueueCapacity": -1,
+  "completedWarmRequests": 1000,
+  "conditionsAfter": {
+    "batteryTemperatureC": 37.7,
+    "thermalStatus": 0
+  },
+  "shutdownMs": 151.219462,
+  "totalElapsedMs": 1743980.154027
+}
