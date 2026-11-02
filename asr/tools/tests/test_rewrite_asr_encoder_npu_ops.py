@@ -1,4 +1,6 @@
 """Fixtures for the operator substitutions that make the ASR encoder NNRt-expressible."""
+from __future__ import annotations  # 让 np.ndarray 等注解延后求值，缺依赖时仍可导入并跳过
+
 
 import json
 from pathlib import Path
@@ -7,11 +9,22 @@ import sys
 import tempfile
 import unittest
 
-import numpy as np
-import onnx
-from onnx import TensorProto, helper, numpy_helper
+try:
+    import numpy as np
+    import onnx
+    from onnx import TensorProto, helper, numpy_helper
+    from asr.tools import rewrite_asr_encoder_npu_ops as tool
+    MISSING_DEPENDENCY = ""
+except ModuleNotFoundError as error:  # 系统解释器没有 numpy / onnx，用仓库的 venv 才有
+    MISSING_DEPENDENCY = error.name or "numpy / onnx"
+    np = None  # type: ignore[assignment]
+    tool = None  # type: ignore[assignment]
 
-from asr.tools import rewrite_asr_encoder_npu_ops as tool
+    class _MissingOnnx:  # 下面的 def 用 TensorProto.FLOAT 作默认值，导入期就会求值，给个占位
+        def __getattr__(self, attribute: str) -> None:
+            return None
+
+    TensorProto = _MissingOnnx()  # type: ignore[assignment]
 
 
 def model_of(nodes, inputs, outputs, initializers=(), name="graph"):
@@ -37,6 +50,7 @@ def run(model, feeds, outputs):
     return session.run(outputs, feeds)
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class FlatIndexTest(unittest.TestCase):
     def test_base_and_stride_reproduce_gather_elements(self):
         rng = np.random.default_rng(5)
@@ -63,6 +77,7 @@ class FlatIndexTest(unittest.TestCase):
             tool.coordinate_base((2, 3), (4, 3), 1)
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class GatherElementsRewriteTest(unittest.TestCase):
     def test_rewrite_matches_the_original_and_drops_the_operator(self):
         rng = np.random.default_rng(9)
@@ -82,6 +97,7 @@ class GatherElementsRewriteTest(unittest.TestCase):
         np.testing.assert_array_equal(first, second)
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class LessOrEqualRewriteTest(unittest.TestCase):
     def test_substitution_preserves_the_comparison(self):
         nodes = [helper.make_node("LessOrEqual", ["a", "b"], ["flag"], name="le"),
@@ -100,6 +116,7 @@ class LessOrEqualRewriteTest(unittest.TestCase):
         np.testing.assert_array_equal(run(source, feeds, ["y"])[0], run(rewritten, feeds, ["y"])[0])
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class SoftplusGuardTest(unittest.TestCase):
     def guarded_model(self):
         nodes = [
@@ -149,6 +166,7 @@ class SoftplusGuardTest(unittest.TestCase):
         self.assertEqual(tool.rewrite_softplus_guards(model)["rewrittenGuards"], 0)
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class IdentityCastTest(unittest.TestCase):
     def test_same_type_casts_are_dropped_and_consumers_rewired(self):
         nodes = [helper.make_node("Cast", ["m"], ["m2"], to=TensorProto.BOOL, name="noop"),
@@ -174,6 +192,7 @@ class IdentityCastTest(unittest.TestCase):
             tool.drop_identity_casts(model, {"m": TensorProto.BOOL})
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class ConstantAndShapeFoldTest(unittest.TestCase):
     def test_constant_nodes_become_initializers(self):
         tensor = numpy_helper.from_array(np.array([2, 3], dtype=np.int64), "value")
@@ -201,6 +220,7 @@ class ConstantAndShapeFoldTest(unittest.TestCase):
         np.testing.assert_array_equal(run(model, feeds, ["y"])[0], feeds["a"])
 
 
+@unittest.skipIf(MISSING_DEPENDENCY, f"需要 numpy / onnx（缺 {MISSING_DEPENDENCY}）")
 class CommandLineTest(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory(prefix="asr encoder npu ops ")
