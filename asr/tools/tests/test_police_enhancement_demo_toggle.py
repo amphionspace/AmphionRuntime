@@ -63,7 +63,13 @@ class PoliceEnhancementDemoToggleTest(unittest.TestCase):
         demo = HARMONY_DEMO.read_text(encoding="utf-8")
         prefs = HARMONY_PREFS.read_text(encoding="utf-8")
 
-        self.assertIn("import { PoliceEnhancePipeline } from 'amphion_police';", engine)
+        # 断言导入了这个符号，而不是钉死整行：main 的 9334ebdc（按资产变体出「无警务后处理」
+        # 交付包）把它改成了 `{ PoliceEnhancePipeline, PoliceAssets }` 两符号导入，原先的
+        # 整行断言因此在 main 上一直失败。
+        self.assertRegex(
+            engine,
+            r"import \{[^}]*\bPoliceEnhancePipeline\b[^}]*\} from 'amphion_police';",
+        )
         self.assertIn(
             "strictBooleanParam(params.extraParams, 'enablePoliceEnhancement', true)",
             engine,
