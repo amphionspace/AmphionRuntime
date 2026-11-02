@@ -58,6 +58,10 @@ class EffectiveSpeechBufferTest {
     fun tokenOnlyEndpointKeepsAudioForTheNextPublicFinal() {
         val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
         buffer.observe(constantEnvelope(sampleRate, 0.002f))
+        // 这里要的是**独立于识别器**的证据。原先只传 asrSpeechConfirmed=true，而那来自识别器
+        // 自己，现在不再能让文本发布（见 asrEvidenceAloneDoesNotPublishWithoutIndependentSupport）。
+        // 生产里 VAD 检出语音时就会调它，所以补上以保持本用例原本要验证的"跨端点保留音频"。
+        buffer.confirmSpeech()
 
         val tokenOnly = buffer.resolveFinal(publicText = "", asrSpeechConfirmed = true, isLast = false)
         assertFalse(tokenOnly.publish)
@@ -170,6 +174,79 @@ class EffectiveSpeechBufferTest {
                 "utterancePcmMs=1250 minimumMs=1500 asrEvidence=false",
             diagnostic,
         )
+    }
+
+    @Test
+    fun asrEvidenceAloneDoesNotPublishWithoutIndependentSupport() {
+        // 客户复现音频那一类输入：量化抖动级别（这里 rms=0.0001≈-80 dBFS，低于发布阈值
+        // 0.0002），识别器却吐出了"嗯"。asrSpeechConfirmed 来自识别器自身，不能自证。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(constantEnvelope(2 * sampleRate, 0.0001f))
+
+        val decision = buffer.resolveFinal(
+            publicText = "嗯",
+            asrSpeechConfirmed = true,
+            isLast = false,
+        )
+
+        assertFalse(decision.publish)
+        assertEquals(0, decision.samples.size)
+    }
+
+    @Test
+    fun asrEvidenceAloneDoesNotPublishOnTheFinalFlushEither() {
+        // 会话收尾那一次 flush 同样会暴露投机 token，不能因为 isLast 就放行。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(constantEnvelope(2 * sampleRate, 0.0001f))
+
+        val decision = buffer.resolveFinal(
+            publicText = "嗯",
+            asrSpeechConfirmed = true,
+            isLast = true,
+        )
+
+        assertFalse(decision.publish)
+    }
+
+    @Test
+    fun quietFarFieldSpeechPublishesWithoutVadEvidence() {
+        // 真实远场语音落在 0.01（说话人打分阈值）之下、0.0002（发布阈值）之上。实测用 0.01
+        // 当发布门禁会丢掉 13.3% 的真实远场结果（丁桥 12/90、AISHELL-3 61/500），这条用例
+        // 就是钉住"不能把门禁收那么紧"。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        val windowSamples = sampleRate / 50
+        val levels = floatArrayOf(0.001f, 0.006f, 0.0015f, 0.008f)
+        buffer.observe(
+            FloatArray(sampleRate) { index ->
+                val level = levels[(index / windowSamples) % levels.size]
+                if (index % 16 < 8) level else -level
+            },
+        )
+
+        val decision = buffer.resolveFinal(
+            publicText = "远场也要发",
+            asrSpeechConfirmed = true,
+            isLast = false,
+        )
+
+        assertTrue(decision.publish)
+    }
+
+    @Test
+    fun vadConfirmedConstantEnvelopeSpeechStillPublishes() {
+        // 低音量、恒定包络的真实语音过不了 3 倍包络起伏那一关，靠原生 VAD 这条独立信号救回。
+        // 实测 Silero（阈值 0.5、窗 512）在客户那段 42.2 秒近似静音上判出 0 段，不会被它绕过。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(constantEnvelope(sampleRate, 0.002f))
+        buffer.confirmSpeech()
+
+        val decision = buffer.resolveFinal(
+            publicText = "低音量恒定包络",
+            asrSpeechConfirmed = true,
+            isLast = false,
+        )
+
+        assertTrue(decision.publish)
     }
 
     private fun constantEnvelope(size: Int, level: Float): FloatArray =
