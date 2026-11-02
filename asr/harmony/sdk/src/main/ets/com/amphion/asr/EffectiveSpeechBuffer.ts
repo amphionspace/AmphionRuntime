@@ -4,6 +4,19 @@ export const MIN_SPEECH_ZERO_CROSSING_RATE: number = 0.005;
 export const MAX_SPEECH_ZERO_CROSSING_RATE: number = 0.35;
 export const REQUIRED_SPEECH_LIKE_WINDOWS: number = 3;
 export const MIN_SPEECH_ENERGY_RATIO: number = 3;
+/**
+ * 决定"非空文本能不能发布"的 20 ms 窗 RMS 下限，约 -74 dBFS。与安卓
+ * EffectiveSpeechBuffer.PUBLISH_RMS_THRESHOLD 必须一致。
+ *
+ * 安全带是实测出来的，两头都有余量：
+ * - 上沿 -54 dBFS（0.002）：再高就开始丢真实远场语音；-40 dBFS 时丢 13.3%
+ *   （丁桥 12/90、AISHELL-3 61/500）。
+ * - 下沿 -89.9 dBFS：客户复现音频里那段近似数字静音的**最大**窗 RMS，阈值高于它才拦得住。
+ *
+ * 已知限制：丁桥现场 204 段真实房间静音的最大窗 RMS 中位 -24.4 dBFS、最低 -44.2 dBFS，
+ * 远在安全带之上。所以这道门禁挡的是近似数字静音，**挡不住普通房间噪声里的幻觉**。
+ */
+export const PUBLISH_RMS_THRESHOLD: number = 0.0002;
 const MIN_EDGE_SILENCE_MS: number = 5;
 const MAX_EDGE_SILENCE_AMPLITUDE: number = ACOUSTIC_ACTIVE_RMS_THRESHOLD / 2;
 const MAX_VAD_EVIDENCE_LAG_WINDOWS: number = 3;
@@ -14,6 +27,12 @@ class EffectiveSpeechRun {
   windowCount: number = 0;
   acousticallyConfirmed: boolean = false;
   externallyConfirmed: boolean = false;
+  // 同 acousticallyConfirmed，但用低得多的 PUBLISH_RMS_THRESHOLD；只管文本能否发布，
+  // 不参与说话人打分的样本选取。
+  publishSupported: boolean = false;
+  // 原生 VAD 确认过这个 run。与 externallyConfirmed 的区别是来源：后者也会被
+  // asrSpeechConfirmed 置真，而那来自识别器自己，拿它验证识别器的文本是循环论证。
+  vadConfirmed: boolean = false;
 }
 
 export class EffectiveSpeechFinalDecision {
@@ -55,6 +74,11 @@ export class EffectiveSpeechBuffer {
   private acousticRunWindows: number = 0;
   private acousticRunMinRms: number = Number.MAX_VALUE;
   private acousticRunMaxRms: number = 0;
+  // 自上次 reset 以来处理过的 20 ms 窗数。区分"没喂过音频"与"喂过但没有独立证据"。
+  private processedWindows: number = 0;
+  private publishRunWindows: number = 0;
+  private publishRunMinRms: number = Number.MAX_VALUE;
+  private publishRunMaxRms: number = 0;
   private maxSamples: number;
   private minEdgeSilenceSamples: number;
 
@@ -86,6 +110,7 @@ export class EffectiveSpeechBuffer {
       (this.windowsSinceLatestRun <= MAX_VAD_EVIDENCE_LAG_WINDOWS ? this.latestRun : undefined);
     if (run !== undefined) {
       run.externallyConfirmed = true;
+      run.vadConfirmed = true;
     } else {
       this.pendingEvidenceWindows = MAX_VAD_EVIDENCE_LAG_WINDOWS;
     }
@@ -112,7 +137,28 @@ export class EffectiveSpeechBuffer {
       }
       return new EffectiveSpeechFinalDecision(true, this.take(asrSpeechConfirmed));
     }
+    // 非空文本必须有**独立于识别器**的证据才发布。识别器在真人声之后的长静音里会吐出
+    // 零散短 token（实测：同一段近似数字静音，前面放 3 秒真人声就出，前面放数字零就九个
+    // 电平全不出），而 asrSpeechConfirmed 来自识别器自己，用它验证识别器的文本是循环论证。
+    // 这里不调 confirmLatestRun：既然判定这段文本没有独立证据，就不该让它把这个 run 变成
+    // 说话人打分的素材。
+    // processedWindows === 0 表示自上次 reset 以来一个窗都没喂过：这时没有判据，而且那段
+    // 音频已经在上一次 terminal final 里发布过了，保持原行为放行。幻觉场景不会落到这里，
+    // 因为运行时是持续喂音频的（哪怕是近似数字静音，也会产生窗和 run）。
+    if (this.processedWindows > 0 && !this.hasIndependentSpeechEvidence()) {
+      return new EffectiveSpeechFinalDecision(false, new Float32Array(0));
+    }
     return new EffectiveSpeechFinalDecision(true, this.take(asrSpeechConfirmed));
+  }
+
+  // 是否存在独立于识别器的语音证据：按 PUBLISH_RMS_THRESHOLD 确认的声学 run，或原生 VAD
+  // 确认过的 run。保留 VAD 这一支是因为低音量、恒定包络的真实语音过不了包络起伏那一关，
+  // 而 VAD 是独立信号：实测 Silero（阈值 0.5、窗 512）在客户那段 42.2 秒近似静音上判出
+  // 0 段，在同一文件的真人声上判出 1.38 秒。
+  hasIndependentSpeechEvidence(): boolean {
+    return this.runs.some((run: EffectiveSpeechRun): boolean =>
+      run.windowCount >= REQUIRED_SPEECH_LIKE_WINDOWS &&
+      (run.publishSupported || run.vadConfirmed));
   }
 
   reset(): void {
@@ -123,10 +169,13 @@ export class EffectiveSpeechBuffer {
     this.retainedSamples = 0;
     this.pendingEvidenceWindows = 0;
     this.windowsSinceLatestRun = Number.MAX_SAFE_INTEGER;
+    this.processedWindows = 0;
     this.resetAcousticRun();
+    this.resetPublishRun();
   }
 
   private processWindow(samples: Float32Array): void {
+    this.processedWindows += 1;
     if (this.pendingEvidenceWindows > 0) this.pendingEvidenceWindows -= 1;
     // The sample cap is also the metadata cap. Without this early return, an utterance that never
     // endpoints could keep allocating empty run objects after the retained audio reached 25 seconds.
@@ -144,6 +193,7 @@ export class EffectiveSpeechBuffer {
     if (!evidenceCandidate) {
       this.currentRun = undefined;
       this.resetAcousticRun();
+      this.resetPublishRun();
       if (this.windowsSinceLatestRun !== Number.MAX_SAFE_INTEGER) {
         this.windowsSinceLatestRun += 1;
       }
@@ -155,7 +205,9 @@ export class EffectiveSpeechBuffer {
     if (this.currentRun === undefined) {
       const run = new EffectiveSpeechRun();
       if (this.pendingEvidenceWindows > 0) {
+        // pendingEvidenceWindows 只由 confirmSpeech() 设置，所以这也是 VAD 来源的证据
         run.externallyConfirmed = true;
+        run.vadConfirmed = true;
         this.pendingEvidenceWindows = 0;
       }
       this.runs.push(run);
@@ -165,6 +217,20 @@ export class EffectiveSpeechBuffer {
     this.appendToRun(this.currentRun, effectiveSamples);
     this.currentRun.windowCount += 1;
     this.windowsSinceLatestRun = 0;
+
+    // 发布支撑的判定必须在下面那个 0.01 的提前返回之前做，否则低于 0.01 的窗就被跳过了。
+    // 走到这里 ZCR 已经在区间内，所以只需再比阈值。连续窗数与包络比沿用同一组常量。
+    if (rms >= PUBLISH_RMS_THRESHOLD) {
+      this.publishRunWindows += 1;
+      this.publishRunMinRms = Math.min(this.publishRunMinRms, rms);
+      this.publishRunMaxRms = Math.max(this.publishRunMaxRms, rms);
+      if (this.publishRunWindows >= REQUIRED_SPEECH_LIKE_WINDOWS &&
+        this.publishRunMaxRms >= this.publishRunMinRms * MIN_SPEECH_ENERGY_RATIO) {
+        this.currentRun.publishSupported = true;
+      }
+    } else {
+      this.resetPublishRun();
+    }
 
     if (!isSpeechShapedWindow(rms, zcr)) {
       this.resetAcousticRun();
@@ -219,6 +285,12 @@ export class EffectiveSpeechBuffer {
     while (end > start && Math.abs(samples[end - 1]) < silenceAmplitude) end -= 1;
     if (samples.length - end < this.minEdgeSilenceSamples) end = samples.length;
     return start === 0 && end === samples.length ? samples : samples.slice(start, end);
+  }
+
+  private resetPublishRun(): void {
+    this.publishRunWindows = 0;
+    this.publishRunMinRms = Number.MAX_VALUE;
+    this.publishRunMaxRms = 0;
   }
 
   private resetAcousticRun(): void {
