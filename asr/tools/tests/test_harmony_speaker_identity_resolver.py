@@ -153,6 +153,40 @@ class HarmonySpeakerIdentityResolverTest(unittest.TestCase):
             """
         )
 
+    def test_embedding_input_is_capped_but_duration_gate_uses_the_whole_turn(self) -> None:
+        """嵌入只取前 3 秒，但最小时长判定必须按**整段**时长。
+
+        否则一个 10 秒的段被截成 3 秒后仍应被分配，而不是因为"看起来短"被丢。
+        实测：截到 3 s 仍 34/34，单段从 1136 KB 降到 188 KB；1 s 才掉到 32/34。
+        """
+        self.run_resolver(
+            """
+            let longest = 0;
+            const probe = (samples) => {
+              longest = Math.max(longest, samples.length);
+              return Float32Array.from([1, 0, 0]);
+            };
+            const r = new SpeakerIdentityResolver(SR, 4, probe);
+            r.appendAudio(silence(20000));
+            // 一个 10 秒的段
+            const ids = r.resolve([[1000, 11000, 0]]);
+            assert.equal(ids[0], 0, '10 秒的段必须被分配，不能因为截断而当成短段');
+            assert.equal(longest, SR * 3, `送入嵌入的样本数应为 3 秒，实际 ${longest}`);
+            """
+        )
+
+    def test_turn_shorter_than_the_cap_is_passed_whole(self) -> None:
+        self.run_resolver(
+            """
+            let seen = 0;
+            const probe = (samples) => { seen = samples.length; return Float32Array.from([1, 0, 0]); };
+            const r = new SpeakerIdentityResolver(SR, 4, probe);
+            r.appendAudio(silence(10000));
+            r.resolve([[1000, 2500, 0]]);          // 1.5 秒 < 3 秒上限
+            assert.equal(seen, SR * 1.5, '短于上限的段应整段送入');
+            """
+        )
+
     def test_timing_constraint_is_documented(self) -> None:
         """收尾路径余量只剩约 300 ms，嵌入必须会话期间算完；注释要留着这条约束。"""
         source = RESOLVER.read_text(encoding="utf-8")
