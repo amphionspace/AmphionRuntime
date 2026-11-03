@@ -83,16 +83,24 @@ def near_mix(srcs, dst):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--root", required=True, help="解包后的 Eval_Ali 目录")
+    ap.add_argument("--root", required=True, help="解包后的 Eval_Ali / Test_Ali 目录")
+    ap.add_argument("--split", default="", help="子目录前缀，如 Eval_Ali / Test_Ali；"
+                                               "留空则从 --root 的目录名推断")
     ap.add_argument("--out", required=True)
     ap.add_argument("--arms", default="far,near")
     args = ap.parse_args()
 
     arms = args.arms.split(",")
+    # Eval 与 Test 的子目录名不同（Eval_Ali_far / Test_Ali_far），不要写死
+    split = args.split or os.path.basename(os.path.normpath(args.root))
+    far_dir = f"{args.root}/{split}_far"
+    near_dir = f"{args.root}/{split}_near"
+    if not os.path.isdir(far_dir):
+        raise SystemExit(f"找不到 {far_dir}；用 --split 指定子目录前缀")
     for arm in arms:
         os.makedirs(f"{args.out}/{arm}", exist_ok=True)
 
-    tg_dir = f"{args.root}/Eval_Ali_far/textgrid_dir"
+    tg_dir = f"{far_dir}/textgrid_dir"
     sessions = sorted(os.path.basename(p)[:-9]
                       for p in glob.glob(f"{tg_dir}/*.TextGrid"))
     print(f"场次 {len(sessions)}")
@@ -104,9 +112,8 @@ def main():
         end = max(e for segs in per.values() for _, e in segs)
         rows.append((name, len(per), end / 60, total / 60))
 
-        far_src = glob.glob(f"{args.root}/Eval_Ali_far/audio_dir/{name}_*.wav")
-        near_srcs = sorted(glob.glob(
-            f"{args.root}/Eval_Ali_near/audio_dir/{name}_N_*.wav"))
+        far_src = glob.glob(f"{far_dir}/audio_dir/{name}_*.wav")
+        near_srcs = sorted(glob.glob(f"{near_dir}/audio_dir/{name}_N_*.wav"))
 
         for arm in arms:
             write_rttm(f"{args.out}/{arm}/{name}.rttm", name, per)

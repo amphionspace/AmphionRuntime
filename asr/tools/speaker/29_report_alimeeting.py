@@ -18,21 +18,24 @@ sc = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(sc)
 
 S = os.environ["SCRATCH"]
-REF = f"{S}/ali"
-PRED = f"{S}/ali_pred"
+# 可以给多个数据集，用逗号分隔（如 "ali,alitest" 把 Eval 与 Test 合并统计）
+SETS = os.environ.get("ALI_SETS", "ali").split(",")
 
 
 def load(arm):
     rows = []
-    for ref_path in sorted(glob.glob(f"{REF}/{arm}/*.rttm")):
-        name = os.path.basename(ref_path)[:-5]
-        hyp_path = f"{PRED}/{arm}/{name}.rttm"
-        if not os.path.isfile(hyp_path):
-            continue
-        ref = sc.read_rttm(ref_path)
-        stats = sc.segment_stats(ref)
-        metrics = sc.score_one(ref, sc.read_rttm(hyp_path), stats["duration"])
-        rows.append(dict(name=name, **stats, **metrics))
+    for name_set in SETS:
+        ref_dir = f"{S}/{name_set}/{arm}"
+        pred_dir = f"{S}/{name_set}_pred/{arm}"
+        for ref_path in sorted(glob.glob(f"{ref_dir}/*.rttm")):
+            name = os.path.basename(ref_path)[:-5]
+            hyp_path = f"{pred_dir}/{name}.rttm"
+            if not os.path.isfile(hyp_path):
+                continue
+            ref = sc.read_rttm(ref_path)
+            stats = sc.segment_stats(ref)
+            metrics = sc.score_one(ref, sc.read_rttm(hyp_path), stats["duration"])
+            rows.append(dict(name=name, split=name_set, **stats, **metrics))
     return rows
 
 
@@ -60,15 +63,17 @@ def by_count(arm, rows):
         buckets[r["speakers"]].append(r)
     print(f"\n--- {arm} 按人数（标称容量内）---")
     print(f"{'人数':>6s} {'场次':>4s} {'DER':>7s} {'漏检':>7s} {'混淆':>7s} "
-          f"{'覆盖':>6s} {'人数判对':>8s}")
+          f"{'覆盖':>6s} {'人数判对':>6s}   {'离散度':>14s}")
     for k in sorted(buckets):
         g = buckets[k]
         w = np.array([r["total"] for r in g])
         agg = lambda f: float(np.average([r[f] for r in g], weights=w))
+        ders = np.array([r["der"] for r in g])
         print(f"{k:>4d} 人 {len(g):>4d} {agg('der')*100:>6.1f}% "
               f"{agg('miss_rate')*100:>6.1f}% {agg('conf_rate')*100:>6.1f}% "
               f"{agg('coverage')*100:>5.0f}% "
-              f"{sum(r['speaker_count_correct'] for r in g)}/{len(g):<8d}")
+              f"{sum(r['speaker_count_correct'] for r in g)}/{len(g):<4d} "
+              f"  逐场 DER {ders.min()*100:.1f}~{ders.max()*100:.1f}%")
 
 
 def main():
