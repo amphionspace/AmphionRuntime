@@ -183,5 +183,49 @@ class HarmonySortformerSourceContractTest(unittest.TestCase):
         self.assertNotIn("XNNPACK", engine, "the int8 encoder measured 4x slower on XNNPACK")
 
 
+    def test_per_track_identity_overrides_slot_mapping(self) -> None:
+        """声纹身份按段携带，能拆开被 Sortformer 并进同一槽位的两个人。
+
+        这正是客户症状：两个人都落在槽位 0，槽位->公开 id 的映射无法拆开；
+        给每段带上身份后必须分成两个角色。
+        """
+        run_sortformer_session(
+            """
+            const mapping = [0, -1, -1, -1];        // 两段都在槽位 0
+            const merged = timelineTurns([[0, 3000, 0], [4000, 7000, 0]], mapping, 0, 7000);
+            const mergedIds = new Set(merged.map(t => t.speakerId));
+            assert.equal(mergedIds.size, 1, '仅靠槽位映射只能得到一个角色');
+
+            const split = timelineTurns([[0, 3000, 0, 0], [4000, 7000, 0, 1]], mapping, 0, 7000);
+            const splitIds = new Set(split.map(t => t.speakerId));
+            assert.equal(splitIds.size, 2, '按段身份应拆成两个角色');
+            assert.equal(split[0].speakerId, 'S1');
+            assert.equal(split[split.length - 1].speakerId, 'S2');
+            """
+        )
+
+    def test_unassigned_per_track_identity_falls_to_unknown(self) -> None:
+        """未赋身份（例如短于最小时长）照实落到 UNKNOWN，不借槽位猜。"""
+        run_sortformer_session(
+            """
+            const mapping = [2, -1, -1, -1];        // 槽位 0 本来会映射成 S3
+            const turns = timelineTurns([[0, 3000, 0, -1]], mapping, 0, 3000);
+            assert.equal(turns.length, 1);
+            assert.equal(turns[0].speakerId, 'UNKNOWN');
+            """
+        )
+
+    def test_absent_per_track_identity_keeps_slot_mapping(self) -> None:
+        """关闭声纹身份时（段只有三个元素）行为与原先完全一致。"""
+        run_sortformer_session(
+            """
+            const mapping = [2, 0, -1, -1];
+            const turns = timelineTurns([[0, 3000, 0], [3000, 6000, 1]], mapping, 0, 6000);
+            assert.equal(turns[0].speakerId, 'S3');
+            assert.equal(turns[turns.length - 1].speakerId, 'S1');
+            """
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

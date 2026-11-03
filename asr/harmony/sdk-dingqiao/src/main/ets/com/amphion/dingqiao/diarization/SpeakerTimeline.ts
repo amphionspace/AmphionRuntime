@@ -1,6 +1,12 @@
-// Concurrent per-speaker tracks ([beginTime, endTime, slot] in ms) become the SDK's
-// non-overlapping timeline: every boundary opens a turn whose primary speaker
-// prefers continuity and whose secondaries carry the rest. Nothing is dropped.
+// Concurrent per-speaker tracks ([beginTime, endTime, slot] in ms, optionally with a
+// per-track identity at index 3) become the SDK's non-overlapping timeline: every
+// boundary opens a turn whose primary speaker prefers continuity and whose secondaries
+// carry the rest. Nothing is dropped.
+//
+// 为什么要支持"按段携带身份"：Sortformer 的槽位会把不同的人并进同一个槽位（依次发言场景
+// 主机 4/10、真机同口径 10/10 复现），而槽位→公开 id 的映射无法拆开同槽的两个人。声纹身份
+// 是按发言段判的，所以 track[3] 存在且 >= 0 时优先用它；不存在时回落到槽位映射，
+// 关闭声纹身份时行为与原先完全一致。
 export interface TimelineTurn {
   beginTime: number;
   endTime: number;
@@ -28,7 +34,10 @@ export function timelineTurns(tracks: number[][], mapping: number[],
     const ids: string[] = [];
     for (const track of tracks) {
       if (track[0] >= end || track[1] <= begin) continue;
-      const label = mapping[track[2]] ?? -1;
+      // track[3] 是声纹身份（开启 speakerIdentityMode 时由 SpeakerIdentityAssigner 给出）；
+      // -1 表示该段未赋身份（例如短于最小时长），照实落到 UNKNOWN，不猜。
+      const assigned = track.length > 3 ? track[3] : -2;
+      const label = assigned !== -2 ? assigned : (mapping[track[2]] ?? -1);
       const id = label >= 0 ? `S${label + 1}` : 'UNKNOWN';
       if (!ids.includes(id)) ids.push(id);
     }
