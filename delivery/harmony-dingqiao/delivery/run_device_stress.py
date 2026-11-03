@@ -160,6 +160,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--speaker-identity-mode", choices=("", "model", "voiceprint"), default="",
+                        help="角色身份来源；空串表示不设置（SDK 默认 model）。")
     parser.add_argument("--enable-diarization", action="store_true",
                          help="Enable offline diarization through public StartParams in lifecycle modes.")
     parser.add_argument("--capture-diagnostics", action="store_true",
@@ -1350,6 +1352,7 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
+        "--ps", "stressSpeakerIdentityMode", args.speaker_identity_mode,
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
