@@ -22,6 +22,14 @@ export class CreateEngineParams {
 export class SpeakerDiarizationConfig {
   /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
   maxSpeakers: number = 4;
+  /**
+   * 角色身份由谁决定。默认 'model'，即沿用 Sortformer 的到达顺序槽位，行为与 0.3.26 一致。
+   *
+   * 'voiceprint' 改用声纹嵌入按发言段判身份，用于 Sortformer 把不同的人并进同一槽位的场景
+   * （依次发言时主机实测 10 组仅 4 组正确，真机同口径 10/10 复现）。打开后 `speakerIndex`
+   * 由声纹身份给出，原始模型槽位仍保留在 `modelSpeakerIndex`，便于现场对比与回退。
+   */
+  speakerIdentityMode: string = 'model';
 }
 
 export class StartParams {
@@ -102,6 +110,14 @@ export class SpeakerTurn {
   beginTime: number = 0;
   endTime: number = 0;
   speakerIndex: number = -1;
+  /**
+   * Sortformer 的原始到达顺序槽位索引。`speakerIdentityMode='voiceprint'` 时 `speakerIndex`
+   * 由声纹身份覆盖，这里保留模型自己的判断，便于现场对比与回退；'model' 模式下两者相同。
+   *
+   * 只在 `speakerTurns`（声学真值）上提供。句级的 `DiarizedUtterance` 暂不带它：那要穿过
+   * 整条文本聚合链路，而留一个永远是 -1 的字段比没有更误导；按时间与 speakerTurns 对齐即可。
+   */
+  modelSpeakerIndex: number = -1;
   secondarySpeakerIndexes: number[] = [];
   confidence: number = 0;
   overlap: boolean = false;
