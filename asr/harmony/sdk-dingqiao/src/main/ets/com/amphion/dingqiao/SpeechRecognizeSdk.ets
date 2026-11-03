@@ -57,7 +57,8 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
-import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
+import { validateSpeakerDiarizationConfig, validateSpeakerIdentityMode } from './diarization/SpeakerDiarizationConfigPolicy';
+import { SpeakerEmbedFn } from './diarization/SpeakerIdentityResolver';
 import { SortformerLocalClientOptions } from './diarization/SortformerLocalClient';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
@@ -672,6 +673,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
         const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const speakerIdentityMode =
+          validateSpeakerIdentityMode(params.speakerDiarization?.speakerIdentityMode);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -716,6 +719,33 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (diarizationQos !== 'inherit') {
           diarizationOptions.roleQos = diarizationQos;
         }
+        // 声纹身份用 campplus：阈值与全部评测都在它上面做的（留一标定 34/34，对照 28/34），
+        // 换成共享的 eres2net 会掉到 30/34 —— 不同嵌入模型之间阈值不可迁移。它也更小
+        // （28.3 MB vs 39.6 MB），且客户不用声纹时 eres2net 本来不会加载，所以"复用省内存"
+        // 在那种情况下不成立。campplus 已随 0.3.26 交付，开开关不需要新发资产。
+        let speakerEmbed: SpeakerEmbedFn | undefined = undefined;
+        if (speakerIdentityMode === 'voiceprint') {
+          try {
+            const identityModelPath = DingqiaoSpeakerModelAssets.complementaryDiarizationPath();
+            const identityExtractor =
+              AmphionRuntime.getOrCreateSpeakerExtractor(this.context, identityModelPath, 1);
+            const identityEnroller =
+              new SpeakerEnroller(identityModelPath, 1, this.context, identityExtractor);
+            speakerEmbed = (samples: Float32Array): Float32Array | undefined => {
+              try {
+                return identityEnroller.enroll([samples], 16000);
+              } catch (e) {
+                return undefined;      // 单段失败只让该段留"未赋身份"，不拖垮会话
+              }
+            };
+          } catch (e) {
+            // 拿不到嵌入能力就回落到模型槽位，不让会话失败；调用方从 modelSpeakerIndex
+            // 与 speakerIndex 相同可看出未生效。
+            this.diagnostic(diarizationSessionId, 'DIARIZATION_IDENTITY_UNAVAILABLE',
+              { 'error': `${e}` } as Record<string, Object>);
+            speakerEmbed = undefined;
+          }
+        }
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
@@ -725,7 +755,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);
             } : undefined,
-            diarizationOptions);
+            diarizationOptions,
+            120000,
+            speakerEmbed);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
