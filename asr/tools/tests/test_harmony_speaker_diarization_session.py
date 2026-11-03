@@ -179,6 +179,39 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         session = SESSION.read_text(encoding="utf-8")
         self.assertIn("turn.modelSpeakerIndex", session)
 
+    def test_model_speaker_id_survives_the_transcript_state(self) -> None:
+        """modelSpeakerId 必须穿过文本状态活下来。
+
+        实测踩过：`allTurns()` 是逐字段重建对象的，漏了这个字段，而发布处用
+        `modelSpeakerId ?? speakerId` 静默回落，于是真机上两者在**所有** turn 上都相同，
+        字段看起来有值却毫无信息。这条用例直接盯住"进去的能出来"。
+        """
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+
+            const state = new SpeakerDiarizationTranscriptState();
+            state.applySpeakerTurns([
+              {{beginTime:0,endTime:1000,speakerId:'S1',modelSpeakerId:'S1',secondarySpeakerIds:[]}},
+              // 声纹把这段判成 S2，而模型槽位仍是 S1 —— 正是要能分辨的情况
+              {{beginTime:1000,endTime:2000,speakerId:'S2',modelSpeakerId:'S1',secondarySpeakerIds:[]}},
+            ]);
+            const turns = state.allTurns();
+            assert.equal(turns.length, 2);
+            assert.equal(turns[0].modelSpeakerId, 'S1');
+            assert.equal(turns[1].speakerId, 'S2');
+            assert.equal(turns[1].modelSpeakerId, 'S1',
+              'allTurns() 丢了 modelSpeakerId；发布处的 ?? 回落会把这个 bug 掩盖成"两者总是相同"');
+            """
+        )
+
+    def test_model_speaker_index_does_not_silently_fall_back(self) -> None:
+        """拿不到 modelSpeakerId 时必须报 -1，不能回落到 speakerId。"""
+        session = SESSION.read_text(encoding="utf-8")
+        self.assertNotIn("modelSpeakerId ?? turns[i].speakerId", session)
+        self.assertIn("modelId === undefined ? -1", session)
+
     def test_local_executor_is_sdk_owned_and_has_no_network_or_host_adapter(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertNotIn("childProcessManager", adapter)

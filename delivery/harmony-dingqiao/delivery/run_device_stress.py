@@ -1352,7 +1352,6 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressCycles", str(args.cycles),
         "--ps", "stressSettleMs", str(args.settle_ms),
         "--ps", "stressPaceMs", str(args.pace_ms),
-        "--ps", "stressSpeakerIdentityMode", args.speaker_identity_mode,
         "--ps", "stressSpeechEndMs", str(args.speech_end_ms),
         "--ps", "stressDiarizationVadEndMs", str(args.diarization_vad_end_ms or 0),
         "--ps", "stressEnableDiarization", str(args.enable_diarization).lower(),
@@ -1380,6 +1379,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
     ]
+    # `aa start --ps` 不接受空值（实测报 invalid number of parameters for option --ps），
+    # 所以只在显式指定时才追加这对参数；不指定就让 SDK 用默认的 'model'。
+    if args.speaker_identity_mode:
+        start_command += ["--ps", "stressSpeakerIdentityMode", args.speaker_identity_mode]
     start_result = hdc.shell(*start_command, check=False)
     start_output = (start_result.stdout + start_result.stderr).lower()
     if (
