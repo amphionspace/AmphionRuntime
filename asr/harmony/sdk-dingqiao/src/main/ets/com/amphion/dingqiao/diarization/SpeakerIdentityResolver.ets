@@ -19,6 +19,18 @@ export type SpeakerEmbedFn = (samples: Float32Array) => Float32Array | undefined
 /** 未赋身份。与公开 speakerIndex 的"不确定"取值一致。 */
 export const IDENTITY_UNRESOLVED: number = -1;
 
+/**
+ * 每段最多送多少秒音频去算嵌入。
+ *
+ * 声纹嵌入几秒就饱和，不需要整段。实测（丁桥 4 条、143 个发言段）：不截断 34/34 对判对、
+ * 送入 506 s 音频、最大单段 1136 KB；截到 3 s 仍是 34/34，送入降到 327 s、单段 188 KB、
+ * 嵌入耗时降约 37%；截到 1 s 才掉到 32/34。取 3 s 是在"2 s 仍满分"之上留一档余量。
+ *
+ * 这条直接针对真机实测的内核 HWM 峰值比 model 模式高 141 MB —— 每段切出整段音频，
+ * 143 段累计几十 MB 瞬时 ArkTS 堆。
+ */
+export const IDENTITY_EMBED_MAX_SECONDS: number = 3;
+
 export class SpeakerIdentityResolver {
   private readonly window: DiarizationPcmWindow;
   private readonly assigner: SpeakerIdentityAssigner;
@@ -56,7 +68,9 @@ export class SpeakerIdentityResolver {
     const identities: number[] = new Array<number>(tracks.length).fill(IDENTITY_UNRESOLVED);
     for (const index of order) {
       const track = tracks[index];
-      const samples = this.window.slice(track[0], track[1]);
+      // 只取该段前 IDENTITY_EMBED_MAX_SECONDS 秒：嵌入几秒即饱和，截断同时降内存与原生算力。
+      const end = Math.min(track[1], track[0] + IDENTITY_EMBED_MAX_SECONDS * 1000);
+      const samples = this.window.slice(track[0], end);
       if (samples === undefined) {
         this.audioMisses += 1;
         continue;
