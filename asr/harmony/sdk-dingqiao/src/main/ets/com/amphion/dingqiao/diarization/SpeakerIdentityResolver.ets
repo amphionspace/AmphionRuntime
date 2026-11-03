@@ -1,6 +1,9 @@
 import { DiarizationPcmWindow, PCM_WINDOW_RETAIN_SECONDS } from './DiarizationPcmWindow';
 import { SpeakerIdentityAssigner } from 'amphion_asr';
 
+// 本文件是 .ets：它要从 'amphion_asr' 导入分配器，而 ArkTS 不允许 .ts 文件导入 ArkTS 模块
+// （实测报 10605999 "Importing ArkTS files in JS and TS files is forbidden"）。
+//
 // 把 Sortformer 的发言段换成声纹身份：取回该段音频 -> 算嵌入 -> 增量分配。
 //
 // 嵌入函数是**注入**的，不在这里加载模型：既让本文件能在没有 38 MB 声纹模型的环境下完整

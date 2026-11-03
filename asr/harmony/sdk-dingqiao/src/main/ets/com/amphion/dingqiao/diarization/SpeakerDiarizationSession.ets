@@ -587,8 +587,11 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       turn.beginTime = Math.max(beginTime, turns[i].beginTime);
       turn.endTime = Math.min(endTime, turns[i].endTime);
       turn.speakerIndex = speakerIndexFromInternalId(turns[i].speakerId, this.maxSpeakers);
-      turn.modelSpeakerIndex = speakerIndexFromInternalId(
-        turns[i].modelSpeakerId ?? turns[i].speakerId, this.maxSpeakers);
+      // 不回落到 speakerId：那会让字段看起来有值却毫无信息（实测踩过——两者在所有
+      // turn 上都相同，掩盖了 allTurns() 丢字段的 bug）。拿不到就报 -1，调用方能看出来。
+      const modelId = turns[i].modelSpeakerId;
+      turn.modelSpeakerIndex = modelId === undefined ? -1 :
+        speakerIndexFromInternalId(modelId, this.maxSpeakers);
       turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
         turns[i].secondarySpeakerIds, this.maxSpeakers, true);
       turn.confidence = turns[i].confidence ?? 0;

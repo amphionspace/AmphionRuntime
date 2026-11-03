@@ -13,7 +13,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DIARIZATION = REPO_ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization"
-RESOLVER = DIARIZATION / "SpeakerIdentityResolver.ts"
+RESOLVER = DIARIZATION / "SpeakerIdentityResolver.ets"
 ASSIGNER = REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerIdentityAssigner.ts"
 WINDOW = DIARIZATION / "DiarizationPcmWindow.ts"
 
