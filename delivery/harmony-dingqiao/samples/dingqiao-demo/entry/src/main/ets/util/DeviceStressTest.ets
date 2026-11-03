@@ -59,6 +59,7 @@ const VOICEPRINT_SCENARIOS: string[] = [
 ];
 // Test-carrier option only. Every lifecycle mode uses the same public StartParams.
 let stressEnableDiarization: boolean = false;
+let stressSpeakerIdentityMode: string = '';
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -89,6 +90,8 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
+  /** 'model'（默认，Sortformer 槽位）或 'voiceprint'（声纹嵌入按发言段判身份）。 */
+  speakerIdentityMode: string = 'model';
   captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
 }
@@ -1327,7 +1330,13 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   const params = new StartParams();
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
-  if (stressEnableDiarization) params.speakerDiarization = new SpeakerDiarizationConfig();
+  if (stressEnableDiarization) {
+    params.speakerDiarization = new SpeakerDiarizationConfig();
+    // 空串当未设置：拼错的值由 SDK 抛错，载体不替它兜。
+    if (stressSpeakerIdentityMode.length > 0) {
+      params.speakerDiarization.speakerIdentityMode = stressSpeakerIdentityMode;
+    }
+  }
   params.extraParams['enablePartialResult'] = false;
   // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
   params.extraParams['maxAudioDuration'] = 28800000;
@@ -3026,6 +3035,7 @@ function safeDetail(value: string): string {
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
   stressEnableDiarization = options.enableDiarization;
+  stressSpeakerIdentityMode = options.speakerIdentityMode ?? '';
   const startedAt = Date.now();
   const lines: string[] = [];
   const totals = new StressTotals();
@@ -3209,6 +3219,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     power?.stop();
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
+    stressSpeakerIdentityMode = '';
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }
