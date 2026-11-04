@@ -57,13 +57,27 @@ sleep 3
 echo "[INFO] 采样器 pid $SAMPLER"
 
 # ---- 5. 长跑 ----
-# am instrument 自己不会超时，但 adb 连接可能断；日志落盘以便事后诊断。
+# 必须让被测进程有一个**前台 Activity**。instrumented 测试本身没有界面，一加/OPPO 的
+# 后台应用管控会在进程启动约 48 秒后把它冻结（logcat 可见 OplusAlarmAdjustment
+# proxyAlarmsByUid），表现为回调停止、全部线程休眠、CPU 为 0——曾三次被误判为 SDK 卡死。
+# am instrument 启动时会先 force-stop 应用，所以 Activity 要在 instrument 起来之后再拉。
+adb shell svc power stayon true >/dev/null 2>&1 || true
+adb shell am set-standby-bucket "$PKG" active >/dev/null 2>&1 || true
+adb shell cmd appops set "$PKG" RUN_IN_BACKGROUND allow >/dev/null 2>&1 || true
+adb shell dumpsys deviceidle whitelist +"$PKG" >/dev/null 2>&1 || true
 echo "[INFO] 启动长跑，预计 ${MINUTES} 分钟"
 adb shell am instrument -w -r \
   -e class "$TEST_CLASS" \
   -e durationMinutes "$MINUTES" \
   "$PKG.test/androidx.test.runner.AndroidJUnitRunner" \
-  > "$OUT/instrument.log" 2>&1 || echo "[WARN] instrument 退出非零，见 instrument.log"
+  > "$OUT/instrument.log" 2>&1 &
+INSTR=$!
+sleep 6
+adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 \
+  && echo "[INFO] 已把 MainActivity 拉到前台，防后台冻结" \
+  || echo "[WARN] 拉起 MainActivity 失败，进程可能在 ~48s 被系统冻结"
+wait $INSTR || echo "[WARN] instrument 退出非零，见 instrument.log"
+adb shell svc power stayon false >/dev/null 2>&1 || true
 
 # ---- 6. 收尾 ----
 kill $SAMPLER 2>/dev/null || true

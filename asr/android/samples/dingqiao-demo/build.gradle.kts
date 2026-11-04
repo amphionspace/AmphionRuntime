@@ -97,6 +97,17 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // license 的 certSha256 绑定 release 证书，而 androidTest 默认只对 debug 构建，
+            // 所以用默认 debug 密钥签出来的包会被 license 判 INVALID（code=6005）。
+            // 该开关让 debug 也用 release 签名，专给设备侧 instrumented 测试用；
+            // 默认关闭，不改变常规 debug 构建行为。
+            //   ./gradlew ... -PdingqiaoDebugUseReleaseSigning=true
+            if (providers.gradleProperty("dingqiaoDebugUseReleaseSigning").orNull == "true") {
+                val storePath = localProps.getProperty("dingqiaoReleaseStoreFile")
+                if (!storePath.isNullOrBlank()) {
+                    signingConfig = signingConfigs.getByName("release")
+                }
+            }
         }
     }
 
