@@ -1,28 +1,43 @@
 ---
-状态: 立项，角色分离模型本身的跨机型验证被阻塞；理论分析完成，一个关键算子风险已用合成探针验证排除
+状态: Sortformer 运行时资产已恢复并逐文件 SHA-256 核对、CPU 端到端真实跑通；理论分析完成，
+一个关键算子风险已用合成探针验证排除；NPU 转换所需的预转换 ONNX 源图仍未找到
 影响: 后续"从 Mate 60 起多颗麒麟芯片 + 安卓/鸿蒙双端"兼容性工作的起点与方法依据
 ---
 
-# Sortformer 角色分离模型跨机型 / 跨芯片验证（2026-11-03 立项）
+# Sortformer 角色分离模型跨机型 / 跨芯片验证（2026-11-03 立项，11-04 资产恢复）
 
-本文记录三件事：Sortformer 本身为什么今天还验证不了、能从已知信息推出什么结论、以及一个
-关键风险点已经用合成探针方法验证过的真实结果。不含任何编造或外推成真实数据的内容——凡标
-"理论推断"的地方都未经真机验证，不得当作结论使用。
+本文记录四件事：Sortformer 运行时资产如何从邮箱附件里找回并验证、能从已知信息推出什么理论
+结论、一个关键风险点已经用合成探针方法验证过的真实结果、以及资产恢复后新做的真实加载验证。
+不含任何编造或外推成真实数据的内容——凡标"理论推断"的地方都未经真机验证，不得当作结论使用。
 
-## 一、硬阻塞：Sortformer 运行时资产不可达
+## 一、运行时资产：已从内部邮箱附件恢复，逐文件哈希核对通过（11-04 更新）
 
-厂商交付包 `sortformer-66M-4spk-delivery-v1（1）.zip` 不在任何本机可达位置：本地全盘（含
-`.cache`、`.local-archive`、git 历史、stash）、项目对象存储归档索引
-（`delivery/published-artifact-archives.json`）均无记录；0.3.26 鸿蒙从未归档到 COS，因为它
-本来就还是未发布候选。**这不是没找到，是这批资产本来就"不进 Git"，只能靠外部交付包或已组
-包机器恢复。** 解除方式二选一：
+厂商交付包 `sortformer-66M-4spk-delivery-v1（1）.zip` 本身仍未找到——本地全盘（含 `.cache`、
+`.local-archive`、git 历史、stash）、项目对象存储归档索引均无记录，0.3.26 鸿蒙也从未归档到
+COS。但**运行时资产已经用另一条路径恢复**：
 
-1. 找到当初收到交付包的渠道重新索取；
-2. 找到跑过 `pack_dingqiao_customer_delivery.sh` / 鸿蒙 0.3.26 组包的那台机器，模型文件应该
-   解压在那台机器本地的 `shared/models/asr/dingqiao/sortformer-66M-4spk/`。
+1. 用飞书 CLI 搜索邮箱，顺着 `HarmonyOS ASR SDK 0.3.26` 公告邮件找到它的**回复邮件**，附件
+   `Amphion-Harmony-ASR-Complete-0.3.26.zip`——这是当时组包产出的完整 SDK 包本身，不是厂商
+   原始交付包，但它的鸿蒙 HAR 里已经编译进了 Sortformer 全部运行时资产。
+2. 下载（1,939,479,824 字节），整包 SHA-256
+   `860d731f7228c326f3116903e1b14c3bfb4ea65172351f780c8918a243b2d224` 与候选验收报告记录的值
+   逐位一致。
+3. HAR（`demo-source/libs/amphion_dingqiao.har`）实际是 gzip 压缩的 tar，不是普通 zip；解开
+   两层后在 `package/src/main/resources/rawfile/amphion-dingqiao/sortformer-66M-4spk/` 下找到
+   全部 7 个文件。
+4. **逐文件 SHA-256 与 `delivery/harmony-dingqiao/delivery/sortformer_diarization_v1.json` 清
+   单核对，全部 OK**：`pre_encode.ort`、`encoder_layers.int8.ort`、`speaker_head.ort`、
+   `spkcache_update.ort`、`learnable_sil_emb.npy`、`mel_window_hann400_periodic_false.npy`、
+   `mel_filterbank_128x257_slaney.npy`。
+5. 已恢复到仓库约定的运行时路径 `shared/models/asr/dingqiao/sortformer-66M-4spk/`（该路径
+   `.gitignore` 已预先排除，不会被误提交）。
 
-在此之前，Sortformer 真实权重相关的任何真机验证（精度、延迟、工作集占用）都做不了，与机型
-无关——不只是新机型测不了，现有的 nova 15 / nova 14 Pro 也一样测不了。
+**这解除了精度/CPU 端真机验证的阻塞**，见第四节的真实加载与端到端结果。
+
+**仍然缺失、尚未解除的一环**：NPU 转换需要的是**转换前的原始 ONNX 源图**（manifest 里
+`derivedFrom` 字段指向的 `models/*.onnx`），这批 `.ort` 是已经编译优化过的 ONNX Runtime
+Mobile 格式，OMG 转换器吃的是 ONNX，不是 `.ort`——这两者不能互相代替。原始 ONNX 源图大概率
+只在厂商原始交付包里，**这部分仍然需要第二节、第七节里说的两条路径之一**。
 
 ## 二、已有的间接方法：跨芯片探针方法学已经预演过一次
 
@@ -133,7 +148,43 @@ ASR encoder 跑不动的真因是流式步长太细——每步只处理 `T=8` �
 三种不同枚举形态，说明换芯片不是换个数字那么简单，连设备拓扑都可能不同。**理论分析能排优
 先级、圈风险点，不能替代每颗芯片的实测。**
 
-## 四、合成探针实验：验证了动态 K 这个真实风险点（已执行，真实结果）
+## 四、资产恢复后的真实验证（11-04，CPU 端）
+
+### 4.1 四个模块真实加载（不是只核对哈希）
+
+用 onnxruntime 1.31.1 CPU EP 逐个创建 `InferenceSession`，全部成功，并把声明的输入输出形状
+和理论分析第 3.2 节的推断做了交叉核对：
+
+| 模块 | 输入 | 输出 |
+|---|---|---|
+| `pre_encode.ort` | `mel [batch,128,mel_frames]` | `feats [batch,enc_frames,512]` |
+| `encoder_layers.int8.ort` | `feats [batch,ctx_frames,512]` | `enc [batch,512,ctx_frames]` |
+| `speaker_head.ort` | `enc [batch,512,ctx_frames]` | `probs [batch,out_frames,4]` |
+| `spkcache_update.ort` | `chunk [1,124,512]`、`spkcache`/`fifo [1,188,512]` 等 12 个张量 | `spkcache_out`/`fifo_out [1,188,512]` 等 6 个张量 |
+
+**`chunk` 形状 `[1,124,512]`、`spkcache`/`fifo` 形状 `[1,188,512]`，和交付清单记录的
+`chunkLen: 124`、`spkcacheLen: 188`、`fifoLen: 188` 完全一致**——第 3.2 节"理论推断"的那部分，
+现在有真实模型签名作为实测依据，不再只是从数字推断。
+
+### 4.2 四模块真实串联跑通一整条链路
+
+用随机但形状正确的输入，按真实数据流顺序跑：`pre_encode → encoder_layers → speaker_head →
+spkcache_update`，全部输出 `finite=True`，且 `spkcache_update` 返回的 `f_len_out=[124]`
+正确反映了"这一块 124 帧被吸收进 FIFO"——这是内部状态记账逻辑在真实生效，不是空跑或占位输出。
+
+**边界**：这次用的是随机输入，不是真实音频，所以不构成精度/DER 验证；要做精度验证，需要接上
+真实 mel 特征提取和参考标注（manifest 的 `validation` 字段记录了厂商自己的基线：主机金标
+逐阶段 max|Δ| mel 2.3e-5、speaker_head 1.9e-5，端到端 0.016；设备 `VYG-AL30 dq5 UEM DER
+12.10%`，与仓库其它文档的 DER 数字一致）。
+
+### 4.3 对第二节跨芯片探针方法学的意义
+
+有了真实权重，第二节验证过的跨芯片探针方法（OMG 转换、`.om/HIAI_F` 真机 build、split-seq 流
+式接力）**原则上可以直接套用到 Sortformer 上**——但要注意第一节末尾的限制：探针链路从
+ONNX 开始，这批 `.ort` 文件不能直接喂给 OMG，需要先解决 ONNX 源图缺失的问题，或者先评估
+"`.ort` → 可转换的 ONNX" 这条路径是否可行（有信息损失风险，未验证）。
+
+## 五、合成探针实验：验证了动态 K 这个真实风险点（已执行，真实结果）
 
 方法沿用 ASR encoder 调研时已验证过的方式（`docs/harmony/ASR_NPU_BLOCKERS.md` B2/B3 体量阶梯
 与算子三明治对照）：不需要真实权重，只要真实形状和真实算子类型，配合随机权重，照样能测出
@@ -168,7 +219,7 @@ OMG 转换、推到 nova 15 真机（Kirin 8020，`.om/HIAI_F`）运行，并用
 其他算子的组合方式、上下游张量形状是否逐一一致，没有测；也只测了 Kirin 8020 一颗芯片。不能
 据此断言"Sortformer 整图能上 NPU"，只能说"这一个已知风险点不再是已知阻塞"。
 
-## 五、安卓 vs 鸿蒙：不是同一个验证面
+## 六、安卓 vs 鸿蒙：不是同一个验证面
 
 "兼容对应的安卓和鸿蒙系统"这句话涵盖两个完全不同的验证面：
 
@@ -178,18 +229,19 @@ OMG 转换、推到 nova 15 真机（Kirin 8020，`.om/HIAI_F`）运行，并用
   任何 NNAPI 或厂商 NPU 代理调用——这条线上 NPU 加速**还没有开始做**，不是"换机型重测"，是
   "从零立项"。工作量和鸿蒙这条线不是一个量级，需要单独排期。
 
-## 六、下一步（按能否现在开始排序）
+## 七、下一步（按能否现在开始排序）
 
 | 优先级 | 动作 | 是否需要等外部输入 |
 |---|---|---|
 | ~~1~~ | ~~重装 nova 14 Pro 上的探针，把 ASR encoder 的跨芯片数据补完整~~ | **已完成（见第二节补齐部分）**：直接复用本地已编译 HAP，精度与延迟均与 nova 15 打平 |
-| 2 | 找到 Sortformer 交付包或已组包机器 | 需要用户提供渠道/机器信息 |
-| 3 | 拿到资产后，先在 nova 15 / nova 14 Pro（方法已验证可跨芯片复用）上跑 Sortformer 真机基线 | 依赖 2 |
-| 4 | 借到 Mate 60（Kirin 9000s），走一遍同样的探针流程 | 需要先借到设备 |
-| 5 | 确认"最新机型"具体型号，排入设备矩阵 | 需要用户明确型号 |
-| 6 | 安卓 NPU 兼容性单独立项。另外注意：**Mate 60 / Mate 70 Pro 本身不是安卓设备矩阵的合适代表**——Mate 70 Pro 已确认是 HarmonyOS NEXT，无 AOSP 兼容层；Mate 60 即便早期固件带兼容层，也不等同受支持的 Android 运行环境。安卓侧若要验证，应使用真正运行 Android 的设备，与这两款机型分开排期 | 需要用户确认范围 |
+| ~~2~~ | ~~找到 Sortformer 运行时资产~~ | **已完成（见第一节）**：从内部邮箱附件恢复，7 个文件逐一 SHA-256 核对通过 |
+| 3 | 在 nova 15 / nova 14 Pro（方法已验证可跨芯片复用）上跑 Sortformer 真机基线（CPU 路径） | 不需要，现在可排期——资产已就绪 |
+| 4 | 找到 Sortformer 的预转换 ONNX 源图（NPU 转换专用，`.ort` 不能代替），解除 NPU 这一条路径的阻塞 | 需要用户提供厂商原始交付包，或确认是否有已转换过 OMG 的产物 |
+| 5 | 借到 Mate 60（Kirin 9000s），走一遍同样的探针流程 | 需要先借到设备 |
+| 6 | 确认"最新机型"具体型号，排入设备矩阵 | 需要用户明确型号 |
+| 7 | 安卓 NPU 兼容性单独立项。另外注意：**Mate 60 / Mate 70 Pro 本身不是安卓设备矩阵的合适代表**——Mate 70 Pro 已确认是 HarmonyOS NEXT，无 AOSP 兼容层；Mate 60 即便早期固件带兼容层，也不等同受支持的 Android 运行环境。安卓侧若要验证，应使用真正运行 Android 的设备，与这两款机型分开排期 | 需要用户确认范围 |
 
-## 七、关联文档
+## 八、关联文档
 
 - `docs/harmony/ASR_NPU_BLOCKERS.md`、`docs/harmony/ASR_NPU_RETEST_20261023.md` —— ASR encoder
   的阻塞点清单与方法学来源
