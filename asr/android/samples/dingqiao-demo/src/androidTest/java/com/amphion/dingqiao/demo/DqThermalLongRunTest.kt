@@ -94,6 +94,18 @@ class DqThermalLongRunTest {
             listener.awaitComplete(30_000)
             awaitIdle(engine, timeoutMs = 20_000)
 
+            // 把本会话的识别文本落盘。喂进去的是不是真语音，看回调计数只是旁证，
+            // 文本才是直接证据；SDK 不把文本打到 logcat，内存里的又拿不出来。
+            DqReport.append(
+                ctx,
+                mapOf(
+                    "case" to "thermalText",
+                    "session" to session,
+                    "finals" to listener.finals.size,
+                    "text_head" to listener.finalText().take(200),
+                ),
+            )
+
             // 进度同时写 logcat 和设备上的 report.jsonl。只写 logcat 不够：这台机器的摄像头
             // 报错每分钟刷几千行，进度行很快被冲出缓冲区，曾因此误以为测试没在跑。
             // feed_ratio 是实际喂入音频秒数 / 已耗墙钟秒数：1.0 才是真实时。
