@@ -111,8 +111,13 @@ internal class SpeakerIdentityAssigner(
     }
 
     internal companion object {
-        /** 并入已有身份所需的最小余弦相似度。与鸿蒙 `IDENTITY_MERGE_THRESHOLD` 一致。 */
-        const val MERGE_THRESHOLD = 0.45
+        /**
+         * 并入已有身份所需的最小余弦相似度。与鸿蒙 `IDENTITY_MERGE_THRESHOLD` 一致。
+         *
+         * 定参依据见鸿蒙侧同名常量的注释：客户现网 4 条在 0.35~0.50 均为 34/34，
+         * 25 位真实会议说话人上 0.50 的合计错误率 0.346%（0.45 为 1.211%，且误并占 3.7 倍）。
+         */
+        const val MERGE_THRESHOLD = 0.50
 
         /**
          * 短于这个时长的发言段不赋身份、也不更新质心。
