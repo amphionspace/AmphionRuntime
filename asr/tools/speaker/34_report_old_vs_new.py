@@ -115,7 +115,36 @@ def controlled():
                   f"{med(o,'miss_rate'):>6.1f}% {med(n,'miss_rate'):>6.1f}%")
 
 
+def session_length():
+    """会话时长轴的双臂：同一场 AliMeeting 截成 2/5/10/20 min，看新旧模型各自随时长怎么变。
+    新模型此前已证明短会不劣化（2 min 8.1% vs 全程 10.7%）；这里补旧模型那一臂。"""
+    import json
+    idx_path = f"{S}/alilen/index.json"
+    if not os.path.isfile(idx_path):
+        return
+    by = defaultdict(lambda: ([], []))
+    for it in json.load(open(idx_path)):
+        ref_p = f"{S}/alilen/{it['name']}.rttm"
+        ho, hn = f"{S}/alilen_old/{it['name']}.rttm", f"{S}/alilen_pred/{it['name']}.rttm"
+        if not (os.path.isfile(ho) and os.path.isfile(hn)):
+            continue
+        ref = sc.read_rttm(ref_p)
+        o, n = by[int(it["minutes"])]
+        o.append(sc.score_one(ref, sc.read_rttm(ho), it["duration"]))
+        n.append(sc.score_one(ref, sc.read_rttm(hn), it["duration"]))
+    if not by:
+        return
+    print("\n=== 会话时长轴（同场截断，8 场，时长加权）===")
+    print(f"{'截断':>6s} {'场次':>4s} {'旧 DER':>8s} {'新 DER':>8s} {'差':>8s} {'旧混淆':>7s} {'新混淆':>7s} {'旧判对':>6s} {'新判对':>6s}")
+    for m in sorted(by):
+        o, n = by[m]
+        print(f"{m:>4d}min {len(o):>4d} {wavg(o,'der')*100:>7.1f}% {wavg(n,'der')*100:>7.1f}% "
+              f"{(wavg(n,'der')-wavg(o,'der'))*100:>+7.1f}pp {wavg(o,'conf_rate')*100:>6.1f}% {wavg(n,'conf_rate')*100:>6.1f}% "
+              f"{sum(r['speaker_count_correct'] for r in o):>3d}/{len(o):<2d} {sum(r['speaker_count_correct'] for r in n):>3d}/{len(n):<2d}")
+
+
 if __name__ == "__main__":
     alimeeting("far")
     alimeeting("near")
     controlled()
+    session_length()
