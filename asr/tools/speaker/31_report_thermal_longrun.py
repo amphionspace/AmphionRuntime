@@ -98,6 +98,34 @@ def thermal_report(zones, data):
             print(f"  {name:10s} 中位 {np.median(v[m]):5.1f}°  斜率 {k*60:+6.2f}°/小时")
 
 
+def cpu_report(path):
+    """用 /proc 节拍差分算进程占用。安卓的 top -n 1 单次采样恒为 0.0%，不可用。"""
+    rows = list(csv.DictReader(open(path)))
+    if not rows or "process_cpu_ticks" not in rows[0]:
+        return
+    pts, syst, ncpu, t = [], [], 0, []
+    for r in rows:
+        p, s = int(r["process_cpu_ticks"] or 0), int(r["system_cpu_ticks"] or 0)
+        if p <= 0 or s <= 0:
+            continue
+        pts.append(p); syst.append(s); t.append(float(r["elapsed_seconds"]))
+        ncpu = int(r.get("logical_cpus") or ncpu or 0)
+    if len(pts) < 3 or ncpu == 0:
+        return
+    dp, ds = np.diff(pts), np.diff(syst)
+    ok = ds > 0
+    # 进程节拍 / 系统总节拍 × 核数 = 单核等效占用；pid 变化会让差分为负，当作无效点丢掉
+    util = np.where(ok & (dp >= 0), dp / np.maximum(ds, 1) * ncpu * 100, np.nan)
+    util = util[~np.isnan(util)]
+    if util.size == 0:
+        return
+    print(f"\nCPU（单核等效，{ncpu} 逻辑核，差分自 /proc 节拍）：")
+    print(f"  中位 {np.median(util):.1f}%  p95 {np.percentile(util,95):.1f}%  "
+          f"峰值 {util.max():.1f}%  整机占用中位 {np.median(util)/ncpu:.1f}%")
+    if np.median(util) < 5:
+        print("  ⚠ 占用极低：引擎可能没在干活，先核对设备上的 report.jsonl 有无回调")
+
+
 def memory_report(path):
     t, rss, hwm = [], [], []
     for r in csv.DictReader(open(path)):
@@ -146,6 +174,7 @@ def main():
 
     mem = os.path.join(args.run_dir, "memory.csv")
     if os.path.isfile(mem):
+        cpu_report(mem)
         memory_report(mem)
 
     rep = os.path.join(args.run_dir, "report.json")
