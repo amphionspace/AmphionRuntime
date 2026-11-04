@@ -143,8 +143,34 @@ def session_length():
               f"{sum(r['speaker_count_correct'] for r in o):>3d}/{len(o):<2d} {sum(r['speaker_count_correct'] for r in n):>3d}/{len(n):<2d}")
 
 
+def aishell4():
+    """超容量（5~7 人）的双臂。两个模型都被 4 人上限截断，只看"坏法"是否相同。"""
+    ref_dir = os.path.expanduser("~/Downloads/aishell4/DATA_ASR/LHOTSE/data_aishell4/test/TextGrid")
+    new = score_dir(ref_dir, f"{S}/a4_pred")
+    old = score_dir(ref_dir, f"{S}/a4_old")
+    names = sorted(set(new) & set(old))
+    if not names:
+        return
+    print(f"\n=== AISHELL-4 超容量：{len(names)} 场（时长加权；两臂均受 4 人上限截断）===")
+    print(f"{'人数':>5s} {'场次':>4s} {'旧 DER':>8s} {'新 DER':>8s} {'差':>8s} {'旧漏检':>7s} {'新漏检':>7s} {'旧混淆':>7s} {'新混淆':>7s}")
+    by = defaultdict(list)
+    for n in names:
+        by[new[n]["speakers"]].append(n)
+    for k in sorted(by):
+        o = [old[n] for n in by[k]]; w = [new[n] for n in by[k]]
+        print(f"{k:>4d}人 {len(o):>4d} {wavg(o,'der')*100:>7.1f}% {wavg(w,'der')*100:>7.1f}% "
+              f"{(wavg(w,'der')-wavg(o,'der'))*100:>+7.1f}pp {wavg(o,'miss_rate')*100:>6.1f}% {wavg(w,'miss_rate')*100:>6.1f}% "
+              f"{wavg(o,'conf_rate')*100:>6.1f}% {wavg(w,'conf_rate')*100:>6.1f}%")
+    o = [old[n] for n in names]; w = [new[n] for n in names]
+    print(f"{'合计':>5s} {len(names):>4d} {wavg(o,'der')*100:>7.1f}% {wavg(w,'der')*100:>7.1f}% "
+          f"{(wavg(w,'der')-wavg(o,'der'))*100:>+7.1f}pp {wavg(o,'miss_rate')*100:>6.1f}% {wavg(w,'miss_rate')*100:>6.1f}% "
+          f"{wavg(o,'conf_rate')*100:>6.1f}% {wavg(w,'conf_rate')*100:>6.1f}%")
+    print(f"  新模型更好的场次：{sum(1 for n in names if new[n]['der'] < old[n]['der'])}/{len(names)}")
+
+
 if __name__ == "__main__":
     alimeeting("far")
     alimeeting("near")
     controlled()
     session_length()
+    aishell4()
