@@ -32,33 +32,63 @@ def load_thermal(path):
     return zones, data
 
 
+def temp_scale(data):
+    """判别温度单位。鸿蒙的 ThermalService 给毫摄氏度，而安卓各机型的
+    /sys/class/thermal 有毫、分、摄氏三种，硬编码 /1000 会把读数差 10~1000 倍。
+    按合理机身温度区间（约 10~120 °C）反推除数。"""
+    v = data[:, 1:]
+    peak = float(np.nanmax(v)) if v.size else 0.0
+    if peak > 20000:      # 例如 34500 → 34.5 °C
+        return 1000.0, "毫摄氏度"
+    if peak > 2000:       # 例如 345 → 34.5 °C
+        return 10.0, "分摄氏度"
+    return 1.0, "摄氏度"
+
+
 def thermal_report(zones, data):
     t = data[:, 0] / 60.0
-    print(f"温度采样 {len(t)} 点，覆盖 {t[-1]:.1f} 分钟，间隔 ~{np.median(np.diff(data[:,0])):.0f} s")
+    div, unit = temp_scale(data)
+    print(f"温度采样 {len(t)} 点，覆盖 {t[-1]:.1f} 分钟，间隔 ~{np.median(np.diff(data[:,0])):.0f} s"
+          f"（原始单位判为{unit}）")
     print(f"\n{'传感器':14s} {'起始':>7s} {'峰值':>7s} {'终值':>7s} {'升幅':>8s} "
           f"{'达峰时刻':>9s} {'末10分钟中位':>12s}")
     last10 = t >= t[-1] - 10
     for i, z in enumerate(zones):
-        v = data[:, i + 1] / 1000.0
+        v = data[:, i + 1] / div
         if v.max() <= 0:            # modem 常年 0，没接基带
             continue
         mark = "*" if z in KEY_ZONES else " "
         print(f"{mark}{z:13s} {v[0]:>6.1f}° {v.max():>6.1f}° {v[-1]:>6.1f}° "
               f"{v.max()-v[0]:>+7.1f}° {t[int(np.argmax(v))]:>8.1f}m {np.median(v[last10]):>11.1f}°")
 
+    # 机身与环境的传感器命名两端不同，按优先级找；找不到就跳过对应小节而不是算错
+    def pick(*candidates):
+        for name in candidates:
+            if name in zones:
+                return name
+        for name in candidates:
+            for z in zones:
+                if name in z:
+                    return z
+        return None
+
+    shell = pick("shell_back", "shell_frame", "shell_front", "board_thermal", "skin")
+    ambient = pick("ambient", "ap_ntc", "charger")
+
     # 环境自己会漂。设备真正的自发热要看"机身温度 − 环境温度"，否则机房升温被算进来
-    if "shell_back" in zones and "ambient" in zones:
-        back = data[:, zones.index("shell_back") + 1] / 1000.0
-        amb = data[:, zones.index("ambient") + 1] / 1000.0
+    if shell and ambient and shell != ambient:
+        back = data[:, zones.index(shell) + 1] / div
+        amb = data[:, zones.index(ambient) + 1] / div
         d = back - amb
+        print(f"\n（机身取 {shell}，环境取 {ambient}）")
         print(f"\n扣除环境漂移后（shell_back − ambient）：")
         print(f"  起始 {d[0]:.1f}°  峰值 {d.max():.1f}°  终值 {d[-1]:.1f}°  "
               f"净升幅 {d[-1]-d[0]:+.1f}°")
         print(f"  环境自身升幅 {amb[-1]-amb[0]:+.1f}°（机身原始升幅 {back[-1]-back[0]:+.1f}°）")
 
-    print("\n是否进入热平台（取机身外壳 shell_back）：")
-    if "shell_back" in zones:
-        v = data[:, zones.index("shell_back") + 1] / 1000.0
+    if shell:
+        print(f"\n是否进入热平台（取 {shell}）：")
+        v = data[:, zones.index(shell) + 1] / div
         for lo, hi, name in ((0, 20, "0~20min"), (20, 40, "20~40min"),
                              (40, 70, "40~70min"), (70, 200, "70min~")):
             m = (t >= lo) & (t < hi)
