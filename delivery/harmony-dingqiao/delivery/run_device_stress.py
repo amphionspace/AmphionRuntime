@@ -160,6 +160,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--speaker-identity-mode", choices=("", "model", "voiceprint"), default="",
+                        help="角色身份来源；空串表示不设置（SDK 默认 model）。")
     parser.add_argument("--enable-diarization", action="store_true",
                          help="Enable offline diarization through public StartParams in lifecycle modes.")
     parser.add_argument("--capture-diagnostics", action="store_true",
@@ -1377,6 +1379,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
     ]
+    # `aa start --ps` 不接受空值（实测报 invalid number of parameters for option --ps），
+    # 所以只在显式指定时才追加这对参数；不指定就让 SDK 用默认的 'model'。
+    if args.speaker_identity_mode:
+        start_command += ["--ps", "stressSpeakerIdentityMode", args.speaker_identity_mode]
     start_result = hdc.shell(*start_command, check=False)
     start_output = (start_result.stdout + start_result.stderr).lower()
     if (

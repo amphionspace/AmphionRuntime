@@ -33,6 +33,8 @@ export interface SpeakerTimelineTurn {
   beginTime: number;
   endTime: number;
   speakerId: string;
+  /** 只按 Sortformer 槽位得到的主身份；开启声纹身份后 speakerId 被覆盖，这里保留模型判断。 */
+  modelSpeakerId?: string;
   secondarySpeakerIds: string[];
   confidence?: number;
   overlap?: boolean;
@@ -315,6 +317,7 @@ export class SpeakerDiarizationTranscriptState {
         beginTime: newTurns[i].beginTime,
         endTime: newTurns[i].endTime,
         speakerId: newTurns[i].speakerId,
+        modelSpeakerId: newTurns[i].modelSpeakerId,
         secondarySpeakerIds: visibleSecondaryIds(evidenceIds, newTurns[i].speakerId),
         confidence: newTurns[i].confidence,
         overlap: newTurns[i].overlap,
@@ -709,6 +712,7 @@ export class SpeakerDiarizationTranscriptState {
       beginTime: turn.beginTime,
       endTime: turn.endTime,
       speakerId: turn.speakerId,
+      modelSpeakerId: turn.modelSpeakerId,
       secondarySpeakerIds: turn.secondarySpeakerIds.slice(),
       confidence: turn.confidence,
       overlap: turn.overlap,

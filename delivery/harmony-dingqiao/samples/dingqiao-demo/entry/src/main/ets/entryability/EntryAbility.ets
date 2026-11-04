@@ -147,6 +147,7 @@ export default class EntryAbility extends UIAbility {
       options.speechEndMs = this.numberParameter(want, 'stressSpeechEndMs', 0);
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
+      options.speakerIdentityMode = this.stringParameter(want, 'stressSpeakerIdentityMode', '');
       options.captureDiagnostics = this.stringParameter(want, 'stressCaptureDiagnostics', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       options.samplePower = params !== undefined && params['samplePower'] === 'true';

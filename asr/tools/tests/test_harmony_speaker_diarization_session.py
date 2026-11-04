@@ -7,6 +7,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 DIARIZATION = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/diarization"
+MODELS = ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/DingqiaoModels.ets"
 REGISTRY = DIARIZATION / "OnlineSpeakerRegistry.ts"
 BARRIER = DIARIZATION / "SpeakerDiarizationFinishBarrier.ts"
 TIMELINE = DIARIZATION / "SpeakerDiarizationTranscriptState.ts"
@@ -126,6 +127,91 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
             """
         )
 
+    def test_speaker_identity_mode_defaults_to_model_and_rejects_typos(self) -> None:
+        """拼错的 mode 必须抛错而不是静默回落到 'model'。
+
+        静默回落会让调用方以为打开了声纹身份、而实际跑的还是模型槽位，现场排查极难发现。
+        """
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ validateSpeakerDiarizationConfig, validateSpeakerIdentityMode,
+                      SPEAKER_IDENTITY_MODES }} from {CONFIG_POLICY.as_uri()!r};
+
+            // 未设置时等同 0.3.26 行为
+            assert.equal(validateSpeakerIdentityMode(undefined), 'model');
+            assert.equal(validateSpeakerIdentityMode('model'), 'model');
+            assert.equal(validateSpeakerIdentityMode('voiceprint'), 'voiceprint');
+            assert.deepEqual(SPEAKER_IDENTITY_MODES, ['model', 'voiceprint']);
+
+            for (const bad of ['Voiceprint', 'VOICEPRINT', 'embedding', 'on', '', 'campplus']) {{
+              assert.throws(() => validateSpeakerIdentityMode(bad), `应拒绝 ${{bad}}`);
+            }}
+            // 走完整配置校验这条路也要拒
+            assert.throws(() => validateSpeakerDiarizationConfig(
+              {{ maxSpeakers: 4, speakerIdentityMode: 'embedding' }}));
+            assert.equal(validateSpeakerDiarizationConfig(
+              {{ maxSpeakers: 4, speakerIdentityMode: 'voiceprint' }}), 4);
+            """
+        )
+
+    def test_model_speaker_index_is_exposed_on_speaker_turns_only(self) -> None:
+        """打开声纹身份后 speakerIndex 被覆盖，原始模型槽位必须仍可读，否则现场无法对比回退。
+
+        只在 `SpeakerTurn`（声学真值）上提供。句级 `DiarizedUtterance` 刻意不带它：
+        那要穿过整条文本聚合链路，而留一个永远是 -1 的字段比没有更误导。
+        """
+        models = MODELS.read_text(encoding="utf-8")
+        turn_start = models.index("export class SpeakerTurn")
+        turn_end = models.index("}", models.index("{", turn_start))
+        self.assertIn("modelSpeakerIndex", models[turn_start:turn_end])
+
+        utterance_start = models.index("export class DiarizedUtterance")
+        utterance_end = models.index("}", models.index("{", utterance_start))
+        self.assertNotIn(
+            "modelSpeakerIndex", models[utterance_start:utterance_end],
+            "句级暂不提供该字段；若要加，必须真的填上而不是恒为 -1",
+        )
+
+        # 时间线必须并行算出模型槽位身份，否则上面那个字段填不出来
+        timeline = (DIARIZATION / "SpeakerTimeline.ts").read_text(encoding="utf-8")
+        self.assertIn("modelSpeakerId", timeline)
+        session = SESSION.read_text(encoding="utf-8")
+        self.assertIn("turn.modelSpeakerIndex", session)
+
+    def test_model_speaker_id_survives_the_transcript_state(self) -> None:
+        """modelSpeakerId 必须穿过文本状态活下来。
+
+        实测踩过：`allTurns()` 是逐字段重建对象的，漏了这个字段，而发布处用
+        `modelSpeakerId ?? speakerId` 静默回落，于是真机上两者在**所有** turn 上都相同，
+        字段看起来有值却毫无信息。这条用例直接盯住"进去的能出来"。
+        """
+        run_node(
+            f"""
+            import assert from 'node:assert/strict';
+            import {{ SpeakerDiarizationTranscriptState }} from {TIMELINE.as_uri()!r};
+
+            const state = new SpeakerDiarizationTranscriptState();
+            state.applySpeakerTurns([
+              {{beginTime:0,endTime:1000,speakerId:'S1',modelSpeakerId:'S1',secondarySpeakerIds:[]}},
+              // 声纹把这段判成 S2，而模型槽位仍是 S1 —— 正是要能分辨的情况
+              {{beginTime:1000,endTime:2000,speakerId:'S2',modelSpeakerId:'S1',secondarySpeakerIds:[]}},
+            ]);
+            const turns = state.allTurns();
+            assert.equal(turns.length, 2);
+            assert.equal(turns[0].modelSpeakerId, 'S1');
+            assert.equal(turns[1].speakerId, 'S2');
+            assert.equal(turns[1].modelSpeakerId, 'S1',
+              'allTurns() 丢了 modelSpeakerId；发布处的 ?? 回落会把这个 bug 掩盖成"两者总是相同"');
+            """
+        )
+
+    def test_model_speaker_index_does_not_silently_fall_back(self) -> None:
+        """拿不到 modelSpeakerId 时必须报 -1，不能回落到 speakerId。"""
+        session = SESSION.read_text(encoding="utf-8")
+        self.assertNotIn("modelSpeakerId ?? turns[i].speakerId", session)
+        self.assertIn("modelId === undefined ? -1", session)
+
     def test_local_executor_is_sdk_owned_and_has_no_network_or_host_adapter(self) -> None:
         adapter = ADAPTER.read_text(encoding="utf-8")
         self.assertNotIn("childProcessManager", adapter)
@@ -154,7 +240,10 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
         construction = adapter[adapter.index("new SpeakerDiarizationSession("):]
         construction = construction[:construction.index("} catch")]
         self.assertIn("recognizerQos: this.params.scheduling?.qos", adapter)
-        self.assertIn("diarizationOptions);", construction)
+        # 断言 diarizationOptions 确实传进去了，但不钉它是最后一个参数：
+        # 构造函数后面还有 commitPeriodMs 与 speakerEmbed。
+        self.assertIn("diarizationOptions,", construction)
+        self.assertIn("speakerEmbed);", construction)
 
     def test_local_model_load_and_inference_are_quiescent_before_runtime_release(self) -> None:
         client = LOCAL_CLIENT.read_text(encoding="utf-8")
