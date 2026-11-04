@@ -5,6 +5,7 @@ export * from './src/main/ets/com/amphion/asr/Runtime';
 export * from './src/main/ets/com/amphion/asr/AssetInstaller';
 export * from './src/main/ets/com/amphion/asr/License';
 export * from './src/main/ets/com/amphion/asr/SpeakerEnroller';
+export * from './src/main/ets/com/amphion/asr/SpeakerIdentityAssigner';
 export * from './src/main/ets/com/amphion/asr/LacPersonNer';
 export * from './src/main/ets/com/amphion/asr/SpeakerDiarizationInference';
 export * from './src/main/ets/com/amphion/asr/SortformerDiarizationInference';
