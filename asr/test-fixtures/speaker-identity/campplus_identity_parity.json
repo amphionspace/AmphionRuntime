@@ -1,7 +1,7 @@
 {
  "recording": "meetingMinutes-20260918-111223-816",
  "note": "真实 CAM++ 嵌入（已 L2 归一）与 python 参考实现的判定；两端必须逐条一致",
- "mergeThreshold": 0.45,
+ "mergeThreshold": 0.5,
  "minAssignSeconds": 0.5,
  "maxSpeakers": 4,
  "turns": [
@@ -5659,7 +5659,7 @@
     -0.016392
    ],
    "identity": 0,
-   "confidence": 0.711935
+   "confidence": 0.711934
   },
   {
    "begin": 128.04,

@@ -153,7 +153,7 @@ class HarmonySpeakerIdentityAssignerTest(unittest.TestCase):
         harmony = ASSIGNER.read_text(encoding="utf-8")
         android = ANDROID.read_text(encoding="utf-8")
         for name_h, name_a, value in (
-            ("IDENTITY_MERGE_THRESHOLD", "MERGE_THRESHOLD", "0.45"),
+            ("IDENTITY_MERGE_THRESHOLD", "MERGE_THRESHOLD", "0.50"),
             ("IDENTITY_MIN_ASSIGN_SECONDS", "MIN_ASSIGN_SECONDS", "0.5"),
             ("IDENTITY_UNASSIGNED", "UNASSIGNED", "-1"),
         ):
