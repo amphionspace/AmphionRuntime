@@ -66,6 +66,7 @@ adb shell am set-standby-bucket "$PKG" active >/dev/null 2>&1 || true
 adb shell cmd appops set "$PKG" RUN_IN_BACKGROUND allow >/dev/null 2>&1 || true
 adb shell dumpsys deviceidle whitelist +"$PKG" >/dev/null 2>&1 || true
 echo "[INFO] 启动长跑，预计 ${MINUTES} 分钟"
+adb shell "run-as $PKG rm -f files/dq_corner/report.jsonl files/dq_corner/stall_dump.txt" >/dev/null 2>&1 || true
 adb shell am instrument -w -r \
   -e class "$TEST_CLASS" \
   -e durationMinutes "$MINUTES" \
@@ -76,7 +77,24 @@ sleep 6
 adb shell am start -n "$PKG/.MainActivity" >/dev/null 2>&1 \
   && echo "[INFO] 已把 MainActivity 拉到前台，防后台冻结" \
   || echo "[WARN] 拉起 MainActivity 失败，进程可能在 ~48s 被系统冻结"
-wait $INSTR || echo "[WARN] instrument 退出非零，见 instrument.log"
+
+# 不能把 `am instrument -w` 的存活当作测试的存活：一条两小时没有输出的 adb shell 会被
+# USB/adbd 空闲掉线，主机端提前返回，而设备上的测试（截止时间在设备侧）继续在跑。
+# 曾因此在 65 分钟时误停采样器、误关常亮。以设备侧的证据为准：测试结束时会落一条
+# "thermalLongRun" 汇总；进程消失则视为异常结束。
+report() { adb shell "run-as $PKG cat files/dq_corner/report.jsonl" 2>/dev/null | tr -d '\r'; }
+DEADLINE=$(( $(date +%s) + MINUTES * 60 + 900 ))
+while :; do
+  if report | grep -q '"thermalLongRun"'; then echo "[INFO] 设备侧测试正常收尾"; break; fi
+  if ! adb shell pidof "$PKG" >/dev/null 2>&1; then echo "[WARN] 被测进程已消失，测试异常结束"; break; fi
+  if [ "$(date +%s)" -ge "$DEADLINE" ]; then echo "[WARN] 超过预期时长 15 分钟仍未收尾，停止等待"; break; fi
+  if ! kill -0 $INSTR 2>/dev/null; then
+    # 主机端连接掉了，但只要设备侧还在，就继续等；只提示一次
+    [ -z "${INSTR_DROPPED:-}" ] && { echo "[WARN] 主机侧 am instrument 连接已断（设备侧仍在跑，继续采样）"; INSTR_DROPPED=1; }
+  fi
+  sleep 60
+done
+wait $INSTR 2>/dev/null || true
 adb shell svc power stayon false >/dev/null 2>&1 || true
 
 # ---- 6. 收尾 ----
