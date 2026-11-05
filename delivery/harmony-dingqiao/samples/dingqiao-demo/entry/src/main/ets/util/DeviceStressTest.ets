@@ -90,8 +90,12 @@ export class DeviceStressOptions {
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
-  /** 'model'（默认，Sortformer 槽位）或 'voiceprint'（声纹嵌入按发言段判身份）。 */
-  speakerIdentityMode: string = 'model';
+  /**
+   * 'model'（Sortformer 槽位）或 'voiceprint'（声纹嵌入按发言段判身份）；空串表示不设置、
+   * 跟随 SDK 默认（0.3.27 起为 'voiceprint'）。默认留空：真机验收必须跑交付的默认行为，
+   * 载体不能替 SDK 决定模式；要做 A/B 时再显式传值。
+   */
+  speakerIdentityMode: string = '';
   captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
 }
