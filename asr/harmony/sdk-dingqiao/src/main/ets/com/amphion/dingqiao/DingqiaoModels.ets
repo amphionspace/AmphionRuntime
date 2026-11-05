@@ -23,13 +23,14 @@ export class SpeakerDiarizationConfig {
   /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
   maxSpeakers: number = 4;
   /**
-   * 角色身份由谁决定。默认 'model'，即沿用 Sortformer 的到达顺序槽位，行为与 0.3.26 一致。
+   * 角色身份由谁决定。0.3.27 起默认 'voiceprint'：按发言段的声纹嵌入分配身份；设为 'model' 回退到
+   * 0.3.26 行为（沿用 Sortformer 的到达顺序槽位）。
    *
    * 'voiceprint' 改用声纹嵌入按发言段判身份，用于 Sortformer 把不同的人并进同一槽位的场景
    * （依次发言时主机实测 10 组仅 4 组正确，真机同口径 10/10 复现）。打开后 `speakerIndex`
    * 由声纹身份给出，原始模型槽位仍保留在 `modelSpeakerIndex`，便于现场对比与回退。
    */
-  speakerIdentityMode: string = 'model';
+  speakerIdentityMode: string = 'voiceprint';
 }
 
 export class StartParams {
