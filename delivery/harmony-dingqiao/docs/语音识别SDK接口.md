@@ -288,6 +288,7 @@ engine.startListening(start);
 | `SpeakerDiarizationConfig` 字段 | 类型 | 默认值 | 说明 |
 | --- | --- | --- | --- |
 | `maxSpeakers` | `number` | `4` | 稳定 speaker 索引的硬上限；V1 只接受整数 `1..4`，非法值使本次 `startListening` 失败，不会静默裁剪 |
+| `speakerIdentityMode` | `string` | `'voiceprint'` | **0.3.27 新增**。角色身份的来源：`'voiceprint'`（默认）按发言段声纹分配，同一人整场会话保持同一 `speakerIndex`；`'model'` 回退到 0.3.26 行为（沿用模型的到达顺序槽位）。只接受这两个值，拼错使本次 `startListening` 失败，不会静默回落 |
 
 SDK 自动估计实际发言人数，不接收参会名单人数或 hard K。证据不足、能力未开启、
 尚未完成分配或超出上限时，对外统一返回 `speakerIndex=-1`；分配成功时返回
@@ -363,6 +364,7 @@ session；被取消 session 的迟到回调不会改用新 sessionId 发送，�
 | `utteranceId` | `string` | 需更新的 final utterance |
 | `revision` | `number` | 单调递增修订号；调用方忽略重复或更旧修订 |
 | `speakerIndex` | `number` | `-1` 或稳定的 `0..3` |
+| `modelSpeakerIndex` | `number` | **0.3.27 新增**。模型原始到达顺序槽位，`-1` 或 `0..3`；`speakerIdentityMode='voiceprint'` 时 `speakerIndex` 由声纹身份给出、此处保留模型自己的判断，便于现场对比与回退；`'model'` 模式下与 `speakerIndex` 相同。只在 `speakerTurns` 上提供，`DiarizedUtterance` 不带 |
 | `secondarySpeakerIndexes` | `number[]` | 句内观察到的角色证据；多人或不确定句可汇总全部角色，非空不等于重叠 |
 | `beginTime` / `endTime` | `number` | session-global 毫秒时间轴 |
 | `confidence` | `number` | 本次归属分数，范围 `[0,1]` |

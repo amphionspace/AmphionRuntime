@@ -139,7 +139,7 @@ class HarmonySpeakerDiarizationSessionTest(unittest.TestCase):
                       SPEAKER_IDENTITY_MODES }} from {CONFIG_POLICY.as_uri()!r};
 
             // 未设置时等同 0.3.26 行为
-            assert.equal(validateSpeakerIdentityMode(undefined), 'model');
+            assert.equal(validateSpeakerIdentityMode(undefined), 'voiceprint');  // 0.3.27 起默认声纹
             assert.equal(validateSpeakerIdentityMode('model'), 'model');
             assert.equal(validateSpeakerIdentityMode('voiceprint'), 'voiceprint');
             assert.deepEqual(SPEAKER_IDENTITY_MODES, ['model', 'voiceprint']);
