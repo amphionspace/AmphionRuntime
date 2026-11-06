@@ -36,7 +36,18 @@ data class StartParams(
 
 /** Offline speaker diarization configuration. */
 data class SpeakerDiarizationConfig(
+    /** Stable speaker indexes are limited to 0...(maxSpeakers - 1). */
     val maxSpeakers: Int = 4,
+    /**
+     * 角色身份由谁决定。默认 `"voiceprint"`：按发言段用声纹嵌入判身份，用于 Sortformer 把不同的
+     * 人并进同一槽位的场景（依次发言时主机实测 10 组仅 4 组正确，真机同口径 10/10 复现）。
+     * `speakerIndex` 由声纹身份给出，原始模型槽位仍保留在 [SpeakerTurn.modelSpeakerIndex]，
+     * 便于现场对比与回退。
+     *
+     * `"model"` 沿用 Sortformer 的到达顺序槽位，行为与鸿蒙 0.3.26 一致。只接受这两个值，
+     * 其他取值使本次 `startListening` 失败（不静默回落）。与鸿蒙 `SpeakerDiarizationConfig` 同一契约。
+     */
+    val speakerIdentityMode: String = "voiceprint",
 )
 
 /** 识别结果。 */
@@ -90,6 +101,14 @@ data class SpeakerTurn(
     val secondarySpeakerIndexes: List<Int> = emptyList(),
     val confidence: Float = 0f,
     val overlap: Boolean = false,
+    /**
+     * Sortformer 的原始到达顺序槽位索引。`speakerIdentityMode="voiceprint"` 时 `speakerIndex`
+     * 由声纹身份覆盖，这里保留模型自己的判断，便于现场对比与回退；`"model"` 模式下两者相同。
+     *
+     * 只在 `speakerTurns`（声学真值）上提供。句级的 [DiarizedUtterance] 暂不带它：那要穿过
+     * 整条文本聚合链路，而留一个永远是 -1 的字段比没有更误导；按时间与 speakerTurns 对齐即可。
+     */
+    val modelSpeakerIndex: Int = -1,
 )
 
 enum class SpeakerDiarizationDegradedReason {
