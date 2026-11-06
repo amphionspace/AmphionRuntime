@@ -28,6 +28,11 @@
 
 ## B1 `Authentication failed`（硬阻塞，需华为侧）
 
+> **2026-11-06 已有答复（见 `SORTFORMER_NPU_PROBE_NPUV1_KIRIN9020_20261106.md`「华为侧答复」）**：DLSA 按**图连通子图识别**，
+> 存在完整 Self-Attention（QKV → 打分 → softmax → 加权求和）链路即归为 Transformer 类模型、强制进入模型认证，与体量、
+> 节点数、量化方式、HAP 签名（debug/release）均无关；认证为**邀约准入**，需企业主体与模型著作权材料。zipformer encoder
+> 含 attention，所以 B1 不是工程阻塞而是准入策略；下文的排除实验仍有效，但不必再做新的图级变量实验。
+
 ### 现象
 
 用 `converter_lite` 自带的权重量化把 encoder 从 586 MB 压到 **156 MB**，已低于实测通过线
