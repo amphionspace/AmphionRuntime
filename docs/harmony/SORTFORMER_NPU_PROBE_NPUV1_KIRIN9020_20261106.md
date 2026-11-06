@@ -64,6 +64,43 @@ MS_LITE: [nnrt_delegate.cc:772] InitNNCompilation# Build NNCompilation failed, r
    能力说明、风险评估报告；生成式模型另需内容安全与输出风控方案。须先经华为生态 / AI 侧接口人进入邀约白名单，
    才有提报入口；个人开发者无法直接提交。
 
+## 二分实验：实际上是两道独立的墙（2026-11-06 晚）
+
+为了核实华为答复里"有 Self-Attention 子图即触发认证"这条规则，用 `onnx.helper` 合成了一组全静态 fp32 对照图
+（`x[1,501,512]`，与 encoder 同形），并对真 encoder 做了权重随机化与算子替换。全部用同一 converter、同一探针、
+**全量流式 hilog**（`hdc shell hilog` 实时落盘，避免缓冲区滚掉）：
+
+| 图 | 节点 / 体量 | NPU | 失败阶段 | 有 DLSA 认证日志 |
+|---|---:|---|---|---|
+| 9 个 MatMul 串联（对照） | 10 / 9.4 MB | **PASS** 2.5 ms | — | — |
+| 1 层单头 SDPA（QKV→QKᵀ→缩放→Softmax→AV→残差） | 16 / 9.4 MB | **PASS** 3.0 ms | — | 无 |
+| 8 层 SDPA | 74 / 26 MB | **PASS** 10 ms | — | 无 |
+| **31 层 SDPA（无 LN/GELU）** | 281 / 98.6 MB | **PASS** 36 ms | — | 无 |
+| 31 层 SDPA + WEIGHT_QUANT | 281 / 26 MB | **PASS** 36 ms | — | 无 |
+| 8 头 4D 注意力 + `attn_mask` 输入 | 19 / 4.2 MB | **PASS** 3.4 ms | — | 无 |
+| Erf-GELU FFN | 10 / 5.2 MB | **PASS** 7 ms | — | 无 |
+| **8 个 MatMul 各接一个 `LayerNormalization`（无注意力）** | 17 / 4.2 MB | **FAIL** | NNRt 编译，**29 ms** | 无 |
+| 1 层 SDPA + 1 个 LN | 12 / 4.2 MB | FAIL | NNRt 编译，36 ms | 无 |
+| 31 层 SDPA + 每层 1 个 LN | 311 / 97.7 MB | FAIL | NNRt 编译，133 ms | 无 |
+| 真 encoder 抽出的 1 层 / 1 层 FFN / 1 层 attention（都含 LN） | 51 / 14 / 37 | FAIL | 36~78 ms | 无 |
+| **真 encoder，权重全部随机化（保留 LN）** | 1522 / 84.9 MB | **FAIL** | **DLSA 认证**，990~1040 ms | **有** |
+| 真 encoder（原权重） | 1522 / 84.9 MB | FAIL | DLSA 认证，1087 ms | 有 |
+| 真 encoder，64 个 LN 拆成 ReduceMean/Sub/Mul/Sqrt/Div | 2034 / 85 MB | FAIL | MS_LITE 更早阶段，914 ms | 无（连 NNRt 委托都没进） |
+
+两条独立结论：
+
+1. **`LayerNormalization` 这个算子本身过不了这颗 NPU 的编译路径**，与注意力无关：不带注意力的 MatMul+LN 29 ms 秒拒，
+   带 31 层注意力但不带 LN 的 98.6 MB 图反而通过。11-04 那轮"26 种算子全部可接受"是在 ASR encoder（zipformer，无 ONNX
+   `LayerNormalization`，用的是自定义 BiasNorm）上测的，覆盖不到这个算子。把 LN 拆成基础算子不是出路——MS_LITE 在进委托
+   之前就放弃了，具体原因被 `<private>` 脱敏。
+2. **DLSA 模型认证按结构触发，不看权重**：真 encoder 权重全随机仍然 `Authentication failed`；而我合成的纯注意力堆叠
+   （1/8/31 层、单头/8 头、带 mask、带量化）一律不触发。所以华为那句"有完整 SDPA 链路即认证"**方向对、口径不准**：
+   它们的识别模板比"一个 SDPA 链"更具体（更像完整 transformer block：注意力 + 残差 + 归一化 + FFN），裸 SDPA 堆叠
+   匹配不上，Sortformer 的真实 block 匹配得上。模板到底长什么样，脱敏日志看不到。
+
+两道墙的先后：真 encoder 先撞 DLSA（约 1 s），**即使拿到认证，下一道就是 LN 过不了 NNRt 编译**；而合成的 attention+LN
+图因为没被 DLSA 归类，直接撞 LN 秒拒。所以"认证 + 原样导出"也上不去，还要解决 LN 的 NPU 表达。
+
 ## 对交付的含义
 
 - **Sortformer encoder（31 层 attention）在 Kirin 9020 的 NPU 上，没有 DLSA 认证就不可能跑。** 这是平台准入策略，
@@ -73,6 +110,9 @@ MS_LITE: [nnrt_delegate.cc:772] InitNNCompilation# Build NNCompilation failed, r
 - 若公司层面要走 NPU，路径只有一条：以企业主体通过华为接口人申请 DLSA 模型认证（材料见上）。认证对象是**模型**，
   Sortformer-66M-4spk 的权重与著作权归属需先与模型提供方理清。这是商务/合规动作，不是研发动作，需要公司决策。
 - 包的目标机 Kirin 8020 / nova 15 我方没有；按上述答复，8020 上同样会进 DLSA 认证路径，README §0 的两道墙已不是首要问题。
+- **若将来拿到认证，还要给 `LayerNormalization` 找 NPU 能接受的表达**：pyannote-segmentation-3.0（含 4 个 `InstanceNormalization`）
+  在 0.3.21 已在同系 NPU 上跑通，`InstanceNormalization` / `MeanVarianceNormalization` 是候选；拆成 ReduceMean/Sqrt/Div 已证明不行。
+  这一步只有在认证有望时才值得做，先不投入。
 
 ## 复现
 
