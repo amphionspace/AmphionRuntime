@@ -18,6 +18,8 @@ internal data class SpeakerTimelineTurn(
     val secondaryEvidenceKeys: List<String> = emptyList(),
     // Keep one ID per acoustic channel, independently of deduplicated display IDs.
     var secondaryEvidenceSpeakerIds: List<String> = secondarySpeakerIds,
+    /** 只按 Sortformer 槽位得到的主身份；开启声纹身份后 speakerId 被覆盖，这里保留模型判断。 */
+    val modelSpeakerId: String? = null,
 )
 
 internal data class DiarizationTranscriptUpdate(

@@ -8,6 +8,23 @@
 
 ## [Unreleased]
 
+- **角色归属：`speakerIndex` 改由声纹身份决定，默认开启；与鸿蒙 0.3.27 对齐。** 客户现场"三个角色
+  依次讲话"时 Sortformer 会把不同的人并进同一槽位，且是高置信度误并（第 2 人在本该属于它的槽位上
+  最大概率仅 0.030），调阈值、延长发言、全上下文重跑均无效（主机 10 组仅 4 组正确，鸿蒙真机同口径
+  10/10 复现）。本版让 Sortformer 只管"何时有人说话"，身份改由 CAM++ 声纹嵌入 + 按到达顺序的增量
+  质心决定：同一说话人缓存整个会话，新发言段并入最相似身份（余弦 ≥ 0.50）或新开身份（≤ `maxSpeakers`）。
+  嵌入只取每段前 3 s。新增 `SpeakerDiarizationConfig.speakerIdentityMode`（`"voiceprint"` 默认 |
+  `"model"` 回退到槽位行为）与 `SpeakerTurn.modelSpeakerIndex`（模型原始槽位，便于现场对比；`"model"`
+  模式下与 `speakerIndex` 相同；句级 `DiarizedUtterance` 暂不带）。拼错的 `speakerIdentityMode` 使
+  `startListening` 失败，不静默回落。声纹模型 `campplus.onnx`（28.3 MB）随包新增，此前安卓包只带了
+  它的 LICENSE；并入阈值 0.50 与全部评测均在 CAM++ 上标定（客户 4 条留一 34/34，换 eres2net 掉到
+  30/34），所以不复用机主识别的 eres2net。嵌入能力拿不到时回落到模型槽位、不让会话失败，诊断流记
+  `DIARIZATION_IDENTITY_UNAVAILABLE`，调用方从 `modelSpeakerIndex == speakerIndex` 可看出未生效。
+  分配器 `SpeakerIdentityAssigner` 与鸿蒙逐条等价（主机参考对拍 `SpeakerIdentityParityTest`），
+  时间线 / 环形缓冲 / 身份解析三层与鸿蒙同一组单测期望。**本条尚未在安卓真机上验证**：精度数字
+  （留一 34/34、工单 4/6）全部来自鸿蒙同链路；安卓真机对比与发热对照臂（`DqThermalLongRunTest`
+  新增 `identityMode=model` 参数）待下一轮。
+
 - **静音时被转写出"嗯"：非空文本现在必须有独立于识别器的证据才发布。** 客户报在没有人声
   输入时反复转写出"嗯"。机制已定位：识别器在真人声之后的长静音里会吐出零散短 token，
   **与输入电平无关**（同一段近似数字静音，前面放 3 秒真人声就出、放数字零则九个电平全不出，

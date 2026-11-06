@@ -9,6 +9,9 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
         include(
             // 声纹（机主识别）与换人分割：Community 角色分离链路移除后这两项仍在用。
             "eres2net.onnx",
+            // 角色分离的声纹身份（speakerIdentityMode=voiceprint）用 CAM++：并入阈值 0.50 与全部
+            // 评测都在它上面标定（留一 34/34），换 eres2net 会掉到 30/34——嵌入模型间阈值不可迁移。
+            "campplus.onnx",
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",

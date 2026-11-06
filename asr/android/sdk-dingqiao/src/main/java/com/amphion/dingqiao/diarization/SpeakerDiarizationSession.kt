@@ -42,6 +42,11 @@ internal class SpeakerDiarizationSession(
     workPath: File,
     private val maxSpeakers: Int,
     private val observer: SpeakerDiarizationSessionObserver,
+    /**
+     * 声纹嵌入函数；非空即开启声纹身份（speakerIdentityMode=voiceprint）。由引擎注入——拿不到嵌入
+     * 能力时传 null，身份回落到 Sortformer 槽位，等于 'model' 模式，不因此让会话失败。
+     */
+    speakerEmbed: SpeakerEmbedFn? = null,
 ) : SortformerLocalObserver, SpeakerDiarizationController {
     // Internal opt-in white-box observer. No capture or allocation in ordinary sessions.
     @Volatile internal var diagnostic: ((String, Map<String, Any?>) -> Unit)? = null
@@ -61,6 +66,9 @@ internal class SpeakerDiarizationSession(
     private val transcript = DiarizationTranscriptState()
     private val commitClock = DiarizationCommitClock()
     private val identities = SortformerSpeakerIdentity(maxSpeakers)
+    /** 仅在 speakerIdentityMode=voiceprint 且嵌入能力可用时存在。 */
+    private val identityResolver: SpeakerIdentityResolver? =
+        speakerEmbed?.let { SpeakerIdentityResolver(SAMPLE_RATE, maxSpeakers, it) }
     private val callbacks = DiarizationCallbackQueue()
     // 模型自己的四个槽位轨道。final 块推进说话人缓存，preview 只是当前块的一瞥、会被同段 final 取代。
     private val finalTracks = mutableListOf<SortformerTrack>()
@@ -98,6 +106,8 @@ internal class SpeakerDiarizationSession(
     override fun append(audio: ByteArray) {
         if (finishRequested || finished) return
         totalSamples += audio.size / 2
+        // 先分流再转发：身份判定要按轨道时间回取这同一批字节。
+        identityResolver?.appendAudio(audio)
         client.append(audio)
     }
 
@@ -225,10 +235,21 @@ internal class SpeakerDiarizationSession(
                         "slotToPublicId" to identities.mapping().toList()))
                 } else {
                     val firstSpeech = IntArray(4) { -1 }
+                    val newTracks = mutableListOf<SortformerTrack>()
                     event.runs.forEachIndexed { slot, spans ->
                         if (slot < 4) for (span in spans) {
-                            finalTracks += SortformerTrack(span.begin, span.end, slot)
+                            val track = SortformerTrack(span.begin, span.end, slot)
+                            newTracks += track
+                            finalTracks += track
                             if (firstSpeech[slot] < 0) firstSpeech[slot] = span.begin.toInt()
+                        }
+                    }
+                    // 声纹身份写回 track.identity，timelineTurns 会优先用它；未赋身份时留 -1 落到 UNKNOWN。
+                    // 这里算嵌入，是会话期间、不在提交或收尾路径上——后者余量很小。
+                    identityResolver?.let { resolver ->
+                        if (newTracks.isNotEmpty()) {
+                            val resolved = resolver.resolve(newTracks)
+                            newTracks.forEachIndexed { index, track -> track.identity = resolved[index] }
                         }
                     }
                     val identity = identities.commit(firstSpeech)
@@ -244,6 +265,11 @@ internal class SpeakerDiarizationSession(
                         "firstSpeechTimes" to firstSpeech.toList(),
                         "slotToPublicId" to identity.mapping.toList(),
                         "registryBefore" to identity.before, "registryAfter" to identity.after,
+                        "speakerIdentityMode" to if (identityResolver != null) "voiceprint" else "model",
+                        "trackIdentities" to newTracks.map { it.identity ?: -2 },
+                        "identityCount" to (identityResolver?.identityCount() ?: -1),
+                        "identityAudioMisses" to (identityResolver?.audioMissCount ?: 0),
+                        "identityEmbedFailures" to (identityResolver?.embedFailureCount ?: 0),
                         "encoderBackend" to "cpu", "inferenceWallMs" to result.inferenceWallMs))
                 }
             }
@@ -410,6 +436,9 @@ internal class SpeakerDiarizationSession(
                 speakerIndexesFromInternalIds(it.secondarySpeakerIds, maxSpeakers, true),
                 it.confidence,
                 it.overlap || it.secondarySpeakerIds.isNotEmpty(),
+                // 不回落到 speakerId：那会让字段看起来有值却毫无信息（鸿蒙踩过——两者在所有 turn 上
+                // 都相同，掩盖了 allTurns() 丢字段的 bug）。拿不到就报 -1，调用方能看出来。
+                modelSpeakerIndex = it.modelSpeakerId?.let { id -> speakerIndexFromInternalId(id, maxSpeakers) } ?: -1,
             )
         }
         val audioMs = max(1L, totalSamples * 1000 / SAMPLE_RATE)
