@@ -47,19 +47,32 @@ MS_LITE: [nnrt_delegate.cc:772] InitNNCompilation# Build NNCompilation failed, r
    在 delegate 分区阶段就被放弃；MS_LITE 的原因文本全部 `<private>` 脱敏，看不到。
 
 因此现有信息能排除的：体量（2.7 MB 也失败、134 MB Gemm 对照件曾通过）、动态 shape、mask、量化方式、opset。
-**不能排除**的两条假设，需华为侧回答：
+当时剩下两条假设：(a) 签名/权限（`debug_hap` vs release 的 `normal_hap`、DLSA 认证资质）；(b) 算子类别。
 
-- (a) **签名/权限**：`debug_hap` 被 SELinux 拒绝直连 `nnrt_device_service`；release provision 的 `normal_hap` 是否放行，以及 DLSA 的
-  模型认证（SA 65888 / accessToken）要求什么资质。
-- (b) **算子类别**：Attention（MatMul/Softmax）+ LayerNormalization + Erf-GELU 的图是否被 DLSA 归为需认证的模型类别；
-  只含 Gemm 的 134 MB 对照件能过，1 层 attention 就不能。
+## 华为侧答复（2026-11-06，经我方接口人转述）
+
+两条假设都有了明确答案，与本文的实测逐条吻合：
+
+1. **签名与 DLSA 解耦。** release 签名、`apl=normal` 只管 HAP 的安装分发身份，**不绕过**也不触发 DLSA；debug 包与 release 包
+   走同一套 DLSA 判定与阈值。所以"做一个 release 签名的探针包"**没有验证价值**，假设 (a) 关闭。
+2. **触发点是 Self-Attention 子图，不是单算子、不是体量。** DLSA 做的是**图连通子图识别**：只要存在完整的 SDPA 链路
+   （QKV 投影 → 注意力打分 → softmax → 加权求和），哪怕只有 1 层、几 MB，就被归为 Transformer 类模型、进入强制模型认证；
+   只含 Gemm/MatMul 的线性图归为普通计算模型直接放行；LayerNorm、GELU 单独出现不触发。
+   —— 这正是"134 MB 纯 Gemm 通过、2.7 MB 单层 attention 失败"的解释，也解释了 SDK 的 ASR encoder（zipformer，同样含
+   attention）两轮都卡在同一处。
+3. **DLSA 模型认证是邀约准入，不是自助申请。** 需企业主体与营业执照、模型著作权/授权证明、权重与结构描述、输入输出样例、
+   能力说明、风险评估报告；生成式模型另需内容安全与输出风控方案。须先经华为生态 / AI 侧接口人进入邀约白名单，
+   才有提报入口；个人开发者无法直接提交。
 
 ## 对交付的含义
 
-- 鸿蒙 0.3.27 保持 CPU（ORT 1.16.3）路径不变；`npu-v1` 包不进入任何交付。
-- 若要继续，先问华为 DLSA 的认证条件（附本文日志），再决定是否值得做 release 签名的探针包验证假设 (a)。
-  在拿到答复前，不要再在 9020 上做 shape / 量化 / 体量变量实验——两轮已证明与这些无关。
-- 包的目标机 Kirin 8020 / nova 15 我方没有，README §0 的两道墙（201 MB 体量、1536 节点）本轮无法核。
+- **Sortformer encoder（31 层 attention）在 Kirin 9020 的 NPU 上，没有 DLSA 认证就不可能跑。** 这是平台准入策略，
+  不是我们能靠改图、改量化、改签名解决的工程问题；两轮实验（11-04、本轮）到此为止，不再在 9020 上做图级变量实验。
+- 鸿蒙 0.3.27 保持 CPU（ORT 1.16.3）路径不变；`npu-v1` 包不进入任何交付。`pre_encode` / `speaker_head` 虽能上 NPU，
+  但两者合计占算力不到 2%，且 11-04 已实测小图 NPU 无延迟优势，单独上 NPU 没有意义。
+- 若公司层面要走 NPU，路径只有一条：以企业主体通过华为接口人申请 DLSA 模型认证（材料见上）。认证对象是**模型**，
+  Sortformer-66M-4spk 的权重与著作权归属需先与模型提供方理清。这是商务/合规动作，不是研发动作，需要公司决策。
+- 包的目标机 Kirin 8020 / nova 15 我方没有；按上述答复，8020 上同样会进 DLSA 认证路径，README §0 的两道墙已不是首要问题。
 
 ## 复现
 
