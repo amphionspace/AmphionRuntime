@@ -266,7 +266,8 @@ SDK 最多再等 3,000 ms 取得该结果，超出则返回不含角色的降级
 `overlap` 仅表示实际观察到同时说话，精确区间以原始 `speakerTurns` 为准。
 `speakerTurns` 中的每个 `SpeakerTurn` 另带 `modelSpeakerIndex`：角色分离模型自己的到达顺序槽位
 （`-1` 或 `0..maxSpeakers-1`）。`speakerIdentityMode="voiceprint"` 时 `speakerIndex` 由声纹身份给出，
-该字段保留模型原始判断，便于现场对比与回退；`"model"` 模式下两者相同。句级 `DiarizedUtterance`
+该字段保留模型原始判断，便于现场对比与回退；`"model"` 模式下两者在非重叠区间相同（重叠区间内公开主身份
+优先延续上一段，模型侧取排序首个槽位，被换下的槽位进 `secondarySpeakerIndexes`）。句级 `DiarizedUtterance`
 不带该字段，按时间与 `speakerTurns` 对齐即可。
 同句内符合有限邻接补全条件的 UNKNOWN 可返回 `speakerInferred=true`、`confidence=0`；
 原始声学 UNKNOWN 保留，不能将推断当成声学身份确认。临时 final/update 的归属仍可修正，

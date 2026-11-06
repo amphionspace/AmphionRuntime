@@ -21,9 +21,13 @@
   30/34），所以不复用机主识别的 eres2net。嵌入能力拿不到时回落到模型槽位、不让会话失败，诊断流记
   `DIARIZATION_IDENTITY_UNAVAILABLE`，调用方从 `modelSpeakerIndex == speakerIndex` 可看出未生效。
   分配器 `SpeakerIdentityAssigner` 与鸿蒙逐条等价（主机参考对拍 `SpeakerIdentityParityTest`），
-  时间线 / 环形缓冲 / 身份解析三层与鸿蒙同一组单测期望。**本条尚未在安卓真机上验证**：精度数字
-  （留一 34/34、工单 4/6）全部来自鸿蒙同链路；安卓真机对比与发热对照臂（`DqThermalLongRunTest`
-  新增 `identityMode=model` 参数）待下一轮。
+  时间线 / 环形缓冲 / 身份解析三层与鸿蒙同一组单测期望。**安卓真机（一加 PHK110）客户 4 条录音实时
+  对比**：声纹身份 DER 时长加权 **5.63%**（混淆 0.0 / 0.0 / 0.9 / 0.0%），同一次运行的模型槽位 12.02%，
+  独立 `model` 臂 12.11%（与 0.3.26 两端真机记录的 12.10% 一致）；工单录音 `111223-816` 混淆 23.5% → 0.9%；
+  RTF 0.087~0.099 未抬高。代价：短于 0.5 s 的段不赋身份报 `-1`，漏检略增（最多 +1.6pp）。
+  `modelSpeakerIndex` 与 `speakerIndex` 只在重叠区间可能不同（模型侧取排序首个槽位，不套用延续规则）。
+  详见 `docs/speaker/ANDROID_VOICEPRINT_IDENTITY_DEVICE_20261105.md`。留一标定 34/34、工单 4/6 仍是
+  鸿蒙链路数字；发热对照臂（`DqThermalLongRunTest -e identityMode model`）与 release 构建待下一轮。
 
 - **静音时被转写出"嗯"：非空文本现在必须有独立于识别器的证据才发布。** 客户报在没有人声
   输入时反复转写出"嗯"。机制已定位：识别器在真人声之后的长静音里会吐出零散短 token，
