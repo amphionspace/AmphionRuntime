@@ -42,6 +42,8 @@ class DiarizationDerInstrumentedTest {
         assumeTrue("Pass -e derAsset <asset path> to score one recording", asset != null)
         val paceMs = args.getString("derFrameSleepMs")?.toLongOrNull() ?: 20L
         val maxSpeakers = args.getString("derMaxSpeakers")?.toIntOrNull() ?: 4
+        // 对照用：derIdentityMode=model 关掉声纹身份；默认跟随 SDK（voiceprint）。
+        val identityMode = args.getString("derIdentityMode") ?: ""
 
         // Android 16 会冻结后台进程：没有前台 Activity 时整个会话一动不动（实测 37 分钟只用掉
         // 4.9 秒 CPU）。与其他真机用例一致，先拉起保活 Activity 并保持屏幕常亮。
@@ -83,7 +85,8 @@ class DiarizationDerInstrumentedTest {
                     "enablePartialResult" to true,
                     "maxAudioDuration" to 7_200_000,
                 ),
-                speakerDiarization = SpeakerDiarizationConfig(maxSpeakers = maxSpeakers),
+                speakerDiarization = if (identityMode.isEmpty()) SpeakerDiarizationConfig(maxSpeakers = maxSpeakers)
+                    else SpeakerDiarizationConfig(maxSpeakers = maxSpeakers, speakerIdentityMode = identityMode),
             )
             engine.setListener(object : RecognitionListener {
                 override fun onStart(sessionId: String, eventMessage: String) = Unit
@@ -131,6 +134,7 @@ class DiarizationDerInstrumentedTest {
         val root = JSONObject()
             .put("asset", asset)
             .put("maxSpeakers", maxSpeakers)
+            .put("speakerIdentityMode", identityMode.ifEmpty { "voiceprint" })
             .put("frameSleepMs", paceMs)
             .put("audioMs", pcm.size / 32)
             .put("errors", errors)
@@ -161,6 +165,7 @@ class DiarizationDerInstrumentedTest {
                     .put("beginTime", it.beginTime)
                     .put("endTime", it.endTime)
                     .put("speakerIndex", it.speakerIndex)
+                    .put("modelSpeakerIndex", it.modelSpeakerIndex)
                     .put("secondarySpeakerIndexes", JSONArray(it.secondarySpeakerIndexes))
                     .put("overlap", it.overlap),
             )

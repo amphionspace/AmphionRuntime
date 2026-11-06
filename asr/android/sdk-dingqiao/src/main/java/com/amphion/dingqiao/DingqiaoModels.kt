@@ -103,7 +103,8 @@ data class SpeakerTurn(
     val overlap: Boolean = false,
     /**
      * Sortformer 的原始到达顺序槽位索引。`speakerIdentityMode="voiceprint"` 时 `speakerIndex`
-     * 由声纹身份覆盖，这里保留模型自己的判断，便于现场对比与回退；`"model"` 模式下两者相同。
+     * 由声纹身份覆盖，这里保留模型自己的判断，便于现场对比与回退；`"model"` 模式下两者在非重叠区间相同
+     * （重叠区间内公开主身份优先延续上一段，模型侧取排序首个槽位，被换下的槽位进 secondarySpeakerIndexes）。
      *
      * 只在 `speakerTurns`（声学真值）上提供。句级的 [DiarizedUtterance] 暂不带它：那要穿过
      * 整条文本聚合链路，而留一个永远是 -1 的字段比没有更误导；按时间与 speakerTurns 对齐即可。
