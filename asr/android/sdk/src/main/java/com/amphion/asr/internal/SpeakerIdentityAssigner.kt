@@ -16,15 +16,18 @@ import kotlin.math.sqrt
  * 本文件是**纯算术**：不读音频、不碰模型，嵌入由调用方给。与鸿蒙
  * `SpeakerIdentityAssigner.ts` 逐条镜像，常量必须一致。
  * 主机评测与定参见 `asr/tools/speaker/20_eval_campplus_identity_hybrid.py`。
+ *
+ * 可见性：public 只为了让 sdk-dingqiao 模块的角色分离会话能用（Gradle 模块间没有 internal 互通），
+ * 不是对接入方的公开 API；放在 internal 包下，不出现在接口文档。
  */
-internal data class SpeakerIdentityDecision(
+public data class SpeakerIdentityDecision(
     /** 身份编号，或 [SpeakerIdentityAssigner.UNASSIGNED]。 */
     val identity: Int,
     /** 并入已有身份时为余弦相似度；新开身份时为 0（没有可比先验）。 */
     val confidence: Double,
 )
 
-internal class SpeakerIdentityAssigner(
+public class SpeakerIdentityAssigner(
     maxSpeakers: Int,
     private val threshold: Double = MERGE_THRESHOLD,
     minAssignSeconds: Double = MIN_ASSIGN_SECONDS,
@@ -110,7 +113,7 @@ internal class SpeakerIdentityAssigner(
         return out
     }
 
-    internal companion object {
+    public companion object {
         /**
          * 并入已有身份所需的最小余弦相似度。与鸿蒙 `IDENTITY_MERGE_THRESHOLD` 一致。
          *

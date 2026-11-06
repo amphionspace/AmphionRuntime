@@ -45,6 +45,8 @@ class DqThermalLongRunTest {
         // 二分用：diarization=false 关掉角色分离。长跑在约 2 分钟后停止出回调、进程全部
         // 线程休眠，而不带角色分离的 DqFeedRateTest 不复现，所以先隔离这个变量。
         val diarization = args.getString("diarization")?.toBooleanStrictOrNull() ?: true
+        // 对照臂用：identityMode=model 关掉声纹身份（只跑 Sortformer 槽位）；默认跟随 SDK（voiceprint）。
+        val identityMode = args.getString("identityMode") ?: ""
         val startedAt = android.os.SystemClock.elapsedRealtime()
         val deadline = startedAt + minutes * 60_000
 
@@ -73,7 +75,10 @@ class DqThermalLongRunTest {
                         "vadEnd" to 800,
                     ),
                     // 角色分离配置在 StartParams 上（不在 CreateEngineParams）
-                    speakerDiarization = if (diarization) SpeakerDiarizationConfig(maxSpeakers = 4) else null,
+                    speakerDiarization = if (diarization) {
+                        if (identityMode.isEmpty()) SpeakerDiarizationConfig(maxSpeakers = 4)
+                        else SpeakerDiarizationConfig(maxSpeakers = 4, speakerIdentityMode = identityMode)
+                    } else null,
                 ),
             )
             check(listener.awaitStarted(20_000)) {
