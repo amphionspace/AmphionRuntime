@@ -16,7 +16,12 @@ internal object DingqiaoEngineConfig {
 
     /** 门控阈值设为 -1，保证始终走 onFinal 路径但仍计算 speakerScore。 */
     private const val SCORE_ONLY_THRESHOLD = -1.0f
-    private const val DEFAULT_ASR_NUM_THREADS = 4
+    /**
+     * 识别推理线程数。EC521S（MT6853）实测 2 线程与 4 线程的首字与句末时延相同，
+     * 整机功耗低约 0.08 W（均已停止空转）。鸿蒙端默认仍为 4，见 RecognitionConfig.ets；
+     * 此值只依据 Android 真机证据，不与鸿蒙对齐。
+     */
+    private const val DEFAULT_ASR_NUM_THREADS = 2
     private const val DEFAULT_VAD_END_MS = 800
     private const val DEFAULT_ENDPOINT_MAX_UTTERANCE_MS = 20_000.0
     private const val MIN_VAD_END_MS = 500

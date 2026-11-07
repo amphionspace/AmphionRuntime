@@ -8,6 +8,16 @@
 
 ## [Unreleased]
 
+- **鼎桥 Android 实时识别降功耗：停止 ORT 空转，识别线程 4 → 2。** 客户在 EC521S（MT6853）上
+  报告识别时机身持续升温。simpleperf 显示 SDK 一半以上的 CPU 时间在 ORT worker 的 `Run` 间空转。
+  sherpa 补丁 `0038` 让 Android 端所有 ORT session 设置 `session.force_spinning_stop=1`（与鸿蒙
+  `0029` 相同，`Run` 期间的自旋不变）；鼎桥默认 `numThreads` 从 4 改为 2（鸿蒙默认仍为 4）。
+  EC521S 插线亮屏、USB 输入功率 2×2 对照，每格 3 段：整机 1.47 W → 1.24 W，SDK 增量功耗降 18%，
+  进程 CPU 约 2.7 核 → 1.3 核；12 段识别句数相同，首个 partial 与 endpoint→final 时延不变。
+  demo 熄屏后被放进 `/background` cpuset，此时 2 线程与 4 线程吞吐相同（都约 0.35× 实时，这是测试
+  载体的既有限制；客户 App 熄屏后仍满核运行，对应亮屏对照）。主要发热仍来自真实推理（约 1.0 W），本项不能消除温升。详见
+  `docs/speaker/DIARIZATION_EC521S_LOCK_HEAT_RUN_20261104.md` §17。
+
 - **角色归属：`speakerIndex` 改由声纹身份决定，默认开启；与鸿蒙 0.3.27 对齐。** 客户现场"三个角色
   依次讲话"时 Sortformer 会把不同的人并进同一槽位，且是高置信度误并（第 2 人在本该属于它的槽位上
   最大概率仅 0.030），调阈值、延长发言、全上下文重跑均无效（主机 10 组仅 4 组正确，鸿蒙真机同口径
