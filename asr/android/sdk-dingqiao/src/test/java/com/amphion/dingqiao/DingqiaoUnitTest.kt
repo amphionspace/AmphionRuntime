@@ -116,7 +116,7 @@ class DingqiaoEngineConfigTest {
     }
 
     @Test
-    fun buildAsrConfig_matchesHarmonyDefaultThreadCount() {
+    fun buildAsrConfig_usesTwoRecognizerThreads() {
         val config = DingqiaoEngineConfig.buildAsrConfig(
             CreateEngineParams(
                 language = "zh-CN",
@@ -125,7 +125,7 @@ class DingqiaoEngineConfigTest {
             speakerModelPath = null,
         )
 
-        assertEquals(4, config.numThreads)
+        assertEquals(2, config.numThreads)
     }
 
     @Test
