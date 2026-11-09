@@ -190,6 +190,16 @@ internal class SessionImpl(
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
+
+    /**
+     * 静音段不送 encoder 的门控；没有 VAD 就没有门控。只在 decoder 线程访问。
+     * 能否进入 IDLE 还要看 [encoderIdleAllowed]（目标说话人 / speaker VAD / 首段静音计时期间不门控）。
+     */
+    private val encoderIdleGate: EncoderIdleGate? =
+        if (vad != null && ENCODER_IDLE_PREROLL_MS > 0) EncoderIdleGate(sampleRate, ENCODER_IDLE_PREROLL_MS) else null
+
+    /** 进入 IDLE 时 stream 自上次 reset 起已收下的样本数；恢复时据此把时间轴原点对回去。 */
+    private var idleStreamSamplesBeforeGap: Long = 0L
     private var vadProcessedSamples: Long = 0
     private var vadLastSpeechEndSample: Long = -1
 
@@ -404,7 +414,7 @@ internal class SessionImpl(
             stopped.set(true)
             decoderHandler.post {
                 val agcOk = agcIngress.flush("agc.flush(stop)", ::feedAndDecode)
-                if (agcOk) {
+                if (agcOk && resumeEncoderFromIdle("stop")) {
                     maybeCommitFinishDeparture()
                     val r = NativeGuard.run("stream.inputFinished+drain") {
                         if (speakerVadEnabled) {
@@ -435,6 +445,7 @@ internal class SessionImpl(
                 speakerPcmBuffers.clearAll()
                 effectiveSpeechBuffer.reset()
                 agcIngress.close()
+                logEncoderIdleSummary()
                 if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
             }
         }
@@ -639,17 +650,23 @@ internal class SessionImpl(
             }
         }
 
-        // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
+        // ACTIVE 时保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
-        // 谁先触发以谁为准。
+        // 谁先触发以谁为准。IDLE（端点后的静音段）时 PCM 只进预滚环，不碰 encoder，
+        // 由下面的 VAD 起音把它唤醒；见 [EncoderIdleGate]。
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
-        val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
-            stream.acceptWaveform(processedSamples, sampleRate)
-            drainDecoder(isFinal = false)
-        }
-        if (asrR is NativeResult.Err) {
-            postError(asrR.error)
-            return false
+        val gate = encoderIdleGate
+        if (gate != null && gate.idle) {
+            gate.observe(processedSamples)
+        } else {
+            val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
+                stream.acceptWaveform(processedSamples, sampleRate)
+                drainDecoder(isFinal = false)
+            }
+            if (asrR is NativeResult.Err) {
+                postError(asrR.error)
+                return false
+            }
         }
 
         val v = vad ?: return true
@@ -765,6 +782,52 @@ internal class SessionImpl(
                     }
                 }
             }
+        }
+        if (anySpeech && gate != null && gate.idle) {
+            return resumeEncoderFromIdle("vad-onset")
+        }
+        return true
+    }
+
+    /** 本会话当前是否允许进入 IDLE：这些模式都假设 stream 持有全部音频，不门控。 */
+    private fun encoderIdleAllowed(): Boolean =
+        encoderIdleGate != null &&
+            !targetSpeakerEnabled &&
+            !speakerVadEnabled &&
+            (initialSpeechDetected || initialSilenceTimeoutSamples <= 0L)
+
+    /** stream 边界：VAD 刚 reset、stream 为空，静音段从这里开始不再送 encoder。 */
+    private fun maybeEnterEncoderIdle() {
+        val gate = encoderIdleGate ?: return
+        if (gate.idle || !encoderIdleAllowed()) return
+        gate.enterIdle()
+        idleStreamSamplesBeforeGap = (publicSamplesFed - streamStartSample).coerceAtLeast(0L)
+        Logger.metric("kind=STREAM_TRANSITION sessionId=$sessionId action=encoder-idle")
+    }
+
+    /**
+     * 退出 IDLE：把预滚（最近 [ENCODER_IDLE_PREROLL_MS] 内的 PCM）一次性送进 encoder 并解码。
+     * native 时间戳以上次 reset 为原点；IDLE 期间 stream 没收音频，所以原点要从预滚起点
+     * 再往前挪 reset 之后、进入 IDLE 之前已送入的那一点样本，公开时间轴才不受门控影响。
+     */
+    private fun resumeEncoderFromIdle(reason: String): Boolean {
+        val gate = encoderIdleGate ?: return true
+        if (!gate.idle) return true
+        val preRoll = gate.resume()
+        streamStartSample = publicSamplesFed - preRoll.size - idleStreamSamplesBeforeGap
+        idleStreamSamplesBeforeGap = 0L
+        Logger.metric(
+            "kind=STREAM_TRANSITION sessionId=$sessionId action=encoder-resume reason=$reason " +
+                "preRollMs=${preRoll.size * 1000L / sampleRate}",
+        )
+        if (preRoll.isEmpty()) return true
+        val r = NativeGuard.run("stream.acceptWaveform(resume)+drain") {
+            stream.acceptWaveform(preRoll, sampleRate)
+            drainDecoder(isFinal = false)
+        }
+        if (r is NativeResult.Err) {
+            postError(r.error)
+            return false
         }
         return true
     }
@@ -1631,6 +1694,17 @@ internal class SessionImpl(
         }
     }
 
+    /** 收尾一次性打出门控统计，供真机日志核对静音段到底省了多少 encoder 时间。 */
+    private fun logEncoderIdleSummary() {
+        val gate = encoderIdleGate ?: return
+        gate.reset()
+        Logger.metric(
+            "kind=ENCODER_IDLE sessionId=$sessionId idleEntries=${gate.idleEntries} " +
+                "resumes=${gate.resumes} idleMs=${gate.idleSamples * 1000L / sampleRate} " +
+                "fedMs=${publicSamplesFed * 1000L / sampleRate}",
+        )
+    }
+
     private fun resetVadGateState() {
         NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
         vadProcessedSamples = 0
@@ -1641,6 +1715,7 @@ internal class SessionImpl(
         speechBoundarySignals.reset()
         vadEndpointRecheckSample = 0
         resetSpeakerVadState()
+        maybeEnterEncoderIdle()
     }
 
     private inline fun safeCallback(block: () -> Unit) {
@@ -1674,6 +1749,12 @@ internal class SessionImpl(
 
         /** 句间硬重启仍需恢复 encoder cache，避免连续短指令吞掉下一句开头。 */
         const val RESTART_STREAM_WARMUP_DURATION_MS = 800
+
+        /**
+         * 端点后的静音段不送 encoder，起音时回灌这么多毫秒的预滚。要盖住 silero 的起音确认
+         * （minSpeechDuration 0.25 s + 32 ms 窗口）并留出 encoder 左上下文；0 = 关闭门控。
+         */
+        const val ENCODER_IDLE_PREROLL_MS = 1000
 
         /** 保持 vadBegin 强制探测的既有 500 ms 合成输入，不随手动 finish 的尾上下文调整。 */
         const val INITIAL_SILENCE_PROBE_TAIL_MS = 500
