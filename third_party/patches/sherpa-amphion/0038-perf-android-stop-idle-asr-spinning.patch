@@ -1,0 +1,32 @@
+From cf47d933ff2dfe4e5b27088bf536a887feaa44d3 Mon Sep 17 00:00:00 2001
+From: Amphion Runtime <runtime@amphion.local>
+Date: Sat, 7 Nov 2026 18:00:00 +0800
+Subject: [PATCH] perf(android): stop idle ASR workers between inference runs
+
+Mirror the Harmony policy from 0029. Keep in-run spinning and thread
+counts unchanged; only idle workers stop spinning after Run returns.
+---
+ sherpa-onnx/csrc/session.cc | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/sherpa-onnx/csrc/session.cc b/sherpa-onnx/csrc/session.cc
+index 23993208..3e5a1313 100755
+--- a/sherpa-onnx/csrc/session.cc
++++ b/sherpa-onnx/csrc/session.cc
+@@ -203,6 +203,13 @@ Ort::SessionOptions GetSessionOptionsImpl(
+   config.erase("AmphionCpuIds");
+   config.erase("AmphionAllowSpinning");
+ #endif
++#if defined(__ANDROID__)
++  // Streaming ASR calls Run once per chunk and then waits for audio. ORT's
++  // default leaves intra-op workers spinning after each Run, which on EC521S
++  // kept about half of the SDK's CPU time busy-waiting. Stop idle spinning
++  // between runs; in-run spinning and thread counts stay unchanged.
++  sess_opts.AddConfigEntry("session.force_spinning_stop", "1");
++#endif
+ 
+   std::vector<std::string> available_providers = Ort::GetAvailableProviders();
+   std::ostringstream os;
+-- 
+2.54.0 (Apple Git-157)
+
