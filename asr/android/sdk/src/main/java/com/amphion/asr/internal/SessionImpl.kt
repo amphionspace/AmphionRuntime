@@ -200,6 +200,9 @@ internal class SessionImpl(
 
     /** 进入 IDLE 时 stream 自上次 reset 起已收下的样本数；恢复时据此把时间轴原点对回去。 */
     private var idleStreamSamplesBeforeGap: Long = 0L
+
+    /** IDLE 期间的能量兜底：silero 迟报起音时由它唤醒，见 [IdleEnergyProbe]。 */
+    private val idleEnergyProbe: IdleEnergyProbe? = if (encoderIdleGate != null) IdleEnergyProbe(sampleRate) else null
     private var vadProcessedSamples: Long = 0
     private var vadLastSpeechEndSample: Long = -1
 
@@ -656,8 +659,10 @@ internal class SessionImpl(
         // 由下面的 VAD 起音把它唤醒；见 [EncoderIdleGate]。
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
         val gate = encoderIdleGate
+        var energyWake = false
         if (gate != null && gate.idle) {
             gate.observe(processedSamples)
+            energyWake = idleEnergyProbe?.observe(rawSamples) == true
         } else {
             val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
                 stream.acceptWaveform(processedSamples, sampleRate)
@@ -783,8 +788,8 @@ internal class SessionImpl(
                 }
             }
         }
-        if (anySpeech && gate != null && gate.idle) {
-            return resumeEncoderFromIdle("vad-onset")
+        if (gate != null && gate.idle && (anySpeech || energyWake)) {
+            return resumeEncoderFromIdle(if (anySpeech) "vad-onset" else "energy")
         }
         return true
     }
@@ -801,6 +806,7 @@ internal class SessionImpl(
         val gate = encoderIdleGate ?: return
         if (gate.idle || !encoderIdleAllowed()) return
         gate.enterIdle()
+        idleEnergyProbe?.arm()
         idleStreamSamplesBeforeGap = (publicSamplesFed - streamStartSample).coerceAtLeast(0L)
         Logger.metric("kind=STREAM_TRANSITION sessionId=$sessionId action=encoder-idle")
     }
@@ -814,6 +820,7 @@ internal class SessionImpl(
         val gate = encoderIdleGate ?: return true
         if (!gate.idle) return true
         val preRoll = gate.resume()
+        idleEnergyProbe?.disarm()
         streamStartSample = publicSamplesFed - preRoll.size - idleStreamSamplesBeforeGap
         idleStreamSamplesBeforeGap = 0L
         Logger.metric(
