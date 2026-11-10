@@ -27,9 +27,13 @@ internal object LicenseGuard {
     @Volatile
     private var enforcement: LicenseEnforcement = LicenseEnforcement.ENFORCE
 
+    // 保留宿主提供的设备身份配置，不长期持有授权正文。
+    private var activationOptions = TtsLicenseOptions(licenseAssetName = null)
+
     /** police 风格显式入口：用业务方给定的 [context] / [options] 验签并缓存。ENFORCE 下失败抛异常。 */
     @Synchronized
     fun configureAndVerify(context: Context, options: TtsLicenseOptions) {
+        activationOptions = options.copy(license = null, licenseAssetName = null)
         enforcement = options.enforcement
         val ctx = context.applicationContext ?: context
         val result = LicenseVerifier.verify(
@@ -46,6 +50,15 @@ internal object LicenseGuard {
         if (!result.ok && enforcement == LicenseEnforcement.ENFORCE) {
             throw licenseException(result)
         }
+    }
+
+    /** 替换授权文件时保留宿主设备来源，显式激活始终严格校验。 */
+    @Synchronized
+    fun activateFile(context: Context, licenseText: String) {
+        configureAndVerify(
+            context,
+            activationOptions.copy(license = licenseText, enforcement = LicenseEnforcement.ENFORCE),
+        )
     }
 
     /** createEngine 门禁：复用缓存结果，未 init 时懒校验。ENFORCE 下失败抛异常。 */
@@ -107,5 +120,6 @@ internal object LicenseGuard {
     internal fun resetForTest() {
         cached = null
         enforcement = LicenseEnforcement.ENFORCE
+        activationOptions = TtsLicenseOptions(licenseAssetName = null)
     }
 }
