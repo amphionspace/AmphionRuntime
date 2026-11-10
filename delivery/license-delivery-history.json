@@ -356,6 +356,51 @@
       "operator": "momo",
       "deliveredAt": "2026-11-04",
       "status": "delivered"
+    },
+    {
+      "requestId": "REQ-TEST-OFFLINE-20261109-001",
+      "licenseId": "LIC-TEST-OFFLINE-20261109-001",
+      "deliveryId": "DEL-TEST-OFFLINE-20261109-001",
+      "customerId": "test",
+      "projectId": "offline-test",
+      "previousLicenseId": "LIC-TEST-OFFLINE-20261104-001",
+      "snSetId": "SNSET-A0E33E4F21AB490E8EDABB969F0FD0E0",
+      "uniqueSnCount": 81,
+      "policy": {
+        "features": [
+          "ASR",
+          "TTS"
+        ],
+        "sdkMajor": 1,
+        "installTier": "",
+        "applicationRecord": {
+          "mode": "none"
+        },
+        "certificateBinding": {
+          "mode": "none"
+        },
+        "runtimeExpiry": {
+          "mode": "perpetual"
+        },
+        "maintenance": {
+          "mode": "unlimited"
+        },
+        "deviceBinding": "required"
+      },
+      "artifact": "DEL-TEST-OFFLINE-20261109-001.zip",
+      "artifactSha256": "b07453b8c3b1e7d2001af3147475da7794ecfc18270f511aa58d61567c7455f0",
+      "artifactSizeBytes": 7426,
+      "licenseSha256": "7e3f0d3c8830aa62c50a972bbbf7d36a241cf1e49d726c6ebc81d7f270f910a6",
+      "planSha256": "d38f88c61e35fc82bdb99d4f8853e5e7bcb0989d6132a5600c8be1b57d70bdb3",
+      "planReceiptSha256": "62d691b7f4b754e458777ef8eaa2f6c851038a710c17a06e28fe5f6dbb386363",
+      "issuanceReceiptSha256": "41f21f030ccdfa34025c984d9e9aa95397eebe3afefca6f7ed5e50276b3f93ac",
+      "verificationReceiptSha256": "4c78b5c9aec9e3570b5d7d4b60f153dd848c106a9607449e8096e1d780cbe624",
+      "toolCommit": "a8c79ee260f86968076bcf37fc8627695fd6e37c",
+      "issueOperator": "momo",
+      "verifyOperator": "momo",
+      "operator": "momo",
+      "deliveredAt": "2026-11-10",
+      "status": "delivered"
     }
   ]
 }
