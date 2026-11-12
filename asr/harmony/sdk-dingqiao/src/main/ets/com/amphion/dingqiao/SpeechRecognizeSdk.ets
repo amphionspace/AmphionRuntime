@@ -371,6 +371,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private audioBytesWritten: number = 0;
   private audioFramesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  private voiceprintTemplates: Float32Array[] = [];
   private speechActive: boolean = false;
   private startingSession: boolean = false;
   private sessionStartGate: SessionStartGate = new SessionStartGate();
@@ -530,7 +531,18 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // Every path uses the same bundled rawfile identity, so registration, final verification,
       // preload, and Speaker VAD share one extractor pool entry without copying 40 MB on ArkTS.
       speakerModelPath = DingqiaoSpeakerModelAssets.bundledPath();
-      embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(voiceprintIds);
+      const store = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath());
+      embedding = store.loadMergedEmbedding(voiceprintIds);
+      this.voiceprintTemplates = [];
+      for (let i = 0; i < voiceprintIds.length; i++) {
+        const templates = store.loadTemplates(voiceprintIds[i]);
+        if (templates.length > 0) {
+          for (let t = 0; t < templates.length; t++) this.voiceprintTemplates.push(templates[t]);
+        } else {
+          const single = store.loadEmbedding(voiceprintIds[i]);
+          if (single !== undefined) this.voiceprintTemplates.push(single);
+        }
+      }
       if (embedding === undefined) {
         this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
         return;
@@ -601,6 +613,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.session = createdSession;
       if (useTarget && embedding !== undefined) {
         this.session.setTargetSpeaker(embedding);
+        if (this.voiceprintTemplates.length > 1) {
+          this.session.setTargetSpeakerTemplates(this.voiceprintTemplates);
+        }
         this.session.setTargetSpeakerEnabled(verify);
         if (speakerVad) {
           this.session.setSpeakerVadEnabled(true);
@@ -891,6 +906,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           return;
         }
         session.setTargetSpeaker(embedding);
+        if (this.voiceprintTemplates.length > 1) {
+          session.setTargetSpeakerTemplates(this.voiceprintTemplates);
+        }
       }
       session.setSpeakerVadEnabled(enabled);
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
@@ -1866,11 +1884,13 @@ export class SpeechRecognizeSdk {
       const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
       const enroller = new SpeakerEnroller(modelPath, 1, context, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
+      // 每份样本的独立模板：短指令的判别力靠它（合并质心会稀释，见缺陷 #97）。
+      const templates = enroller.enrollFileTemplates(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
       // later passed back via StartParams.extraParams.voiceprintIds for the recognition session.
       const store = new VoiceprintStore(SpeechRecognizeSdk.workPath);
-      const id = store.saveVoiceprint(params.samplePaths, embedding);
+      const id = store.saveVoiceprint(params.samplePaths, embedding, templates);
       result.voiceprintId = {};
       result.voiceprintId[id] = baseName(params.samplePaths[0]);
       result.status = 0;

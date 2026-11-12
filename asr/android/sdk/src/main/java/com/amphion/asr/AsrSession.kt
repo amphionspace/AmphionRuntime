@@ -69,6 +69,14 @@ public class AsrSession internal constructor(private val impl: SessionImpl) : Au
         impl.setTargetSpeaker(embedding)
     }
 
+    /**
+     * 注入注册样本的多模板（缺陷 #97）。设置后打分对这些模板取最大相似度，
+     * 避免注册时合并质心稀释短语音的判别力；传空列表或调用 [setTargetSpeaker] 会退回单模板。
+     */
+    public fun setTargetSpeakerTemplates(templates: List<FloatArray>) {
+        impl.setTargetSpeakerTemplates(templates)
+    }
+
     /** 清除已设置的目标说话人向量；之后即使开关开启也不会过滤（等价于放行全部）。 */
     public fun clearTargetSpeaker() {
         impl.clearTargetSpeaker()

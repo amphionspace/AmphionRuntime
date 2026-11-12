@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.28",
+  "source_commit": "a399d6a8ec851840cd859324fd20964beb7c6eb2",
+  "summary_sha256": "4edd854d08f052b2ff4f52dec2933a0cb0c7992c399a07775d536b6e03d546d5",
+  "reports": [
+    {
+      "mode": "customer-ptt",
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "8fe29873645e5309f32265f4e7b8a5c4c276d8db99d5e170a35b7afa86ad6e0e"
+    },
+    {
+      "mode": "diarization-windows",
+      "path": "reports/diarization-windows-dq4-report.json",
+      "sha256": "5584270a4e43abe738c7edfef7f8b3a4b76064c4cb8bf0e736866e9f4f3149bf"
+    }
+  ],
+  "waived_modes": [
+    {
+      "mode": "speaker-vad-turn",
+      "reason": "目标说话人夹具无法在本机重建：生成文本断言所需的主机 sherpa-onnx 二进制不可用。0.3.27 同样豁免；本版对机主链路的验证改由客户录音真机回放完成（#87/#97/#98），结论见摘要第 3 节。"
+    }
+  ]
+}

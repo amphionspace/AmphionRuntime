@@ -69,6 +69,37 @@ internal class SpeakerVerifier(
         return cosine(emb, targetEmb)
     }
 
+    /**
+     * 多模板打分（缺陷 #97）：同一人不同距离/信道的嵌入差异很大，注册时合并质心会稀释判别力。
+     * 对每个注册模板取最大相似度，与 [segmentScore] 的滑窗口径一致。
+     */
+    fun segmentScoreAny(samples: FloatArray, targetEmbs: List<FloatArray>): Float? {
+        if (targetEmbs.isEmpty()) return null
+        if (targetEmbs.size == 1) return segmentScore(samples, targetEmbs[0])
+        val nWin = (winSec * sampleRate).toInt()
+        val nHop = (hopSec * sampleRate).toInt().coerceAtLeast(1)
+        if (samples.size < nWin) {
+            val emb = extractEmbedding(extractor, samples, sampleRate) ?: return null
+            return targetEmbs.maxOf { cosine(emb, it) }
+        }
+        var best = Float.NEGATIVE_INFINITY
+        var start = 0
+        while (start + nWin <= samples.size) {
+            val emb = extractEmbedding(extractor, samples.copyOfRange(start, start + nWin), sampleRate)
+            if (emb != null) best = maxOf(best, targetEmbs.maxOf { cosine(emb, it) })
+            start += nHop
+        }
+        return if (best == Float.NEGATIVE_INFINITY) null else best
+    }
+
+    /** 多模板窗口打分，口径同 [windowScore]。 */
+    fun windowScoreAny(samples: FloatArray, targetEmbs: List<FloatArray>): Float? {
+        if (targetEmbs.isEmpty()) return null
+        if (targetEmbs.size == 1) return windowScore(samples, targetEmbs[0])
+        val emb = extractEmbedding(extractor, samples, sampleRate) ?: return null
+        return targetEmbs.maxOf { cosine(emb, it) }
+    }
+
     internal companion object {
 
         /**

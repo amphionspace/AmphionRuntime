@@ -54,6 +54,20 @@ export class SpeakerEnroller {
     return meanNormalize(embeddings, this.extractor.dim);
   }
 
+  /** 每份样本的独立归一化嵌入（缺陷 #97：多模板取最大，不合并质心）。 */
+  enrollFileTemplates(audioPaths: string[]): Float32Array[] {
+    this.ensureOpen();
+    if (audioPaths.length === 0) throw new Error('enrollFileTemplates() needs at least 1 audio path');
+    const out: Float32Array[] = [];
+    for (let i = 0; i < audioPaths.length; i++) {
+      const segment = this.readWaveSamples(audioPaths[i]);
+      if (segment.length === 0) continue;
+      out.push(this.computeEmbedding(segment, SPEAKER_SAMPLE_RATE_HZ));
+    }
+    if (out.length === 0) throw new Error('all enrollment segments are empty');
+    return out;
+  }
+
   enrollFiles(audioPaths: string[]): Float32Array {
     this.ensureOpen();
     if (audioPaths.length === 0) throw new Error('enrollFiles() needs at least 1 audio path');

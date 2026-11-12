@@ -232,6 +232,7 @@ internal class SpeakerTurnFinalizer(
         threshold: Float,
         scoreRange: SpeakerRangeScorer,
         boundaryHintsSamples: List<Int> = emptyList(),
+        atFinish: Boolean = false,
     ): SpeakerTurnSplit? {
         resolutionReason = "not-ready"
         pendingCandidatePrefixEndSample = -1
@@ -279,7 +280,12 @@ internal class SpeakerTurnFinalizer(
             )
         }
         val preferredCandidateCount = candidates.size
-        for (timestamp in tokenTimestampsSec) addCandidate(timestamp.toDouble() * sampleRate, strong = true)
+        val tokenCandidates = mutableListOf<Int>()
+        for (timestamp in tokenTimestampsSec) {
+            val before = candidates.size
+            addCandidate(timestamp.toDouble() * sampleRate, strong = true)
+            if (candidates.size > before) tokenCandidates += candidates.last()
+        }
         addCandidate((firstBelowEndSample - (windowSamples / 2.0).roundToInt()).toDouble())
         val coarseStep = max(frameSamples, (hopSamples / 2.0).roundToInt())
         var candidate = searchStart
@@ -291,7 +297,9 @@ internal class SpeakerTurnFinalizer(
         // A token hint is stronger than the coarse acoustic grid. If its right verification window
         // is still being recorded, wait for that evidence rather than committing an earlier weak
         // candidate that can truncate the target speaker's last phone.
-        if (strongCandidateLackedRightContext) {
+        // 流式时右侧上下文可能还在路上，值得等；收尾时不会再有音频，继续等只会退回保守切点，
+        // 把机主整句截短，所以这里跳过等待，用已有候选继续定位。
+        if (strongCandidateLackedRightContext && !atFinish) {
             resolutionReason = "insufficient-refine-context"
             return null
         }
@@ -307,8 +315,12 @@ internal class SpeakerTurnFinalizer(
         val preferred = candidates.subList(hintedCandidateCount, preferredCandidateCount).toList()
         val acoustic = candidates.subList(preferredCandidateCount, candidates.size).toMutableList()
         acoustic.sortByDescending { transitionContrast(all, it, refineSamples) }
-        val ranked = hinted.take(1) + preferred.take(1) + acoustic
-        val maximumScoredCandidates = 2
+        // 词边界比能量对比更接近真实换人点：先按"离搜索区间中心最近"排两个 token 候选，
+        // 再补保守前缀与能量对比候选，最多校验四个（每个两次 embedding，仍有界）。
+        val center = (searchStart + searchEnd) / 2
+        val tokenRanked = tokenCandidates.distinct().sortedBy { kotlin.math.abs(it - center) }
+        val ranked = (tokenRanked.take(2) + hinted.take(1) + preferred.take(1) + acoustic).distinct()
+        val maximumScoredCandidates = 4
 
         var bestCandidate = -1
         var bestLeft = Float.NEGATIVE_INFINITY
