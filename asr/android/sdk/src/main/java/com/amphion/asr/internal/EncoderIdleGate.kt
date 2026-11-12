@@ -12,9 +12,10 @@ package com.amphion.asr.internal
  * - IDLE：PCM 只进 VAD 和这里的预滚环，不碰 encoder。VAD 一看到 speech 窗口就 [resume]，
  *   把预滚（最近 [preRollMs] 毫秒）连同当前 chunk 一次性送进 encoder。
  *
- * 只在 stream 边界（端点后重启 / 软复位）进入 IDLE：那时 VAD 刚被 reset、stream 为空，
- * 不会有半句话悬在 encoder 里。预滚要盖住 silero 的起音确认延迟（minSpeechDuration 0.25 s
- * + 若干 32 ms 窗口）再留出 encoder 的左上下文，所以默认 1 s。
+ * 只在确认静音后成功创建的新流上进入 IDLE；Rule3 checkpoint 和软复位保留上下文，不适用。
+ * 新流已经接收 800 ms 静音预热，并非字面上的空 stream，但没有上一句未处理的语音。
+ * 预滚要盖住 silero 的起音确认延迟（minSpeechDuration 0.25 s + 若干 32 ms 窗口），
+ * 再留出 encoder 的左上下文，所以默认 1 s。
  *
  * 不负责判断"能不能门控"：目标说话人 / speaker VAD 等需要 stream 持有全部音频的模式，
  * 由调用方决定不进入 IDLE。
@@ -29,7 +30,7 @@ internal class EncoderIdleGate(sampleRate: Int, preRollMs: Int) {
     var idle: Boolean = false
         private set
 
-    /** 诊断计数：进入 IDLE 的次数、IDLE 期间跳过 encoder 的样本数、恢复次数。 */
+    /** 诊断计数：进入 IDLE 的次数、IDLE 期间接收的样本数、恢复次数；含后续预滚重送的样本。 */
     var idleEntries: Int = 0
         private set
     var idleSamples: Long = 0L
