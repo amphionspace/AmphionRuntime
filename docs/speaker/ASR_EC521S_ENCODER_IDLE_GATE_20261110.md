@@ -53,11 +53,11 @@ armC、armD、armD2 的 ASR sherpa JNI、ONNX Runtime、audio-processing 库、M
 
 | 代码文件 | 修复或验证内容 | SHA-256（16000 补测包源码） |
 | --- | --- | --- |
-| [SessionImpl.kt](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt>) | IDLE 按能量边界切片；限制 IDLE 流边界；清理热词替换状态；模式变化先恢复预滚。 | `d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4` |
-| [IdleEnergyProbe.kt](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/internal/IdleEnergyProbe.kt>) | 固定 20 ms 窗、跨调用累计、processed PCM 能量、独立绝对或相对唤醒。 | `4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c` |
-| [EncoderIdleGate.kt](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/internal/EncoderIdleGate.kt>) | 更正边界与计数注释，说明新流 800 ms 预热和预滚重送口径。 | `57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee` |
-| [IdleEnergyProbeTest.kt](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/test/java/com/amphion/asr/internal/IdleEnergyProbeTest.kt>) | 立即/短起音、不规则分帧、跨调用累计、重新武装等 16 条针对测试。 | `1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542` |
-| [EncoderIdleGateInstrumentedTest.kt](</Users/momo/project/AmphionRuntime/asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIdleGateInstrumentedTest.kt>) | 四项回归及回调摘要；历史 PCM 识别/CPU 诊断与 LCS 脱敏差分。 | `3107e787605db3afb754552746470247eb5d798dc58e1fce4a085f14aa2fdda4` |
+| [SessionImpl.kt](<<LOCAL_PATH>>) | IDLE 按能量边界切片；限制 IDLE 流边界；清理热词替换状态；模式变化先恢复预滚。 | `d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4` |
+| [IdleEnergyProbe.kt](<<LOCAL_PATH>>) | 固定 20 ms 窗、跨调用累计、processed PCM 能量、独立绝对或相对唤醒。 | `4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c` |
+| [EncoderIdleGate.kt](<<LOCAL_PATH>>) | 更正边界与计数注释，说明新流 800 ms 预热和预滚重送口径。 | `57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee` |
+| [IdleEnergyProbeTest.kt](<<LOCAL_PATH>>) | 立即/短起音、不规则分帧、跨调用累计、重新武装等 16 条针对测试。 | `1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542` |
+| [EncoderIdleGateInstrumentedTest.kt](<<LOCAL_PATH>>) | 四项回归及回调摘要；历史 PCM 识别/CPU 诊断与 LCS 脱敏差分。 | `3107e787605db3afb754552746470247eb5d798dc58e1fce4a085f14aa2fdda4` |
 
 四项设备回归所用测试包 `e46eb6…` 的 instrumentation 源码 SHA-256 是 `d4024cf84d16f321047452d6ae0c4cc8ad3b82fd82890112b78b03e8c50eef3d`。随后只在历史方法内新增差分记录，并加入私有纯 helper；其余四个文件完全一致。历史诊断阶段（instrumentation 源码 `fbbfff0c584f1aff39cc39f14b8d121409c1b49d70c106138fbd63288195b962`）的历史方法之前及 `config()` 之后的全部代码均逐字比对一致，覆盖原四项方法、共享 `decode` 和 `Capture`，见[阶段边界证明](</private/tmp/encoder-gate-historical-final.6ow605/summary.json>)。之后针对已证实的 16000 覆盖缺口，只新增 `silenceReplay` 的分区选择，得到上表源码；其他方法、helper 和全部断言均与历史包逐字一致，见[补测范围证明](</private/tmp/encoder-gate-large-chunk-build.MlEXVt/summary.json>)。
 
@@ -103,7 +103,7 @@ armC、armD、armD2 的 ASR sherpa JNI、ONNX Runtime、audio-processing 库、M
 
 [中间测试构建日志](</private/tmp/encoder-gate-callback-build.5rDDia/gradle.log>)和[中间产物身份](</private/tmp/encoder-gate-callback-build.5rDDia/summary.json>)保留。随后历史入口构建的 Gradle 日志虽已输出 `BUILD SUCCESSFUL`，harness 任务在收到暂停指示后被 SIGTERM；[该次日志](</private/tmp/encoder-gate-historical-build.c6KNgO/gradle.log>)及[取消状态和产物身份](</private/tmp/encoder-gate-historical-build.c6KNgO/summary.json>)单独保留，不作为最终设备验证包。热词夹具修正后才产生用于原四项和三项 Dq 的 `e46eb6…` 测试包。
 
-原主 APK 与原测试 APK 的 `apksigner verify --print-certs` 均成功，公开证书 SHA-256 都为 `8d9de5c78e1f31358608f828e61c6240c6f88073591bd0b7d0dfb687ca946698`。[Demo 构建配置](</Users/momo/project/AmphionRuntime/asr/android/samples/dingqiao-demo/build.gradle.kts#L100-L109>)在启用 `dingqiaoDebugUseReleaseSigning` 时为 debug 使用 release 签名。没有本地 base/test 证书不一致的证据，未修改签名配置；设备已装 test 的更新冲突必须与设备安装证书单独核对。
+原主 APK 与原测试 APK 的 `apksigner verify --print-certs` 均成功，公开证书 SHA-256 都为 `8d9de5c78e1f31358608f828e61c6240c6f88073591bd0b7d0dfb687ca946698`。[Demo 构建配置](<<LOCAL_PATH>>)在启用 `dingqiaoDebugUseReleaseSigning` 时为 debug 使用 release 签名。没有本地 base/test 证书不一致的证据，未修改签名配置；设备已装 test 的更新冲突必须与设备安装证书单独核对。
 
 ## 设备验证：六项边界/契约通过，三次严格文本对照失败
 
@@ -126,7 +126,7 @@ armC、armD、armD2 的 ASR sherpa JNI、ONNX Runtime、audio-processing 库、M
 
 [短样本脱敏记录](</private/tmp/ec521s-old-gate-verification-spikmhrq/new-four-gate-tests/report-1794263378129.jsonl>)和[门控/endpoint 日志](</private/tmp/ec521s-old-gate-verification-spikmhrq/new-four-gate-tests/metrics-filtered.log>)支持对 320 分区的逐段反推：首段 IDLE 输入 24000 samples、回放 16000，省略 `[43520,51520)`（2.72–3.22 秒）；中间 320 samples 全部回放；末段 25280、回放 16000，省略 `[266560,275840)`（16.66–17.24 秒）。两段省略都在人工前后零音频内，未省略实际 fixture PCM。净省略 17280 samples=1.08 秒；`idleSamples=49600` 是含回放的 3.1 秒 IDLE 输入，不能当作净节省，更不能直接当 CPU/功耗下降。
 
-主 APK 的 sherpa JNI SHA-256 为 `c906b3687c5238481cbd61255708183fa564b25e9572afbd9db08d9bbaccbac8`，已核对与[实际匹配的 derived JNI](</Users/momo/project/AmphionRuntime/third_party/.derived/sherpa-onnx-f3b1a9da8d6e-57760f36cb33/build-android-arm64-v8a/install/lib/libsherpa-onnx-jni.so>)逐字节相同。该模型以 640 ms 推进，1 秒预滚不保证 native 状态等价；日志中 control 额外的 Rule1 硬换流是首部两字差异的候选机制，不能由此证明识别质量高低。该次 Rule1 的精确 publicSamples 未被记录，不把推导时刻当实测。严格一致性仍为 FAIL；不能通过替换对照基线或放宽断言把该次 FAIL 改为 PASS。
+主 APK 的 sherpa JNI SHA-256 为 `c906b3687c5238481cbd61255708183fa564b25e9572afbd9db08d9bbaccbac8`，已核对与[实际匹配的 derived JNI](<<LOCAL_PATH>>)逐字节相同。该模型以 640 ms 推进，1 秒预滚不保证 native 状态等价；日志中 control 额外的 Rule1 硬换流是首部两字差异的候选机制，不能由此证明识别质量高低。该次 Rule1 的精确 publicSamples 未被记录，不把推导时刻当实测。严格一致性仍为 FAIL；不能通过替换对照基线或放宽断言把该次 FAIL 改为 PASS。
 
 [16000 单次设备结果](</private/tmp/ec521s-old-gate-verification-spikmhrq/new-large-caller-chunk/result.json>)及[脱敏记录](</private/tmp/ec521s-old-gate-verification-spikmhrq/new-large-caller-chunk/report-1794265332238.jsonl>)确认严格失败。补测的 control/gate 为 27/26 字，离线 LCS 匹配 26，control `[18,19)` 为单字未匹配；gate 的原始文本哈希与 320 gate、无人工前后静音的 checkpoint 结果相同，26 个时间戳也与 320 gate 完全相同。这说明本夹具的 gate 输出跨两种分区稳定；control 自身却为 24/27 字，因此任一对照都不能替代人工真值。上述诊断不改变三次严格失败，短夹具 CPU 数值不用于功耗推断。
 
@@ -136,7 +136,7 @@ armC、armD、armD2 的 ASR sherpa JNI、ONNX Runtime、audio-processing 库、M
 
 ### 独立未修复问题：默认 greedy 模式动态新增热词崩溃
 
-旧热词用例发生 native `SIGSEGV/SEGV_MAPERR`，fault address `0x58`，未到达门控边界断言，不能算作预期红测通过。[保留的崩溃栈](</private/tmp/ec521s-old-gate-verification-spikmhrq/old-hotwords/crash-filtered.log>)显示 `SessionImpl.updateHotwords` → `OnlineRecognizer.createStream` 的 native 路径。[公开 updateHotwords 注释](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/AsrSession.kt#L47-L51>)未声明必须在创建 engine 时预先配置热词；而 [EngineImpl 的 decoder 选择](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/internal/EngineImpl.kt#L375-L377>)根据初始热词是否为空固定为 `greedy_search` 或 `modified_beam_search`。native 静态审查支持空 BPE 指针路径，但尚未对该 APK 作符号化，不能把候选机制表述为已完整定位或已修复。
+旧热词用例发生 native `SIGSEGV/SEGV_MAPERR`，fault address `0x58`，未到达门控边界断言，不能算作预期红测通过。[保留的崩溃栈](</private/tmp/ec521s-old-gate-verification-spikmhrq/old-hotwords/crash-filtered.log>)显示 `SessionImpl.updateHotwords` → `OnlineRecognizer.createStream` 的 native 路径。[公开 updateHotwords 注释](<<LOCAL_PATH>>)未声明必须在创建 engine 时预先配置热词；而 [EngineImpl 的 decoder 选择](<<LOCAL_PATH>>)根据初始热词是否为空固定为 `greedy_search` 或 `modified_beam_search`。native 静态审查支持空 BPE 指针路径，但尚未对该 APK 作符号化，不能把候选机制表述为已完整定位或已修复。
 
 本轮只把热词测试夹具改为创建时 `config().hotwords(listOf("初始"), 1.5f).build()`，保留 `session.updateHotwords(listOf("测试"), 1.5f)` 和原有边界断言，以便验证支持热词的 decoder 下的门控换流状态。没有修改 native、默认 decoder 或公共 API。旧包已升级，不回切重跑；因此热词换流只有代码证据及新包验证，缺少旧包目标断言复现，不称为完整红绿闭环。该路径的新包用例通过也不表示热词 API 整体通过或 greedy 崩溃已修复。
 
@@ -169,4 +169,4 @@ CPU 指标从输入前计到 `capture.awaitStopped()` 之后，使用 `android.o
 
 [设备最终汇总](</private/tmp/ec521s-old-gate-verification-spikmhrq/new-results.md>)确认新包共 9 次选定执行：6 PASS、3 次严格文本 FAIL，均无 skip、crash 或 timeout；这不包含旧热词夹具的崩溃。[最终安装身份复核](</private/tmp/ec521s-old-gate-verification-spikmhrq/final-installed-identity.json>)于 2026-11-10 10:59:27（UTC+08:00）再次确认主 APK `201492…`、测试 APK `030f9d…`；7 个预期旧/新门控报告目录全部保留，所有验证后台任务均已收集。
 
-原始失败现场和审计目录保留，不清理、不覆盖。[仓库脱敏证据清单](</Users/momo/project/AmphionRuntime/docs/speaker/ASR_EC521S_ENCODER_IDLE_GATE_20261110.manifest.json>)只保存身份、状态和证据位置，不归档客户载荷或凭证。
+原始失败现场和审计目录保留，不清理、不覆盖。[仓库脱敏证据清单](<<LOCAL_PATH>>)只保存身份、状态和证据位置，不归档客户载荷或凭证。

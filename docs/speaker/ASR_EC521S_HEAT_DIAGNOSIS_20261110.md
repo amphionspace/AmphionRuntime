@@ -10,8 +10,8 @@
 
 修复在 native 接收前，将 ACTIVE raw/processed 成对切到下一个 10 ms PCM 边界；16000 Hz 下每个完整边界为 160 样本。更短的现有 deadline 和实际尾帧仍直接处理，public 样本只计数一次。IDLE 20 ms 探针、pre-roll replay、warmup、换流策略及回调调度保持原样。
 
-- [修复源文件](</Users/momo/project/AmphionRuntime/asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt#L596>)：修复前 SHA256 `d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4`，修复后 `25e64795e3a5fdfdbb93e292a9e57e57dbd843ec6e000e8d071709789d7bb471`。
-- [结构及语音分块回归](</Users/momo/project/AmphionRuntime/asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIngressPartitionInstrumentedTest.kt>)：比较内部流起点、完整输入计数、文本/时间戳及终止回调；不锁死某个期望起点，不输出转写原文。
+- [修复源文件](<<LOCAL_PATH>>)：修复前 SHA256 `d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4`，修复后 `25e64795e3a5fdfdbb93e292a9e57e57dbd843ec6e000e8d071709789d7bb471`。
+- [结构及语音分块回归](<<LOCAL_PATH>>)：比较内部流起点、完整输入计数、文本/时间戳及终止回调；不锁死某个期望起点，不输出转写原文。
 - [修复前结构证据](</private/tmp/ec521s-partition-red-58v_idvq/encoder_ingress_partition-1794271640559.jsonl>)：8 行，SHA256 `bf753a17b31e22643ef1a5830778014249de8efb81eb4812dc05def26fa27891`。
 - [修复前执行身份](</private/tmp/ec521s-partition-red-58v_idvq/result.json>)：1 test / 1 failure，主包未替换，执行前后 SHA256 均为 `201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2`。
 
@@ -43,11 +43,11 @@
 
 ## 实时与测温资格
 
-独立于 Activity/UI 的实时 instrumentation 与设备采样器已完成统一构建，见[短时资格说明](</Users/momo/project/AmphionRuntime/docs/speaker/ASR_EC521S_THERMAL_QUALIFICATION.md>)。它以单调时钟按 1× 输入精确私有 PCM 窗口，前台服务配有超时的部分唤醒锁；记录 submitted、accepted 和 decoder 已处理样本，跟踪进度滞后、末尾回调与资源清理。取消会先关闭 SDK 接收，唤醒可能阻塞的 PCM 提交者。
+独立于 Activity/UI 的实时 instrumentation 与设备采样器已完成统一构建，见[短时资格说明](<<LOCAL_PATH>>)。它以单调时钟按 1× 输入精确私有 PCM 窗口，前台服务配有超时的部分唤醒锁；记录 submitted、accepted 和 decoder 已处理样本，跟踪进度滞后、末尾回调与资源清理。取消会先关闭 SDK 接收，唤醒可能阻塞的 PCM 提交者。
 
 [冻结构建身份](</private/tmp/encoder-clock-thermal-build.essIax/apk-identities.json>)：主 APK SHA256 `70b2f6e61e36b76a49f5bc4c8e900215db9417ede4124c2cc212fe81bd5287f0`；测试 APK SHA256 `6ba5428f47cd59ca7b1398f2e26f475a0b45968bca1194d6bca8567d7a2ccbe5`。
 
-首轮使用 direct SDK、空热词 greedy、关闭标点/ITN、long/RULE3 关闭；仅作处理与采样资格。[鼎桥真实配置](</Users/momo/project/AmphionRuntime/asr/android/sdk-dingqiao/src/main/java/com/amphion/dingqiao/DingqiaoEngineConfig.kt#L43>)默认有完整预置热词池、beam/maxActivePaths=8、标点及 ITN，ASR 2 线程。最终产品负载比较应复用 SpeechRecognizeSdk 公共入口，并显式固定无角色的 long、VAD 800 ms、会话轮换等参数；不能把旧热测默认 short/20 秒、每 300 秒轮换并补静音的配置当成相同录音场景。旧热测还会落盘 text_head，不直接复用其客户音频报告路径。
+首轮使用 direct SDK、空热词 greedy、关闭标点/ITN、long/RULE3 关闭；仅作处理与采样资格。[鼎桥真实配置](<<LOCAL_PATH>>)默认有完整预置热词池、beam/maxActivePaths=8、标点及 ITN，ASR 2 线程。最终产品负载比较应复用 SpeechRecognizeSdk 公共入口，并显式固定无角色的 long、VAD 800 ms、会话轮换等参数；不能把旧热测默认 short/20 秒、每 300 秒轮换并补静音的配置当成相同录音场景。旧热测还会落盘 text_head，不直接复用其客户音频报告路径。
 
 已新增 `thermalBackend=dingqiao`，使用公共 create/start/write/finish/cancel/shutdown，保留默认热词/beam/标点/ITN/两线程，单会话、不补静音。finish 前暂停周期探针，公开 complete 后等待 decoder 线程退出再读取最终计数。新增后端的[测试包构建记录](</private/tmp/dq-thermal-backend-build-pke9e1hh/apk-identities.json>)为 Gradle exit 0；测试 APK SHA256 `cb76348eb4d75dbb3cbf84a9f33a448213425ccc1e9b94bb5a5fe642d6b44a26`，构建前后主 APK SHA256 均保持 `70b2f6e61e36b76a49f5bc4c8e900215db9417ede4124c2cc212fe81bd5287f0`。该后端随后以独立 20 秒真机 run 通过处理与采样短时资格，见下文；仍不代表持续温升通过。
 
@@ -59,7 +59,7 @@
 
 新增鼎桥后端的 20 秒亮屏插线验证已通过，见[独立运行摘要](</private/tmp/ec521s-detached-qualification-845ub3f5/collection-3u8qchdh/result.json>)、[实际配置与应用报告](</private/tmp/ec521s-detached-qualification-845ub3f5/collection-3u8qchdh/app/report.jsonl>)和[采样状态](</private/tmp/ec521s-detached-qualification-845ub3f5/collection-3u8qchdh/sensors/status.tsv>)。本轮通过设备驻留驱动执行；完整输入 320000 samples，submitted=accepted=processed，输入窗口 SHA256 与首轮相同。实际配置为 2 线程、370 条默认热词、modified_beam_search/maxActivePaths=8、标点/ITN 开启、VAD 800 ms、RULE3=-1，无 targetSpeaker/diarization。last/complete/error=1/1/0；最大 feed lag 4 ms，最大 barrier delay 798 ms，最终 backlog=0；drain 1447 ms，decoder join 1 ms。服务及唤醒锁无残留，采样器 exit 0/PASS_SENSOR_COLLECTION_ONLY，CPU 三个样本覆盖至完成前 1649 ms。处理窗口 21.467 秒、CPU 29164 ms，仅作为短时资格数据。该结果不改变首轮 INVALID_SENSOR_COLLECTION；实际拔线后的驻留与传感器可用性仍待验证。
 
-已找到与 11.04 秒短夹具完整哈希绑定的 26 字项目参考：[参考脚本](</Users/momo/project/AmphionRuntime/asr/tools/evaluate_automatic_agc_regression.py#L16>)及[既有回归说明](</Users/momo/project/AmphionRuntime/asr/android/reports/automatic-agc-evaluation/README.md#L69>)。其人工标注来源未获证实，不能外推为长录音的人工真值。[本轮哈希闭合分析](</private/tmp/ec521s-frozen-reference-check-vexj8ss7/result.json>)确认旧主包门控 320/16000 的完整输出均等于参考（26 字，CER=0）；旧 320 对照及修复后主包两种分块的 gate-off 输出均恰好缺参考开头 2 字（CER=2/26）。这些结论由完整 UTF-8 SHA256 闭合，不依赖“对照即真值”，未输出原文，也未重放音频。旧严格 gate/control 文本相等 FAIL 仍保留；长录音识别差异仍待独立评估。当前主包的新增独立参考回归与六项相关契约已于本轮真机执行全部通过：见[7/7 结果及 APK 身份](</private/tmp/ec521s-fixed-reference-contracts-u8iv7lkd/result.json>)和[冻结参考脱敏报告](</private/tmp/ec521s-fixed-reference-contracts-u8iv7lkd/encoder_idle_regression-1794278258710.jsonl>)。320/16000 两种分块均输出完整 26 字参考，26 个时间戳及两条 final 的文本边界完全相同，last/stopped/error=1/1/0；其余覆盖 Rule3 checkpoint、IDLE finish、限定热词替换、cancel、finish 幂等及初始静音结束。主 APK 保持 `70b2f6e61e36b76a49f5bc4c8e900215db9417ede4124c2cc212fe81bd5287f0`，只更新测试 APK 为 `5f108963923de1fe4d5b949719998aa09ecf739ad459ad8eacc6bfd1d9fe95eb`，见[构建冻结身份](</private/tmp/ec521s-reference-test-build-ticizz3q/apk-identities.json>)。新增参考检查独立存在，未删除或放宽既有严格 gate/control 断言。最终测试 APK `ddb7614df56f949cece1b996a8c21c618a41e26fdd076ff4d339e9abf0824100` 已复跑同一组七项，结果仍为 7/7 通过，参考行在 320/16000 两种分块下均为 26 字且与参考 SHA256 一致，见[最终契约结果](</private/tmp/ec521s-final-contracts-upuikicx/result.json>)。
+已找到与 11.04 秒短夹具完整哈希绑定的 26 字项目参考：[参考脚本](<<LOCAL_PATH>>)及[既有回归说明](<<LOCAL_PATH>>)。其人工标注来源未获证实，不能外推为长录音的人工真值。[本轮哈希闭合分析](</private/tmp/ec521s-frozen-reference-check-vexj8ss7/result.json>)确认旧主包门控 320/16000 的完整输出均等于参考（26 字，CER=0）；旧 320 对照及修复后主包两种分块的 gate-off 输出均恰好缺参考开头 2 字（CER=2/26）。这些结论由完整 UTF-8 SHA256 闭合，不依赖“对照即真值”，未输出原文，也未重放音频。旧严格 gate/control 文本相等 FAIL 仍保留；长录音识别差异仍待独立评估。当前主包的新增独立参考回归与六项相关契约已于本轮真机执行全部通过：见[7/7 结果及 APK 身份](</private/tmp/ec521s-fixed-reference-contracts-u8iv7lkd/result.json>)和[冻结参考脱敏报告](</private/tmp/ec521s-fixed-reference-contracts-u8iv7lkd/encoder_idle_regression-1794278258710.jsonl>)。320/16000 两种分块均输出完整 26 字参考，26 个时间戳及两条 final 的文本边界完全相同，last/stopped/error=1/1/0；其余覆盖 Rule3 checkpoint、IDLE finish、限定热词替换、cancel、finish 幂等及初始静音结束。主 APK 保持 `70b2f6e61e36b76a49f5bc4c8e900215db9417ede4124c2cc212fe81bd5287f0`，只更新测试 APK 为 `5f108963923de1fe4d5b949719998aa09ecf739ad459ad8eacc6bfd1d9fe95eb`，见[构建冻结身份](</private/tmp/ec521s-reference-test-build-ticizz3q/apk-identities.json>)。新增参考检查独立存在，未删除或放宽既有严格 gate/control 断言。最终测试 APK `ddb7614df56f949cece1b996a8c21c618a41e26fdd076ff4d339e9abf0824100` 已复跑同一组七项，结果仍为 7/7 通过，参考行在 320/16000 两种分块下均为 26 字且与参考 SHA256 一致，见[最终契约结果](</private/tmp/ec521s-final-contracts-upuikicx/result.json>)。
 
 两次实际拔线资格均未通过，原因是本机厂商电源策略而非门控代码：
 
@@ -103,7 +103,7 @@
 
 ## 客户一小时实测（2026-11-04）与本文数据的对齐
 
-客户报告见[分报告-记录仪离线ASR一小时温升验证-20261104](</Users/momo/project/AmphionRuntime/分报告-记录仪离线ASR一小时温升验证-20261104.md>)。其结论：`com.tdtech.tiassistant 1.1.0.089 zbBwcDebug` 连续 61.9 分钟，背壳 29.97→42.43 °C（**+12.5 °C**）、前壳 +8.5 °C、边框 +7.5 °C、电池 +10.6 °C，Thermal Status 全程 0；进程 CPU 累计 187 分 44 秒 / 61.9 分钟 ≈ **300%**；耗电 265 mAh / 60.4 分钟 ≈ 263 mAh/h、约 1.06 W；全程锁屏，仅每 10 分钟插线约 1 分钟采样。
+客户报告见[分报告-记录仪离线ASR一小时温升验证-20261104](<<LOCAL_PATH>>)。其结论：`com.tdtech.tiassistant 1.1.0.089 zbBwcDebug` 连续 61.9 分钟，背壳 29.97→42.43 °C（**+12.5 °C**）、前壳 +8.5 °C、边框 +7.5 °C、电池 +10.6 °C，Thermal Status 全程 0；进程 CPU 累计 187 分 44 秒 / 61.9 分钟 ≈ **300%**；耗电 265 mAh / 60.4 分钟 ≈ 263 mAh/h、约 1.06 W；全程锁屏，仅每 10 分钟插线约 1 分钟采样。
 
 必须修正上一轮的一个结论：**该平台并非不能在电池供电、锁屏状态下长时间持续处理**——客户应用在同样条件下跑满 61.9 分钟且 CPU 维持 300%。本仓库 Demo 包被厂商冻结组限制是**包级电源管理状态差异**，不能外推为设备客观不可测。
 
@@ -119,9 +119,9 @@
 
 ## 独立参考与产品条件
 
-- [技术指标表](</Users/momo/project/AmphionRuntime/技术指标_场景分级拆分1109.xlsx>)仅只读检索，未发现温度、温升、发热、功耗或 CPU 对应条目；尚未获得明确的产品壳温/温升阈值。
-- [既有 MOSS 工作流](</Users/momo/project/AmphionRuntime/delivery/harmony-dingqiao/docs/MOSS_ANNOTATION_WORKFLOW.md>)只给出内部主机名 `amphion-42`。本机 Clash 已确认启用 fake DNS/TUN；此名字当前解析为伪地址。一次无凭证 SSH 探测在服务端版本交换前关闭，尚未进入真实主机认证，不能判为服务端或密钥故障。需要可核实的内部完整地址或既有内网访问路径；没有上传客户音频或修改网络配置。
+- [技术指标表](<<LOCAL_PATH>>)仅只读检索，未发现温度、温升、发热、功耗或 CPU 对应条目；尚未获得明确的产品壳温/温升阈值。
+- [既有 MOSS 工作流](<<LOCAL_PATH>>)只给出内部主机名 `amphion-42`。本机 Clash 已确认启用 fake DNS/TUN；此名字当前解析为伪地址。一次无凭证 SSH 探测在服务端版本交换前关闭，尚未进入真实主机认证，不能判为服务端或密钥故障。需要可核实的内部完整地址或既有内网访问路径；没有上传客户音频或修改网络配置。
 - 一小时原始客户试验的后壳从 29.97°C 到 42.43°C，约 +12.46°C；前壳共同 T0 下约 +8.50°C。原始表面测点、环境与本次设备内部温度节点不能直接互换。
 - 实际拔线、锁屏及固定测温探头需要现场配合。没有物理拔线/有效表面测温数据时，持续温升结论仍不成立。
 
-相关前序证据：[门控已完成检查与限制](</Users/momo/project/AmphionRuntime/docs/speaker/ASR_EC521S_ENCODER_IDLE_GATE_20261110.md>)。
+相关前序证据：[门控已完成检查与限制](<<LOCAL_PATH>>)。
