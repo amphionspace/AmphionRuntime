@@ -1,17 +1,14 @@
 package com.amphion.asr.internal
 
 import kotlin.math.log10
-import kotlin.math.max
 import kotlin.math.sqrt
 
 /**
- * encoder IDLE 期间的能量兜底唤醒。
+ * encoder IDLE 期间的保守能量唤醒；调用方传入即将送给 ASR 的 PCM，VAD 仍使用原始 PCM。
  *
- * 门控的唤醒不能只靠 silero 的二值状态：真机上出现过同一段音频、同一构建下 silero 迟了约 25 s 才报
- * 起音，IDLE 期间 encoder 不跑，这 25 s 的话就整段丢了（对照臂的 ASR 自己是能认出来的）。
- * 这里在 IDLE 期间跟踪原始 PCM 的噪声底（慢升快降的最小值），任一 chunk 的 RMS 高出噪声底
- * [riseDb] 以上就要求唤醒。唤醒错了只是多跑一次 encoder、2.4 s 后端点再回到 IDLE，方向安全；
- * 漏唤醒才会丢字，所以宁可敏感。
+ * 每 20 ms 音频判断一次，跨调用保留未满一窗的能量，不让调用分帧改变噪声底或稀释短起音。
+ * 达到 [absoluteMinDb] 或比噪声底高 [riseDb] 任一条件即唤醒；进入 IDLE 后的第一窗同样生效。
+ * 能量不能可靠区分稳定环境声和持续讲话，因此可闻环境声也允许保守唤醒。
  */
 internal class IdleEnergyProbe(
     private val sampleRate: Int,
@@ -19,49 +16,61 @@ internal class IdleEnergyProbe(
     private val floorRiseDbPerSec: Float = 1.0f,
     private val absoluteMinDb: Float = -60f,
 ) {
+    private val windowSamples = (sampleRate / DECISIONS_PER_SECOND).coerceAtLeast(1)
     private var floorDb = Float.NaN
     private var armed = false
+    private var pendingSamples = 0
+    private var pendingEnergy = 0.0
 
-    /** 进入 IDLE 时调用：噪声底从头学，前 [WARMUP_CHUNKS] 个 chunk 只学不判。 */
+    init {
+        require(sampleRate > 0) { "sampleRate must be positive" }
+    }
+
+    /** 调用方在 IDLE 中据此切片，在决定唤醒前不继续覆盖预滚音频。 */
+    val samplesUntilNextDecision: Int
+        get() = windowSamples - pendingSamples
+
     fun arm() {
         floorDb = Float.NaN
-        warmupLeft = WARMUP_CHUNKS
+        pendingSamples = 0
+        pendingEnergy = 0.0
         armed = true
     }
 
     fun disarm() {
         armed = false
+        pendingSamples = 0
+        pendingEnergy = 0.0
     }
 
-    private var warmupLeft = 0
-
-    /** IDLE 期间每个 chunk 调一次；返回 true 表示能量明显高于噪声底，应当唤醒。 */
-    fun observe(raw: FloatArray): Boolean {
-        if (!armed || raw.isEmpty()) return false
-        val db = rmsDb(raw)
-        val seconds = raw.size.toFloat() / sampleRate
-        if (floorDb.isNaN()) {
-            floorDb = db
-        } else if (db < floorDb) {
-            floorDb = db                                  // 快降
-        } else {
-            floorDb = minOf(db, floorDb + floorRiseDbPerSec * seconds)   // 慢升
+    /** 消费所有输入，任一完整音频窗需要唤醒即返回 true。 */
+    fun observe(samples: FloatArray): Boolean {
+        if (!armed || samples.isEmpty()) return false
+        var wake = false
+        for (sample in samples) {
+            pendingEnergy += sample.toDouble() * sample
+            pendingSamples += 1
+            if (pendingSamples == windowSamples) {
+                if (observeWindow()) wake = true
+                pendingSamples = 0
+                pendingEnergy = 0.0
+            }
         }
-        if (warmupLeft > 0) {
-            warmupLeft -= 1
-            return false
-        }
-        return db >= max(floorDb + riseDb, absoluteMinDb)
+        return wake
     }
 
-    private fun rmsDb(x: FloatArray): Float {
-        var acc = 0.0
-        for (v in x) acc += v.toDouble() * v
-        val rms = sqrt(acc / x.size)
-        return if (rms <= 1e-7) -140f else (20.0 * log10(rms)).toFloat()
+    private fun observeWindow(): Boolean {
+        val rms = sqrt(pendingEnergy / windowSamples)
+        val db = if (rms <= 1e-7) -140f else (20.0 * log10(rms)).toFloat()
+        val relativeWake = !floorDb.isNaN() && db >= floorDb + riseDb
+        floorDb = when {
+            floorDb.isNaN() || db < floorDb -> db
+            else -> minOf(db, floorDb + floorRiseDbPerSec * windowSamples / sampleRate)
+        }
+        return db >= absoluteMinDb || relativeWake
     }
 
     private companion object {
-        const val WARMUP_CHUNKS = 2
+        const val DECISIONS_PER_SECOND = 50
     }
 }
