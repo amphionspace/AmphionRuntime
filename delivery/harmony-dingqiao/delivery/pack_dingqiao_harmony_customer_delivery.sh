@@ -569,6 +569,16 @@ if sdk_only:
 )
 PY
 
+# 客户文档不允许出现内部品牌词：提交明细可能带出历史标题，这里统一中性化。
+python3 - "$OUT_ROOT/docs/CHANGELOG.md" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+if "鼎桥" in text:
+    path.write_text(text.replace("鼎桥", "客户适配层"), encoding="utf-8")
+PY
+
 python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \
   "$OUT_ROOT/docs" "$OUT_ROOT/har/amphion_dingqiao.har"
 
