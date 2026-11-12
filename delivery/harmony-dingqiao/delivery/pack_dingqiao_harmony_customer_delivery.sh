@@ -10,6 +10,7 @@ BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
 SDK_ONLY=false
+ZH_EN_ONLY=false
 ALLOW_DIRTY=false
 
 usage() {
@@ -19,6 +20,7 @@ Usage: pack_dingqiao_harmony_customer_delivery.sh [--asr-only|--sdk-only] [--all
 Options:
   --asr-only  Package the ASR SDK/demo without requiring TTS build artifacts.
   --sdk-only  Package only the zh-en ASR HAR and public customer documents.
+  --zh-en-only  Ship the zh-en ASR assets only (no yue-en bundle).
   --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
 
@@ -31,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --asr-only) ASR_ONLY=true; shift ;;
     --sdk-only) SDK_ONLY=true; shift ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --allow-dirty) ALLOW_DIRTY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -218,10 +221,17 @@ if [[ "$SDK_ONLY" == true ]]; then
   "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
     --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
 else
-  bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
-  "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
+      --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
+    "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
+      --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
+  else
+    bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
+      "$OUT_ROOT/har/amphion_dingqiao.har"
+    "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
+      "$OUT_ROOT/har/amphion_dingqiao.har"
+  fi
 fi
 python3 - "$OUT_ROOT/har/amphion_dingqiao.har" "$VERSION" <<'PY'
 import json
