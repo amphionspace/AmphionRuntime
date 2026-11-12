@@ -7,12 +7,12 @@
     {
       "mode": "customer-ptt",
       "path": "reports/customer-ptt-report.json",
-      "sha256": "8fe29873645e5309f32265f4e7b8a5c4c276d8db99d5e170a35b7afa86ad6e0e"
+      "sha256": "b59c247a2100db5fadd0b1c370b7ad3b4afb93bda99cb60381cf99504d787ffb"
     },
     {
       "mode": "diarization-windows",
       "path": "reports/diarization-windows-dq4-report.json",
-      "sha256": "5584270a4e43abe738c7edfef7f8b3a4b76064c4cb8bf0e736866e9f4f3149bf"
+      "sha256": "55a8119809021b63270c8dd44507a4e0f9dd41507d7cf54f339ef1d5aa6d2933"
     }
   ],
   "waived_modes": [
