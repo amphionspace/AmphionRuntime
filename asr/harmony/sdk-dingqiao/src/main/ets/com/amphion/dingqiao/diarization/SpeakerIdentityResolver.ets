@@ -68,9 +68,13 @@ export class SpeakerIdentityResolver {
     const identities: number[] = new Array<number>(tracks.length).fill(IDENTITY_UNRESOLVED);
     for (const index of order) {
       const track = tracks[index];
-      // 只取该段前 IDENTITY_EMBED_MAX_SECONDS 秒：嵌入几秒即饱和，截断同时降内存与原生算力。
-      const end = Math.min(track[1], track[0] + IDENTITY_EMBED_MAX_SECONDS * 1000);
-      const samples = this.window.slice(track[0], end);
+      // 只取 IDENTITY_EMBED_MAX_SECONDS 秒：嵌入几秒即饱和，截断同时降内存与原生算力。
+      // 取**中间**而不是开头：Sortformer 报的 run 起点常早于实际语音，从开头切会取到静音，
+      // 嵌入与同人其它段相似度趋近 0，于是把一个人拆成多个身份（缺陷 #77）。
+      const durationMs = Math.max(0, track[1] - track[0]);
+      const embedMs = Math.min(durationMs, IDENTITY_EMBED_MAX_SECONDS * 1000);
+      const begin = track[0] + (durationMs - embedMs) / 2;
+      const samples = this.window.slice(begin, begin + embedMs);
       if (samples === undefined) {
         this.audioMisses += 1;
         continue;

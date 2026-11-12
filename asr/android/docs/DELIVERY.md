@@ -1,6 +1,6 @@
 # Amphion Android SDK 交付指南（给我们自己看）
 
-适用 SDK 版本：0.3.9
+适用 SDK 版本：0.3.10
 
 本文描述核心 `:sdk` AAR 的构建与交付边界。鼎桥双端交付使用[统一流程](../../../delivery/ASR_DELIVERY_WORKFLOW.md)和[Android 完整包规范](../../../delivery/android-dingqiao/DEFAULT_DELIVERY.md)，不可用下方核心 AAR 清单替代完整包。
 

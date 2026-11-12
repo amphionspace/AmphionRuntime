@@ -18,11 +18,14 @@ export class VoiceprintStore {
     this.root = `${workPath}/voiceprints`;
   }
 
-  saveVoiceprint(samplePaths: string[], embedding: Float32Array): string {
+  saveVoiceprint(samplePaths: string[], embedding: Float32Array,
+    templates: Float32Array[] = []): string {
     const id = `vp-${util.generateRandomUUID(true)}`;
     const dir = `${this.root}/${id}`;
     this.ensureDir(dir);
     VoiceprintStore.writeEmbedding(`${dir}/embedding.bin`, embedding);
+    // 每份注册样本单独留档（缺陷 #97）：合并质心会稀释判别力，评分时按模板取最大。
+    if (templates.length > 1) VoiceprintStore.writeTemplates(`${dir}/templates.bin`, templates);
     const firstSample = samplePaths.length > 0 ? baseName(samplePaths[0]) : '';
     const meta = `{"voiceprintId":"${id}","sample":"${firstSample}"}`;
     const fp = fs.openSync(`${dir}/meta.json`, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
@@ -32,6 +35,52 @@ export class VoiceprintStore {
       fs.close(fp.fd);
     }
     return id;
+  }
+
+  /** 每份注册样本的嵌入；旧档案没有该文件时返回空数组，调用方退回单模板路径。 */
+  loadTemplates(id: string): Float32Array[] {
+    const out: Float32Array[] = [];
+    if (!VoiceprintStore.isSafeId(id)) return out;
+    const file = `${this.root}/${id}/templates.bin`;
+    if (!fs.accessSync(file)) return out;
+    const fp = fs.openSync(file);
+    try {
+      const size = fs.statSync(fp.fd).size;
+      if (size < 8) return out;
+      const raw = new ArrayBuffer(size);
+      fs.readSync(fp.fd, raw);
+      const view = new DataView(raw);
+      const count = view.getInt32(0, true);
+      const dim = view.getInt32(4, true);
+      if (count <= 0 || dim <= 0 || size < 8 + count * dim * 4) return out;
+      for (let t = 0; t < count; t++) {
+        const emb = new Float32Array(dim);
+        const base = 8 + t * dim * 4;
+        for (let i = 0; i < dim; i++) emb[i] = view.getFloat32(base + i * 4, true);
+        out.push(emb);
+      }
+      return out;
+    } finally {
+      fs.close(fp.fd);
+    }
+  }
+
+  private static writeTemplates(file: string, templates: Float32Array[]): void {
+    const dim = templates[0].length;
+    const out = new ArrayBuffer(8 + templates.length * dim * 4);
+    const view = new DataView(out);
+    view.setInt32(0, templates.length, true);
+    view.setInt32(4, dim, true);
+    for (let t = 0; t < templates.length; t++) {
+      const base = 8 + t * dim * 4;
+      for (let i = 0; i < dim; i++) view.setFloat32(base + i * 4, templates[t][i], true);
+    }
+    const fp = fs.openSync(file, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
+    try {
+      fs.writeSync(fp.fd, out);
+    } finally {
+      fs.close(fp.fd);
+    }
   }
 
   loadEmbedding(id: string): Float32Array | undefined {

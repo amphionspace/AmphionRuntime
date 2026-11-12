@@ -56,14 +56,19 @@ class SpeakerIdentityParityTest {
         val threshold = scalar(text, "mergeThreshold")
         val minAssign = scalar(text, "minAssignSeconds")
         val cap = scalar(text, "maxSpeakers").toInt()
+        val distinctFloor = scalar(text, "distinctFloor")
         assertEquals("固件阈值必须与实现默认值一致", SpeakerIdentityAssigner.MERGE_THRESHOLD, threshold, 0.0)
         assertEquals(SpeakerIdentityAssigner.MIN_ASSIGN_SECONDS, minAssign, 0.0)
+        assertEquals(
+            "固件的新身份门槛必须与实现默认值一致",
+            SpeakerIdentityAssigner.DISTINCT_IDENTITY_FLOOR, distinctFloor, 0.0,
+        )
 
         // 按 "begin" 切出每个 turn 块，顺序即到达顺序
         val blocks = text.split("\"begin\":").drop(1)
         assertTrue("固件应有多个 turn", blocks.size >= 30)
 
-        val assigner = SpeakerIdentityAssigner(cap, threshold, minAssign)
+        val assigner = SpeakerIdentityAssigner(cap, threshold, minAssign, distinctFloor)
         var checked = 0
         for (block in blocks) {
             val duration = scalar(block, "duration")

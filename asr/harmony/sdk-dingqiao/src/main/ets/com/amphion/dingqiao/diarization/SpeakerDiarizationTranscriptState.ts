@@ -526,7 +526,15 @@ export class SpeakerDiarizationTranscriptState {
         // it must not strip a display sentence whose own acoustic turns and tokens
         // already name one speaker. A known secondary or an overlap with no named
         // source still blocks, and the marker itself stays in `overlap`.
-        const blocked = turns.some(turn => this.blocksBackfill(turn));
+        // 同一个人被 Sortformer 同时放进两个槽位时，次说话人会标成与主说话人同一个身份；
+        // 那不是"这句还有别人"，不能因此阻断整句归属。整场只解析出一个已知身份时，
+        // 任何重叠都只能是同一人占两个槽位，同样不阻断（缺陷 #77：单人落到"其他角色"）。
+        const singleSpeakerSession = this.knownSpeakerIds().length <= 1;
+        const blocked = !singleSpeakerSession && turns.some(turn => {
+          const others = turn.secondarySpeakerIds.filter(id => id !== turn.speakerId);
+          const sameSpeakerOverlap = turn.secondarySpeakerIds.length > 0 && others.length === 0;
+          return this.blocksBackfillWith(others, (turn.overlap ?? false) && !sameSpeakerOverlap);
+        });
         const single = known.length === 1 && !blocked && bounded && parts.length > 0 &&
           parts.every(part => part.speakerId === known[0]);
         const inferred = parts.some(part => part.speakerInferred) ||
@@ -858,20 +866,27 @@ export class SpeakerDiarizationTranscriptState {
   } {
     const participants = new Set<string>();
     let overlap = false;
+    let unidentified = false;
     let confidence = 1;
     for (let i = 0; i < this.turns.length; i++) {
       const turn = this.turns[i];
       const duration = overlapMs(beginTime, endTime, turn.beginTime, turn.endTime);
       if (duration <= 0) continue;
       participants.add(turn.speakerId);
-      overlap = overlap || !!turn.overlap || turn.secondarySpeakerIds.length > 0;
       confidence = Math.min(confidence, turn.confidence ?? 0);
+      // 更新通道比"句子显示"更保守：只要还看到未定的次说话人就不给确定身份。
+      // 只放开两条：#77 需要的"同人次说话人不算冲突"与"单人会话的重叠是误报"。
+      const others = turn.secondarySpeakerIds.filter(id => id !== turn.speakerId);
+      if (others.some(id => id === UNKNOWN_SPEAKER || id === 'UNKNOWN_SECONDARY')) unidentified = true;
+      const sameSpeakerOverlap = turn.secondarySpeakerIds.length > 0 && others.length === 0;
+      overlap = overlap || (!!turn.overlap && !sameSpeakerOverlap) || others.length > 0;
       for (let j = 0; j < turn.secondarySpeakerIds.length; j++) {
         participants.add(turn.secondarySpeakerIds[j]);
       }
     }
+    const effectiveOverlap = overlap && this.knownSpeakerIds().length > 1;
     const single = participants.size === 1 && !participants.has(UNKNOWN_SPEAKER) &&
-      !participants.has('UNKNOWN_SECONDARY') && !overlap;
+      !participants.has('UNKNOWN_SECONDARY') && !effectiveOverlap && !unidentified;
     const speakerId = single ? Array.from(participants)[0] : UNKNOWN_SPEAKER;
     return {
       speakerId,
@@ -998,6 +1013,20 @@ export class SpeakerDiarizationTranscriptState {
       }
     }
     return merged;
+  }
+
+  /** 本次会话到目前为止解析出的已知身份；单人会话判定用它。 */
+  private knownSpeakerIds(): string[] {
+    const ids = new Set<string>();
+    for (const turn of this.turns) {
+      if (turn.speakerId !== UNKNOWN_SPEAKER && turn.speakerId !== 'UNKNOWN_SECONDARY') ids.add(turn.speakerId);
+    }
+    return Array.from(ids);
+  }
+
+  private blocksBackfillWith(secondary: string[], overlap: boolean): boolean {
+    return secondary.some(id => id !== 'UNKNOWN' && id !== 'UNKNOWN_SECONDARY') ||
+      (overlap && secondary.length === 0);
   }
 
   private blocksBackfill(part: SpeakerTimelineTurn): boolean {
