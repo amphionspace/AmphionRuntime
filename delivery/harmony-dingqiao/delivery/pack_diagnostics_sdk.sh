@@ -123,6 +123,10 @@ if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
     cp "$PROFILE_BACKUP" "$PROFILE"
     PROFILE_REWRITTEN=false
   fi
+  # hvigor 构建时会改写 sherpa HAR 里的 BuildProfile.ets；身份校验把它算作源码改动，
+  # 构建后恢复原文件。
+  git -C "$REPO_ROOT/third_party/.derived/sherpa-onnx" checkout -- \
+    harmony-os/SherpaOnnxHar/sherpa_onnx/BuildProfile.ets 2>/dev/null || true
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
