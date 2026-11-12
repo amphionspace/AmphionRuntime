@@ -114,6 +114,15 @@ if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
       -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
       --no-daemon --stacktrace
   fi
+  # 构建结束立即还原注入的构建输入：随后的产物身份校验会比对源码树的 git 状态。
+  if [[ "$CMAKE_REWRITTEN" == true && -n "${CMAKE_BACKUP:-}" && -f "$CMAKE_BACKUP" ]]; then
+    cp "$CMAKE_BACKUP" "$CMAKE_FILE"
+    CMAKE_REWRITTEN=false
+  fi
+  if [[ "$PROFILE_REWRITTEN" == true && -f "$PROFILE_BACKUP" ]]; then
+    cp "$PROFILE_BACKUP" "$PROFILE"
+    PROFILE_REWRITTEN=false
+  fi
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"
