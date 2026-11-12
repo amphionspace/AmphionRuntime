@@ -18,7 +18,11 @@ PACKAGE_ROOT="$STAGING_ROOT/Amphion-ASR-Diagnostics-SDK"
 PROFILE="$PROJECT_ROOT/build-profile.json5"
 PROFILE_BACKUP="$STAGING_ROOT/build-profile.json5.bak"
 PROFILE_REWRITTEN=false
+CMAKE_REWRITTEN=false
 cleanup() {
+  if [[ "$CMAKE_REWRITTEN" == true && -n "${CMAKE_BACKUP:-}" && -f "$CMAKE_BACKUP" ]]; then
+    cp "$CMAKE_BACKUP" "$CMAKE_FILE"
+  fi
   if [[ "$PROFILE_REWRITTEN" == true && -f "$PROFILE_BACKUP" ]]; then
     cp "$PROFILE_BACKUP" "$PROFILE"
   fi
@@ -48,6 +52,38 @@ profile.write_text(text.replace(match.group(1), str(concrete), 1), encoding="utf
 print(f"[OK] sherpa module resolved to {concrete}")
 PY
   PROFILE_REWRITTEN=true
+  # sherpa HAR 的 CMake 会 FetchContent 拉 node-addon-api；离线构建时指向本地已缓存源码，
+  # 同样在清理阶段还原。
+  CMAKE_FILE="$(python3 - "$PROFILE" <<'PY'
+import re
+import sys
+from pathlib import Path
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(r'"srcPath":\s*"([^"]*SherpaOnnxHar/sherpa_onnx)"', text)
+if not match:
+    raise SystemExit(1)
+print(Path(match.group(1)) / "src/main/cpp/CMakeLists.txt")
+PY
+)"
+  NODE_ADDON_SRC="${NODE_ADDON_API_PREPATCHED:-$REPO_ROOT/.cache/speaker-screen-repro-acf477c2/napi-configure-probe/_deps/node_addon_api-src}"
+  if [[ -f "$CMAKE_FILE" && -d "$NODE_ADDON_SRC" ]]; then
+    CMAKE_BACKUP="$STAGING_ROOT/CMakeLists.txt.bak"
+    cp "$CMAKE_FILE" "$CMAKE_BACKUP"
+    python3 - "$CMAKE_FILE" "$NODE_ADDON_SRC" <<'PY'
+import sys
+from pathlib import Path
+cmake = Path(sys.argv[1])
+source = Path(sys.argv[2]).resolve()
+text = cmake.read_text(encoding="utf-8")
+anchor = "include(FetchContent)"
+if anchor not in text:
+    raise SystemExit("[ERROR] FetchContent anchor missing")
+override = f'set(FETCHCONTENT_SOURCE_DIR_NODE_ADDON_API "{source}" CACHE PATH "" FORCE)\n'
+cmake.write_text(text.replace(anchor, override + anchor, 1), encoding="utf-8")
+print(f"[OK] node-addon-api bound to local source {source}")
+PY
+    CMAKE_REWRITTEN=true
+  fi
 fi
 
 if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
