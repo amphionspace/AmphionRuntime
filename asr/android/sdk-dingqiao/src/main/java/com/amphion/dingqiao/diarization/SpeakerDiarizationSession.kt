@@ -364,7 +364,9 @@ internal class SpeakerDiarizationSession(
         } else {
             committedTurns + timelineFromLocked(commit.end, Int.MAX_VALUE, true)
         }
-        transcript.applySpeakerTurns(turns, true).forEach { update ->
+        val updates = transcript.applySpeakerTurns(turns, true) +
+            transcript.applySpeakerTurns(emptyList())
+        updates.forEach { update ->
             callbacks.enqueue { observer.onUpdate(update.toPublic()) }
         }
         finalSpeakerCount = identities.publishedCount()

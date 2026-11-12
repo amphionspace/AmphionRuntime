@@ -1,0 +1,961 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-11-10T11:14:31.782584+08:00",
+  "report": "docs/speaker/ASR_EC521S_ENCODER_IDLE_GATE_20261110.md",
+  "runtime_baseline": "a8c79ee260f86968076bcf37fc8627695fd6e37c",
+  "actual_git_head": "32b363c79d89bd8bfbeb309d97562faee947085b",
+  "source_state": "uncommitted modifications; identify by file hashes, not a clean baseline commit",
+  "main_apk_sha256": "201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2",
+  "build_stages": {
+    "original_four_and_three_contracts": {
+      "evidence_directory": "/private/tmp/encoder-gate-final-test-build.LodCvW",
+      "gradle_exit_code": 0,
+      "test_apk_sha256": "e46eb6f23f0dcdf4c8b5f7db12b56d31153d8bfa3f297ae624e4a3d580f0b5aa",
+      "main_apk_sha256": "201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2",
+      "public_certificate_sha256": "8d9de5c78e1f31358608f828e61c6240c6f88073591bd0b7d0dfb687ca946698",
+      "source_sha256": {
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/EncoderIdleGate.kt": "57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/IdleEnergyProbe.kt": "4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c",
+        "asr/android/sdk/src/test/java/com/amphion/asr/internal/IdleEnergyProbeTest.kt": "1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542",
+        "asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIdleGateInstrumentedTest.kt": "d4024cf84d16f321047452d6ae0c4cc8ad3b82fd82890112b78b03e8c50eef3d"
+      }
+    },
+    "historical_lcs_diagnostic": {
+      "evidence_directory": "/private/tmp/encoder-gate-historical-final.6ow605",
+      "gradle_exit_code": 0,
+      "test_apk_sha256": "1a618403884a34b82c46b6d1bf3850a376acdde8fb11640c1063eb91404108f1",
+      "main_apk_sha256": "201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2",
+      "public_certificate_sha256": "8d9de5c78e1f31358608f828e61c6240c6f88073591bd0b7d0dfb687ca946698",
+      "source_sha256": {
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/EncoderIdleGate.kt": "57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/IdleEnergyProbe.kt": "4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c",
+        "asr/android/sdk/src/test/java/com/amphion/asr/internal/IdleEnergyProbeTest.kt": "1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542",
+        "asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIdleGateInstrumentedTest.kt": "fbbfff0c584f1aff39cc39f14b8d121409c1b49d70c106138fbd63288195b962"
+      }
+    },
+    "large_chunk_16000_only": {
+      "evidence_directory": "/private/tmp/encoder-gate-large-chunk-build.MlEXVt",
+      "gradle_exit_code": 0,
+      "test_apk_sha256": "030f9d1ab2afd419b5f6e27c006b1aace2527fec634f693bef485650ce1164c3",
+      "main_apk_sha256": "201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2",
+      "public_certificate_sha256": "8d9de5c78e1f31358608f828e61c6240c6f88073591bd0b7d0dfb687ca946698",
+      "source_sha256": {
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/EncoderIdleGate.kt": "57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee",
+        "asr/android/sdk/src/main/java/com/amphion/asr/internal/IdleEnergyProbe.kt": "4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c",
+        "asr/android/sdk/src/test/java/com/amphion/asr/internal/IdleEnergyProbeTest.kt": "1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542",
+        "asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIdleGateInstrumentedTest.kt": "3107e787605db3afb754552746470247eb5d798dc58e1fce4a085f14aa2fdda4"
+      }
+    }
+  },
+  "source_sha256": {
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/SessionImpl.kt": "d503073cbc35d92144ecd2defb0b555d4883b29c652f3780a16dbaefc7c249e4",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/EncoderIdleGate.kt": "57ba27d2dfa6a53aa4a42a21631439c16ff6309ea8a164ccbc12802465b89dee",
+    "asr/android/sdk/src/main/java/com/amphion/asr/internal/IdleEnergyProbe.kt": "4d5aa1a976280f146f30005fb87bca774f323f93d3760633d65cf139e0790d4c",
+    "asr/android/sdk/src/test/java/com/amphion/asr/internal/IdleEnergyProbeTest.kt": "1b9fa87287e24ebb25855cf6243349bfacce1eb54da12412068f468a12799542",
+    "asr/android/samples/dingqiao-demo/src/androidTest/java/com/amphion/dingqiao/demo/EncoderIdleGateInstrumentedTest.kt": "3107e787605db3afb754552746470247eb5d798dc58e1fce4a085f14aa2fdda4"
+  },
+  "unit_tests": {
+    "full_sdk": {
+      "suites": 28,
+      "tests": 119,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "evidence": "/private/tmp/encoder-gate-final-build.QbInur"
+    },
+    "old_probe": {
+      "tests": 12,
+      "failures": 9,
+      "evidence": "/private/tmp/idle-energy-probe-red.XD2XWa"
+    },
+    "new_probe": {
+      "tests": 16,
+      "failures": 0
+    },
+    "historical_lcs_helper": {
+      "boundary_cases": 8,
+      "exhaustive_short_string_pairs": 961,
+      "result": "PASS",
+      "evidence": "/private/tmp/encoder-gate-text-diff-ika49gxo"
+    }
+  },
+  "device_results": {
+    "old_checkpoint": {
+      "result": "EXPECTED_ASSERTION_FAIL",
+      "idleEntries": 4,
+      "expected": 0,
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/old-checkpoint/result.json"
+    },
+    "old_hotwords": {
+      "result": "NATIVE_PROCESS_CRASH_BEFORE_TARGET_ASSERTION",
+      "fixed": false,
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/old-hotwords/crash-filtered.log"
+    },
+    "new_four": {
+      "passed": 3,
+      "failed": 1,
+      "strict_text_320": "FAIL",
+      "control_text_length": 24,
+      "gate_text_length": 26,
+      "original_16000_executed": false,
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/new-four-gate-tests/result.json",
+      "range_assertion_executed_for_320": false
+    },
+    "three_dq_contracts": {
+      "passed": 3,
+      "failed": 0,
+      "cases": [
+        "a06_cancel_noFinalNoComplete",
+        "a10c_finishIdempotent_singleComplete",
+        "a11_vadBegin_initialSilenceAutoFinish"
+      ],
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/new-three-contract-tests/result.json"
+    },
+    "historical_same_input": {
+      "result": "STRICT_EXACT_FAIL",
+      "test_apk_sha256": "1a618403884a34b82c46b6d1bf3850a376acdde8fb11640c1063eb91404108f1",
+      "tests": 1,
+      "failures": 1,
+      "skipped": 0,
+      "process_crashed": false,
+      "driver_elapsed_seconds": 289.253,
+      "host_finished_at": "2026-11-10T10:42:40.097550+08:00",
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/historical-common-replay/result.json",
+      "report_evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/historical-common-replay/report-1794264838973.jsonl",
+      "control": {
+        "publicSamples": 8145600,
+        "streamStartSample": 8095040,
+        "idle": 0,
+        "idleEntries": 0,
+        "idleSamples": 0,
+        "resumes": 0,
+        "bufferedSamples": 0,
+        "finals": 21,
+        "lasts": 1,
+        "stopped": 1,
+        "errors": 0,
+        "callbackTrace": [
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "last",
+          "stopped"
+        ],
+        "gateEnabled": false,
+        "chunkSamples": 320,
+        "comparisonOrder": "control_then_gate",
+        "processCpuMs": 318163,
+        "elapsedMs": 168142,
+        "pcmSamples": 8145600,
+        "pcmSha256": "02f020ed70554a81deea6b37d77509b7e748b6677e29444ebf981d81d2bb64ac",
+        "textLength": 1158,
+        "textSha256": "e2925c4458f0825a280b11ea09892aebd2ddf0e0502231d2fd864e00ff3dc2c4"
+      },
+      "gate": {
+        "publicSamples": 8145600,
+        "streamStartSample": 7996160,
+        "idle": 0,
+        "idleEntries": 22,
+        "idleSamples": 3677120,
+        "resumes": 22,
+        "bufferedSamples": 0,
+        "finals": 20,
+        "lasts": 1,
+        "stopped": 1,
+        "errors": 0,
+        "callbackTrace": [
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "final",
+          "last",
+          "stopped"
+        ],
+        "gateEnabled": true,
+        "chunkSamples": 320,
+        "comparisonOrder": "control_then_gate",
+        "processCpuMs": 211213,
+        "elapsedMs": 113672,
+        "pcmSamples": 8145600,
+        "pcmSha256": "02f020ed70554a81deea6b37d77509b7e748b6677e29444ebf981d81d2bb64ac",
+        "textLength": 1193,
+        "textSha256": "40ae9457b62e1af8f2359cc6cd7fa3e4d2b6873c1e5bb02cbd8e8bc49a71abcb"
+      },
+      "normalized_alignment": {
+        "algorithm": "LCS; ties advance control; zero-based half-open intervals",
+        "normalization": "Unicode letter/digit code points; no case folding",
+        "controlCharacters": 1158,
+        "gateCharacters": 1193,
+        "equal": false,
+        "rawEqual": false,
+        "matchedCharacters": 1075,
+        "controlUnmatched": 83,
+        "gateUnmatched": 118,
+        "controlMaxUnmatchedRun": 8,
+        "gateMaxUnmatchedRun": 9,
+        "controlUnmatchedRanges": [
+          [
+            107,
+            110
+          ],
+          [
+            179,
+            187
+          ],
+          [
+            210,
+            213
+          ],
+          [
+            216,
+            217
+          ],
+          [
+            218,
+            221
+          ],
+          [
+            245,
+            247
+          ],
+          [
+            314,
+            315
+          ],
+          [
+            359,
+            361
+          ],
+          [
+            386,
+            387
+          ],
+          [
+            400,
+            401
+          ],
+          [
+            412,
+            415
+          ],
+          [
+            427,
+            429
+          ],
+          [
+            435,
+            436
+          ],
+          [
+            476,
+            477
+          ],
+          [
+            509,
+            510
+          ],
+          [
+            542,
+            545
+          ],
+          [
+            634,
+            637
+          ],
+          [
+            651,
+            652
+          ],
+          [
+            678,
+            682
+          ],
+          [
+            728,
+            729
+          ],
+          [
+            730,
+            731
+          ],
+          [
+            791,
+            793
+          ],
+          [
+            826,
+            829
+          ],
+          [
+            832,
+            833
+          ],
+          [
+            841,
+            842
+          ],
+          [
+            849,
+            850
+          ],
+          [
+            866,
+            867
+          ],
+          [
+            888,
+            890
+          ],
+          [
+            901,
+            904
+          ],
+          [
+            917,
+            920
+          ],
+          [
+            925,
+            926
+          ],
+          [
+            929,
+            930
+          ],
+          [
+            940,
+            942
+          ],
+          [
+            950,
+            952
+          ],
+          [
+            960,
+            961
+          ],
+          [
+            980,
+            981
+          ],
+          [
+            982,
+            985
+          ],
+          [
+            1009,
+            1010
+          ],
+          [
+            1104,
+            1106
+          ],
+          [
+            1120,
+            1123
+          ],
+          [
+            1140,
+            1141
+          ],
+          [
+            1143,
+            1144
+          ],
+          [
+            1150,
+            1151
+          ]
+        ],
+        "gateUnmatchedRanges": [
+          [
+            108,
+            110
+          ],
+          [
+            189,
+            190
+          ],
+          [
+            205,
+            209
+          ],
+          [
+            210,
+            211
+          ],
+          [
+            235,
+            244
+          ],
+          [
+            249,
+            254
+          ],
+          [
+            265,
+            266
+          ],
+          [
+            317,
+            318
+          ],
+          [
+            325,
+            326
+          ],
+          [
+            354,
+            355
+          ],
+          [
+            364,
+            366
+          ],
+          [
+            391,
+            396
+          ],
+          [
+            420,
+            422
+          ],
+          [
+            434,
+            436
+          ],
+          [
+            442,
+            443
+          ],
+          [
+            479,
+            485
+          ],
+          [
+            489,
+            490
+          ],
+          [
+            516,
+            517
+          ],
+          [
+            523,
+            524
+          ],
+          [
+            645,
+            648
+          ],
+          [
+            662,
+            663
+          ],
+          [
+            689,
+            692
+          ],
+          [
+            738,
+            739
+          ],
+          [
+            740,
+            741
+          ],
+          [
+            801,
+            804
+          ],
+          [
+            837,
+            843
+          ],
+          [
+            846,
+            847
+          ],
+          [
+            855,
+            856
+          ],
+          [
+            863,
+            864
+          ],
+          [
+            885,
+            887
+          ],
+          [
+            903,
+            904
+          ],
+          [
+            908,
+            909
+          ],
+          [
+            916,
+            921
+          ],
+          [
+            935,
+            937
+          ],
+          [
+            944,
+            945
+          ],
+          [
+            948,
+            956
+          ],
+          [
+            963,
+            967
+          ],
+          [
+            975,
+            977
+          ],
+          [
+            984,
+            986
+          ],
+          [
+            1007,
+            1015
+          ],
+          [
+            1021,
+            1022
+          ],
+          [
+            1079,
+            1085
+          ],
+          [
+            1111,
+            1112
+          ],
+          [
+            1141,
+            1143
+          ],
+          [
+            1157,
+            1158
+          ],
+          [
+            1175,
+            1176
+          ],
+          [
+            1178,
+            1179
+          ],
+          [
+            1181,
+            1182
+          ]
+        ]
+      },
+      "cpu_work_reduction_percent": 33.615,
+      "timed_interval_elapsed_reduction_percent": 32.395,
+      "comparison_limits": [
+        "single_run",
+        "fixed_control_then_gate_order",
+        "cache_and_process_noise",
+        "no_human_reference",
+        "not_USB_or_thermal_measurement",
+        "LCS_not_directly_comparable_to_old_SequenceMatcher"
+      ],
+      "flattened_token_counts": {
+        "control": 1206,
+        "gate": 1239,
+        "not_directly_indexable_by_normalized_LCS_character_ranges": true
+      }
+    },
+    "isolated_16000": {
+      "result": "STRICT_EXACT_FAIL",
+      "argument": {
+        "encoderIdleCallerChunk": "16000"
+      },
+      "test_apk_sha256": "030f9d1ab2afd419b5f6e27c006b1aace2527fec634f693bef485650ce1164c3",
+      "tests": 1,
+      "failures": 1,
+      "skipped": 0,
+      "process_crashed": false,
+      "driver_elapsed_seconds": 15.673,
+      "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/new-large-caller-chunk/result.json",
+      "report_evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/new-large-caller-chunk/report-1794265332238.jsonl",
+      "control": {
+        "publicSamples": 291840,
+        "streamStartSample": 288000,
+        "idle": 0,
+        "idleEntries": 0,
+        "idleSamples": 0,
+        "resumes": 0,
+        "bufferedSamples": 0,
+        "finals": 2,
+        "lasts": 1,
+        "stopped": 1,
+        "errors": 0,
+        "callbackTrace": [
+          "final",
+          "last",
+          "stopped"
+        ],
+        "gateEnabled": false,
+        "chunkSamples": 16000,
+        "comparisonOrder": "control_then_gate",
+        "processCpuMs": 9760,
+        "elapsedMs": 5072,
+        "pcmSamples": 291840,
+        "pcmSha256": "966ef95ca676f5adb9fc0e3f5658136c1e9c725230a7d46827e019ece4689508",
+        "textLength": 27,
+        "textSha256": "fdf8c181c6db2003022df748759cdea793d267fb1167756b7b9648e853cef073"
+      },
+      "gate": {
+        "publicSamples": 291840,
+        "streamStartSample": 288000,
+        "idle": 1,
+        "idleEntries": 3,
+        "idleSamples": 23680,
+        "resumes": 2,
+        "bufferedSamples": 3840,
+        "finals": 2,
+        "lasts": 1,
+        "stopped": 1,
+        "errors": 0,
+        "callbackTrace": [
+          "final",
+          "last",
+          "stopped"
+        ],
+        "gateEnabled": true,
+        "chunkSamples": 16000,
+        "comparisonOrder": "control_then_gate",
+        "processCpuMs": 9300,
+        "elapsedMs": 4830,
+        "pcmSamples": 291840,
+        "pcmSha256": "966ef95ca676f5adb9fc0e3f5658136c1e9c725230a7d46827e019ece4689508",
+        "textLength": 26,
+        "textSha256": "0f4140253f6e17cc5dbc365266a3af1e56ecfb077f035348bef3465b6cef3824"
+      },
+      "post_run_alignment": {
+        "matched_characters": 26,
+        "control_unmatched": 1,
+        "gate_unmatched": 0,
+        "control_unmatched_ranges": [
+          [
+            18,
+            19
+          ]
+        ],
+        "gate_unmatched_ranges": []
+      },
+      "range_assertion_executed": false,
+      "gate_text_hash_matches_320_and_checkpoint": true,
+      "gate_timestamps_match_320": true
+    }
+  },
+  "common_historical_input": {
+    "sample_rate_hz": 16000,
+    "channels": 1,
+    "encoding": "PCM16LE",
+    "samples": 8145600,
+    "bytes": 16291200,
+    "duration_seconds": 509.1,
+    "sha256": "02f020ed70554a81deea6b37d77509b7e748b6677e29444ebf981d81d2bb64ac"
+  },
+  "short_320_pcm_diagnostic": {
+    "idle_input_samples": 49600,
+    "net_omitted_samples": 17280,
+    "net_omitted_seconds": 1.08,
+    "omitted_sample_ranges_half_open": [
+      [
+        43520,
+        51520
+      ],
+      [
+        266560,
+        275840
+      ]
+    ],
+    "omitted_ranges_within_synthetic_zeros": true,
+    "actual_fixture_pcm_omission_supported": false,
+    "strict_text_result": "FAIL",
+    "recognition_quality": "UNKNOWN_NO_HUMAN_REFERENCE"
+  },
+  "new_power_and_thermal_result": "PENDING; no new power or temperature claim",
+  "release_qualified": false,
+  "excluded_payloads": [
+    "customer_audio",
+    "recognition_transcripts",
+    "licenses",
+    "private_keys",
+    "signing_passwords",
+    "device_serial"
+  ],
+  "device_summary": {
+    "boundary_and_contract_passes": 6,
+    "strict_text_comparison_failures": 3,
+    "recognition_quality": "UNKNOWN_NO_HUMAN_REFERENCE",
+    "release_qualified": false,
+    "selected_new_test_executions": 9,
+    "skipped": 0,
+    "crashed": 0,
+    "timed_out": 0,
+    "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/new-results.md"
+  },
+  "historical_comparison_algorithm": {
+    "normalization": "Unicode isalnum",
+    "algorithm": "SequenceMatcher(autojunk=False)",
+    "not_CER": true
+  },
+  "short_cross_chunk_diagnostics": {
+    "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/short-chunks-alignment.json",
+    "evidence_phase": "Initial chunk320 compact comparison omitted common characters; later chunk16000 full comparison and raw SHA256 closure established exact chunk320 alignment. No rerun.",
+    "complete_text_sha256_closure": true,
+    "normalization": "Unicode isalnum; no case folding",
+    "chunk320": {
+      "normalization": "Unicode isalnum; no case folding",
+      "controlCharacters": 24,
+      "gateCharacters": 26,
+      "lcsMatched": 24,
+      "controlUnmatched": 0,
+      "gateUnmatched": 2,
+      "sequenceMatcherAutojunk": false,
+      "sequenceMatcherOpcodes": [
+        {
+          "tag": "insert",
+          "control": [
+            0,
+            0
+          ],
+          "gate": [
+            0,
+            2
+          ]
+        },
+        {
+          "tag": "equal",
+          "control": [
+            0,
+            24
+          ],
+          "gate": [
+            2,
+            26
+          ]
+        }
+      ]
+    },
+    "chunk16000": {
+      "normalization": "Unicode isalnum; no case folding",
+      "controlCharacters": 27,
+      "gateCharacters": 26,
+      "lcsMatched": 26,
+      "controlUnmatched": 1,
+      "gateUnmatched": 0,
+      "sequenceMatcherAutojunk": false,
+      "sequenceMatcherOpcodes": [
+        {
+          "tag": "equal",
+          "control": [
+            0,
+            18
+          ],
+          "gate": [
+            0,
+            18
+          ]
+        },
+        {
+          "tag": "delete",
+          "control": [
+            18,
+            19
+          ],
+          "gate": [
+            18,
+            18
+          ]
+        },
+        {
+          "tag": "equal",
+          "control": [
+            19,
+            27
+          ],
+          "gate": [
+            18,
+            26
+          ]
+        }
+      ]
+    },
+    "control320To16000": {
+      "normalization": "Unicode isalnum; no case folding",
+      "controlCharacters": 24,
+      "gateCharacters": 27,
+      "lcsMatched": 24,
+      "controlUnmatched": 0,
+      "gateUnmatched": 3,
+      "sequenceMatcherAutojunk": false,
+      "sequenceMatcherOpcodes": [
+        {
+          "tag": "insert",
+          "control": [
+            0,
+            0
+          ],
+          "gate": [
+            0,
+            2
+          ]
+        },
+        {
+          "tag": "equal",
+          "control": [
+            0,
+            16
+          ],
+          "gate": [
+            2,
+            18
+          ]
+        },
+        {
+          "tag": "insert",
+          "control": [
+            16,
+            16
+          ],
+          "gate": [
+            18,
+            19
+          ]
+        },
+        {
+          "tag": "equal",
+          "control": [
+            16,
+            24
+          ],
+          "gate": [
+            19,
+            27
+          ]
+        }
+      ]
+    },
+    "gate320To16000": {
+      "normalization": "Unicode isalnum; no case folding",
+      "controlCharacters": 26,
+      "gateCharacters": 26,
+      "lcsMatched": 26,
+      "controlUnmatched": 0,
+      "gateUnmatched": 0,
+      "sequenceMatcherAutojunk": false,
+      "sequenceMatcherOpcodes": [
+        {
+          "tag": "equal",
+          "control": [
+            0,
+            26
+          ],
+          "gate": [
+            0,
+            26
+          ]
+        }
+      ]
+    },
+    "gate_timestamp_arrays_exactly_equal": true,
+    "original_timestamp_range_assertion_executed": false,
+    "per_final_text_boundaries_recorded": false,
+    "posthoc_timestamp_checks": {
+      "control320": {
+        "tokenCount": 24,
+        "within_declared_posthoc_range": true,
+        "monotonic": true
+      },
+      "gate320": {
+        "tokenCount": 26,
+        "within_declared_posthoc_range": true,
+        "monotonic": true
+      },
+      "control16000": {
+        "tokenCount": 27,
+        "within_declared_posthoc_range": true,
+        "monotonic": true
+      },
+      "gate16000": {
+        "tokenCount": 26,
+        "within_declared_posthoc_range": true,
+        "monotonic": true
+      }
+    },
+    "text_sha256": {
+      "control320": "8c4465c0b58d4531be42136d285f7cd9ae9e6acfd5123fe1c2e29fdd94979e60",
+      "control16000": "fdf8c181c6db2003022df748759cdea793d267fb1167756b7b9648e853cef073",
+      "gate_both_chunks_and_checkpoint": "0f4140253f6e17cc5dbc365266a3af1e56ecfb077f035348bef3465b6cef3824"
+    }
+  },
+  "final_installed_identity": {
+    "verified_at": "2026-11-10T10:59:27.817562+08:00",
+    "apks": [
+      {
+        "package": "com.amphion.dingqiao.demo",
+        "sha256": "201492970fd0a5278be360859171dfb3c56ce67e4d64006eaacde10c87b74ea2"
+      },
+      {
+        "package": "com.amphion.dingqiao.demo.test",
+        "sha256": "030f9d1ab2afd419b5f6e27c006b1aace2527fec634f693bef485650ce1164c3"
+      }
+    ],
+    "all_expected_old_and_new_report_directories_preserved": true,
+    "preserved_gate_report_directories": 7,
+    "remaining_verification_jobs": 0,
+    "evidence": "/private/tmp/ec521s-old-gate-verification-spikmhrq/final-installed-identity.json"
+  }
+}

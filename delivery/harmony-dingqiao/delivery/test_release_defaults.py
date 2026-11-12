@@ -56,7 +56,8 @@ class ReleaseDefaultsTest(unittest.TestCase):
             REPO_ROOT
             / "delivery/harmony-dingqiao/delivery/pack_dingqiao_harmony_customer_delivery.sh"
         ).read_text(encoding="utf-8")
-        self.assertIn(f"UPGRADE_{VERSION}.md", pack_script)
+        # 组包脚本按交付版本取用升级说明（不再硬编码某一版文件名）。
+        self.assertIn("UPGRADE_${VERSION}.md", pack_script)
         self.assertTrue(
             (REPO_ROOT / f"delivery/harmony-dingqiao/docs/customer/UPGRADE_{VERSION}.md").is_file()
         )

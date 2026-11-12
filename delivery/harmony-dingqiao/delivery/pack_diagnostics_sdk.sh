@@ -13,12 +13,94 @@ mkdir -p "$OUTPUT_ROOT"
 STAGING_ROOT="$(mktemp -d "$OUTPUT_ROOT/.diagnostics-sdk-package.XXXXXX")"
 PACKAGE_ROOT="$STAGING_ROOT/Amphion-ASR-Diagnostics-SDK"
 
+# hvigor 不解析模块路径里的符号链接；这里把 build-profile.json5 的 sherpa 模块指向
+# 解析后的实体目录，构建结束再还原，避免为了原地构建去复制整棵派生树。
+PROFILE="$PROJECT_ROOT/build-profile.json5"
+PROFILE_BACKUP="$STAGING_ROOT/build-profile.json5.bak"
+PROFILE_REWRITTEN=false
+CMAKE_REWRITTEN=false
 cleanup() {
+  if [[ "$CMAKE_REWRITTEN" == true && -n "${CMAKE_BACKUP:-}" && -f "$CMAKE_BACKUP" ]]; then
+    cp "$CMAKE_BACKUP" "$CMAKE_FILE"
+  fi
+  if [[ "$PROFILE_REWRITTEN" == true && -f "$PROFILE_BACKUP" ]]; then
+    cp "$PROFILE_BACKUP" "$PROFILE"
+  fi
   rm -rf "$STAGING_ROOT"
 }
 trap cleanup EXIT
 
 cd "$PROJECT_ROOT"
+
+if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
+  cp "$PROFILE" "$PROFILE_BACKUP"
+  python3 - "$PROFILE" "$REPO_ROOT/third_party/.derived" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+profile = Path(sys.argv[1])
+derived = Path(sys.argv[2]).resolve()
+text = profile.read_text(encoding="utf-8")
+match = re.search(r'"srcPath":\s*"([^"]*SherpaOnnxHar/sherpa_onnx)"', text)
+if not match:
+    raise SystemExit("[ERROR] sherpa_onnx module entry not found in build-profile.json5")
+concrete = (derived / "sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx").resolve()
+if not concrete.is_dir():
+    raise SystemExit(f"[ERROR] resolved sherpa module path missing: {concrete}")
+profile.write_text(text.replace(match.group(1), str(concrete), 1), encoding="utf-8")
+print(f"[OK] sherpa module resolved to {concrete}")
+PY
+  PROFILE_REWRITTEN=true
+  # 签名：把 HARMONY_SIGNING_CONFIG 注入 signingConfigs，构建结束随 profile 一起还原。
+  if [[ -n "${HARMONY_SIGNING_CONFIG:-}" && -f "${HARMONY_SIGNING_CONFIG}" ]]; then
+    python3 - "$PROFILE" "$HARMONY_SIGNING_CONFIG" <<'PY'
+import json
+import sys
+from pathlib import Path
+profile_path = Path(sys.argv[1])
+signing = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+profile = json.loads(profile_path.read_text(encoding="utf-8"))
+profile["app"]["signingConfigs"] = [{"name": "default", "type": "HarmonyOS", "material": signing}]
+for product in profile["app"].get("products", []):
+    product["signingConfig"] = "default"
+profile_path.write_text(json.dumps(profile, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+print("[OK] signing config injected for diagnostics demo")
+PY
+  fi
+  # sherpa HAR 的 CMake 会 FetchContent 拉 node-addon-api；离线构建时指向本地已缓存源码，
+  # 同样在清理阶段还原。
+  CMAKE_FILE="$(python3 - "$PROFILE" <<'PY'
+import re
+import sys
+from pathlib import Path
+text = Path(sys.argv[1]).read_text(encoding="utf-8")
+match = re.search(r'"srcPath":\s*"([^"]*SherpaOnnxHar/sherpa_onnx)"', text)
+if not match:
+    raise SystemExit(1)
+print(Path(match.group(1)) / "src/main/cpp/CMakeLists.txt")
+PY
+)"
+  NODE_ADDON_SRC="${NODE_ADDON_API_PREPATCHED:-$REPO_ROOT/.cache/speaker-screen-repro-acf477c2/napi-configure-probe/_deps/node_addon_api-src}"
+  if [[ -f "$CMAKE_FILE" && -d "$NODE_ADDON_SRC" ]]; then
+    CMAKE_BACKUP="$STAGING_ROOT/CMakeLists.txt.bak"
+    cp "$CMAKE_FILE" "$CMAKE_BACKUP"
+    python3 - "$CMAKE_FILE" "$NODE_ADDON_SRC" <<'PY'
+import sys
+from pathlib import Path
+cmake = Path(sys.argv[1])
+source = Path(sys.argv[2]).resolve()
+text = cmake.read_text(encoding="utf-8")
+anchor = "include(FetchContent)"
+if anchor not in text:
+    raise SystemExit("[ERROR] FetchContent anchor missing")
+override = f'set(FETCHCONTENT_SOURCE_DIR_NODE_ADDON_API "{source}" CACHE PATH "" FORCE)\n'
+cmake.write_text(text.replace(anchor, override + anchor, 1), encoding="utf-8")
+print(f"[OK] node-addon-api bound to local source {source}")
+PY
+    CMAKE_REWRITTEN=true
+  fi
+fi
 
 if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
   for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
@@ -32,6 +114,19 @@ if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
       -p product=default -p module=amphion_asr_demo@default -p buildMode=diagnostics \
       --no-daemon --stacktrace
   fi
+  # 构建结束立即还原注入的构建输入：随后的产物身份校验会比对源码树的 git 状态。
+  if [[ "$CMAKE_REWRITTEN" == true && -n "${CMAKE_BACKUP:-}" && -f "$CMAKE_BACKUP" ]]; then
+    cp "$CMAKE_BACKUP" "$CMAKE_FILE"
+    CMAKE_REWRITTEN=false
+  fi
+  if [[ "$PROFILE_REWRITTEN" == true && -f "$PROFILE_BACKUP" ]]; then
+    cp "$PROFILE_BACKUP" "$PROFILE"
+    PROFILE_REWRITTEN=false
+  fi
+  # hvigor 构建时会改写 sherpa HAR 里的 BuildProfile.ets；身份校验把它算作源码改动，
+  # 构建后恢复原文件。
+  git -C "$REPO_ROOT/third_party/.derived/sherpa-onnx" checkout -- \
+    harmony-os/SherpaOnnxHar/sherpa_onnx/BuildProfile.ets 2>/dev/null || true
 fi
 
 BUILD_IDENTITY="$OUTPUT_ROOT/build-identity.json"

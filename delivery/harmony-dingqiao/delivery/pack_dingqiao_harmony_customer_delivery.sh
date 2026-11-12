@@ -10,6 +10,7 @@ BUILD_DATE="${AMPHION_BUILD_DATE:-$(date +%Y%m%d)}"
 FINAL_OUT_ROOT=""
 ASR_ONLY=false
 SDK_ONLY=false
+ZH_EN_ONLY=false
 ALLOW_DIRTY=false
 
 usage() {
@@ -19,6 +20,7 @@ Usage: pack_dingqiao_harmony_customer_delivery.sh [--asr-only|--sdk-only] [--all
 Options:
   --asr-only  Package the ASR SDK/demo without requiring TTS build artifacts.
   --sdk-only  Package only the zh-en ASR HAR and public customer documents.
+  --zh-en-only  Ship the zh-en ASR assets only (no yue-en bundle).
   --allow-dirty  Permit a non-release package from a dirty worktree; recorded in provenance.
   -h, --help  Show this help.
 
@@ -31,6 +33,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --asr-only) ASR_ONLY=true; shift ;;
     --sdk-only) SDK_ONLY=true; shift ;;
+    --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --allow-dirty) ALLOW_DIRTY=true; shift ;;
     -h|--help) usage; exit 0 ;;
     -*) echo "[ERROR] unknown argument: $1" >&2; usage >&2; exit 2 ;;
@@ -114,7 +117,7 @@ RELEASE_INPUTS=(
   delivery/harmony-dingqiao/docs/customer/NOTICE
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_INTEGRATION.md
   delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md
-  delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.27.md
+  "delivery/harmony-dingqiao/docs/customer/UPGRADE_${VERSION}.md"
   delivery/harmony-dingqiao/docs/customer/ASR_TROUBLESHOOTING.md
   delivery/harmony-dingqiao/docs/PRIVACY.md
   delivery/harmony-dingqiao/docs/语音识别SDK接口.md
@@ -218,10 +221,17 @@ if [[ "$SDK_ONLY" == true ]]; then
   "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
     --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
 else
-  bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
-  "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
-    "$OUT_ROOT/har/amphion_dingqiao.har"
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
+      --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
+    "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
+      --zh-en-only "$OUT_ROOT/har/amphion_dingqiao.har"
+  else
+    bash "$REPO_ROOT/delivery/harmony-dingqiao/delivery/assemble_selfcontained_dingqiao_har.sh" \
+      "$OUT_ROOT/har/amphion_dingqiao.har"
+    "$SCRIPT_DIR/verify_selfcontained_dingqiao_har.sh" \
+      "$OUT_ROOT/har/amphion_dingqiao.har"
+  fi
 fi
 python3 - "$OUT_ROOT/har/amphion_dingqiao.har" "$VERSION" <<'PY'
 import json
@@ -259,9 +269,15 @@ if [[ "$SDK_ONLY" != true ]]; then
     echo "[ERROR] customer packaging requires HARMONY_SIGNING_CONFIG or .secure/harmony-signing.json" >&2
     exit 1
   fi
-  "$SCRIPT_DIR/verify_demo_inputs.sh" \
-    --hap "$HAP_SRC" \
-    --signing-config "$SIGNING_CONFIG"
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    "$SCRIPT_DIR/verify_demo_inputs.sh" \
+      --hap "$HAP_SRC" \
+      --signing-config "$SIGNING_CONFIG"       --zh-en-only
+  else
+    "$SCRIPT_DIR/verify_demo_inputs.sh" \
+      --hap "$HAP_SRC" \
+      --signing-config "$SIGNING_CONFIG"
+  fi
   python3 - "$HAP_SRC" "$VERSION" <<'PY'
 import json
 import sys
@@ -342,8 +358,8 @@ if [[ "$SDK_ONLY" == true ]]; then
     "$OUT_ROOT/docs/INTEGRATION.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/DINGQIAO_ASR_LICENSE_SCHEME.md" \
     "$OUT_ROOT/docs/LICENSE_SCHEME.md"
-  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_0.3.27.md" \
-    "$OUT_ROOT/docs/UPGRADE_0.3.27.md"
+  cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/customer/UPGRADE_${VERSION}.md" \
+    "$OUT_ROOT/docs/UPGRADE_${VERSION}.md"
   cp -v "$REPO_ROOT/delivery/harmony-dingqiao/docs/语音识别SDK接口.md" "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md"
   python3 - "$OUT_ROOT/docs/ASR_SDK_API_HARMONY.md" <<'PY'
 import sys
@@ -384,7 +400,7 @@ path.write_text(f"""# Amphion HarmonyOS 离线 ASR SDK {version}
 | `har/amphion_dingqiao.har` | HarmonyOS API 12+、`arm64-v8a` 离线 ASR SDK |
 | `docs/INTEGRATION.md` | 集成入口与调用顺序 |
 | `docs/ASR_SDK_API_HARMONY.md` | 完整公开 API 契约 |
-| `docs/UPGRADE_0.3.27.md` | 相对 0.3.26：角色归属改由声纹身份决定（默认开启）、静音不再被转写出"嗯" |
+| `docs/UPGRADE_{version}.md` | 相对上一版：机主短指令、静音离场与单人角色归属的修复说明 |
 | `docs/ASR_LIFECYCLE_ASSURANCE_20260716.md` | 生命周期修复保证、时序图和验证摘要 |
 | `docs/LICENSE.md` | 商用授权接入 |
 | `docs/TROUBLESHOOTING.md` | 故障排查与日志采集 |
@@ -551,6 +567,16 @@ if sdk_only:
 (out / "docs/BUILD_PROVENANCE.json").write_text(
     json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
 )
+PY
+
+# 客户文档不允许出现内部品牌词：提交明细可能带出历史标题，这里统一中性化。
+python3 - "$OUT_ROOT/docs/CHANGELOG.md" <<'PY'
+import sys
+from pathlib import Path
+path = Path(sys.argv[1])
+text = path.read_text(encoding="utf-8")
+if "鼎桥" in text:
+    path.write_text(text.replace("鼎桥", "客户适配层"), encoding="utf-8")
 PY
 
 python3 "$SCRIPT_DIR/check_customer_delivery_redaction.py" \

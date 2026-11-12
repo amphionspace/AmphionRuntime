@@ -81,6 +81,9 @@ internal class SessionImpl(
     @Volatile
     private var targetEmbedding: FloatArray? = null
 
+    /** 注册样本的独立模板（缺陷 #97）：多模板时打分取最大，避免合并质心稀释判别力。 */
+    private var targetTemplates: List<FloatArray> = emptyList()
+
     /** 声纹打分器；decoder 线程独占，首次开关开启时懒加载。 */
     private var speakerVerifier: SpeakerVerifier? = null
 
@@ -190,6 +193,19 @@ internal class SessionImpl(
 
     /** 不足 [vadWindowSize] 的余数 PCM；下次 feed 时拼回；只在 decoder 线程访问。 */
     private var vadCarry: FloatArray = FloatArray(0)
+
+    /**
+     * 静音段不送 encoder 的门控；没有 VAD 就没有门控。只在 decoder 线程访问。
+     * 能否进入 IDLE 还要看 [encoderIdleAllowed]（目标说话人 / speaker VAD / 首段静音计时期间不门控）。
+     */
+    private val encoderIdleGate: EncoderIdleGate? =
+        if (vad != null && ENCODER_IDLE_PREROLL_MS > 0) EncoderIdleGate(sampleRate, ENCODER_IDLE_PREROLL_MS) else null
+
+    /** 进入 IDLE 时 stream 自上次 reset 起已收下的样本数；恢复时据此把时间轴原点对回去。 */
+    private var idleStreamSamplesBeforeGap: Long = 0L
+
+    /** IDLE 期间的能量兜底：silero 迟报起音时由它唤醒，见 [IdleEnergyProbe]。 */
+    private val idleEnergyProbe: IdleEnergyProbe? = if (encoderIdleGate != null) IdleEnergyProbe(sampleRate) else null
     private var vadProcessedSamples: Long = 0
     private var vadLastSpeechEndSample: Long = -1
 
@@ -325,6 +341,10 @@ internal class SessionImpl(
                         val old = stream
                         stream = r.value
                         streamStartSample = publicSamplesFed
+                        // The new stream must not inherit PCM or timing from the replaced stream.
+                        encoderIdleGate?.reset()
+                        idleEnergyProbe?.disarm()
+                        idleStreamSamplesBeforeGap = 0L
                         currentHotwords = newHotwords
                         lastPartialText = ""
                         NativeGuard.runQuietly("oldStream.release") { old.release() }
@@ -355,7 +375,15 @@ internal class SessionImpl(
     fun setTargetSpeaker(embedding: FloatArray) {
         if (closed.get()) return
         targetEmbedding = embedding.copyOf()
+        targetTemplates = emptyList()
         Logger.i("session $sessionId target speaker embedding set: dim=${embedding.size}")
+    }
+
+    /** 注入注册样本的多模板；打分对这些模板取最大相似度（与鸿蒙同口径）。 */
+    fun setTargetSpeakerTemplates(templates: List<FloatArray>) {
+        if (closed.get() || templates.isEmpty()) return
+        targetTemplates = templates.map { it.copyOf() }
+        Logger.i("session $sessionId target speaker templates set: count=${templates.size}")
     }
 
     fun clearTargetSpeaker() {
@@ -404,7 +432,7 @@ internal class SessionImpl(
             stopped.set(true)
             decoderHandler.post {
                 val agcOk = agcIngress.flush("agc.flush(stop)", ::feedAndDecode)
-                if (agcOk) {
+                if (agcOk && resumeEncoderFromIdle("stop")) {
                     maybeCommitFinishDeparture()
                     val r = NativeGuard.run("stream.inputFinished+drain") {
                         if (speakerVadEnabled) {
@@ -435,6 +463,7 @@ internal class SessionImpl(
                 speakerPcmBuffers.clearAll()
                 effectiveSpeechBuffer.reset()
                 agcIngress.close()
+                logEncoderIdleSummary()
                 if (finalCallbackOrderGate.requestStopped()) postSessionStopped()
             }
         }
@@ -576,7 +605,11 @@ internal class SessionImpl(
     }
 
     private fun feedAndDecode(frame: ProcessedAudioFrame) {
+        if (encoderIdleGate?.idle == true && !encoderIdleAllowed()) {
+            if (!resumeEncoderFromIdle("policy-change")) return
+        }
         var offset = 0
+        val encoderFrameSamples = (sampleRate / 100).coerceAtLeast(1)
         val initialDecisionChunkSamples = (sampleRate / INITIAL_DECISION_CHUNKS_PER_SECOND).coerceAtLeast(1)
         while (offset < frame.raw.size && !closed.get() && !initialSilenceTimeoutSent) {
             val remaining = frame.raw.size - offset
@@ -584,6 +617,18 @@ internal class SessionImpl(
                 minOf(remaining, initialDecisionChunkSamples)
             } else {
                 remaining
+            }
+            // Bound IDLE decisions on the PCM clock, before a caller-sized buffer can replace
+            // the whole pre-roll. A wake consumes only this slice; the suffix stays ACTIVE.
+            if (encoderIdleGate?.idle == true) {
+                chunkSize = minOf(chunkSize, idleEnergyProbe!!.samplesUntilNextDecision)
+            } else {
+                // Match AGC's 10 ms PCM clock before accepting waveform. A restart must
+                // leave the caller's unaccepted suffix for the next stream.
+                chunkSize = minOf(
+                    chunkSize,
+                    encoderFrameSamples - (publicSamplesFed % encoderFrameSamples).toInt(),
+                )
             }
             if (speakerVadEnabled) {
                 effectiveSpeakerVad?.let { speakerVad ->
@@ -626,10 +671,11 @@ internal class SessionImpl(
         if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(rawSamples)
         speakerPcmBuffers.observe(
             rawSamples,
-            captureSpeakerVad = speakerVadEnabled,
+            // 仅机主识别时也要留 speaker-VAD 缓冲：离场检测与收尾切片都取这一段。
+            captureSpeakerVad = speakerVadEnabled || targetSpeakerEnabled,
             captureFallback = targetSpeakerEnabled,
         )
-        if (speakerVadEnabled) {
+        if (speakerTurnDetectionActive()) {
             effectiveSpeakerVad?.let { speakerVad ->
                 speakerTurnFinalizer(speakerVad).accept(rawSamples, processedSamples)
                 // Score before this deadline slice reaches the speculative stream. A confirmed
@@ -639,17 +685,26 @@ internal class SessionImpl(
             }
         }
 
-        // 保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
+        // ACTIVE 时保持 PCM 全量进 ASR，让 partial 实时性不受 VAD 抖动影响。VAD 只做 gate
         // + 主动 endpoint（更敏感的尾静音切分），它们与 sherpa endpoint 规则并存：
-        // 谁先触发以谁为准。
+        // 谁先触发以谁为准。IDLE（端点后的静音段）时 PCM 只进预滚环，不碰 encoder，
+        // 由下面的 VAD 起音把它唤醒；见 [EncoderIdleGate]。
         val resetGenerationBefore = recognizerResetGeneration.snapshot()
-        val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
-            stream.acceptWaveform(processedSamples, sampleRate)
-            drainDecoder(isFinal = false)
-        }
-        if (asrR is NativeResult.Err) {
-            postError(asrR.error)
-            return false
+        val gate = encoderIdleGate
+        var energyWake = false
+        if (gate != null && gate.idle) {
+            gate.observe(processedSamples)
+            // Guard the actual encoder input: AGC can make low-level raw speech audible.
+            energyWake = idleEnergyProbe?.observe(processedSamples) == true
+        } else {
+            val asrR = NativeGuard.run("stream.acceptWaveform+drain") {
+                stream.acceptWaveform(processedSamples, sampleRate)
+                drainDecoder(isFinal = false)
+            }
+            if (asrR is NativeResult.Err) {
+                postError(asrR.error)
+                return false
+            }
         }
 
         val v = vad ?: return true
@@ -766,6 +821,57 @@ internal class SessionImpl(
                 }
             }
         }
+        if (gate != null && gate.idle && (anySpeech || energyWake)) {
+            return resumeEncoderFromIdle(if (anySpeech) "vad-onset" else "energy")
+        }
+        return true
+    }
+
+    /** 本会话当前是否允许进入 IDLE：这些模式都假设 stream 持有全部音频，不门控。 */
+    private fun encoderIdleAllowed(): Boolean =
+        encoderIdleGate != null &&
+            !targetSpeakerEnabled &&
+            !speakerVadEnabled &&
+            (initialSpeechDetected || initialSilenceTimeoutSamples <= 0L)
+
+    /** Only a fresh stream after a confirmed silence boundary may skip encoder input. */
+    private fun maybeEnterEncoderIdle(reason: String) {
+        val gate = encoderIdleGate ?: return
+        if (gate.idle || !encoderIdleAllowed()) return
+        gate.enterIdle()
+        idleEnergyProbe?.arm()
+        idleStreamSamplesBeforeGap = (publicSamplesFed - streamStartSample).coerceAtLeast(0L)
+        Logger.metric(
+            "kind=STREAM_TRANSITION sessionId=$sessionId action=encoder-idle reason=$reason " +
+                "publicSamples=$publicSamplesFed streamStartSample=$streamStartSample",
+        )
+    }
+
+    /**
+     * 退出 IDLE：把预滚（最近 [ENCODER_IDLE_PREROLL_MS] 内的 PCM）一次性送进 encoder 并解码。
+     * native 时间戳以上次 reset 为原点；IDLE 期间 stream 没收音频，所以原点要从预滚起点
+     * 再往前挪 reset 之后、进入 IDLE 之前已送入的那一点样本，公开时间轴才不受门控影响。
+     */
+    private fun resumeEncoderFromIdle(reason: String): Boolean {
+        val gate = encoderIdleGate ?: return true
+        if (!gate.idle) return true
+        val preRoll = gate.resume()
+        idleEnergyProbe?.disarm()
+        streamStartSample = publicSamplesFed - preRoll.size - idleStreamSamplesBeforeGap
+        idleStreamSamplesBeforeGap = 0L
+        Logger.metric(
+            "kind=STREAM_TRANSITION sessionId=$sessionId action=encoder-resume reason=$reason " +
+                "preRollMs=${preRoll.size * 1000L / sampleRate}",
+        )
+        if (preRoll.isEmpty()) return true
+        val r = NativeGuard.run("stream.acceptWaveform(resume)+drain") {
+            stream.acceptWaveform(preRoll, sampleRate)
+            drainDecoder(isFinal = false)
+        }
+        if (r is NativeResult.Err) {
+            postError(r.error)
+            return false
+        }
         return true
     }
 
@@ -797,6 +903,7 @@ internal class SessionImpl(
         // inputFinished can yield a final without satisfying native endpoint rules; announce
         // this public boundary first and prevent a duplicate native endpoint event.
         postEndpoint()
+        val streamBeforeEndpoint = stream
         val r = NativeGuard.run("vad.activeEndpoint") {
             stream.inputFinished()
             drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
@@ -807,6 +914,7 @@ internal class SessionImpl(
         }
         vadCarry = FloatArray(0)
         resetSpeakerVadState()
+        if (stream !== streamBeforeEndpoint) maybeEnterEncoderIdle("vad-silence")
     }
 
     /**
@@ -949,6 +1057,7 @@ internal class SessionImpl(
         hasEvidence: Boolean,
         isFinalFlush: Boolean,
     ) {
+        var silentFreshStream = false
         when (NativeEndpointTransitionPolicy.decide(endpointReason, hasEvidence, isFinalFlush)) {
             NativeEndpointTransition.NATIVE_CHECKPOINT -> {
                 if (recognizer.commitRule3Segment(stream)) {
@@ -962,12 +1071,19 @@ internal class SessionImpl(
                 }
             }
             NativeEndpointTransition.HARD_RESTART -> {
-                logHardRestartOutcome(endpointReason, hasEvidence, hardRestartStream())
+                val hardRestarted = hardRestartStream()
+                logHardRestartOutcome(endpointReason, hasEvidence, hardRestarted)
+                // Rule3 bounds segment length; it says nothing about silence. A soft reset
+                // also retains native context and cannot safely omit an interval of PCM.
+                silentFreshStream = hardRestarted &&
+                    (endpointReason == com.k2fsa.sherpa.onnx.OnlineEndpointReason.RULE1 ||
+                        endpointReason == com.k2fsa.sherpa.onnx.OnlineEndpointReason.RULE2)
             }
         }
         recognizerResetGeneration.markReset()
         resetStablePrefixSchedule()
         lastPartialText = ""
+        if (silentFreshStream) maybeEnterEncoderIdle(endpointReason.metricName())
     }
 
     private fun resetStablePrefixSchedule() {
@@ -1121,18 +1237,29 @@ internal class SessionImpl(
                 )
             }
             if (target != null && verifier != null && selection.samples.isNotEmpty()) {
-                val score = verifier.segmentScore(selection.samples, target)
+                val score = if (targetTemplates.size > 1) {
+                    verifier.segmentScoreAny(selection.samples, targetTemplates)
+                } else {
+                    verifier.segmentScore(selection.samples, target)
+                }
                 if (score != null) {
                     val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
                     // 流式机器没确认过目标的句子（换人瞬间接上的 1~2 s 短句就是这种），
                     // 只剩句级分可依，需同时过调用方阈值和实测空带下沿。
-                    val gate = speakerFinalGateScore(threshold, svTargetConfirmed)
+                    // 离场后重放的句子还没重新确认目标，即使流式状态仍是"已确认"也要用
+                    // 收紧后的未确认门限；否则 0.352 这种非机主分数会擦着调用方阈值 0.35 过线。
+                    val gate = speakerFinalGateScore(
+                        threshold,
+                        svTargetConfirmed && !svAwaitingTargetAfterDeparture,
+                    )
                     prepared = terminal.copy(speakerScore = score, isTargetSpeaker = score >= gate)
                 }
             }
         }
         val reject = shouldRejectSpeakerVadFinal(
-            speakerVadEnabled,
+            // 仅机主识别时同样要执行"离场后重新确认"的拒绝：否则被切下来的非机主段只要
+            // 句级分越过未确认下沿（实测 0.461 对 0.45）就会被当机主发布。
+            speakerVadEnabled || targetSpeakerEnabled,
             svRejectCurrentUtterance,
             svTargetConfirmed,
             prepared.isTargetSpeaker,
@@ -1141,6 +1268,8 @@ internal class SessionImpl(
             val score = prepared.speakerScore ?: svLastScore.takeIf { hasEvidence }
             return prepared.copy(speakerScore = score, isTargetSpeaker = false)
         }
+        // 真正发布了一条机主 final，才认为换人后的重放段重新确认了目标。
+        if (prepared.isTargetSpeaker == true) svAwaitingTargetAfterDeparture = false
         return prepared
     }
 
@@ -1167,9 +1296,20 @@ internal class SessionImpl(
      * 1. 先看到目标人（score >= threshold），确认当前 speech 段确实属于目标人；
      * 2. 确认后若连续低于阈值，认为目标人离场，主动 endpoint。
      */
+    /** 流式换人检测是否运行：Speaker VAD 显式开启，或仅开机主识别且已有注册向量与窗口配置。 */
+    private fun speakerTurnDetectionActive(): Boolean = shouldRunSpeakerTurnDetection(
+        speakerVadEnabled = speakerVadEnabled,
+        targetSpeakerEnabled = targetSpeakerEnabled,
+        hasTargetEmbedding = targetEmbedding != null,
+        hasWindowConfig = effectiveSpeakerVad != null,
+    )
+
     private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
-        if (!speakerVadEnabled) return false
         val speakerVad = effectiveSpeakerVad ?: return false
+        // 未开 Speaker VAD、只开机主识别时也检测离场，但只认"已确认机主后连续低于阈值"，
+        // 不启用 PRE_TARGET 提前端点，避免机主开口阶段被切。
+        val departureOnly = !speakerVadEnabled
+        if (departureOnly && (!targetSpeakerEnabled || targetEmbedding == null)) return false
         val scheduler = speakerVadScoreScheduler(speakerVad)
         if (!scheduler.observe(samplesInChunk)) return false
         val target = targetEmbedding ?: return false
@@ -1178,7 +1318,11 @@ internal class SessionImpl(
 
         val winSamples = (speakerVad.winSec * sampleRate).toInt().coerceAtLeast(1)
         val scoreStartNs = System.nanoTime()
-        val score = verifier.windowScore(speakerPcmBuffers.speakerVadTail(winSamples), target)
+        val score = if (targetTemplates.size > 1) {
+            verifier.windowScoreAny(speakerPcmBuffers.speakerVadTail(winSamples), targetTemplates)
+        } else {
+            verifier.windowScore(speakerPcmBuffers.speakerVadTail(winSamples), target)
+        }
             ?: return false
         val state = finalizer.observeScore(scheduler.totalSamples, score, speakerVad.threshold)
         syncSpeakerTurnState(finalizer)
@@ -1203,6 +1347,10 @@ internal class SessionImpl(
                 return false
             }
             SpeakerTurnScoreState.PRE_TARGET -> {
+                if (departureOnly) {
+                    postSpeakerVadDebug("pre_target_ignored", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                    return false
+                }
                 postSpeakerVadDebug("pre_target_endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
                 Logger.d(
                     "session $sessionId speaker vad pre-target endpoint: score=$score " +
@@ -1240,15 +1388,24 @@ internal class SessionImpl(
         svContextWaitStartedSample = -1
         postSpeakerVadDebug("endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
         if (split == null) {
-            // Android has no speaker-turn segmenter binding yet, so an unverifiable boundary cannot
-            // be contained the Harmony way. Keep the historical Android behaviour here: end the
-            // utterance now so the leak stays bounded by the score latency instead of growing until
-            // the next silence.
-            Logger.metric(
-                "kind=SPEAKER_TURN sessionId=$sessionId decision=fail-open-endpoint " +
-                    "reason=${finalizer.lastResolutionReason()}",
-            )
-            postDebug("speaker turn boundary ambiguous (${finalizer.lastResolutionReason()}); keeping speculative final")
+            // 精确定不出边界时不要放行已知混合的整句（缺陷 #87：机主刚停、非机主立刻接话，
+            // 解析器给不出切点，fail-open 就把别人的话当成机主发布了）。
+            // 退到保守前缀：切在最后一次确认是机主的位置，其后作为非机主重放并拒绝。
+            val contained = finalizer.resolveContainment()
+            if (contained != null) {
+                svPendingSplit = contained
+                Logger.metric(
+                    "kind=SPEAKER_TURN sessionId=$sessionId decision=contain-on-departure " +
+                        "cutSample=${contained.cutSample} reason=${finalizer.lastResolutionReason()}",
+                )
+            } else {
+                // 连保守前缀都定不出来时才保持历史行为：立即端点，把泄露限制在打分延迟内。
+                Logger.metric(
+                    "kind=SPEAKER_TURN sessionId=$sessionId decision=fail-open-endpoint " +
+                        "reason=${finalizer.lastResolutionReason()}",
+                )
+                postDebug("speaker turn boundary ambiguous (${finalizer.lastResolutionReason()}); keeping speculative final")
+            }
         } else {
             svPendingSplit = split
             Logger.d(
@@ -1275,8 +1432,9 @@ internal class SessionImpl(
      * departure rate from 1% to 4%, so the slice is kept at 1.2 s.
      */
     private fun maybeCommitFinishDeparture() {
-        if (!speakerVadEnabled || closed.get()) return
+        if (closed.get()) return
         val config = effectiveSpeakerVad ?: return
+        if (!speakerVadEnabled && (!targetSpeakerEnabled || targetEmbedding == null)) return
         val finalizer = svTurnFinalizer ?: return
         if (!finalizer.isTargetConfirmed()) return
         if (finalizer.hasPendingDeparture()) {
@@ -1289,10 +1447,18 @@ internal class SessionImpl(
         val verifier = ensureVerifier() ?: return
         val sliceSamples = (sampleRate.toLong() * FINISH_DEPARTURE_SLICE_MS / 1000L).toInt()
         if (sliceSamples <= 0 || finalizer.sampleCount() < sliceSamples) return
-        val tail = speakerPcmBuffers.speakerVadTail(sliceSamples)
-        if (tail.size < sliceSamples) return
+        // 端点要求保留尾部静音，所以原始尾部可能是整段静音，声纹算不出 embedding，
+        // 离场检测会被静默跳过（缺陷 #87：机主刚停、非机主立刻接话就是这样漏掉的）。
+        // 取"最后一段语音"结束的窗口，而不是原始尾部。
+        val frameSamples = (sampleRate / 50).coerceAtLeast(1)
+        val wide = speakerPcmBuffers.speakerVadTail(sliceSamples * 3)
+        val tail = speechAlignedTail(wide, sliceSamples, frameSamples) ?: return
         val startedNs = System.nanoTime()
-        val score = verifier.windowScore(tail, target) ?: return
+        val score = (if (targetTemplates.size > 1) {
+            verifier.windowScoreAny(tail, targetTemplates)
+        } else {
+            verifier.windowScore(tail, target)
+        }) ?: return
         val elapsedMs = (System.nanoTime() - startedNs) / 1_000_000.0
         val rtf = elapsedMs / (sliceSamples * 1000.0 / sampleRate)
         // 收尾切片只有 1.2 s，正落在实测空带那一段：机主自己的短句最低 0.525，非机主最高 0.459。
@@ -1308,13 +1474,46 @@ internal class SessionImpl(
         containFinishDeparture(finalizer, score, "finish-slice-departure")
     }
 
-    /** 收尾处退保守前缀：定不出边界时切在最后一次确认是机主的位置，其后作为非机主重放。 */
+    /**
+     * 收尾处先试精确定位换人点，失败再退保守前缀。
+     *
+     * 只走保守前缀会把机主整句截短（客户录音只剩前 6~7 字）；`resolve` 已有双窗声纹校验，
+     * 这里在收尾时也给它一次机会，能把切点放到真正的换人处。
+     */
+    /** 前缀里是否有语音能量；静音前缀不能当作"机主干净前缀"去重解码。 */
+    private fun hasSpeechEnergy(samples: FloatArray, floor: Float = 0.005f): Boolean {
+        if (samples.isEmpty()) return false
+        var sum = 0.0
+        for (sample in samples) sum += sample.toDouble() * sample
+        return kotlin.math.sqrt(sum / samples.size) >= floor
+    }
+
     private fun containFinishDeparture(
         finalizer: SpeakerTurnFinalizer,
         score: Float?,
         trigger: String,
     ) {
+        val config = effectiveSpeakerVad
+        val precise = if (config != null) resolveSpeakerTurnSplit(finalizer, config, atFinish = true) else null
+        if (precise != null) {
+            Logger.metric(
+                "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-precise " +
+                    "trigger=$trigger cutSample=${precise.cutSample} score=$score",
+            )
+            commitCleanSpeakerTurn(precise, finishTriggered = true)
+            return
+        }
         val split = finalizer.resolveContainment()
+        if (split != null && !hasSpeechEnergy(split.processedPrefix)) {
+            // 保守前缀落在语音开始之前时（实测短指令 cutSample=8000 只有 0.5 s 静音），
+            // 重解码必然拿不到证据，还会把会话判错。此时不做包含，交回正常收尾门控发布，
+            // 由机主相似度决定去留（缺陷 #97：机主说 OKOK 转写为空）。
+            Logger.metric(
+                "kind=SPEAKER_TURN sessionId=$sessionId decision=containment-silent-prefix " +
+                    "trigger=$trigger cutSample=${split.cutSample}",
+            )
+            return
+        }
         if (split == null) {
             Logger.metric(
                 "kind=SPEAKER_TURN sessionId=$sessionId decision=finish-no-prefix " +
@@ -1343,7 +1542,8 @@ internal class SessionImpl(
 
     private fun syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer) {
         svTargetConfirmed = finalizer.isTargetConfirmed()
-        if (svTargetConfirmed) svAwaitingTargetAfterDeparture = false
+        // 不在这里清 svAwaitingTargetAfterDeparture：finalizer 的 targetSeen 是粘性的，
+        // 切分后第一窗若含机主尾巴就会立刻"重新确认"，把待确认状态冲掉，重放段又按 0.35 放行。
         svBelowCount = finalizer.consecutiveLowScores()
         svRejectCurrentUtterance = finalizer.shouldRejectCurrent() || svAwaitingTargetAfterDeparture
         svLastScore = finalizer.lastScore()
@@ -1353,6 +1553,7 @@ internal class SessionImpl(
     private fun resolveSpeakerTurnSplit(
         finalizer: SpeakerTurnFinalizer,
         config: SpeakerVadConfig,
+        atFinish: Boolean = false,
     ): SpeakerTurnSplit? {
         val target = targetEmbedding ?: return null
         val verifier = ensureVerifier() ?: return null
@@ -1364,9 +1565,16 @@ internal class SessionImpl(
             is NativeResult.Ok -> speculative.value.timestamps.map { it - bufferOffsetSec }
             is NativeResult.Err -> emptyList()
         }
-        val split = finalizer.resolve(timestamps, config.threshold, { samples, _, _ ->
-            if (samples.isEmpty()) null else verifier.windowScore(samples, target)
-        })
+        // 边界校验用实测下沿而不是调用方阈值：本段录音里非机主窗口打 0.352，
+        // 刚好越过 0.35，导致任何切点都过不了"左高右低"校验、只能退到保守前缀。
+        val boundaryThreshold = speakerFinishSliceGateScore(config.threshold)
+        val split = finalizer.resolve(timestamps, boundaryThreshold, { samples, _, _ ->
+            if (samples.isEmpty()) null else if (targetTemplates.size > 1) {
+                verifier.windowScoreAny(samples, targetTemplates)
+            } else {
+                verifier.windowScore(samples, target)
+            }
+        }, atFinish = atFinish)
         Logger.metric(
             "kind=SPEAKER_TURN sessionId=$sessionId resolver=acoustic " +
                 "inferMs=${(System.nanoTime() - startedNs) / 1_000_000L} " +
@@ -1414,6 +1622,30 @@ internal class SessionImpl(
                 NativeGuard.runQuietly("prefixStream.release") { stream.release() }
                 stream = speculativeStream
                 streamStartSample = speculativeStreamStartSample
+            }
+            // 短指令（如 1 秒的"OKOK"）重解码前缀常常一个 token 都拿不到。如果这次切分没有
+            // 切出任何后缀，说明推测结果里没有混入别人的话，就不该把整个会话判错终止；
+            // 退回正常端点收尾，让推测结果走同一套机主门控（缺陷 #97：机主短指令转写为空）。
+            // 重解码为空本身就说明这个切点没有语音（实测短指令切在 0.5 s 的气流上）。
+            // 此时不判会话失败，退回推测结果并走同一套机主门控：非机主段仍会被相似度拒绝，
+            // 机主的短指令则能正常转写（缺陷 #97）。
+            if (cleanR is NativeResult.Ok) {
+                Logger.metric(
+                    "kind=SPEAKER_TURN sessionId=$sessionId decision=clean-prefix-empty-fallback " +
+                        "cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}",
+                )
+                postEndpoint()
+                val fallback = NativeGuard.run("speakerVad.cleanPrefixEmptyFallback") {
+                    stream.inputFinished()
+                    drainDecoder(isFinal = true, postEndpointOnEndpoint = false)
+                }
+                if (fallback is NativeResult.Err) {
+                    postError(fallback.error)
+                    return
+                }
+                vadCarry = FloatArray(0)
+                resetSpeakerVadState()
+                return
             }
             postError(AsrError(AsrErrorCode.DECODE_FAILED, "speaker turn clean re-decode failed: $message"))
             close()
@@ -1631,6 +1863,17 @@ internal class SessionImpl(
         }
     }
 
+    /** 收尾一次性打出门控统计，供真机日志核对静音段到底省了多少 encoder 时间。 */
+    private fun logEncoderIdleSummary() {
+        val gate = encoderIdleGate ?: return
+        gate.reset()
+        Logger.metric(
+            "kind=ENCODER_IDLE sessionId=$sessionId idleEntries=${gate.idleEntries} " +
+                "resumes=${gate.resumes} idleMs=${gate.idleSamples * 1000L / sampleRate} " +
+                "fedMs=${publicSamplesFed * 1000L / sampleRate}",
+        )
+    }
+
     private fun resetVadGateState() {
         NativeGuard.runQuietly("vad.reset(streamBoundary)") { vad?.reset() }
         vadProcessedSamples = 0
@@ -1674,6 +1917,12 @@ internal class SessionImpl(
 
         /** 句间硬重启仍需恢复 encoder cache，避免连续短指令吞掉下一句开头。 */
         const val RESTART_STREAM_WARMUP_DURATION_MS = 800
+
+        /**
+         * 端点后的静音段不送 encoder，起音时回灌这么多毫秒的预滚。要盖住 silero 的起音确认
+         * （minSpeechDuration 0.25 s + 32 ms 窗口）并留出 encoder 左上下文；0 = 关闭门控。
+         */
+        const val ENCODER_IDLE_PREROLL_MS = 1000
 
         /** 保持 vadBegin 强制探测的既有 500 ms 合成输入，不随手动 finish 的尾上下文调整。 */
         const val INITIAL_SILENCE_PROBE_TAIL_MS = 500
