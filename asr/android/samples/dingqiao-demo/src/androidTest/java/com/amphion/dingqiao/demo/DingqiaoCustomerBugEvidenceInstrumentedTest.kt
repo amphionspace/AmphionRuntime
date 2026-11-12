@@ -6,6 +6,8 @@ import android.os.Build
 import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.amphion.dingqiao.SpeakerDiarizationConfig
+import com.amphion.dingqiao.SpeakerDiarizationUpdate
 import com.amphion.dingqiao.AudioInfo
 import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoEventCode
@@ -561,6 +563,164 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         }
     }
 
+    /**
+     * 缺陷 #87：机主识别开启、Speaker VAD 关闭时，机主刚停、非机主无缝接话，非机主语音必须被拦截。
+     *
+     * 与 bug13 用同一组夹具：turn-XX 内部两段之间只有 0.5~0.8 s 停顿，小于 vadEnd，本来就不会出端点，
+     * 两段会进同一条 utterance；区别只在参数——这里 [enableSpeakerVad] 关掉，只剩机主识别。
+     */
+    @Test
+    fun bug87_targetOnlyVoiceprint_blocksSpeakerSwitchWithoutPause() {
+        val writer = EvidenceWriter(targetContext, "bug87-target-only-switch")
+        prepare(writer)
+        val enrollmentPaths = (0..2).map { index ->
+            val asset = "speaker-turn/enroll-%02d.wav".format(index)
+            stageAsset(testContext, targetContext, asset, "bug87/enroll-%02d.wav".format(index))
+        }
+        val registration = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(enrollmentPaths, AudioInfo()),
+        )
+        val voiceprintId = registration.voiceprintId.keys.single()
+        writer.append(
+            "voiceprint-registration",
+            mapOf("enrollments" to enrollmentPaths.size, "voiceprintId" to voiceprintId),
+        )
+        val cases = listOf(
+            Triple("turn-00", "而目", listOf("香木", "香墓", "香慕")),
+            Triple("turn-01", "昆仑", listOf("满园", "满圆")),
+            Triple("turn-02", "对于", listOf("永洪", "永红", "药店")),
+            Triple("turn-03", "祥和", listOf("大臣", "大陈")),
+            Triple("turn-04", "搜狐", listOf("周杰")),
+            Triple("turn-05", "首死", listOf("金莎", "金沙")),
+        )
+        val targetOnly = voiceprintParams(voiceprintId).toMutableMap().apply {
+            put("enableSpeakerVad", false)
+        }
+        val engine = createEngine()
+        try {
+            val failures = mutableListOf<String>()
+            for (index in cases.indices) {
+                val (id, required, forbiddenVariants) = cases[index]
+                val asset = "speaker-turn/turn-%02d.wav".format(index)
+                val outcome = decode(
+                    engine,
+                    asset,
+                    runnerLong("ownerHandoffFrameSleepMs", 0L),
+                    targetOnly,
+                    writer,
+                )
+                val lifecycle = lifecycleErrors(outcome)
+                val published = normalizeText(outcome.finalText)
+                val nonEmpty = outcome.finals.filter { it.text.isNotBlank() }
+                val ownerKept = published.contains(normalizeText(required))
+                val leaked = forbiddenVariants.filter { published.contains(normalizeText(it)) }
+                val otherLeaked = leaked.isNotEmpty()
+                writer.append(
+                    "bug87-assertion",
+                    mapOf(
+                        "case" to id,
+                        "asset" to asset,
+                        "required" to required,
+                        "forbidden" to JSONArray(forbiddenVariants),
+                        "leakedVariants" to JSONArray(leaked),
+                        "ownerKept" to ownerKept,
+                        "otherLeaked" to otherLeaked,
+                        "nonEmptyFinals" to nonEmpty.size,
+                        "lifecycleErrors" to JSONArray(lifecycle),
+                    ),
+                )
+                if (lifecycle.isNotEmpty()) failures += "$id lifecycle=$lifecycle"
+                if (!ownerKept) failures += "$id dropped the owner text '$required'"
+                if (otherLeaked) failures += "$id leaked the next speaker $leaked"
+                if (nonEmpty.size != 1) failures += "$id published ${nonEmpty.size} non-empty finals, expected 1"
+            }
+            assertTrue("target-only speaker switch failures: $failures", failures.isEmpty())
+        } finally {
+            engine.shutdown()
+        }
+    }
+
+    /**
+     * 缺陷 #77：单人录音、角色分离已开启时，角色编号应从角色1（speakerIndex=0）开始。
+     * 现场表现为全部内容落到"其他角色"（speakerIndex=-1）。
+     * 只记录每句的 speakerIndex 与角色更新，不打印识别文本。
+     */
+    @Test
+    fun bug77SingleSpeaker_diarizationAssignsFirstRole() {
+        val path = InstrumentationRegistry.getArguments().getString("bug77Wav")
+        org.junit.Assume.assumeTrue("需要 bug77Wav", !path.isNullOrBlank())
+        val writer = EvidenceWriter(targetContext, "bug77-single-speaker")
+        prepare(writer)
+        val pcm = DqWav.read16kMonoPcm("bug77", File(path!!).readBytes())
+        val threads_sleep_ms = 20L
+        val finals = Collections.synchronizedList(mutableListOf<Triple<Int, Int, Int>>())
+        val updates = Collections.synchronizedList(mutableListOf<Pair<String, Int>>())
+        val errors = Collections.synchronizedList(mutableListOf<String>())
+        val complete = CountDownLatch(1)
+        val engine = createEngine()
+        engine.setListener(object : RecognitionListener {
+            override fun onResult(sessionId: String, result: SpeechRecognitionResult) {
+                if (result.isFinal) {
+                    finals += Triple(result.result.length, result.speakerIndex, result.beginTime ?: -1)
+                }
+            }
+
+            override fun onSpeakerDiarizationUpdate(sessionId: String, update: SpeakerDiarizationUpdate) {
+                updates += (update.utteranceId) to update.speakerIndex
+            }
+
+            override fun onComplete(sessionId: String, eventMessage: String) {
+                complete.countDown()
+            }
+
+            override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
+                errors += errorCode.toString()
+            }
+        })
+        val sessionId = "bug77-${System.nanoTime()}"
+        try {
+            engine.startListening(
+                StartParams(
+                    sessionId = sessionId,
+                    audioInfo = AudioInfo(),
+                    extraParams = mapOf("recognizerMode" to "long", "vadEnd" to 800),
+                    speakerDiarization = SpeakerDiarizationConfig(maxSpeakers = 4),
+                ),
+            )
+            var offset = 0
+            while (offset < pcm.size) {
+                val size = minOf(DQ_FRAME, pcm.size - offset)
+                val frame = ByteArray(DQ_FRAME)
+                System.arraycopy(pcm, offset, frame, 0, size)
+                engine.writeAudio(sessionId, frame)
+                offset += size
+                // 现场是实时喂入：角色分离的增量结果才来得及在句子 final 之前到达。
+                // 全速喂会把"timing 问题"误判成"角色分配问题"。
+                Thread.sleep(threads_sleep_ms)
+            }
+            engine.finish(sessionId)
+            complete.await(90, TimeUnit.SECONDS)
+        } finally {
+            engine.shutdown()
+        }
+        val indexes = finals.map { it.second }
+        writer.append(
+            "bug77",
+            mapOf(
+                "finals" to finals.size,
+                "textLengths" to JSONArray(finals.map { it.first }),
+                "speakerIndexes" to JSONArray(indexes),
+                "distinctIndexes" to JSONArray(indexes.distinct()),
+                "negativeCount" to indexes.count { it < 0 },
+                "updates" to updates.size,
+                "updateIndexes" to JSONArray(updates.map { it.second }),
+                "errors" to JSONArray(errors.toList()),
+            ),
+        )
+        assertTrue("角色分离应给出非负角色编号，实际=$indexes", indexes.isNotEmpty() && indexes.all { it >= 0 })
+        assertTrue("单人录音应从角色1（0）开始，实际=$indexes", indexes.first() == 0)
+    }
+
     private fun prepare(writer: EvidenceWriter) {
         targetContext.startActivity(
             Intent(targetContext, DeviceTestKeepAliveActivity::class.java)
@@ -684,6 +844,151 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         )
         return outcome
     }
+
+    /** decode() 的文件版：从设备上的 wav 读 PCM，用于客户现场原始录音。 */
+    /**
+     * 缺陷 #87 的现场录音复现：用客户录音里机主那句做注册，再整段喂入；
+     * 开"仅机主识别"后，机主句之后的非机主语音必须被截掉。
+     * 断言不打印任何文本：过滤结果必须是不过滤结果的真前缀且更短。
+     */
+    @Test
+    fun bug87CustomerAudio_targetOnlyBlocksTheFollowingSpeaker() {
+        val args = InstrumentationRegistry.getArguments()
+        val enrollPath = args.getString("bug87EnrollWav")
+        val casePath = args.getString("bug87CaseWav")
+        org.junit.Assume.assumeTrue("需要 bug87EnrollWav / bug87CaseWav",
+            !enrollPath.isNullOrBlank() && !casePath.isNullOrBlank())
+        val writer = EvidenceWriter(targetContext, "bug87-customer-audio")
+        prepare(writer)
+        val registration = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(listOf(enrollPath!!), AudioInfo()),
+        )
+        val voiceprintId = registration.voiceprintId.keys.single()
+        // 与生产默认一致：long 模式、不加 vadBegin（该参数会让首段语音被吞掉）。
+        val base = mapOf<String, Any>(
+            "recognizerMode" to "long", "enablePartialResult" to true,
+            "enablePoliceEnhancement" to true, "vadEnd" to 800,
+        )
+        val targetOnly = base + mapOf<String, Any>(
+            "enableVoiceprintVerification" to true, "enableSpeakerVad" to false,
+            "voiceprintIds" to listOf(voiceprintId),
+        )
+        val engine = createEngine()
+        try {
+            val unfiltered = decodeFile(engine, "bug87-unfiltered", casePath!!, 0L, base, writer)
+            val filtered = decodeFile(engine, "bug87-target-only", casePath, 0L, targetOnly, writer)
+            fun norm(text: String) = text.filter { it.isLetterOrDigit() }
+            val reference = norm(unfiltered.finalText)
+            val kept = norm(filtered.finalText)
+            val prefix = reference.startsWith(kept)
+            val rejectedFinals = filtered.finals.size - filtered.finals.count { it.text.isNotBlank() }
+            writer.append(
+                "bug87-customer-assertion",
+                mapOf(
+                    "referenceChars" to reference.length,
+                    "keptChars" to kept.length,
+                    "prefixOfReference" to prefix,
+                    "nonEmptyFinals" to filtered.finals.count { it.text.isNotBlank() },
+                    "emptyFinals" to rejectedFinals,
+                ),
+            )
+            assertTrue("filtered output must be a prefix of the unfiltered output", prefix)
+            assertTrue("filtered output must drop the following speaker", kept.isNotEmpty() && kept.length < reference.length)
+        } finally {
+            engine.shutdown()
+        }
+    }
+
+    /**
+     * 缺陷 #97：机主开启、PTT 输入约 1 秒的"OKOK"时转写为空。
+     * 三份注册样本（近/中/远）注册后回放同一段录音，验证多模板取最大能让短指令落到机主。
+     * 只记录长度与相似度，不打印识别原文。
+     */
+    @Test
+    fun bug97ShortPtt_ownerCommandIsTranscribedWithTemplateScoring() {
+        val args = InstrumentationRegistry.getArguments()
+        val casePath = args.getString("bug97CaseWav")
+        val enrollPaths = listOf("bug97EnrollA", "bug97EnrollB", "bug97EnrollC")
+            .mapNotNull { args.getString(it) }
+        org.junit.Assume.assumeTrue("需要 bug97CaseWav 与三份注册样本", !casePath.isNullOrBlank() && enrollPaths.size == 3)
+        val writer = EvidenceWriter(targetContext, "bug97-ptt")
+        prepare(writer)
+        val registration = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(enrollPaths, AudioInfo()),
+        )
+        val voiceprintId = registration.voiceprintId.keys.single()
+        writer.append("bug97-registration", mapOf("samples" to enrollPaths.size))
+        val engine = createEngine()
+        val outcome = try {
+            // 用 long 模式：short 模式配 vadBegin 会让干净前缀重解码拿不到证据（#87 同一坑）。
+            decodeFile(
+                engine,
+                "bug97",
+                casePath!!,
+                0L,
+                voiceprintParams(voiceprintId) + mapOf("recognizerMode" to "long"),
+                writer,
+            )
+        } finally {
+            engine.shutdown()
+        }
+        val published = normalizeText(outcome.finalText)
+        writer.append(
+            "bug97-result",
+            mapOf(
+                "finals" to outcome.finals.size,
+                "publishedLength" to published.length,
+                "containsOk" to published.contains("ok"),
+                "speakerSimilarities" to JSONArray(
+                    outcome.finals.mapNotNull { it.speakerSimilarity?.toDouble() },
+                ),
+                "lifecycle" to lifecycleErrors(outcome).size,
+            ),
+        )
+        org.junit.Assert.assertEquals("会话不应有生命周期错误", emptyList<String>(), lifecycleErrors(outcome))
+        org.junit.Assert.assertTrue("机主的短指令必须被转写，实际长度=${published.length}", published.isNotEmpty())
+    }
+
+    private fun decodeFile(
+        engine: SpeechRecognitionEngine,
+        label: String,
+        path: String,
+        frameSleepMs: Long,
+        startExtra: Map<String, Any>,
+        writer: EvidenceWriter,
+        completeTimeoutSeconds: Long = 90,
+    ): DecodeOutcome {
+        awaitIdle(engine, 60_000)
+        val bytes = File(path).readBytes()
+        val pcm = DqWav.read16kMonoPcm(label, bytes)
+        val acceptedBytes = AtomicLong(0)
+        val listener = TimelineListener(acceptedBytes)
+        engine.setListener(listener)
+        val sessionId = "evidence-${label.hashCode().toUInt().toString(16)}-${System.nanoTime()}"
+        val startedAt = SystemClock.elapsedRealtime()
+        engine.startListening(StartParams(sessionId, AudioInfo(), startExtra))
+        val started = listener.started.await(30, TimeUnit.SECONDS)
+        if (!started) {
+            runCatching { engine.cancel(sessionId) }
+            return listener.outcome(label, false, listener.finals.count { it.isLast })
+        }
+        feedPcm(engine, sessionId, pcm, frameSleepMs, acceptedBytes, listener)
+        val lastBeforeFinish = listener.finals.count { it.isLast }
+        engine.finish(sessionId)
+        val completed = listener.complete.await(completeTimeoutSeconds, TimeUnit.SECONDS)
+        awaitIdle(engine, TimeUnit.SECONDS.toMillis(completeTimeoutSeconds))
+        val outcome = listener.outcome(label, completed, lastBeforeFinish)
+        writer.append(
+            "decode-file",
+            outcome.toMap() + mapOf("sourceBytes" to bytes.size, "sourceSha256" to sha256(bytes),
+                "wallMs" to (SystemClock.elapsedRealtime() - startedAt), "frameSleepMs" to frameSleepMs),
+        )
+        return outcome
+    }
+
+    private fun sha256(bytes: ByteArray): String =
+        java.security.MessageDigest.getInstance("SHA-256").digest(bytes)
+            .joinToString("") { "%02x".format(it) }
 
     private fun feedPcm(
         engine: SpeechRecognitionEngine,
