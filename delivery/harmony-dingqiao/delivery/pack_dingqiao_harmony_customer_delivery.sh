@@ -269,9 +269,15 @@ if [[ "$SDK_ONLY" != true ]]; then
     echo "[ERROR] customer packaging requires HARMONY_SIGNING_CONFIG or .secure/harmony-signing.json" >&2
     exit 1
   fi
-  "$SCRIPT_DIR/verify_demo_inputs.sh" \
-    --hap "$HAP_SRC" \
-    --signing-config "$SIGNING_CONFIG"
+  if [[ "$ZH_EN_ONLY" == true ]]; then
+    "$SCRIPT_DIR/verify_demo_inputs.sh" \
+      --hap "$HAP_SRC" \
+      --signing-config "$SIGNING_CONFIG"       --zh-en-only
+  else
+    "$SCRIPT_DIR/verify_demo_inputs.sh" \
+      --hap "$HAP_SRC" \
+      --signing-config "$SIGNING_CONFIG"
+  fi
   python3 - "$HAP_SRC" "$VERSION" <<'PY'
 import json
 import sys
