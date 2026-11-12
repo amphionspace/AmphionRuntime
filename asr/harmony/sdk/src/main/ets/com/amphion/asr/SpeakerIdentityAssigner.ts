@@ -28,6 +28,14 @@
  * 同等相似度下的混淆率与真实会议差约 300 倍，见 docs/speaker/DIARIZATION_SCENARIO_EVAL_20261103.md。
  */
 export const IDENTITY_MERGE_THRESHOLD: number = 0.50;
+
+/**
+ * 允许开新身份的上限：与最相近身份的余弦低于此值才认为确实换人。
+ * 落在 [IDENTITY_DISTINCT_FLOOR, IDENTITY_MERGE_THRESHOLD) 的段并入最相近身份，
+ * 避免同一说话人被拆成多个身份（缺陷 #77：单人听写没有"角色1"）。
+ * 与 Android `SpeakerIdentityAssigner.DISTINCT_IDENTITY_FLOOR` 同值。
+ */
+export const IDENTITY_DISTINCT_FLOOR: number = 0.40;
 /**
  * 短于这个时长的发言段不赋身份、也不更新质心。
  *
@@ -73,12 +81,15 @@ export class SpeakerIdentityAssigner {
   private maxSpeakers: number;
   private threshold: number;
   private minAssignSeconds: number;
+  private distinctFloor: number;
 
   constructor(maxSpeakers: number, threshold: number = IDENTITY_MERGE_THRESHOLD,
-    minAssignSeconds: number = IDENTITY_MIN_ASSIGN_SECONDS) {
+    minAssignSeconds: number = IDENTITY_MIN_ASSIGN_SECONDS,
+    distinctFloor: number = IDENTITY_DISTINCT_FLOOR) {
     this.maxSpeakers = Math.max(1, Math.round(maxSpeakers));
     this.threshold = threshold;
     this.minAssignSeconds = Math.max(0, minAssignSeconds);
+    this.distinctFloor = distinctFloor;
   }
 
   /**
@@ -105,6 +116,11 @@ export class SpeakerIdentityAssigner {
     let k: number;
     let confidence: number;
     if (best >= 0 && score >= this.threshold) {
+      k = best;
+      confidence = score;
+    } else if (best >= 0 && score >= this.distinctFloor &&
+      this.centroids.length < this.maxSpeakers) {
+      // 同一个人被拆成多轨时，其嵌入常落在 [distinctFloor, threshold) 这条带里。
       k = best;
       confidence = score;
     } else if (this.centroids.length < this.maxSpeakers) {
