@@ -52,6 +52,22 @@ profile.write_text(text.replace(match.group(1), str(concrete), 1), encoding="utf
 print(f"[OK] sherpa module resolved to {concrete}")
 PY
   PROFILE_REWRITTEN=true
+  # 签名：把 HARMONY_SIGNING_CONFIG 注入 signingConfigs，构建结束随 profile 一起还原。
+  if [[ -n "${HARMONY_SIGNING_CONFIG:-}" && -f "${HARMONY_SIGNING_CONFIG}" ]]; then
+    python3 - "$PROFILE" "$HARMONY_SIGNING_CONFIG" <<'PY'
+import json
+import sys
+from pathlib import Path
+profile_path = Path(sys.argv[1])
+signing = json.loads(Path(sys.argv[2]).read_text(encoding="utf-8"))
+profile = json.loads(profile_path.read_text(encoding="utf-8"))
+profile["app"]["signingConfigs"] = [{"name": "default", "type": "HarmonyOS", "material": signing}]
+for product in profile["app"].get("products", []):
+    product["signingConfig"] = "default"
+profile_path.write_text(json.dumps(profile, indent=2, ensure_ascii=True) + "\n", encoding="utf-8")
+print("[OK] signing config injected for diagnostics demo")
+PY
+  fi
   # sherpa HAR 的 CMake 会 FetchContent 拉 node-addon-api；离线构建时指向本地已缓存源码，
   # 同样在清理阶段还原。
   CMAKE_FILE="$(python3 - "$PROFILE" <<'PY'
