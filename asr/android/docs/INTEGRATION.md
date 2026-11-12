@@ -1,6 +1,6 @@
 # AmphionRuntime 集成指南
 
-适用 SDK 版本：0.3.9
+适用 SDK 版本：0.3.10
 
 > 0.2.0 是一次破坏性升级：所有模型已经打进 AAR、API 收敛到 4 个公开类。如果你之前接的是 0.1.x，请先看 [CHANGELOG](CHANGELOG.md) 的 Breaking 段。
 
@@ -23,11 +23,11 @@
 
 ### 方案 A：AAR 直接放 libs/
 
-把 `amphion-runtime-0.3.9.aar` 拷到你 app 工程的 `libs/`：
+把 `amphion-runtime-0.3.10.aar` 拷到你 app 工程的 `libs/`：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/amphion-runtime-0.3.9.aar"))
+    implementation(files("libs/amphion-runtime-0.3.10.aar"))
     implementation("androidx.core:core-ktx:1.13.1")
 }
 ```
@@ -39,7 +39,7 @@ dependencies {
 ```bash
 cd asr/android
 ./gradlew :sdk:publishReleasePublicationToLocalFileRepoRepository
-# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.9/
+# 输出：sdk/build/maven-repo/com/amphion/amphion-runtime/0.3.10/
 ```
 
 在你 app 的 `settings.gradle.kts`：
@@ -58,7 +58,7 @@ dependencyResolutionManagement {
 
 ```kotlin
 dependencies {
-    implementation("com.amphion:amphion-runtime:0.3.9")
+    implementation("com.amphion:amphion-runtime:0.3.10")
 }
 ```
 
