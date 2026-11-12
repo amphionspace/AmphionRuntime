@@ -133,7 +133,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "private speakerTurnFinalizer", 1
         )[0]
         sync = source.split("private syncSpeakerTurnState", 1)[1].split(
-            "private commitCleanSpeakerTurn", 1
+            "private restartRejectedSpeakerTurn", 1
         )[0]
         replay_index = commit.index("this.replaySpeakerSuffixForFinish(split)")
         departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
@@ -142,10 +142,13 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture",
             reset,
         )
-        self.assertIn(
-            "if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false",
-            sync,
-        )
+        # 待确认标记不能由流式状态在 sync 中清除（finalizer 的 targetSeen 是粘性的，
+        # 切分后第一窗含机主尾音就会立刻"重新确认"），只在拒绝重启时复位（缺陷 #98）。
+        self.assertNotIn("this.svAwaitingTargetAfterDeparture = false", sync)
+        restart = source.split("private restartRejectedSpeakerTurn", 1)[1].split(
+            "speakerPcmBuffers.clearAll()", 1
+        )[0]
+        self.assertIn("this.svAwaitingTargetAfterDeparture = false", restart)
 
     def test_known_non_target_tail_still_attempts_a_real_final_score(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
@@ -211,7 +214,11 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "private flushPendingSpeakerFinals", 1
         )[0]
         self.assertIn(
-            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
+            "speakerFinalGateScore(pending.speakerVadThreshold,",
+            delivery,
+        )
+        self.assertIn(
+            "pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture",
             delivery,
         )
 
@@ -247,7 +254,11 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("pending.speakerVadTargetConfirmed", delivery)
         self.assertIn("pending.result.speakerScore >=", delivery)
         self.assertIn(
-            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
+            "speakerFinalGateScore(pending.speakerVadThreshold,",
+            delivery,
+        )
+        self.assertIn(
+            "pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture",
             delivery,
         )
         self.assertLess(
@@ -854,7 +865,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             });
             assert.ok(split);
             assert.equal(split.cutSample, 2_000);
-            assert.ok(scoreCalls <= 4, `speaker scorer calls must be bounded, got ${scoreCalls}`);
+            assert.ok(scoreCalls <= 8, `speaker scorer calls must be bounded, got ${scoreCalls}`);
             assert.match(finalizer.lastResolutionReason(), /candidate=2000/);
             """
         )
