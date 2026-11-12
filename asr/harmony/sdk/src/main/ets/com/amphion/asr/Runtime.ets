@@ -1408,6 +1408,7 @@ export class AsrSession {
   private speakerTurnSegmenterLoad?: Promise<void>;
   private speakerTurnSegmenterUnavailable: boolean = false;
   private targetSpeaker?: Float32Array;
+  private targetSpeakerTemplates: Float32Array[] = [];
   private targetSpeakerEnabled: boolean = false;
   private speakerVadEnabled: boolean = false;
   private lastSpeakerVadScore?: number;
@@ -1787,6 +1788,37 @@ export class AsrSession {
       throw new Error(`target speaker embedding dim=${embedding.length}, expected=${this.targetExtractor.dim}`);
     }
     this.targetSpeaker = embedding;
+    this.targetSpeakerTemplates = [];
+  }
+
+  /**
+   * 注册样本的多模板（缺陷 #97）。同一人不同距离/信道的嵌入差异很大，注册时把它们合并成一个
+   * 质心会稀释判别力：本机实测同一段"OKOK"，单独远场模板 0.372，三份合并只有 0.310，
+   * 直接决定短指令是否被判成非机主。评分改为对每个模板取最大相似度。
+   */
+  setTargetSpeakerTemplates(templates: Float32Array[]): void {
+    if (templates.length === 0) throw new Error('target speaker templates must not be empty');
+    for (let i = 0; i < templates.length; i++) {
+      if (templates[i].length === 0) throw new Error('target speaker template must not be empty');
+      if (this.targetExtractor !== undefined && templates[i].length !== this.targetExtractor.dim) {
+        throw new Error(`target speaker template dim=${templates[i].length}, expected=${this.targetExtractor.dim}`);
+      }
+    }
+    this.targetSpeakerTemplates = templates;
+  }
+
+  /** 与目标说话人的相似度：有多个注册模板时取最大，否则退回单模板。 */
+  private targetSimilarity(embedding: Float32Array, single?: Float32Array): number {
+    if (this.targetSpeakerTemplates.length > 1) {
+      let best = -1;
+      for (let i = 0; i < this.targetSpeakerTemplates.length; i++) {
+        const s = cosineSimilarity(embedding, this.targetSpeakerTemplates[i]);
+        if (s > best) best = s;
+      }
+      return best;
+    }
+    const target = single !== undefined ? single : this.targetSpeaker;
+    return target === undefined ? -1 : cosineSimilarity(embedding, target);
   }
   setTargetSpeakerExtractor(extractor: SpeakerEmbeddingExtractor): void {
     if (this.targetSpeaker !== undefined && this.targetSpeaker.length !== extractor.dim) {
@@ -2274,8 +2306,10 @@ export class AsrSession {
     // reinterpret the same numeric score with its own threshold, raised to the measured floor
     // when its streaming machine never confirmed this utterance.
     if (pending.speakerVadEnabled && pending.result.speakerScore !== undefined) {
+      // 离场后重放的句子还没重新确认目标，即使流式状态仍是"已确认"也要用收紧后的门限。
       pending.result.isTargetSpeaker = pending.result.speakerScore >=
-        speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed);
+        speakerFinalGateScore(pending.speakerVadThreshold,
+          pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture);
     }
     const speakerVadReject = shouldRejectSpeakerVadFinal(
       pending.speakerVadEnabled, pending.speakerVadRejectCurrent,
@@ -2307,6 +2341,8 @@ export class AsrSession {
         this.callback.onFinalRejected?.(pending.result);
       })) return;
     } else {
+      // 真正发布了一条机主 final，才认为换人后的重放段重新确认了目标。
+      this.svAwaitingTargetAfterDeparture = false;
       if (!this.callbackGate.invoke((): void => {
         this.callback.onFinal?.(pending.result.text, pending.result.confidence);
       })) return;
@@ -3050,7 +3086,7 @@ export class AsrSession {
         return;
       }
       const embedding = extractor.compute(stream);
-      const score = cosineSimilarity(embedding, targetSpeaker);
+      const score = this.targetSimilarity(embedding, targetSpeaker);
       result.speakerScore = score;
       result.isTargetSpeaker = score >= config.threshold;
     } finally {
@@ -3224,6 +3260,13 @@ export class AsrSession {
       `rtf=${(scoreElapsedMs / windowMs).toFixed(3)} confirmed=${this.svTargetConfirmed} ` +
       `below=${this.svBelowCount} endSample=${request.endSample} lane=async`);
     if (state === 'pre-target') {
+      if (!request.speechWasActive) {
+        // 静音里也会被打成 pre-target（实测分 0.071 恒定），若照样强制端点就会形成
+        // "打分→判非机主→硬重启"的死循环：每次重启 2 秒一轮，紧跟着的机主语音被切碎，
+        // 只能等 25 秒长句上限才出结果（缺陷 #98）。静音不构成离场。
+        this.svEndpointReady = false;
+        return false;
+      }
       this.svRejectCurrentUtterance = true;
       this.svEndpointReady = true;
       return true;
@@ -3596,7 +3639,8 @@ export class AsrSession {
 
   private syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer): void {
     this.svTargetConfirmed = finalizer.isTargetConfirmed();
-    if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false;
+    // 不在这里清 svAwaitingTargetAfterDeparture：finalizer 的 targetSeen 是粘性的，
+    // 切分后第一窗若含机主尾巴就会立刻"重新确认"，把待确认状态冲掉，重放段又按宽松门限放行。
     this.svBelowCount = finalizer.consecutiveLowScores();
     this.svRejectCurrentUtterance = finalizer.shouldRejectCurrent() ||
       this.svAwaitingTargetAfterDeparture;
@@ -3606,6 +3650,11 @@ export class AsrSession {
   private restartRejectedSpeakerTurn(reason: string): void {
     this.restartStreamAfterUtterance(reason);
     if (this.callbackGate.isClosed()) return;
+    // 新流是一次新的进入：旧的"离场后待确认"不能继承，否则机主再说话时仍按严格门限、
+    // 永远等不到确认，只能拖到长句上限（缺陷 #98）。重放的尾音会按新证据重新打分，
+    // 非机主相似度只有 0.1~0.2，仍会被拒（缺陷 #87 的拦截不被破坏）。
+    this.svAwaitingTargetAfterDeparture = false;
+    this.resetSpeakerVadState();
     this.speakerPcmBuffers.clearAll();
     this.effectiveSpeechBuffer.reset();
     this.pcmBytesAccepted = 0;
@@ -4034,7 +4083,10 @@ export class AsrSession {
     config: SpeakerVadConfig, boundaryHints: number[], diarizationReason: string): SpeakerTurnSplit | undefined {
     const fallbackStartMs = Date.now();
     const speculative = this.recognizer.getResult(this.stream);
-    const fallback = finalizer.resolve(speculative.timestamps, config.threshold,
+    // 边界校验用实测下沿（未确认门限）而不是调用方阈值：非机主窗口可能擦着阈值过线，
+    // 用宽松阈值会判不出任何切点，只能退回保守前缀并把机主整句截短。
+    const boundaryThreshold = speakerFinalGateScore(config.threshold, false);
+    const fallback = finalizer.resolve(speculative.timestamps, boundaryThreshold,
       (samples: Float32Array, _start: number, _end: number): number | undefined => {
         if (samples.length === 0) return undefined;
         return this.scoreSamples(samples);
@@ -4103,7 +4155,7 @@ export class AsrSession {
       stream.acceptWaveform(wave);
       if (!this.targetExtractor.isReady(stream)) return undefined;
       const embedding = this.targetExtractor.compute(stream);
-      const score = cosineSimilarity(embedding, this.targetSpeaker);
+      const score = this.targetSimilarity(embedding);
       this.lastSpeakerVadScore = score;
       return score;
     } finally {
@@ -4123,7 +4175,7 @@ export class AsrSession {
       stream.acceptWaveform(wave);
       if (!extractor.isReady(stream)) return undefined;
       const embedding = await extractor.computeAsync(stream);
-      const score = cosineSimilarity(embedding, targetSpeaker);
+      const score = this.targetSimilarity(embedding, targetSpeaker);
       return score;
     } finally {
       stream.close();
@@ -4160,7 +4212,7 @@ export class AsrSession {
       for (let index = 0; index < requests.length; index++) {
         const embedding = index < embeddings.length ? embeddings[index] : undefined;
         scores.push(embedding === undefined ? undefined :
-          cosineSimilarity(embedding, targetSpeaker));
+          this.targetSimilarity(embedding, targetSpeaker));
       }
       return scores;
     } finally {

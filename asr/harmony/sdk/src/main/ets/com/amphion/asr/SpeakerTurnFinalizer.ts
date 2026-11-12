@@ -211,7 +211,8 @@ export class SpeakerTurnFinalizer {
   }
 
   resolve(tokenTimestampsSec: number[], threshold: number,
-    scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = []): SpeakerTurnSplit | undefined {
+    scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = [],
+    atFinish: boolean = false): SpeakerTurnSplit | undefined {
     this.resolutionReason = 'not-ready';
     this.pendingCandidatePrefixEndSample = -1;
     if (!this.departureSeen || this.firstBelowEndSample < 0 ||
@@ -258,8 +259,11 @@ export class SpeakerTurnFinalizer {
         quietRun[0], quietRun[1], tokenTimestampsSec, frameSamples, all.length));
     }
     const preferredCandidateCount = candidates.length;
+    const tokenCandidates: number[] = [];
     for (let index = 0; index < tokenTimestampsSec.length; index++) {
+      const beforeTokens = candidates.length;
       addCandidate(tokenTimestampsSec[index] * this.sampleRate, true);
+      if (candidates.length > beforeTokens) tokenCandidates.push(candidates[candidates.length - 1]);
     }
     addCandidate(this.firstBelowEndSample - Math.round(this.windowSamples / 2));
     const coarseStep = Math.max(frameSamples, Math.round(this.hopSamples / 2));
@@ -270,7 +274,9 @@ export class SpeakerTurnFinalizer {
     // A diarization/token hint is stronger than the coarse acoustic grid. If its right verification
     // window is still being recorded, wait for that evidence rather than committing an earlier weak
     // candidate that can truncate the target speaker's last phone.
-    if (strongCandidateLackedRightContext) {
+    // 流式时右侧上下文可能还在路上，值得等；收尾时不会再有音频，继续等只会退回保守切点，
+    // 把机主整句截短，所以这里跳过等待，用已有候选继续定位。
+    if (strongCandidateLackedRightContext && !atFinish) {
       this.resolutionReason = 'insufficient-refine-context';
       return undefined;
     }
@@ -294,8 +300,15 @@ export class SpeakerTurnFinalizer {
     acoustic.sort((left: number, right: number): number =>
       this.transitionContrast(all, right, refineSamples) -
       this.transitionContrast(all, left, refineSamples));
-    const ranked = hinted.slice(0, 1).concat(preferred.slice(0, 1)).concat(acoustic);
-    const maximumScoredCandidates = 2;
+    // 词边界比能量对比更接近真实换人点：先按"离搜索区间中心最近"排两个 token 候选，
+    // 再补保守前缀与能量对比候选；校验上限 4 个（每次两次 embedding，仍有界）。
+    const center = (searchStart + searchEnd) / 2;
+    const tokenRanked = Array.from(new Set<number>(tokenCandidates))
+      .sort((left: number, right: number): number =>
+        Math.abs(left - center) - Math.abs(right - center));
+    const ranked = tokenRanked.slice(0, 2)
+      .concat(hinted.slice(0, 1), preferred.slice(0, 1), acoustic);
+    const maximumScoredCandidates = 4;
 
     let bestCandidate = -1;
     let bestLeft = -Infinity;
