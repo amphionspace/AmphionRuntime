@@ -31,6 +31,7 @@ public class SpeakerIdentityAssigner(
     maxSpeakers: Int,
     private val threshold: Double = MERGE_THRESHOLD,
     minAssignSeconds: Double = MIN_ASSIGN_SECONDS,
+    private val distinctFloor: Double = DISTINCT_IDENTITY_FLOOR,
 ) {
     private val maximumSpeakers = maxSpeakers.coerceAtLeast(1)
     private val minimumAssignSeconds = max(0.0, minAssignSeconds)
@@ -61,6 +62,11 @@ public class SpeakerIdentityAssigner(
         val slot: Int
         val confidence: Double
         if (best >= 0 && score >= threshold) {
+            slot = best
+            confidence = score
+        } else if (best >= 0 && score >= distinctFloor && centroids.size < maximumSpeakers) {
+            // 同一个人被拆成多轨时，其嵌入常落在 [distinctFloor, threshold) 这条带里：
+            // 按 0.50 判会给他连开 2~3 个身份（单人听写于是没有"角色1"）。
             slot = best
             confidence = score
         } else if (centroids.size < maximumSpeakers) {
@@ -121,6 +127,13 @@ public class SpeakerIdentityAssigner(
          * 25 位真实会议说话人上 0.50 的合计错误率 0.346%（0.45 为 1.211%，且误并占 3.7 倍）。
          */
         const val MERGE_THRESHOLD = 0.50
+
+        /**
+         * 允许开新身份的上限：与最相近身份的余弦低于此值才认为确实换人。
+         * 落在 [DISTINCT_IDENTITY_FLOOR, MERGE_THRESHOLD) 的段并入最相近身份，
+         * 避免同一说话人被拆成多个身份（缺陷 #77：单人听写没有"角色1"）。
+         */
+        const val DISTINCT_IDENTITY_FLOOR = 0.40
 
         /**
          * 短于这个时长的发言段不赋身份、也不更新质心。
