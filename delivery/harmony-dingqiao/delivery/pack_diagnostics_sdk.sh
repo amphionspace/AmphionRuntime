@@ -41,7 +41,7 @@ text = profile.read_text(encoding="utf-8")
 match = re.search(r'"srcPath":\s*"([^"]*SherpaOnnxHar/sherpa_onnx)"', text)
 if not match:
     raise SystemExit("[ERROR] sherpa_onnx module entry not found in build-profile.json5")
-concrete = derived / "sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
+concrete = (derived / "sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx").resolve()
 if not concrete.is_dir():
     raise SystemExit(f"[ERROR] resolved sherpa module path missing: {concrete}")
 profile.write_text(text.replace(match.group(1), str(concrete), 1), encoding="utf-8")
