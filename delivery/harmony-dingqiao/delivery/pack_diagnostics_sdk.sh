@@ -13,12 +13,42 @@ mkdir -p "$OUTPUT_ROOT"
 STAGING_ROOT="$(mktemp -d "$OUTPUT_ROOT/.diagnostics-sdk-package.XXXXXX")"
 PACKAGE_ROOT="$STAGING_ROOT/Amphion-ASR-Diagnostics-SDK"
 
+# hvigor 不解析模块路径里的符号链接；这里把 build-profile.json5 的 sherpa 模块指向
+# 解析后的实体目录，构建结束再还原，避免为了原地构建去复制整棵派生树。
+PROFILE="$PROJECT_ROOT/build-profile.json5"
+PROFILE_BACKUP="$STAGING_ROOT/build-profile.json5.bak"
+PROFILE_REWRITTEN=false
 cleanup() {
+  if [[ "$PROFILE_REWRITTEN" == true && -f "$PROFILE_BACKUP" ]]; then
+    cp "$PROFILE_BACKUP" "$PROFILE"
+  fi
   rm -rf "$STAGING_ROOT"
 }
 trap cleanup EXIT
 
 cd "$PROJECT_ROOT"
+
+if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
+  cp "$PROFILE" "$PROFILE_BACKUP"
+  python3 - "$PROFILE" "$REPO_ROOT/third_party/.derived" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+profile = Path(sys.argv[1])
+derived = Path(sys.argv[2]).resolve()
+text = profile.read_text(encoding="utf-8")
+match = re.search(r'"srcPath":\s*"([^"]*SherpaOnnxHar/sherpa_onnx)"', text)
+if not match:
+    raise SystemExit("[ERROR] sherpa_onnx module entry not found in build-profile.json5")
+concrete = derived / "sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx"
+if not concrete.is_dir():
+    raise SystemExit(f"[ERROR] resolved sherpa module path missing: {concrete}")
+profile.write_text(text.replace(match.group(1), str(concrete), 1), encoding="utf-8")
+print(f"[OK] sherpa module resolved to {concrete}")
+PY
+  PROFILE_REWRITTEN=true
+fi
 
 if [[ "${SKIP_BUILD:-false}" != "true" ]]; then
   for module in sherpa_onnx amphion_asr amphion_police amphion_dingqiao; do
