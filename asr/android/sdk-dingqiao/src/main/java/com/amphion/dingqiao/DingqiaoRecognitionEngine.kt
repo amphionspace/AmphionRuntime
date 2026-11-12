@@ -396,6 +396,7 @@ internal class DingqiaoRecognitionEngine(
                         "voiceprint not found for speaker VAD",
                     )
                 currentSession.setTargetSpeaker(embedding)
+                loadTargetTemplates(voiceprintIds)?.let { currentSession.setTargetSpeakerTemplates(it) }
             }
             currentSession.setTargetSpeakerEnabled(voiceprintEnabled || enabled)
             currentSession.setSpeakerVadEnabled(enabled)
@@ -960,8 +961,18 @@ internal class DingqiaoRecognitionEngine(
         val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
             ?: throw IllegalStateException("voiceprint not found")
         session.setTargetSpeaker(embedding)
+        loadTargetTemplates(voiceprintIds)?.let { session.setTargetSpeakerTemplates(it) }
         session.setTargetSpeakerEnabled(needsVoiceprint)
         session.setSpeakerVadEnabled(speakerVadEnabled)
+    }
+
+    /** 汇总所有声纹档案的注册模板；只有单模板时返回 null，调用方走原单嵌入路径。 */
+    private fun loadTargetTemplates(voiceprintIds: List<String>): List<FloatArray>? {
+        val templates = voiceprintIds.flatMap { id ->
+            val perProfile = voiceprintStore.loadTemplates(id)
+            if (perProfile.isNotEmpty()) perProfile else listOfNotNull(voiceprintStore.loadEmbedding(id))
+        }
+        return if (templates.size > 1) templates else null
     }
 
     private fun validateVoiceprintParams(params: StartParams) {
