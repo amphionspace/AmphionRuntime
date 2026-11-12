@@ -46,9 +46,13 @@ internal class SpeakerIdentityResolver(
         val identities = IntArray(tracks.size) { UNRESOLVED }
         for (index in tracks.indices.sortedBy { tracks[it].beginTime }) {
             val track = tracks[index]
-            // 只取该段前 EMBED_MAX_SECONDS 秒：嵌入几秒即饱和，截断同时降内存与原生算力。
-            val end = min(track.endTime, track.beginTime + EMBED_MAX_SECONDS * 1000L)
-            val samples = window.slice(track.beginTime, end)
+            // 只取 EMBED_MAX_SECONDS 秒：嵌入几秒即饱和，截断同时降内存与原生算力。
+            // 取**中间**而不是开头：Sortformer 报的 run 起点常早于实际语音，从开头切会取到静音，
+            // 嵌入与同人其它段相似度趋近 0，于是把一个人拆成多个身份（缺陷 #77）。
+            val durationMs = (track.endTime - track.beginTime).coerceAtLeast(0L)
+            val embedMs = min(durationMs, EMBED_MAX_SECONDS * 1000L)
+            val begin = track.beginTime + (durationMs - embedMs) / 2
+            val samples = window.slice(begin, begin + embedMs)
             if (samples == null) {
                 audioMissCount += 1
                 continue
