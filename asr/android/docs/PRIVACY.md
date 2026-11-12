@@ -1,6 +1,6 @@
 # 隐私与合规说明
 
-适用 SDK：`com.amphion:amphion-runtime` 0.3.9
+适用 SDK：`com.amphion:amphion-runtime` 0.3.10
 
 版本以本批 AAR 的 SDK_VERSION 和交付清单为准。本文主体描述核心 `:sdk`，鼎桥适配层及 diagnostics 的差异另列。
 
