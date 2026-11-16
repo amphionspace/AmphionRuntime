@@ -269,6 +269,51 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("await extractor.computeAsync", score)
         self.assertNotIn(".compute(", score)
 
+    def test_full_utterance_fallback_score_waits_for_the_clean_split_decision(self) -> None:
+        """整句回退分数是对 fallbackSamples() 的一次嵌入，不能抢在干净切分结论之前。
+
+        抢在前面有两个后果（缺陷 #98 手机 80 实测）：这次嵌入白压在 endpoint→final 的
+        关键路径上（该句 1212 → 984 ms）；且 svSpeakerScorePrepared 被置真后
+        commitCleanSpeakerTurnAsync 会跳过 computeCleanPrefixSpeakerScoreAsync，
+        机主前缀带着"前缀+非机主后缀"的混合分数发布。
+        """
+        finalize = method_body(self.runtime, "finalizeAnnouncedVadEndpointAsync")
+        commit = finalize.index("await this.commitCleanSpeakerTurnAsync(")
+        prepare = finalize.index("await this.prepareVadEndpointSpeakerScoreAsync()")
+        self.assertLess(
+            commit,
+            prepare,
+            "the clean split decides whether a full-utterance score is needed at all",
+        )
+
+        for name in (
+            "feedChunkAndDecodeAsync",
+            "finalizeReadySpeakerEndpointAsync",
+            "processDecodedResultAsync",
+        ):
+            body = method_body(self.runtime, name)
+            finalize_calls = [
+                m.start()
+                for m in re.finditer(r"this\.finalizeAnnouncedVadEndpointAsync\(", body)
+            ]
+            prepare_calls = [
+                m.start()
+                for m in re.finditer(
+                    r"this\.prepareVadEndpointSpeakerScoreAsync\(\)", body
+                )
+            ]
+            if not finalize_calls or not prepare_calls:
+                continue
+            self.assertGreater(
+                min(prepare_calls),
+                max(finalize_calls),
+                f"{name} must not score the whole utterance before the split decision",
+            )
+
+        commit_body = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        self.assertIn("if (!this.svSpeakerScorePrepared)", commit_body)
+        self.assertIn("this.computeCleanPrefixSpeakerScoreAsync(split)", commit_body)
+
     def test_speaker_vad_only_final_is_prepared_asynchronously(self) -> None:
         prepare = method_body(self.runtime, "prepareVadEndpointSpeakerScoreAsync")
         dispatch = method_body(self.runtime, "dispatchFinal")

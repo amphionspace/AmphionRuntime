@@ -2042,7 +2042,6 @@ export class AsrSession {
       // speculative final or announcing the boundary twice.
       if (this.speakerVadEnabled && this.svContextWaitStartedSample >= 0 &&
         !this.pendingVadStopAtEndpoint) return;
-      if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       await this.finalizeAnnouncedVadEndpointAsync(decodeDurationMs);
       return;
     }
@@ -2651,7 +2650,6 @@ export class AsrSession {
         return;
       }
       if (!await this.drainSpeakerInferenceAsync()) return;
-      if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       await this.finalizeAnnouncedVadEndpointAsync();
     }
   }
@@ -2659,7 +2657,6 @@ export class AsrSession {
   private async finalizeReadySpeakerEndpointAsync(): Promise<void> {
     if (this.vadEndpointPending) {
       if (!await this.drainSpeakerInferenceAsync()) return;
-      if (!await this.prepareVadEndpointSpeakerScoreAsync()) return;
       await this.finalizeAnnouncedVadEndpointAsync();
     } else {
       await this.triggerSpeakerVadEndpointAsync();
@@ -2809,6 +2806,14 @@ export class AsrSession {
       }
       return;
     } else {
+      // 整句回退分数必须排在干净切分之后。它是对 fallbackSamples() 的一次嵌入（整句；
+      // 手机 80 实测 5 s 整句约 236 ms），而这一句到底发布整句还是只发布机主前缀，要等
+      // 切分结论才知道。抢在前面算有两个后果：这次嵌入白压在 endpoint→final 的关键路径上
+      // （缺陷 #98 实测该句 1212 → 984 ms，由此进入 1000 ms 门槛内）；并且它会置上
+      // svSpeakerScorePrepared，让 commitCleanSpeakerTurnAsync 跳过
+      // computeCleanPrefixSpeakerScoreAsync——机主前缀于是带着"前缀+非机主后缀"的混合
+      // 分数发布出去。切分提交时前缀分数与前缀解码并行，拿不到切分时才在 dispatchFinal
+      // 之前补算，两条路都不进同步 ONNX。
       if ((this.svEndpointReady || this.svSilentDeparturePending) &&
         await this.commitCleanSpeakerTurnAsync(stopAtEndpoint, true)) return;
       // A supported live Speaker VAD reset can invalidate clean-turn work while it is awaiting
@@ -3112,7 +3117,8 @@ export class AsrSession {
     if (score === undefined) return false;
     const scoreElapsedMs = Date.now() - scoreStartMs;
     const finalizer = this.speakerTurnFinalizer(sv);
-    const state = finalizer.observeScore(scheduler.totalSamples(), score, sv.threshold);
+    const state = finalizer.observeScore(
+      scheduler.totalSamples(), score, sv.threshold, this.speakerVadSpeechWasActive());
     this.syncSpeakerTurnState(finalizer);
     const windowMs = Math.max(1, sv.winSec * 1000);
     Logger.metric(`kind=SPEAKER_VAD sessionId=${this.sessionId} speaker_vad state=${state} ` +
@@ -3190,6 +3196,15 @@ export class AsrSession {
     return false;
   }
 
+  /**
+   * 这一跳窗口有没有 VAD 确认的语音。同步与异步两条路必须用同一个表达式：它既进入
+   * SpeakerVadInferenceRequest 的不可变证据，也决定低分窗口能不能构成离场（见
+   * SpeakerTurnFinalizer.observeScore）。
+   */
+  private speakerVadSpeechWasActive(): boolean {
+    return this.vad?.isDetected() ?? (this.vadSpeechActive || this.vadEndpointPending);
+  }
+
   private enqueueSpeakerVadInference(samplesInChunk: number): void {
     if (!this.speakerVadEnabled || this.svTurnFailOpen) return;
     const sv = this.effectiveSpeakerVad();
@@ -3203,7 +3218,7 @@ export class AsrSession {
       scheduler.totalSamples(),
       // An open utterance includes vadEnd silence. Only acoustic speech can establish a
       // speaker-change boundary; low scores on silence must not launch turn refinement.
-      this.vad?.isDetected() ?? (this.vadSpeechActive || this.vadEndpointPending));
+      this.speakerVadSpeechWasActive());
     if (this.svInferenceLoopActive) {
       // Score hops are ordered state-machine inputs. Dropping an intermediate low hop can merge a
       // rejected speaker directly into the returning target before the rejection boundary closes.
@@ -3251,7 +3266,8 @@ export class AsrSession {
     if (!this.speakerInferenceLane.isCurrent(generation) || this.svTurnFailOpen ||
       score === undefined) return false;
     const finalizer = this.speakerTurnFinalizer(sv);
-    const state = finalizer.observeScore(request.endSample, score, sv.threshold);
+    const state = finalizer.observeScore(
+      request.endSample, score, sv.threshold, request.speechWasActive);
     this.syncSpeakerTurnState(finalizer);
     const scoreElapsedMs = Date.now() - scoreStartedMs;
     const windowMs = Math.max(1, sv.winSec * 1000);
@@ -3279,10 +3295,12 @@ export class AsrSession {
     }
     if (state !== 'departure') return false;
     if (!request.speechWasActive) {
-      // Keep the departure evidence for final filtering. Refinement must not block the remaining
-      // acoustic silence from reaching vadEnd; finalizeAnnouncedVadEndpointAsync resolves it after
-      // the event, or the next acoustic onset resolves it before accepting another speaker score.
-      this.svSilentDeparturePending = true;
+      // 这一跳落在静音里。若此前已有一跳低分窗口带 VAD 语音（真的有人接着说话），保留离场
+      // 证据交给 vadEnd 后的切分：精化不能挡住剩余静音走到 vadEnd，由
+      // finalizeAnnouncedVadEndpointAsync 事后解决，或由下一次起音在接受新分数前解决。
+      // 若两跳低分都在静音里，本句根本没有下一个说话人可切分——那只是机主停口后窗口被静音
+      // 稀释（实测 0.327 / -0.072），据此切分会把机主句尾切掉（缺陷 #98）。
+      this.svSilentDeparturePending = finalizer.hasSpeechBearingLowScore();
       return false;
     }
     let split = await this.resolveSpeakerTurnSplitAsync(
@@ -4006,8 +4024,10 @@ export class AsrSession {
     // independent score-transition band.
     if (unresolvedReason.startsWith('sequential-boundary-ambiguous:')) return true;
     // Two consecutive windows below the threshold after a confirmed target are independent proof
-    // that the target left. When neither resolver can place the boundary -- diarization could not
-    // prove the pair, or the acoustic candidates failed their left/right verification -- the
+    // that the target left -- but only once at least one of them carried VAD speech, which is why
+    // hasPendingDeparture() requires it: windows diluted by post-speech silence score low on the
+    // target's own audio (缺陷 #98). When neither resolver can place the boundary -- diarization
+    // could not prove the pair, or the acoustic candidates failed their left/right verification -- the
     // conservative prefix holds only audio that predates the last target-positive window. That is
     // strictly better than publishing a known mixture, which is what failing open did on device.
     return (this.svTurnFinalizer?.hasPendingDeparture() ?? false) &&
