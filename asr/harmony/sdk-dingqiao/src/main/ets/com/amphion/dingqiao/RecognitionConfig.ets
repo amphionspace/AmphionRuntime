@@ -16,6 +16,33 @@ import {
   StartParams
 } from './DingqiaoModels';
 
+/**
+ * 声纹 extractor 线程数。注册、识别和预加载必须用同一个值：extractor 池按
+ * `${modelPath}|${numThreads}` 建键，取值不一致会让同一个 ~38 MB 的 ERes2Net 模型
+ * 在进程里存两份。
+ *
+ * Speaker VAD 每 500 ms 跳要对 1500 ms 窗口做一次嵌入；机主确认前它与 ASR 解码串行
+ * （归属要先结清才允许下一片进入 utterance），换人判定还要再做数次嵌入校验候选边界。
+ * 手机 80（12 逻辑核）同录音实测 1 → 4 线程：单次 inferMs median 224 → 118、
+ * p90 258 → 150，整轮嵌入 9.50 s → 5.15 s，endpoint→final 机主首句 771 → 452 ms、
+ * 换人切分句 1613 → 1212 ms（缺陷 #98）。进程 CPU 均值 1.55 → 1.98 核，仍有余量。
+ * 注意它不改变首个 partial 的时延：那一项由流式解码右上下文决定，实测 1 → 4 线程不变。
+ *
+ * 同一夹具再实测 4 → 8 线程（vadEnd=800，#98 原录音 A→B→C→A）：inferMs median
+ * 131 → 118、p90 178 → 143、max 228 → 148，整轮嵌入 5.28 s → 4.61 s，最差
+ * endpoint→final 498 → 406 ms。进程 CPU 均值 1.81 → 2.31 核（12 逻辑核，仍有余量）。
+ * 发布文本、state/decision 计数、两次非机主拒绝与 target_speaker_realtime 全部不变。
+ * 8 是 TargetSpeakerConfig.numThreads 的上限，再往上没有空间。
+ *
+ * 这条只压缩嵌入本身的耗时。把它整个移出关键路径的是 Runtime 的投机预算：评分 PCM 截到
+ * 最后一次 VAD 语音结束（finalSpeakerScoreSamples），VAD 一判出语音结束就起嵌入，端点时
+ * 直接消费。同夹具实测最差 endpoint→final 406 → 63 ms，每个 vad-active 句都是
+ * phase=consumed、waitMs≤1，评分 PCM 少带 826–930 ms 尾静音；发布文本、两次非机主拒绝、
+ * departure 计数与 target_speaker_realtime 全部不变。0.45 下沿本来就是在干净切段上标定的
+ * （fab43be7），截掉尾静音让真机分数回到那个口径。
+ */
+export const SPEAKER_EXTRACTOR_THREADS: number = 8;
+
 export function languageOf(language: string): AsrLanguage {
   const normalized = language.toLowerCase();
   if (normalized === 'zh-cn' || normalized === 'zh-en' || normalized === 'zh_en') {
@@ -192,7 +219,7 @@ function buildTargetSpeakerConfig(startParams: StartParams | undefined,
   cfg.threshold = -1.0;
   cfg.minSegSec = 0;
   cfg.enabledByDefault = false;
-  cfg.numThreads = 1;
+  cfg.numThreads = SPEAKER_EXTRACTOR_THREADS;
   // Neither final-only verification nor Speaker VAD may construct the extractor on the caller's
   // ArkTS thread: customer apps commonly start AudioCapturer before startListening(). Speaker VAD
   // remains fail-open until the async extractor attaches, then scores the latest buffered window.
