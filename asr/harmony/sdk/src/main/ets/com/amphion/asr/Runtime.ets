@@ -1409,6 +1409,9 @@ export class AsrSession {
   private speakerTurnSegmenterUnavailable: boolean = false;
   private targetSpeaker?: Float32Array;
   private targetSpeakerTemplates: Float32Array[] = [];
+  // 只供 final 打分的多尺度模板（整文件 + 2 s 分段，缺陷 #97 第二轮）。为空时 final 退回
+  // targetSpeakerTemplates。流式 hop、边界校验永远不用它：短对短匹配会抬高非机主短窗。
+  private targetSpeakerFinalTemplates: Float32Array[] = [];
   private targetSpeakerEnabled: boolean = false;
   private speakerVadEnabled: boolean = false;
   private lastSpeakerVadScore?: number;
@@ -1799,6 +1802,7 @@ export class AsrSession {
     }
     this.targetSpeaker = embedding;
     this.targetSpeakerTemplates = [];
+    this.targetSpeakerFinalTemplates = [];
   }
 
   /**
@@ -1817,12 +1821,33 @@ export class AsrSession {
     this.targetSpeakerTemplates = templates;
   }
 
-  /** 与目标说话人的相似度：有多个注册模板时取最大，否则退回单模板。 */
-  private targetSimilarity(embedding: Float32Array, single?: Float32Array): number {
-    if (this.targetSpeakerTemplates.length > 1) {
+  /**
+   * final 打分专用的多尺度模板（整文件 + 2 s 分段）。客户「OKOK」有效语音不到 1 s，对 8 s 整文件
+   * 模板只有 0.37（刚过 0.35）；同尺度的分段模板把它抬到 0.44。只影响 final：流式确认与边界
+   * 校验继续用 setTargetSpeakerTemplates 的整文件模板，非机主被"确认"的门槛不变。
+   */
+  setTargetSpeakerFinalTemplates(templates: Float32Array[]): void {
+    for (let i = 0; i < templates.length; i++) {
+      if (templates[i].length === 0) throw new Error('target speaker final template must not be empty');
+      if (this.targetExtractor !== undefined && templates[i].length !== this.targetExtractor.dim) {
+        throw new Error(`target speaker final template dim=${templates[i].length}, expected=${this.targetExtractor.dim}`);
+      }
+    }
+    this.targetSpeakerFinalTemplates = templates;
+  }
+
+  /**
+   * 与目标说话人的相似度：有多个注册模板时取最大，否则退回单模板。
+   * forFinal=true 用 final 多尺度模板（为空时退回整文件模板）。
+   */
+  private targetSimilarity(embedding: Float32Array, single?: Float32Array,
+    forFinal: boolean = false): number {
+    const templates = forFinal && this.targetSpeakerFinalTemplates.length > 1 ?
+      this.targetSpeakerFinalTemplates : this.targetSpeakerTemplates;
+    if (templates.length > 1) {
       let best = -1;
-      for (let i = 0; i < this.targetSpeakerTemplates.length; i++) {
-        const s = cosineSimilarity(embedding, this.targetSpeakerTemplates[i]);
+      for (let i = 0; i < templates.length; i++) {
+        const s = cosineSimilarity(embedding, templates[i]);
         if (s > best) best = s;
       }
       return best;
@@ -2831,7 +2856,7 @@ export class AsrSession {
     this.svSpeculativeScorePending += 1;
     const startedAtMs = Date.now();
     try {
-      const score = await this.scoreSamplesAsync(samples);
+      const score = await this.scoreSamplesAsync(samples, true);
       Logger.metric(`kind=SPEAKER_FINAL_SCORE sessionId=${this.sessionId} phase=speculated ` +
         `pcmMs=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
         `inferMs=${Date.now() - startedAtMs}`);
@@ -2858,7 +2883,7 @@ export class AsrSession {
     this.svSpeculativeScoreTask = undefined;
     this.svSpeculativeScoreLength = -1;
     const waitStartedMs = Date.now();
-    const score = hit ? await task : await this.scoreSamplesAsync(samples);
+    const score = hit ? await task : await this.scoreSamplesAsync(samples, true);
     Logger.metric(`kind=SPEAKER_FINAL_SCORE sessionId=${this.sessionId} ` +
       `phase=${hit ? 'consumed' : 'fresh'} ` +
       `pcmMs=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
@@ -3195,7 +3220,7 @@ export class AsrSession {
         return;
       }
       const embedding = extractor.compute(stream);
-      const score = this.targetSimilarity(embedding, targetSpeaker);
+      const score = this.targetSimilarity(embedding, targetSpeaker, true);
       result.speakerScore = score;
       result.isTargetSpeaker = score >= config.threshold;
     } finally {
@@ -3740,7 +3765,7 @@ export class AsrSession {
     const minimum = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
     const selection = selectSpeakerScoreSamples(effectiveSamples, split.prefix, minimum, true);
     if (selection.samples.length === 0) return;
-    this.svCleanPrefixSpeakerScore = this.scoreSamples(selection.samples);
+    this.svCleanPrefixSpeakerScore = this.scoreSamples(selection.samples, true);
   }
 
   private async computeCleanPrefixSpeakerScoreAsync(
@@ -3756,7 +3781,7 @@ export class AsrSession {
     const minimum = Math.round(config.minSegSec * ASR_SAMPLE_RATE_HZ);
     const selection = selectSpeakerScoreSamples(effectiveSamples, split.prefix, minimum, true);
     if (selection.samples.length === 0) return undefined;
-    return await this.scoreSamplesAsync(selection.samples);
+    return await this.scoreSamplesAsync(selection.samples, true);
   }
 
   private syncSpeakerTurnState(finalizer: SpeakerTurnFinalizer): void {
@@ -4269,7 +4294,7 @@ export class AsrSession {
     this.stream.acceptWaveform(wave);
   }
 
-  private scoreSamples(samples: Float32Array): number | undefined {
+  private scoreSamples(samples: Float32Array, forFinal: boolean = false): number | undefined {
     if (this.targetExtractor === undefined || this.targetSpeaker === undefined || samples.length === 0) {
       return undefined;
     }
@@ -4279,15 +4304,16 @@ export class AsrSession {
       stream.acceptWaveform(wave);
       if (!this.targetExtractor.isReady(stream)) return undefined;
       const embedding = this.targetExtractor.compute(stream);
-      const score = this.targetSimilarity(embedding);
-      this.lastSpeakerVadScore = score;
+      const score = this.targetSimilarity(embedding, undefined, forFinal);
+      if (!forFinal) this.lastSpeakerVadScore = score;
       return score;
     } finally {
       stream.close();
     }
   }
 
-  private async scoreSamplesAsync(samples: Float32Array): Promise<number | undefined> {
+  private async scoreSamplesAsync(samples: Float32Array,
+    forFinal: boolean = false): Promise<number | undefined> {
     const extractor = this.targetExtractor;
     const targetSpeaker = this.targetSpeaker;
     if (extractor === undefined || targetSpeaker === undefined || samples.length === 0) {
@@ -4299,7 +4325,7 @@ export class AsrSession {
       stream.acceptWaveform(wave);
       if (!extractor.isReady(stream)) return undefined;
       const embedding = await extractor.computeAsync(stream);
-      const score = this.targetSimilarity(embedding, targetSpeaker);
+      const score = this.targetSimilarity(embedding, targetSpeaker, forFinal);
       return score;
     } finally {
       stream.close();
