@@ -440,7 +440,7 @@
       "planReceiptSha256": "787670e0916029d620981f2741479f3c4188c2d75570a6e828c0dbcc8496d78f",
       "issuanceReceiptSha256": "78c7b83b1bb08134966878498959a26e2332377cde315522d04a591490d282bd",
       "verificationReceiptSha256": "76075a0ed1e789ed323a71a84e793fbbb3acd214986dae2289c5cffb7fd1c156",
-      "toolCommit": "e73ac7f7622e31f25a5da1cab03e8162d928bafd",
+      "toolCommit": "3b863534abb06ab9e743392716317533a6a311d1",
       "issueOperator": "momo",
       "verifyOperator": "momo",
       "operator": "momo",
