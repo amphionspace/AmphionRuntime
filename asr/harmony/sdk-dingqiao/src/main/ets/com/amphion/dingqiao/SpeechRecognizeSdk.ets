@@ -373,6 +373,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private audioFramesWritten: number = 0;
   private voiceprintIds: string[] = [];
   private voiceprintTemplates: Float32Array[] = [];
+  // final 打分用的多尺度模板：整文件模板 + 2 s 分段模板（缺陷 #97 第二轮）。
+  private voiceprintFinalTemplates: Float32Array[] = [];
   private speechActive: boolean = false;
   private startingSession: boolean = false;
   private sessionStartGate: SessionStartGate = new SessionStartGate();
@@ -535,14 +537,23 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       const store = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath());
       embedding = store.loadMergedEmbedding(voiceprintIds);
       this.voiceprintTemplates = [];
+      this.voiceprintFinalTemplates = [];
       for (let i = 0; i < voiceprintIds.length; i++) {
         const templates = store.loadTemplates(voiceprintIds[i]);
         if (templates.length > 0) {
-          for (let t = 0; t < templates.length; t++) this.voiceprintTemplates.push(templates[t]);
+          for (let t = 0; t < templates.length; t++) {
+            this.voiceprintTemplates.push(templates[t]);
+            this.voiceprintFinalTemplates.push(templates[t]);
+          }
         } else {
           const single = store.loadEmbedding(voiceprintIds[i]);
-          if (single !== undefined) this.voiceprintTemplates.push(single);
+          if (single !== undefined) {
+            this.voiceprintTemplates.push(single);
+            this.voiceprintFinalTemplates.push(single);
+          }
         }
+        const segments = store.loadSegmentTemplates(voiceprintIds[i]);
+        for (let t = 0; t < segments.length; t++) this.voiceprintFinalTemplates.push(segments[t]);
       }
       if (embedding === undefined) {
         this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
@@ -614,6 +625,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.session = createdSession;
       if (useTarget && embedding !== undefined) {
         this.session.setTargetSpeaker(embedding);
+        if (this.voiceprintFinalTemplates.length > 1) {
+          this.session.setTargetSpeakerFinalTemplates(this.voiceprintFinalTemplates);
+        }
         if (this.voiceprintTemplates.length > 1) {
           this.session.setTargetSpeakerTemplates(this.voiceprintTemplates);
         }
@@ -907,6 +921,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           return;
         }
         session.setTargetSpeaker(embedding);
+        if (this.voiceprintFinalTemplates.length > 1) {
+          session.setTargetSpeakerFinalTemplates(this.voiceprintFinalTemplates);
+        }
         if (this.voiceprintTemplates.length > 1) {
           session.setTargetSpeakerTemplates(this.voiceprintTemplates);
         }
@@ -1888,11 +1905,13 @@ export class SpeechRecognizeSdk {
       const embedding = enroller.enrollFiles(params.samplePaths);
       // 每份样本的独立模板：短指令的判别力靠它（合并质心会稀释，见缺陷 #97）。
       const templates = enroller.enrollFileTemplates(params.samplePaths);
+      // 2 s 分段模板只供 final 打分：短指令对短模板的匹配尺度一致（缺陷 #97 第二轮）。
+      const segmentTemplates = enroller.enrollFileSegmentTemplates(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
       // later passed back via StartParams.extraParams.voiceprintIds for the recognition session.
       const store = new VoiceprintStore(SpeechRecognizeSdk.workPath);
-      const id = store.saveVoiceprint(params.samplePaths, embedding, templates);
+      const id = store.saveVoiceprint(params.samplePaths, embedding, templates, segmentTemplates);
       result.voiceprintId = {};
       result.voiceprintId[id] = baseName(params.samplePaths[0]);
       result.status = 0;
