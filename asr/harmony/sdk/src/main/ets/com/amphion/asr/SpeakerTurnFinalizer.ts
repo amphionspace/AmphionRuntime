@@ -90,6 +90,7 @@ export class SpeakerTurnFinalizer {
   private firstBelowEndSample: number = -1;
   private lastObservedEndSample: number = -1;
   private departureSeen: boolean = false;
+  private speechBearingLowScore: boolean = false;
   private rejectBeforeTarget: boolean = false;
   private latestScore?: number;
   private lastTargetScore?: number;
@@ -120,7 +121,19 @@ export class SpeakerTurnFinalizer {
     }
   }
 
-  observeScore(endSample: number, score: number, threshold: number): SpeakerTurnScoreState {
+  /**
+   * `speechWasActive` 是这一跳窗口有没有 VAD 确认的语音。
+   *
+   * 窗口是固定 winSec 的尾部音频，机主停口后它会被静音逐步稀释，嵌入随之失真：同一段
+   * 机主语音，窗口满时打 0.545，尾部 0.93 s 静音时打 -0.072（手机 80 实测）。把这种分数
+   * 当成"机主离场"的证据，就会在机主自己的句子里凑出 departure 并切一刀，把句尾切掉
+   * （缺陷 #98：「那我们按顺序逐项过一遍」只发布到「逐」，且拆开了「逐项」）。
+   *
+   * 分数本身照常记录和上报——不省略任何窗口的评分；只有"离场"这个结论要求至少一跳低分
+   * 窗口带真实语音。判据是有无语音，不是语音时长占比，短插话仍然算证据。
+   */
+  observeScore(endSample: number, score: number, threshold: number,
+    speechWasActive: boolean = true): SpeakerTurnScoreState {
     const end = Math.max(0, Math.round(endSample));
     this.lastObservedEndSample = end;
     this.latestScore = score;
@@ -132,10 +145,12 @@ export class SpeakerTurnFinalizer {
       this.lastTargetScore = score;
       this.firstBelowEndSample = -1;
       this.departureSeen = false;
+      this.speechBearingLowScore = false;
       this.rejectBeforeTarget = false;
       return firstTarget ? 'target-confirmed' : 'target-active';
     }
 
+    if (speechWasActive) this.speechBearingLowScore = true;
     this.belowCount += 1;
     if (!this.targetSeen) {
       if (this.belowCount >= this.consecutiveBelow) {
@@ -174,11 +189,15 @@ export class SpeakerTurnFinalizer {
       (this.resolutionReason.startsWith('sequential-boundary-ambiguous:') &&
         this.resolutionReason.endsWith(':insufficient-refine-context'));
   }
-  hasPendingDeparture(): boolean { return this.departureSeen; }
+  /** 至少一跳低分窗口带 VAD 语音，离场才有声学依据（见 observeScore）。 */
+  hasSpeechBearingLowScore(): boolean { return this.speechBearingLowScore; }
+  hasPendingDeparture(): boolean {
+    return this.departureSeen && this.speechBearingLowScore;
+  }
   hasPendingFinishDeparture(): boolean {
     const minimumTrailingSamples = Math.max(1, Math.round(this.sampleRate * 0.4));
     return !this.departureSeen && !this.capped && this.targetSeen && this.belowCount > 0 &&
-      this.lastTargetEndSample >= 0 &&
+      this.speechBearingLowScore && this.lastTargetEndSample >= 0 &&
       this.retainedSamples - this.lastTargetEndSample >= minimumTrailingSamples;
   }
   hasFinishDiarizationCandidate(): boolean {
@@ -522,6 +541,7 @@ export class SpeakerTurnFinalizer {
     this.firstBelowEndSample = -1;
     this.lastObservedEndSample = -1;
     this.departureSeen = false;
+    this.speechBearingLowScore = false;
     this.rejectBeforeTarget = false;
     this.latestScore = undefined;
     this.lastTargetScore = undefined;
