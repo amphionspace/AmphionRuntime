@@ -278,6 +278,60 @@ class AssetSyncTest(unittest.TestCase):
                      "tts-onnxruntime-harmony-v1", "tts-training-inputs-v1"):
             self.assertIn(name, manifest["bundles"])
 
+    def test_manifest_defaults_to_cos_and_keeps_obs_legacy_for_restricted_bundles(self) -> None:
+        """2026-11-16 起默认存储是腾讯云 COS；受限（SSE-KMS）bundle 留在具名的 obs-legacy 只读存储。"""
+        manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        storages = MODULE.storages_from(manifest)
+        self.assertEqual("tencent-cos", storages["default"].provider)
+        self.assertEqual("ap-guangzhou", storages["default"].region)
+        self.assertEqual(("COS_SecretId", "COS_SecretKey"),
+                         (storages["default"].access_key_env, storages["default"].secret_key_env))
+        self.assertEqual("huawei-obs", storages["obs-legacy"].provider)
+        self.assertEqual("OBS_Endpoint", storages["obs-legacy"].endpoint_env)
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        for name, bundle in bundles.items():
+            if not bundle.owned:
+                continue
+            expected = "obs-legacy" if bundle.definition.get("encryption") == "sse-kms" else "default"
+            self.assertEqual(expected, bundle.storage.name, name)
+        # 新外置的五个 bundle 全部在默认（COS）存储上。
+        for name in ("asr-shared-models-v1", "tts-harmony-icu-v1", "tts-onnxruntime-android-v1",
+                     "tts-onnxruntime-harmony-v1", "tts-training-inputs-v1"):
+            self.assertEqual("tencent-cos", bundles[name].storage.provider)
+
+    def test_storage_parsing_rejects_incomplete_or_unknown_providers(self) -> None:
+        base = {"bucket": "b", "access_key_env": "A", "secret_key_env": "S", "prefix": "p"}
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": {**base, "provider": "aws-s3"}})
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": {**base, "provider": "tencent-cos"}})  # no region
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": base})  # obs without endpoint_env
+        legacy = MODULE.storage_from({"storage": {**base, "endpoint_env": "E"}})
+        self.assertEqual("huawei-obs", legacy.provider)
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storages_from({"storage": {**base, "endpoint_env": "E"}, "storages": {"default": base}})
+
+    def test_cos_identity_normalizes_headers_like_obs(self) -> None:
+        size, sha, enc = MODULE.cos_identity_from_headers(
+            {"content-length": "42", "x-cos-meta-sha256": "ab" * 32, "x-cos-server-side-encryption": "cos/kms"})
+        self.assertEqual((42, "ab" * 32, "kms"), (size, sha, enc))
+        size, sha, enc = MODULE.cos_identity_from_headers({"content-length": "7"})
+        self.assertEqual((7, None, None), (size, sha, enc))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.cos_identity_from_headers({"etag": "x"})
+
+    def test_mirror_refuses_restricted_bundles_and_same_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self.restricted_bundle(root)
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.mirror_bundle(bundle, MODULE.Storage("other", "E", "A", "S", "p", name="src"))
+            definition = dict(bundle.definition)
+            definition.pop("encryption", None)
+            plain = MODULE.Bundle("plain", definition, bundle.storage, root, True)
+            self.assertEqual("same-storage", MODULE.mirror_bundle(plain, plain.storage))
+
     def test_test_data_include_uses_shared_cache_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

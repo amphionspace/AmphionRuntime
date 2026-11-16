@@ -1,12 +1,23 @@
 {
   "schema_version": 1,
   "storage": {
-    "provider": "huawei-obs",
-    "bucket": "cuhk-anfeiweng-benchmark",
-    "endpoint_env": "OBS_Endpoint",
-    "access_key_env": "OBS_AccesskeyID",
-    "secret_key_env": "OBS_SecretAccesskey",
+    "provider": "tencent-cos",
+    "bucket": "amphion-assets-1373259071",
+    "region": "ap-guangzhou",
+    "endpoint": "https://cos.ap-guangzhou.tencentcos.cn",
+    "access_key_env": "COS_SecretId",
+    "secret_key_env": "COS_SecretKey",
     "prefix": "amphion-runtime/assets/v1"
+  },
+  "storages": {
+    "obs-legacy": {
+      "provider": "huawei-obs",
+      "bucket": "cuhk-anfeiweng-benchmark",
+      "endpoint_env": "OBS_Endpoint",
+      "access_key_env": "OBS_AccesskeyID",
+      "secret_key_env": "OBS_SecretAccesskey",
+      "prefix": "amphion-runtime/assets/v1"
+    }
   },
   "included_manifests": [
     {
@@ -256,7 +267,8 @@
           "mode": "0644"
         }
       ],
-      "status": "current"
+      "status": "current",
+      "storage": "obs-legacy"
     },
     "tts-checkpoints-v3-20260806": {
       "description": "Dingqiao v3 LITS, MeanFlow step2, and Vocos 24 kHz training checkpoints",
@@ -633,7 +645,8 @@
       "merge_destination": true,
       "allow_extra_files": true,
       "status": "historical",
-      "superseded_by": "team-secure-state-v5"
+      "superseded_by": "team-secure-state-v5",
+      "storage": "obs-legacy"
     },
     "team-secure-state-v3": {
       "description": "Non-canonical portable signing snapshot missing DevEco decrypt material",
@@ -772,7 +785,8 @@
       "merge_destination": true,
       "allow_extra_files": true,
       "status": "historical",
-      "superseded_by": "team-secure-state-v5"
+      "superseded_by": "team-secure-state-v5",
+      "storage": "obs-legacy"
     },
     "team-secure-state-v4": {
       "description": "Non-canonical signing snapshot whose ASR encrypted credentials do not match the packaged keystore",
@@ -941,7 +955,8 @@
       "merge_destination": true,
       "allow_extra_files": true,
       "status": "historical",
-      "superseded_by": "team-secure-state-v5"
+      "superseded_by": "team-secure-state-v5",
+      "storage": "obs-legacy"
     },
     "team-secure-state-v5": {
       "description": "Canonical portable team-only license root, device allowlists, and device-verified Harmony signing materials",
@@ -1109,7 +1124,8 @@
       "encryption": "sse-kms",
       "merge_destination": true,
       "allow_extra_files": true,
-      "status": "current"
+      "status": "current",
+      "storage": "obs-legacy"
     },
     "asr-shared-models-v1": {
       "description": "Shared ASR speaker/segmentation/LAC ONNX models copied into the Dingqiao and Police SDK packages at build time",

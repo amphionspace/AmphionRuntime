@@ -607,15 +607,14 @@ jobs:
       - name: Initialize sherpa-onnx submodule
         run: git submodule update --init third_party/sherpa-onnx
 
-      # shared/models 已外置到 OBS（tools/assets/manifest.json 的 asr-shared-models-v1）。
-      # 仓库 Secrets 需要 OBS_AccesskeyID / OBS_SecretAccesskey / OBS_Endpoint。
-      - name: Restore shared ASR models from OBS
+      # shared/models 已外置到腾讯云 COS（tools/assets/manifest.json 的 asr-shared-models-v1）。
+      # 仓库 Secrets 需要 COS_SecretId / COS_SecretKey。
+      - name: Restore shared ASR models from COS
         env:
-          OBS_AccesskeyID: ${{ secrets.OBS_AccesskeyID }}
-          OBS_SecretAccesskey: ${{ secrets.OBS_SecretAccesskey }}
-          OBS_Endpoint: ${{ secrets.OBS_Endpoint }}
+          COS_SecretId: ${{ secrets.COS_SecretId }}
+          COS_SecretKey: ${{ secrets.COS_SecretKey }}
         run: |
-          python3 -m pip install --quiet esdk-obs-python
+          python3 -m pip install --quiet cos-python-sdk-v5
           python3 tools/assets/sync.py fetch asr-shared-models-v1
           python3 tools/assets/sync.py verify asr-shared-models-v1
 

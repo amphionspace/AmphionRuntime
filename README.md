@@ -84,8 +84,8 @@ cd amphion-runtime
 git submodule update --init --recursive
 
 # 模型与原生二进制不在 Git 里（远程仓库只保留源码）。首次构建前从对象存储恢复：
-#   凭据只走环境变量 OBS_AccesskeyID / OBS_SecretAccesskey / OBS_Endpoint，见 tools/assets/README.md
-python3 -m pip install esdk-obs-python
+#   凭据只走环境变量 COS_SecretId / COS_SecretKey（腾讯云 COS），见 tools/assets/README.md
+python3 -m pip install cos-python-sdk-v5
 python3 tools/assets/sync.py fetch all
 ```
 
