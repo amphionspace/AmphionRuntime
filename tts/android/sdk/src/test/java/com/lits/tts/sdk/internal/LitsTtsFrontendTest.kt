@@ -12,6 +12,98 @@ import org.json.JSONObject
 
 class LitsTtsFrontendTest {
     @Test
+    fun gluedEnglishQuestionMarkIsSentencePunctuationNotQuestionMarkWord() {
+        // 缺陷 #94：英文「?」后面没有空格时，'?' 不能被读成 "question mark"，且要在这里分句。
+        val layout = testLayout()
+
+        val tn = LitsTnNormalizer.normalize(layout, "Are you ready?Yes, I am.", "en-US", "en-US")
+        assertFalse(tn, tn.contains("question mark", ignoreCase = true))
+        assertTrue(tn, tn.contains("ready? Yes"))
+
+        val segments = LitsTtsFrontend.splitForStreaming(layout, "Are you ready?Yes I am ready now.", "en-US", "en-US")
+        assertEquals(segments.toString(), 2, segments.size)
+        assertTrue(segments.toString(), segments[0].trimEnd().endsWith("?"))
+
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Are you ready? Yes, I am.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Are you ready?Yes, I am.", "en-US", "en-US"),
+        )
+    }
+
+    @Test
+    fun gluedQuestionMarkInZhEnContextIsNotReadAsWenhao() {
+        val layout = testLayout()
+
+        val tn = LitsTnNormalizer.normalize(layout, "你好吗?好的", "zh-en", "zh-en")
+        assertFalse(tn, tn.contains("问号"))
+        val mixed = LitsTnNormalizer.normalize(layout, "是OK?好的", "zh-en", "zh-en")
+        assertFalse(mixed, mixed.contains("问号"))
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "是OK? 好的", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "是OK?好的", "zh-en", "zh-en"),
+        )
+    }
+
+    @Test
+    fun gluedSentencePeriodAndEllipsisBehaveLikeTheSpacedSentence() {
+        // 缺陷 #94 推广：句号/省略号贴着下一句时不得读成 dot / 点，且与带空格的写法完全同一条路径。
+        val layout = testLayout()
+
+        val tnPeriod = LitsTnNormalizer.normalize(layout, "Are you ready.Yes I am.", "en-US", "en-US")
+        assertFalse(tnPeriod, tnPeriod.contains(" dot ", ignoreCase = true))
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Are you ready. Yes I am.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Are you ready.Yes I am.", "en-US", "en-US"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Ready... Yes I am.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Ready...Yes I am.", "en-US", "en-US"),
+        )
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "Version 1.2. Next step.", "en-US", "en-US"),
+            LitsTtsFrontend.encode(layout, "Version 1.2.Next step.", "en-US", "en-US"),
+        )
+        val tnZh = LitsTnNormalizer.normalize(layout, "结束.Next句", "zh-en", "zh-en")
+        assertFalse(tnZh, tnZh.contains("点"))
+        assertArrayEquals(
+            LitsTtsFrontend.encode(layout, "是OK. 好的", "zh-en", "zh-en"),
+            LitsTtsFrontend.encode(layout, "是OK.好的", "zh-en", "zh-en"),
+        )
+        assertEquals(2, LitsTtsFrontend.splitForStreaming(layout, "Are you ready.Yes I am ready now.", "en-US", "en-US").size)
+    }
+
+    @Test
+    fun legitimateDotsKeepTheirTechnicalReading() {
+        val layout = testLayout()
+
+        assertTrue(LitsTnNormalizer.normalize(layout, "Open readme.txt now.", "en-US", "en-US").contains(" dot "))
+        assertTrue(LitsTnNormalizer.normalize(layout, "Visit www.a.com today.", "en-US", "en-US").contains(" dot "))
+        assertTrue(LitsTnNormalizer.normalize(layout, "文件a.txt已保存", "zh-en", "zh-en").contains("点"))
+        assertTrue(LitsTnNormalizer.normalize(layout, "版本v1.2.3发布", "zh-en", "zh-en").contains("一点二点三"))
+        // 首字母缩写、小数、邮箱、小写文件名不被拆开；句末标点被分开。
+        assertEquals("U.S.A", LitsTtsFrontend.separateGluedSentencePunctuation("U.S.A"))
+        assertEquals("pi is 3.14", LitsTtsFrontend.separateGluedSentencePunctuation("pi is 3.14"))
+        assertEquals("a@b.com", LitsTtsFrontend.separateGluedSentencePunctuation("a@b.com"))
+        assertEquals("ready.yes", LitsTtsFrontend.separateGluedSentencePunctuation("ready.yes"))
+        assertEquals("ready. Yes", LitsTtsFrontend.separateGluedSentencePunctuation("ready.Yes"))
+        assertEquals("ready? Yes", LitsTtsFrontend.separateGluedSentencePunctuation("ready?Yes"))
+        assertEquals("What?? Really", LitsTtsFrontend.separateGluedSentencePunctuation("What??Really"))
+        assertEquals("Ready\u2026 Yes", LitsTtsFrontend.separateGluedSentencePunctuation("Ready\u2026Yes"))
+    }
+
+    @Test
+    fun urlQueryQuestionMarkIsStillSpokenAsTechnicalSymbol() {
+        val layout = testLayout()
+
+        val en = LitsTnNormalizer.normalize(layout, "Open https://a.com/x?id=1 now.", "en-US", "en-US")
+        assertTrue(en, en.contains("question mark", ignoreCase = true))
+        val query = LitsTnNormalizer.normalize(layout, "Visit www.a.com/search?q=lits please.", "en-US", "en-US")
+        assertTrue(query, query.contains("question mark", ignoreCase = true))
+        val zh = LitsTnNormalizer.normalize(layout, "打开 https://a.com/x?id=1 看看", "zh-en", "zh-en")
+        assertTrue(zh, zh.contains("问号"))
+    }
+
+    @Test
     fun languageContextControlsDigitReading() {
         val layout = testLayout()
 
