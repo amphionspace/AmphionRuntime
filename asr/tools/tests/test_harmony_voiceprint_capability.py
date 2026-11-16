@@ -150,6 +150,42 @@ class HarmonyVoiceprintCapabilityTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
+    def test_short_command_final_score_uses_segment_templates_but_hops_do_not(self) -> None:
+        """缺陷 #97 第二轮：final 打分用整文件 + 2 s 分段模板，流式确认与边界校验只用整文件模板。
+
+        客户「OKOK」有效语音不到 1 s，对 8 s 整文件模板只有 0.370（刚过 0.35）；按 2 s 窗切出的
+        分段模板把它抬到 0.444。短对短匹配同样抬高非机主短窗（1.5 s 最高 0.20 → 0.33），所以
+        分段模板不得进入 hop/边界打分，否则非机主更容易被"确认"而绕过 0.45 下沿。
+        """
+        enroller = (REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/SpeakerEnroller.ets").read_text(encoding="utf-8")
+        store = (REPO_ROOT / "asr/harmony/sdk-dingqiao/src/main/ets/com/amphion/dingqiao/VoiceprintStore.ets").read_text(encoding="utf-8")
+        sdk = SDK.read_text(encoding="utf-8")
+        runtime = (REPO_ROOT / "asr/harmony/sdk/src/main/ets/com/amphion/asr/Runtime.ets").read_text(encoding="utf-8")
+
+        self.assertIn("enrollFileSegmentTemplates(audioPaths: string[])", enroller)
+        self.assertIn("SEGMENT_TEMPLATE_SECONDS: number = 2.0", enroller)
+        self.assertIn("segment-templates.bin", store)
+        self.assertIn("loadSegmentTemplates(id: string)", store)
+        # 注册时生成并持久化；加载时并入 final 模板，并以独立接口交给会话。
+        self.assertIn("enroller.enrollFileSegmentTemplates(params.samplePaths)", sdk)
+        self.assertIn("store.saveVoiceprint(params.samplePaths, embedding, templates, segmentTemplates)", sdk)
+        self.assertIn("store.loadSegmentTemplates(voiceprintIds[i])", sdk)
+        self.assertEqual(sdk.count("setTargetSpeakerFinalTemplates(this.voiceprintFinalTemplates)"), 2)
+        # Runtime：final 路径带 forFinal=true；hop/边界路径不带。
+        self.assertIn("setTargetSpeakerFinalTemplates(templates: Float32Array[])", runtime)
+        self.assertIn("this.targetSpeakerFinalTemplates = []", runtime)
+        for final_call in (
+            "await this.scoreSamplesAsync(samples, true)",
+            "await this.scoreSamplesAsync(selection.samples, true)",
+            "this.scoreSamples(selection.samples, true)",
+            "this.targetSimilarity(embedding, targetSpeaker, true)",
+        ):
+            self.assertIn(final_call, runtime, final_call)
+        self.assertIn("await this.scoreSamplesAsync(request.samples)", runtime)
+        self.assertIn("this.scoreSamples(this.speakerPcmBuffers.speakerVadTail(winSamples))", runtime)
+        self.assertNotIn("scoreSamplesBatchAsync(requests, true)", runtime)
+        self.assertIn("if (!forFinal) this.lastSpeakerVadScore = score;", runtime)
+
 
 if __name__ == "__main__":
     unittest.main()

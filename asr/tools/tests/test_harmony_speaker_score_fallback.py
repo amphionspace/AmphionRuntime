@@ -163,7 +163,7 @@ class HarmonySpeakerScoreFallbackTest(unittest.TestCase):
             "private prepareCleanPrefixSpeakerScore(split: SpeakerTurnSplit): void {", 1
         )[1].split("private syncSpeakerTurnState", 1)[0]
         score_samples = source.split(
-            "private scoreSamples(samples: Float32Array): number | undefined {", 1
+            "private scoreSamples(samples: Float32Array, forFinal: boolean = false): number | undefined {", 1
         )[1].split("private dispatchSessionMetrics", 1)[0]
 
         self.assertIn("this.svCleanPrefixSpeakerScore = this.scoreSamples", clean_prefix)

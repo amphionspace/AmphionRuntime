@@ -19,13 +19,17 @@ export class VoiceprintStore {
   }
 
   saveVoiceprint(samplePaths: string[], embedding: Float32Array,
-    templates: Float32Array[] = []): string {
+    templates: Float32Array[] = [], segmentTemplates: Float32Array[] = []): string {
     const id = `vp-${util.generateRandomUUID(true)}`;
     const dir = `${this.root}/${id}`;
     this.ensureDir(dir);
     VoiceprintStore.writeEmbedding(`${dir}/embedding.bin`, embedding);
     // 每份注册样本单独留档（缺陷 #97）：合并质心会稀释判别力，评分时按模板取最大。
     if (templates.length > 1) VoiceprintStore.writeTemplates(`${dir}/templates.bin`, templates);
+    // 2 s 分段模板只供 final 打分（缺陷 #97 第二轮）；单独一个文件，旧档案没有时退回整文件模板。
+    if (segmentTemplates.length > 0) {
+      VoiceprintStore.writeTemplates(`${dir}/segment-templates.bin`, segmentTemplates);
+    }
     const firstSample = samplePaths.length > 0 ? baseName(samplePaths[0]) : '';
     const meta = `{"voiceprintId":"${id}","sample":"${firstSample}"}`;
     const fp = fs.openSync(`${dir}/meta.json`, fs.OpenMode.WRITE_ONLY | fs.OpenMode.CREATE | fs.OpenMode.TRUNC);
@@ -39,9 +43,18 @@ export class VoiceprintStore {
 
   /** 每份注册样本的嵌入；旧档案没有该文件时返回空数组，调用方退回单模板路径。 */
   loadTemplates(id: string): Float32Array[] {
+    return this.loadTemplateFile(id, 'templates.bin');
+  }
+
+  /** 2 s 分段模板（只供 final 打分）；旧档案没有该文件时返回空数组。 */
+  loadSegmentTemplates(id: string): Float32Array[] {
+    return this.loadTemplateFile(id, 'segment-templates.bin');
+  }
+
+  private loadTemplateFile(id: string, name: string): Float32Array[] {
     const out: Float32Array[] = [];
     if (!VoiceprintStore.isSafeId(id)) return out;
-    const file = `${this.root}/${id}/templates.bin`;
+    const file = `${this.root}/${id}/${name}`;
     if (!fs.accessSync(file)) return out;
     const fp = fs.openSync(file);
     try {

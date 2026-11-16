@@ -740,7 +740,8 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         self.assertIn("this.svSpeculativeSpeechEndSample === this.vadLastSpeechEndSample", take)
         self.assertIn("this.svSpeculativeScoreLength === samples.length", take)
         self.assertIn("this.svSpeculativeScoreGeneration === generation", take)
-        self.assertIn("hit ? await task : await this.scoreSamplesAsync(samples)", take)
+        # final 现算带 forFinal=true（整文件 + 2 s 分段模板，缺陷 #97 第二轮）。
+        self.assertIn("hit ? await task : await this.scoreSamplesAsync(samples, true)", take)
         self.assertNotIn("this.scoreSamples(", take)
 
         # 句边界换代后旧投机不可见；Runtime 释放要等在途投机结束。
