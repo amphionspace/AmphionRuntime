@@ -253,6 +253,31 @@ class AssetSyncTest(unittest.TestCase):
                 self.assertEqual("generated-output", MODULE.policy_match(path, manifest))
         self.assertIsNone(MODULE.policy_match("private/model.bin", manifest))
 
+    def test_synchronized_repository_assets_are_not_tracked_by_git(self) -> None:
+        """外置资产不得再被 Git 跟踪：2026-11-16 起仓库只保留源码，模型/原生库全部由 bundle 恢复。
+
+        以前 `shared/models` 与 `tts/tools/trial-export` 的文件既在 bundle 里又在 Git 里，
+        远程仓库因此长到 200 MB。这里对每个仓库内 bundle 的逐文件清单查 `git ls-files`，
+        任何一条被跟踪就失败；新增大文件请走 bundle，不要用 .gitignore 的 `!` 负规则放行。
+        """
+        import subprocess
+        manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        repo_root = MODULE.DEFAULT_REPO_ROOT
+        tracked = []
+        for name, bundle in manifest["bundles"].items():
+            for item in bundle.get("files", []):
+                relative = f"{bundle['destination']}/{item['path']}"
+                result = subprocess.run(
+                    ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", relative],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0:
+                    tracked.append(f"{name}: {relative}")
+        self.assertEqual([], tracked, "synchronized asset files must not be tracked by Git")
+        for name in ("asr-shared-models-v1", "tts-harmony-icu-v1", "tts-onnxruntime-android-v1",
+                     "tts-onnxruntime-harmony-v1", "tts-training-inputs-v1"):
+            self.assertIn(name, manifest["bundles"])
+
     def test_test_data_include_uses_shared_cache_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

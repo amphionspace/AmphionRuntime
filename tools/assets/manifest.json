@@ -1110,6 +1110,212 @@
       "merge_destination": true,
       "allow_extra_files": true,
       "status": "current"
+    },
+    "asr-shared-models-v1": {
+      "description": "Shared ASR speaker/segmentation/LAC ONNX models copied into the Dingqiao and Police SDK packages at build time",
+      "license": "mixed-upstream-see-LICENSE-files",
+      "source": "sherpa-onnx / 3D-Speaker / pyannote ONNX ports pinned by SDK builds",
+      "redistribution": "bundled-in-customer-sdk",
+      "archive_root": "shared-models-asr",
+      "destination": "shared/models/asr",
+      "archive_type": "zip",
+      "object": "asr-shared-models-v1/2bcc1fcf95d2a5a1e71f9019da59c34acaf24ee0831e39276071c3743eea0ef6.zip",
+      "size": 97574608,
+      "sha256": "2bcc1fcf95d2a5a1e71f9019da59c34acaf24ee0831e39276071c3743eea0ef6",
+      "files": [
+        {
+          "path": "dingqiao/eres2net.onnx",
+          "size": 39593761,
+          "sha256": "1a331345f04805badbb495c775a6ddffcdd1a732567d5ec8b3d5749e3c7a5e4b",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao/campplus.onnx",
+          "size": 28281138,
+          "sha256": "f682b514c05d947ee3fa91cd6ec6c5c7543479a128373fa29b1faedccd21fd11",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao/campplus.LICENSE",
+          "size": 11357,
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao/pyannote-segmentation-3.0.onnx",
+          "size": 5986908,
+          "sha256": "057ee564753071c0b09b5b611648b50ac188d50846bff5f01e9f7bbf1591ea25",
+          "mode": "0644"
+        },
+        {
+          "path": "dingqiao/pyannote-segmentation-3.0.LICENSE",
+          "size": 1061,
+          "sha256": "63a777ad4b3c7aed4b260b084d8fb49ec781c46c70c6b599ca5d2402ef7ebe50",
+          "mode": "0644"
+        },
+        {
+          "path": "police/lac/v1/lac_encoder.onnx",
+          "size": 31855093,
+          "sha256": "826085fff327d0c76c0dd55400629ce0ed192a6519ecd9841ed6fdedb4cb5aec",
+          "mode": "0644"
+        }
+      ],
+      "status": "current",
+      "merge_destination": true,
+      "allow_extra_files": true,
+      "model_versions": {
+        "eres2net": "3dspeaker-base-sv-zh-cn-16k",
+        "campplus": "3dspeaker-campplus-sv-zh-cn-16k-common",
+        "pyannote-segmentation": "3.0",
+        "lac_encoder": "v1"
+      }
+    },
+    "tts-harmony-icu-v1": {
+      "description": "HarmonyOS arm64 ICU static libraries linked into the TTS native text normalizer",
+      "license": "icu-unicode",
+      "source": "Pinned ohos-icu build",
+      "redistribution": "bundled-in-customer-sdk",
+      "archive_root": "ohos-icu-lib",
+      "destination": "tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib",
+      "archive_type": "zip",
+      "object": "tts-harmony-icu-v1/669e7a7594df9bd7723aa4a715947f7f7a7af8e804607affde7e9695a8755bf4.zip",
+      "size": 17665519,
+      "sha256": "669e7a7594df9bd7723aa4a715947f7f7a7af8e804607affde7e9695a8755bf4",
+      "files": [
+        {
+          "path": "libicudata.a",
+          "size": 33108140,
+          "sha256": "825de05b077643d1b67733ed973efe996af487ced6f23d32d50e9f4083d253e4",
+          "mode": "0755"
+        },
+        {
+          "path": "libicui18n.a",
+          "size": 16293494,
+          "sha256": "d704876449971a00faf7c1ba3af837dc89362263711df768478c12af67013f56",
+          "mode": "0755"
+        },
+        {
+          "path": "libicuuc.a",
+          "size": 7157598,
+          "sha256": "5f8009031da4cba0f35ce787c57274ccb44b29b9a2cfedfd114422b62c34c3ea",
+          "mode": "0755"
+        }
+      ],
+      "status": "current"
+    },
+    "tts-onnxruntime-android-v1": {
+      "description": "Android arm64 ONNX Runtime shared library and JNI binding packaged into the TTS AAR",
+      "license": "mit-onnxruntime",
+      "source": "Pinned ONNX Runtime Android release",
+      "redistribution": "bundled-in-customer-sdk",
+      "archive_root": "jniLibs-arm64-v8a",
+      "destination": "tts/android/sdk/src/main/jniLibs/arm64-v8a",
+      "archive_type": "zip",
+      "object": "tts-onnxruntime-android-v1/5a7ade4a42ea343f74b1619813dd2cd4345dd06a2891be6ca90eb6028f73fcba.zip",
+      "size": 9462013,
+      "sha256": "5a7ade4a42ea343f74b1619813dd2cd4345dd06a2891be6ca90eb6028f73fcba",
+      "files": [
+        {
+          "path": "libonnxruntime.so",
+          "size": 25831632,
+          "sha256": "4d2318b3849abb8862133d3068fc7e807ed8b2671cc6d83657fff2fcb9e1caad",
+          "mode": "0644"
+        },
+        {
+          "path": "libonnxruntime4j_jni.so",
+          "size": 111976,
+          "sha256": "5c032a6547e3c33671c07d885af59f1bddd92eb72c595ae8d80db5bbe3fdd2ef",
+          "mode": "0644"
+        }
+      ],
+      "status": "current"
+    },
+    "tts-onnxruntime-harmony-v1": {
+      "description": "HarmonyOS arm64 ONNX Runtime shared library linked by the TTS native module",
+      "license": "mit-onnxruntime",
+      "source": "Pinned ONNX Runtime HarmonyOS build",
+      "redistribution": "bundled-in-customer-sdk",
+      "archive_root": "libs-arm64-v8a",
+      "destination": "tts/harmony/sdk/libs/arm64-v8a",
+      "archive_type": "zip",
+      "object": "tts-onnxruntime-harmony-v1/fb8279ba2715b33fdf9b7e1457f770df62fc0e70d818a323bf62114ab0083b85.zip",
+      "size": 4407402,
+      "sha256": "fb8279ba2715b33fdf9b7e1457f770df62fc0e70d818a323bf62114ab0083b85",
+      "files": [
+        {
+          "path": "libonnxruntime.so",
+          "size": 12930856,
+          "sha256": "f9fd9080a10f2b93323d597225fbaa63d06f93b384bdfdd7285db9a9115fcc2b",
+          "mode": "0644"
+        }
+      ],
+      "status": "current"
+    },
+    "tts-training-inputs-v1": {
+      "description": "TTS training/text-normalization inputs kept out of Git: MorphoDiTa Russian tagger, training filelists, CMUdict 0.7b source and the Chinese lexicon source",
+      "license": "mixed-research-inputs",
+      "source": "Dingqiao LITS training workspace snapshot",
+      "redistribution": "team-internal-only",
+      "archive_root": "dingqiao_lits",
+      "destination": "tts/training/dingqiao_lits",
+      "archive_type": "zip",
+      "object": "tts-training-inputs-v1/a2c1b19b1579c20ce33ef7a5dcc8dbe8e032b9abecdf3bf90485e6611790918e.zip",
+      "size": 32085504,
+      "sha256": "a2c1b19b1579c20ce33ef7a5dcc8dbe8e032b9abecdf3bf90485e6611790918e",
+      "files": [
+        {
+          "path": "Dingqiao_Multilingual_Text_Normalization_for_TTS/original/morphodita/models/russian-syntagrus-morphodita-only.tagger",
+          "size": 23429859,
+          "sha256": "cbd3291f7a783cfb1d6dafdb67ea5bac251fe18d0e040c4d8009ec22887f3eba",
+          "mode": "0644"
+        },
+        {
+          "path": "data/filelists/before_mix/RUSLAN_cleaned.txt",
+          "size": 4711802,
+          "sha256": "4aa2f4cbaeb0c5adb58b35d1e0718585d03a022b390d62a210e26ba896a999dc",
+          "mode": "0644"
+        },
+        {
+          "path": "data/filelists/before_mix/LJSpeech.txt",
+          "size": 3581271,
+          "sha256": "a62936480a22d851eaf77453f7601748f659fa865b9420b6c5fc10403beff3c9",
+          "mode": "0644"
+        },
+        {
+          "path": "data/filelists/before_mix/ar-ClArTTS.txt",
+          "size": 2007246,
+          "sha256": "2cf4460ef70d8a051b0f13eadf2a2fa1f6b976e9317eec79dfb08b67c44a34da",
+          "mode": "0644"
+        },
+        {
+          "path": "data/filelists/before_mix/LJS_synth_all_arpa.txt",
+          "size": 1399526,
+          "sha256": "35a73dbe36db32154ec9f7550416a3f82856fdb993a142986acbd4281226af6d",
+          "mode": "0644"
+        },
+        {
+          "path": "data/filelists/before_mix/LJS_synth_all.txt",
+          "size": 872794,
+          "sha256": "a584fb4e4a4d29b75386c74a48770712b3432bfe0b6a882f7e0d71c7ff74f293",
+          "mode": "0644"
+        },
+        {
+          "path": "temp_cmu_g2p/data/cmudict-0.7b",
+          "size": 3865710,
+          "sha256": "fd1a4a40bf612a45d9e207ed633bf8c0238873291f774557ef14771099775c88",
+          "mode": "0644"
+        },
+        {
+          "path": "lits/text/sources/chinese_lexicon.txt",
+          "size": 14779805,
+          "sha256": "0d92e61a35640011e2801b1d4083ae0ef913b74426e96c2ba67cd69e244631e1",
+          "mode": "0644"
+        }
+      ],
+      "status": "current",
+      "merge_destination": true,
+      "allow_extra_files": true,
+      "pipeline_generation": "v3"
     }
   },
   "ignored_asset_policy": {
@@ -1194,12 +1400,12 @@
           "asr/ios/AmphionRuntime.xcframework.zip",
           "asr/ios/AmphionRuntime.xcframework.zip.sha256",
           "asr/harmony/sdk/src/main/cpp/libs/**",
-        "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**",
-        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx",
-        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.LICENSE",
-        "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
-        "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police/lac/v1/lac_encoder.onnx",
-        "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/**",
+          "asr/harmony/sdk/src/main/resources/rawfile/amphion-models/**",
+          "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/eres2net.onnx",
+          "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.LICENSE",
+          "asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.onnx",
+          "asr/harmony/sdk-police/src/main/resources/rawfile/amphion-police/lac/v1/lac_encoder.onnx",
+          "third_party/sherpa-onnx/harmony-os/SherpaOnnxHar/sherpa_onnx/src/main/cpp/libs/**",
           "asr/android/samples/public-demo/src/main/assets/asr-models/**",
           "asr/android/sdk/src/main/assets/amphion-models/**",
           "asr/android/sdk/src/main/assets/lits-models/**",

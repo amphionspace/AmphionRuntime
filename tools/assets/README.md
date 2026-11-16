@@ -50,6 +50,19 @@ OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式
 也不会默认覆盖同名但内容不同的文件；确认要采用远端版本时显式增加 `--replace-existing`。
 受限 ZIP 的本地明文临时文件无论成功或失败都会清理，并保留清单声明的 `0600`/`0644` 权限。
 
+2026-11-16 起，此前仍跟踪在 Git 里的模型与原生二进制也全部外置，仓库只保留源码：
+
+| bundle | 恢复到 | 内容 |
+| --- | --- | --- |
+| `asr-shared-models-v1` | `shared/models/asr` | eres2net / CAM++ / pyannote 分割 ONNX 与许可证、LAC 人名 encoder；鼎桥与警务 SDK 构建时复制进包 |
+| `tts-harmony-icu-v1` | `tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib` | 鸿蒙 arm64 ICU 静态库 |
+| `tts-onnxruntime-android-v1` | `tts/android/sdk/src/main/jniLibs/arm64-v8a` | 安卓 ONNX Runtime `.so` 与 JNI 绑定 |
+| `tts-onnxruntime-harmony-v1` | `tts/harmony/sdk/libs/arm64-v8a` | 鸿蒙 ONNX Runtime `.so` |
+| `tts-training-inputs-v1` | `tts/training/dingqiao_lits`（合并模式） | MorphoDiTa 俄语 tagger、训练 filelist、CMUdict 0.7b、中文词典源文件 |
+
+`tts-runtime-zhen-v1` 的目标目录 `tts/tools/trial-export/.../0.1.0/` 此前还有 19 个文本文件留在 Git 里，
+现已一并移除，整个目录只由该 bundle 恢复。各端构建对这些路径都有硬失败检查并提示 bundle 名称。
+
 TTS 协作输入拆成三个用途明确的 bundle：`tts-checkpoints-v3-20260806` 恢复训练 checkpoint，
 `tts-runtime-zhen-v1` 恢复 Android/Harmony 共用的 ONNX 与前端资源，`tts-harmony-tn-v1` 恢复
 HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或真机验证场景只取所需资产。
