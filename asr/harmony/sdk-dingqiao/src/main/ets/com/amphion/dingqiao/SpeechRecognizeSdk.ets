@@ -72,6 +72,7 @@ import {
 } from './diarization/SpeakerDiarizationSession';
 import { LatestRequestGate } from './LatestRequestGate';
 import {
+  SPEAKER_EXTRACTOR_THREADS,
   buildAsrConfig,
   buildSessionConfig,
   isSupportedAudioFrameBytes,
@@ -1881,8 +1882,9 @@ export class SpeechRecognizeSdk {
       // Reuse the shared, pooled extractor so registration warms the SAME instance the recognition
       // path uses — the ~38 MB eres2net load is paid here (where a wait is expected) and start
       // recognition stays instant.
-      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
-      const enroller = new SpeakerEnroller(modelPath, 1, context, extractor);
+      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(
+        context, modelPath, SPEAKER_EXTRACTOR_THREADS);
+      const enroller = new SpeakerEnroller(modelPath, SPEAKER_EXTRACTOR_THREADS, context, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
       // 每份样本的独立模板：短指令的判别力靠它（合并质心会稀释，见缺陷 #97）。
       const templates = enroller.enrollFileTemplates(params.samplePaths);
@@ -1938,7 +1940,7 @@ export class SpeechRecognizeSdk {
       const context = SpeechRecognizeSdk.context;
       if (context === undefined) return false;
       const modelPath = DingqiaoSpeakerModelAssets.bundledPath();
-      AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
+      AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, SPEAKER_EXTRACTOR_THREADS);
       return true;
     } catch (e) {
       return false;
