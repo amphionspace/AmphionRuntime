@@ -8,6 +8,17 @@ import {
 } from 'sherpa_onnx';
 
 const SPEAKER_SAMPLE_RATE_HZ: number = 16000;
+/**
+ * 分段模板的窗长/步长（缺陷 #97 第二轮）。整文件模板对 8 s 朗读建模，与 1 s 左右的 PTT 短指令
+ * 不在一个尺度上：客户「OKOK」对 near/mid/far 整文件模板只有 0.245/0.269/0.370，刚擦过 0.35。
+ * 把每份注册样本再按 2 s 窗、1 s 步切成分段模板后，同一段 OKOK 的最大相似度 0.370 → 0.444，
+ * 机主 1 s 窗口低于 0.35 的比例 13.8% → 10.6%。短对短匹配同样会抬高非机主短窗（1 s 最高
+ * 0.31 → 0.39、1.5 s 最高 0.20 → 0.33），所以分段模板只用于 final 打分，流式确认与边界校验
+ * 仍用整文件模板——非机主要被"确认"的门槛不变，未确认的 final 仍要过 0.45 下沿。
+ */
+export const SEGMENT_TEMPLATE_SECONDS: number = 2.0;
+export const SEGMENT_TEMPLATE_HOP_SECONDS: number = 1.0;
+const SEGMENT_TEMPLATE_MIN_RMS: number = 0.0178; // 约 -35 dBFS，跳过静音块
 
 export class SpeakerEnroller {
   private modelPath: string;
@@ -68,6 +79,31 @@ export class SpeakerEnroller {
     return out;
   }
 
+  /**
+   * 每份样本按 SEGMENT_TEMPLATE_SECONDS 窗切出的分段模板（只供 final 打分，见文件头注释）。
+   * 静音块跳过；样本短于一个窗时整段作为一个分段。
+   */
+  enrollFileSegmentTemplates(audioPaths: string[]): Float32Array[] {
+    this.ensureOpen();
+    const out: Float32Array[] = [];
+    const window = Math.round(SEGMENT_TEMPLATE_SECONDS * SPEAKER_SAMPLE_RATE_HZ);
+    const hop = Math.round(SEGMENT_TEMPLATE_HOP_SECONDS * SPEAKER_SAMPLE_RATE_HZ);
+    for (let i = 0; i < audioPaths.length; i++) {
+      const samples = this.readWaveSamples(audioPaths[i]);
+      if (samples.length === 0) continue;
+      if (samples.length <= window) {
+        if (rmsOf(samples) >= SEGMENT_TEMPLATE_MIN_RMS) out.push(this.computeEmbedding(samples, SPEAKER_SAMPLE_RATE_HZ));
+        continue;
+      }
+      for (let start = 0; start + window <= samples.length; start += hop) {
+        const segment = samples.subarray(start, start + window);
+        if (rmsOf(segment) < SEGMENT_TEMPLATE_MIN_RMS) continue;
+        out.push(this.computeEmbedding(segment, SPEAKER_SAMPLE_RATE_HZ));
+      }
+    }
+    return out;
+  }
+
   enrollFiles(audioPaths: string[]): Float32Array {
     this.ensureOpen();
     if (audioPaths.length === 0) throw new Error('enrollFiles() needs at least 1 audio path');
@@ -119,6 +155,13 @@ export class SpeakerEnroller {
       fileIo.closeSync(fp);
     }
   }
+}
+
+function rmsOf(samples: Float32Array): number {
+  if (samples.length === 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) sum += samples[i] * samples[i];
+  return Math.sqrt(sum / samples.length);
 }
 
 function meanNormalize(embeddings: Float32Array[], dim: number): Float32Array {
