@@ -29,6 +29,18 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     // 落地目录名保持 sortformer-66M-4spk：原生侧与安装器都按这个路径找。
     eachFile { path = path.replace("sortformer-66M-4spk-onnx/", "sortformer-66M-4spk/") }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
+    // shared/models 已不在 Git 里（tools/assets 的 asr-shared-models-v1）。Sync 对缺失文件静默跳过，
+    // 会打出没有声纹模型的 AAR，所以这里必须硬失败。
+    doFirst {
+        val sharedModelDir = file("../../../shared/models/asr/dingqiao")
+        val missing = listOf("eres2net.onnx", "campplus.onnx", "campplus.LICENSE",
+            "pyannote-segmentation-3.0.onnx", "pyannote-segmentation-3.0.LICENSE")
+            .filterNot { sharedModelDir.resolve(it).isFile }
+        require(missing.isEmpty()) {
+            "shared Dingqiao models missing: ${missing.joinToString()} — run " +
+                "`python3 tools/assets/sync.py fetch asr-shared-models-v1` (see tools/assets/README.md)"
+        }
+    }
 }
 
 android {

@@ -1,5 +1,7 @@
 # Amphion Runtime HarmonyOS ASR SDK
 
+> `shared/models/asr` 下的声纹/分割/LAC 模型不在 Git 里。构建前执行 `python3 tools/assets/sync.py fetch asr-shared-models-v1`（凭据见 `tools/assets/README.md`）；缺失时 hvigor / Gradle 会直接报错。
+
 本目录承载纯血鸿蒙（HarmonyOS NEXT / OpenHarmony）原生 ASR SDK，不依赖 Android 兼容层。
 
 对齐 Android 鼎桥交付包的识别能力：

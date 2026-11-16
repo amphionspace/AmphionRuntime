@@ -82,7 +82,15 @@ cd amphion-runtime
 
 # 已有仓库忘了 --recurse-submodules：
 git submodule update --init --recursive
+
+# 模型与原生二进制不在 Git 里（远程仓库只保留源码）。首次构建前从对象存储恢复：
+#   凭据只走环境变量 OBS_AccesskeyID / OBS_SecretAccesskey / OBS_Endpoint，见 tools/assets/README.md
+python3 -m pip install esdk-obs-python
+python3 tools/assets/sync.py fetch all
 ```
+
+`fetch all` 恢复当前受维护的全部资产，包括共享 ASR 模型（`shared/models/asr`）、TTS 的 ONNX Runtime /
+ICU 原生库与运行时资源；缺少它们时各端构建会在第一步直接报错并提示要拉取的 bundle 名称。
 
 各端编译入口：
 

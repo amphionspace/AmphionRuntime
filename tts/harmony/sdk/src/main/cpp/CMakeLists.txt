@@ -31,10 +31,22 @@ add_library(litsttsnative SHARED
   ${TN_ROOT}/ru_year_spellout.cpp
 )
 
+# ONNX Runtime 与 ICU 静态库已不在 Git 里，由 tools/assets 的 tts-onnxruntime-harmony-v1 /
+# tts-harmony-icu-v1 恢复；缺失时在 configure 阶段就说清楚，而不是链接期报一串找不到符号。
+set(LITS_ONNXRUNTIME_SO ${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/${OHOS_ARCH}/libonnxruntime.so)
+if(NOT EXISTS ${LITS_ONNXRUNTIME_SO})
+  message(FATAL_ERROR "missing ${LITS_ONNXRUNTIME_SO}: run `python3 tools/assets/sync.py fetch tts-onnxruntime-harmony-v1`")
+endif()
+foreach(_icu_lib libicui18n.a libicuuc.a libicudata.a)
+  if(NOT EXISTS ${OHOS_ICU_ROOT}/lib/${_icu_lib})
+    message(FATAL_ERROR "missing ${OHOS_ICU_ROOT}/lib/${_icu_lib}: run `python3 tools/assets/sync.py fetch tts-harmony-icu-v1`")
+  endif()
+endforeach()
+
 add_library(onnxruntime SHARED IMPORTED)
 set_target_properties(onnxruntime
   PROPERTIES
-  IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/../../../libs/${OHOS_ARCH}/libonnxruntime.so
+  IMPORTED_LOCATION ${LITS_ONNXRUNTIME_SO}
 )
 
 target_link_libraries(litsttsnative PUBLIC
