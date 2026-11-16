@@ -56,6 +56,8 @@ class HarmonyVadTailClockTest(unittest.TestCase):
                 observeAcousticSamples() {{}}, hasTimedOut: () => false }};
               effectiveSpeechBuffer = {{ confirmSpeech() {{}} }};
               speakerPcmBuffers = {{ observe() {{}} }};
+              // 静音分支会在 VAD 判出语音结束时起 final 分数投机；本夹具只验 vadEnd 时钟，打桩即可。
+              maybeSpeculateFinalSpeakerScore() {{}}
               recognizerResetGeneration = 0;
               publicSamplesFed = 0;
               feedRecognizer() {{}}
