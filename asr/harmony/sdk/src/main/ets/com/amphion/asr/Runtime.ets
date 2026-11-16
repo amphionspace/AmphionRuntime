@@ -1438,6 +1438,16 @@ export class AsrSession {
   private svPreparedPrefixTask?: Promise<void>;
   private svPreparedPrefixGeneration: number = 0;
   private svPrefixPreparationPending: number = 0;
+  // 整句 final 分数的投机预算。VAD 一判出语音结束，就对"截到语音结束"的回退 PCM 起一次嵌入，
+  // 让 vadEnd 的等待空档吃掉这次推理（手机 80 实测它占 endpoint→final 的几乎全部）。端点时
+  // 只有 (缓冲代、语音结束样本、有界长度、lane generation) 与重新计算的结果完全一致才消费，
+  // 否则按原路径现算：投机只能改变分数何时算好，不能改变发布的是哪个分数。
+  private svSpeculativeScoreTask?: Promise<number | undefined>;
+  private svSpeculativeScoreEpoch: number = -1;
+  private svSpeculativeScoreLength: number = -1;
+  private svSpeculativeScoreGeneration: number = 0;
+  private svSpeculativeSpeechEndSample: number = -1;
+  private svSpeculativeScorePending: number = 0;
   private svContextWaitStartedSample: number = -1;
   private svTurnFailOpen: boolean = false;
   private speakerInferenceLane: SpeakerInferenceLane = new SpeakerInferenceLane();
@@ -2241,7 +2251,7 @@ export class AsrSession {
     const minSpeakerSamples = targetConfig === undefined ? Number.MAX_SAFE_INTEGER :
       Math.round(targetConfig.minSegSec * ASR_SAMPLE_RATE_HZ);
     const utteranceSamples = this.targetSpeakerEnabled ?
-      this.speakerPcmBuffers.fallbackSamples() : new Float32Array(0);
+      this.finalSpeakerScoreSamples() : new Float32Array(0);
     const scoreSelection =
       selectSpeakerScoreSamples(boundary.samples, utteranceSamples, minSpeakerSamples, hasEvidence);
     if (this.targetSpeakerEnabled) {
@@ -2314,10 +2324,18 @@ export class AsrSession {
       pending.speakerVadEnabled, pending.speakerVadRejectCurrent,
       pending.speakerVadTargetConfirmed, pending.result.isTargetSpeaker);
     if (pending.speakerVadEnabled) {
+      // 分数与门限一起落日志：精度评测要看机主最低分和非机主最高分离门限各有多远，
+      // 只有 reject 结果看不出余量。
+      const gateScore = speakerFinalGateScore(pending.speakerVadThreshold,
+        pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture);
       Logger.metric(`kind=SPEAKER_FINAL_GATE sessionId=${this.sessionId} ` +
         `isLast=${pending.result.isLast} reject=${speakerVadReject} ` +
         `targetConfirmed=${pending.speakerVadTargetConfirmed} ` +
-        `rejectCurrent=${pending.speakerVadRejectCurrent} hasEvidence=${pending.hasEvidence}`);
+        `rejectCurrent=${pending.speakerVadRejectCurrent} hasEvidence=${pending.hasEvidence} ` +
+        `score=${pending.result.speakerScore === undefined ? 'none' :
+          pending.result.speakerScore.toFixed(3)} gateScore=${gateScore.toFixed(3)} ` +
+        `pcmMs=${Math.round(pending.samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
+        `utteranceIndex=${pending.utteranceIndex}`);
     }
     if (speakerVadReject) {
       if (pending.hasEvidence && pending.result.speakerScore === undefined &&
@@ -2708,6 +2726,8 @@ export class AsrSession {
       this.trailingSilenceMs = this.vadLastSpeechEndSample >= 0 ?
         (this.vadProcessedSamples - this.vadLastSpeechEndSample) * 1000 / ASR_SAMPLE_RATE_HZ :
         this.trailingSilenceMs + index * 1000 / ASR_SAMPLE_RATE_HZ;
+      // 语音结束已由 VAD 定下，后面只会再来静音：现在就起整句 final 嵌入，端点时直接消费。
+      this.maybeSpeculateFinalSpeakerScore();
       const activeEpMs = this.sessionConfig.endpointSilenceMs ??
         this.config.vadConfig.activeEndpointSilenceMs;
       if (activeEpMs > 0 && this.trailingSilenceMs >= activeEpMs && !this.vadEndpointPending &&
@@ -2752,9 +2772,9 @@ export class AsrSession {
         this.svSpeakerScorePrepared) return true;
       const generation = this.speakerInferenceLane.generation();
       this.svSpeakerScorePrepared = true;
-      const samples = this.speakerPcmBuffers.fallbackSamples();
+      const samples = this.finalSpeakerScoreSamples();
       if (samples.length === 0) return true;
-      const score = await this.scoreSamplesAsync(samples);
+      const score = await this.takeOrComputeFinalSpeakerScoreAsync(samples, generation);
       if (this.callbackGate.isClosed()) return false;
       if (this.speakerInferenceLane.isCurrent(generation)) {
         this.svCleanPrefixSpeakerScore = score;
@@ -2764,6 +2784,87 @@ export class AsrSession {
       // Re-evaluate under the new generation so dispatchFinal never falls back to synchronous ONNX.
     }
     return false;
+  }
+
+  /**
+   * 回退评分 PCM 里位于最后一次 VAD 语音结束之后的样本数；没有 VAD 语音结束证据时为 -1。
+   * 取"语音结束后又喂进 VAD 的样本数（含尚未成窗的 carry）"这个差值而不是绝对位置：回退缓冲
+   * 与 VAD 时钟的起点并不总对齐（非机主重启只清缓冲不清 VAD；真机 ENDPOINT 日志里见过
+   * utterancePcm 110720 对 vadSamples 82432），差值对调用方分块方式也不敏感。
+   */
+  private finalSpeakerTrailingSamples(): number {
+    if (this.vad === undefined || this.vadLastSpeechEndSample < 0) return -1;
+    return Math.max(0, this.vadProcessedSamples - this.vadLastSpeechEndSample) + this.vadCarry.length;
+  }
+
+  /**
+   * final 分数所用的整句 PCM：回退缓冲截到最后一次 VAD 语音结束。vadEnd 的尾部静音只是端点
+   * 判据，不是说话人证据——同一句话配 800 还是 1600 的 vadEnd 不该得到不同的 speakerSimilarity
+   * （实测静音把机主窗口从 0.545 稀释到 -0.072），而 0.45 下沿本来就是在干净切段上标定的
+   * （fab43be7）。截完为空而缓冲非空时退回整段：有 ASR 文本的句子必须用真实 PCM 尝试评分，
+   * 不能因边界缺失而省略分数。准备路径与 dispatchFinal 的未准备路径都必须经由这里，否则
+   * 两条路会发布不同的分数。
+   */
+  private finalSpeakerScoreSamples(): Float32Array {
+    const trailing = this.finalSpeakerTrailingSamples();
+    if (trailing < 0) return this.speakerPcmBuffers.fallbackSamples();
+    const bounded = this.speakerPcmBuffers.fallbackSpeechSamples(trailing);
+    return bounded.length > 0 ? bounded : this.speakerPcmBuffers.fallbackSamples();
+  }
+
+  // 每个 VAD 语音结束只投机一次；语音续上再结束会产生新的结束样本，自然再起一次。
+  private maybeSpeculateFinalSpeakerScore(): void {
+    if ((!this.targetSpeakerEnabled && !this.speakerVadEnabled) ||
+      this.targetExtractor === undefined || this.callbackGate.isClosed()) return;
+    if (this.vadLastSpeechEndSample < 0 ||
+      this.vadLastSpeechEndSample === this.svSpeculativeSpeechEndSample) return;
+    const samples = this.finalSpeakerScoreSamples();
+    if (samples.length === 0) return;
+    this.svSpeculativeSpeechEndSample = this.vadLastSpeechEndSample;
+    this.svSpeculativeScoreEpoch = this.speakerPcmBuffers.fallbackEpoch();
+    this.svSpeculativeScoreLength = samples.length;
+    this.svSpeculativeScoreGeneration = this.speakerInferenceLane.generation();
+    this.svSpeculativeScoreTask = this.runSpeculativeFinalScoreAsync(samples);
+  }
+
+  private async runSpeculativeFinalScoreAsync(samples: Float32Array): Promise<number | undefined> {
+    this.svSpeculativeScorePending += 1;
+    const startedAtMs = Date.now();
+    try {
+      const score = await this.scoreSamplesAsync(samples);
+      Logger.metric(`kind=SPEAKER_FINAL_SCORE sessionId=${this.sessionId} phase=speculated ` +
+        `pcmMs=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
+        `inferMs=${Date.now() - startedAtMs}`);
+      return score;
+    } catch (e) {
+      // 失败只让投机失效；端点按原路径现算，异常语义与改动前一致。
+      this.svSpeculativeScoreLength = -1;
+      Logger.w(`session ${this.sessionId} speculative final speaker score failed: ${e}`);
+      return undefined;
+    } finally {
+      this.svSpeculativeScorePending -= 1;
+      this.releaseStreamIfClosed();
+    }
+  }
+
+  private async takeOrComputeFinalSpeakerScoreAsync(samples: Float32Array,
+    generation: number): Promise<number | undefined> {
+    const task = this.svSpeculativeScoreTask;
+    const hit = task !== undefined &&
+      this.svSpeculativeScoreEpoch === this.speakerPcmBuffers.fallbackEpoch() &&
+      this.svSpeculativeSpeechEndSample === this.vadLastSpeechEndSample &&
+      this.svSpeculativeScoreLength === samples.length &&
+      this.svSpeculativeScoreGeneration === generation;
+    this.svSpeculativeScoreTask = undefined;
+    this.svSpeculativeScoreLength = -1;
+    const waitStartedMs = Date.now();
+    const score = hit ? await task : await this.scoreSamplesAsync(samples);
+    Logger.metric(`kind=SPEAKER_FINAL_SCORE sessionId=${this.sessionId} ` +
+      `phase=${hit ? 'consumed' : 'fresh'} ` +
+      `pcmMs=${Math.round(samples.length * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
+      `trailingMs=${Math.round(Math.max(0, this.finalSpeakerTrailingSamples()) * 1000 / ASR_SAMPLE_RATE_HZ)} ` +
+      `waitMs=${Date.now() - waitStartedMs}`);
+    return score;
   }
 
   private finalizeAnnouncedVadEndpoint(): void {
@@ -2961,6 +3062,9 @@ export class AsrSession {
     this.vad?.reset();
     this.vadProcessedSamples = 0;
     this.vadLastSpeechEndSample = -1;
+    this.svSpeculativeSpeechEndSample = -1;
+    this.svSpeculativeScoreLength = -1;
+    this.svSpeculativeScoreTask = undefined;
     this.vadEndpointPending = false;
     this.pendingVadStopAtEndpoint = false;
     this.pendingNativeEndpointTransition = undefined;
@@ -4384,7 +4488,7 @@ export class AsrSession {
   private releaseStreamIfClosed(): void {
     if (!this.callbackGate.isClosed() || this.streamCallDepth > 0 ||
       this.speakerInferenceLane.pending() > 0 || this.svPrefixPreparationPending > 0 ||
-      this.streamReleased) return;
+      this.svSpeculativeScorePending > 0 || this.streamReleased) return;
     if (!this.runtimeLease.releaseAfterClose((): void => {
       this.stream.close();
       this.streamReleased = true;
