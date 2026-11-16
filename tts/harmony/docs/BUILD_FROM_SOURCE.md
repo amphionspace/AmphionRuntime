@@ -1,5 +1,7 @@
 # HarmonyOS SDK 源码编译说明
 
+> 构建前先恢复 Git 外资产：`python3 tools/assets/sync.py fetch tts-onnxruntime-harmony-v1 tts-harmony-icu-v1 tts-runtime-zhen-v1 tts-harmony-tn-v1`（凭据见 `tools/assets/README.md`）。缺失时 CMake configure 会直接报错并给出 bundle 名称。
+
 本文说明如何从 AmphionRuntime 当前代码编译 Dingqiao v3 TTS HarmonyOS SDK HAR。目标产物是：
 
 ```text

@@ -1,16 +1,22 @@
 # Git 外资产同步
 
-模型、测试语料等不适合进入 Git 的协作输入统一存放在华为云 OBS。清单固定对象路径、大小、
+模型、测试语料等不适合进入 Git 的协作输入统一存放在对象存储。清单固定对象路径、大小、
 整包 SHA-256 和逐文件 SHA-256；干净检出可以恢复出与发布构建机相同的输入。
+
+2026-11-16 起默认存储是腾讯云 COS（`amphion-assets-1373259071`，`ap-guangzhou`，前缀
+`amphion-runtime/assets/v1`）。华为云 OBS 桶 `cuhk-anfeiweng-benchmark` 以具名存储 `obs-legacy`
+只读保留：受限（SSE-KMS）bundle 和测试语料清单仍从它读取；该账号欠费后已不能写入。
 
 ## 首次配置
 
-凭据只通过本机环境变量提供，禁止写入仓库：
+凭据只通过本机环境变量提供，禁止写入仓库。团队成员可从 `amphionbucket` 仓库的共享配置取值：
 
 ```bash
-export OBS_AccesskeyID=...
-export OBS_SecretAccesskey=...
-export OBS_Endpoint=https://obs.example.com
+export COS_SecretId=...
+export COS_SecretKey=...
+python3 -m pip install cos-python-sdk-v5
+# 只在需要受限 bundle（team-secure-state-*）或旧测试语料时才需要 OBS：
+export OBS_AccesskeyID=... OBS_SecretAccesskey=... OBS_Endpoint=https://obs.cn-north-9.myhuaweicloud.com
 python3 -m pip install esdk-obs-python
 ```
 
@@ -50,6 +56,19 @@ OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式
 也不会默认覆盖同名但内容不同的文件；确认要采用远端版本时显式增加 `--replace-existing`。
 受限 ZIP 的本地明文临时文件无论成功或失败都会清理，并保留清单声明的 `0600`/`0644` 权限。
 
+2026-11-16 起，此前仍跟踪在 Git 里的模型与原生二进制也全部外置，仓库只保留源码：
+
+| bundle | 恢复到 | 内容 |
+| --- | --- | --- |
+| `asr-shared-models-v1` | `shared/models/asr` | eres2net / CAM++ / pyannote 分割 ONNX 与许可证、LAC 人名 encoder；鼎桥与警务 SDK 构建时复制进包 |
+| `tts-harmony-icu-v1` | `tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib` | 鸿蒙 arm64 ICU 静态库 |
+| `tts-onnxruntime-android-v1` | `tts/android/sdk/src/main/jniLibs/arm64-v8a` | 安卓 ONNX Runtime `.so` 与 JNI 绑定 |
+| `tts-onnxruntime-harmony-v1` | `tts/harmony/sdk/libs/arm64-v8a` | 鸿蒙 ONNX Runtime `.so` |
+| `tts-training-inputs-v1` | `tts/training/dingqiao_lits`（合并模式） | MorphoDiTa 俄语 tagger、训练 filelist、CMUdict 0.7b、中文词典源文件 |
+
+`tts-runtime-zhen-v1` 的目标目录 `tts/tools/trial-export/.../0.1.0/` 此前还有 19 个文本文件留在 Git 里，
+现已一并移除，整个目录只由该 bundle 恢复。各端构建对这些路径都有硬失败检查并提示 bundle 名称。
+
 TTS 协作输入拆成三个用途明确的 bundle：`tts-checkpoints-v3-20260806` 恢复训练 checkpoint，
 `tts-runtime-zhen-v1` 恢复 Android/Harmony 共用的 ONNX 与前端资源，`tts-harmony-tn-v1` 恢复
 HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或真机验证场景只取所需资产。
@@ -76,7 +95,12 @@ HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或�
 ```bash
 python3 tools/assets/sync.py audit
 python3 tools/assets/sync.py publish asr-zhen-v1
+# 把旧存储上已有的归档原样搬到清单声明的默认存储（不需要本地解压文件；受限 bundle 不参与）：
+python3 tools/assets/sync.py mirror --from obs-legacy all
 ```
+
+`mirror` 从源存储下载 ZIP、按清单整包 SHA-256 校验后上传到目标，再做远端校验；目标已有同身份
+对象时跳过。bundle 可用 `"storage": "<名称>"` 指定留在某个具名存储（当前受限 bundle 指向 `obs-legacy`）。
 
 `publish` 只接受清单中逐文件身份完全匹配的仓库资产，并使用固定顺序、时间戳和权限构造
 可重复 ZIP。对象键包含整包 SHA-256，工具不会覆盖不同内容。受限 bundle 必须经对象级

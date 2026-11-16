@@ -1,5 +1,7 @@
 # AmphionRuntime
 
+> `shared/models/asr` 下的声纹/分割/LAC 模型不在 Git 里。构建前执行 `python3 tools/assets/sync.py fetch asr-shared-models-v1`（凭据见 `tools/assets/README.md`）；缺失时 hvigor / Gradle 会直接报错。
+
 基于 sherpa-onnx 的 AmphionRuntime 工程。
 
 包含 3 个 SDK 模块和 4 个 sample 模块：

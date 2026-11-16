@@ -25,6 +25,9 @@ SPEAKER_TURN_MODEL_METADATA = (
     REPO_ROOT
     / "delivery/harmony-dingqiao/delivery/pyannote_segmentation_3_0.json"
 )
+# shared/models/asr 2026-11-16 起外置（tools/assets/manifest.json 的 asr-shared-models-v1）；
+# 干净检出里没有 .onnx 时用清单登记的逐文件 sha256 核对 pin。
+ASSET_MANIFEST = REPO_ROOT / "tools/assets/manifest.json"
 SPEAKER_TURN_NATIVE = (
     REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 )
@@ -344,8 +347,15 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
     def test_packaged_boundary_model_matches_pinned_upstream_artifact(self) -> None:
         metadata = json.loads(SPEAKER_TURN_MODEL_METADATA.read_text(encoding="utf-8"))
-        digest = hashlib.sha256(SPEAKER_TURN_MODEL.read_bytes()).hexdigest()
-        self.assertEqual(metadata["sha256"], digest)
+        manifest = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
+        registered = {
+            item["path"]: item["sha256"]
+            for item in manifest["bundles"]["asr-shared-models-v1"]["files"]
+        }
+        self.assertEqual(metadata["sha256"], registered["dingqiao/pyannote-segmentation-3.0.onnx"])
+        if SPEAKER_TURN_MODEL.is_file():
+            digest = hashlib.sha256(SPEAKER_TURN_MODEL.read_bytes()).hexdigest()
+            self.assertEqual(metadata["sha256"], digest)
         self.assertEqual(
             "733a93b6473d019a773298e08cefa686894b1854",
             metadata["source_revision"],

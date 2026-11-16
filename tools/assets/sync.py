@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synchronize versioned, Git-external collaboration assets with Huawei OBS."""
+"""Synchronize versioned, Git-external collaboration assets with object storage (Tencent COS / Huawei OBS)."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ import sys
 import tempfile
 import uuid
 import zipfile
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as dataclass_replace
 from pathlib import Path, PurePosixPath
 from typing import Iterable, Optional
 
@@ -30,13 +30,25 @@ class AssetError(RuntimeError):
     pass
 
 
+SUPPORTED_PROVIDERS = ("tencent-cos", "huawei-obs")
+
+
 @dataclass(frozen=True)
 class Storage:
+    """One object store. Positional order is kept for existing callers/tests.
+
+    provider: "tencent-cos"（默认存储，2026-11-16 起）或 "huawei-obs"（历史/受限资产只读保留）。
+    OBS 通过 endpoint_env 读端点；COS 用 region（可选 endpoint 固定域名），两者凭据都只走环境变量。
+    """
     bucket: str
     endpoint_env: str
     access_key_env: str
     secret_key_env: str
     prefix: str
+    provider: str = "huawei-obs"
+    region: str = ""
+    endpoint: str = ""
+    name: str = "default"
 
 
 @dataclass(frozen=True)
@@ -88,17 +100,41 @@ def read_json(path: Path) -> dict:
     return payload
 
 
-def storage_from(payload: dict) -> Storage:
-    settings = payload.get("storage") or payload.get("obs")
+def storage_from(payload: dict, name: str = "default") -> Storage:
+    settings = payload if name != "default" else (payload.get("storage") or payload.get("obs"))
     if not isinstance(settings, dict):
         raise AssetError("asset manifest storage must be an object")
+    provider = str(settings.get("provider", "huawei-obs"))
+    if provider not in SUPPORTED_PROVIDERS:
+        raise AssetError(f"storage {name} has unsupported provider {provider}")
+    if provider == "huawei-obs" and "endpoint_env" not in settings:
+        raise AssetError(f"storage {name} (huawei-obs) needs endpoint_env")
+    if provider == "tencent-cos" and not settings.get("region"):
+        raise AssetError(f"storage {name} (tencent-cos) needs region")
     return Storage(
         bucket=str(settings["bucket"]),
-        endpoint_env=str(settings["endpoint_env"]),
+        endpoint_env=str(settings.get("endpoint_env", "")),
         access_key_env=str(settings["access_key_env"]),
         secret_key_env=str(settings["secret_key_env"]),
         prefix=str(settings["prefix"]),
+        provider=provider,
+        region=str(settings.get("region", "")),
+        endpoint=str(settings.get("endpoint", "")).rstrip("/"),
+        name=name,
     )
+
+
+def storages_from(payload: dict) -> dict[str, Storage]:
+    """默认 storage 加上 `storages` 里的具名存储（例如只读保留的 obs-legacy）。"""
+    storages = {"default": storage_from(payload)}
+    extra = payload.get("storages", {})
+    if not isinstance(extra, dict):
+        raise AssetError("asset manifest storages must be an object")
+    for name, settings in extra.items():
+        if name == "default":
+            raise AssetError("storages must not redefine default")
+        storages[name] = storage_from(settings, name)
+    return storages
 
 
 def test_data_root(payload: dict) -> Path:
@@ -139,21 +175,24 @@ def validate_bundle(name: str, definition: dict) -> None:
 
 def load_registry(manifest_path: Path, repo_root: Path) -> tuple[dict, dict[str, Bundle]]:
     manifest = read_json(manifest_path)
-    storage = storage_from(manifest)
+    storages = storages_from(manifest)
     raw_bundles = manifest.get("bundles")
     if not isinstance(raw_bundles, dict):
         raise AssetError("asset manifest bundles must be an object")
     bundles: dict[str, Bundle] = {}
     for name, definition in raw_bundles.items():
         validate_bundle(name, definition)
-        bundles[name] = Bundle(name, definition, storage, repo_root, True)
+        storage_name = str(definition.get("storage", "default"))
+        if storage_name not in storages:
+            raise AssetError(f"bundle {name} references unknown storage {storage_name}")
+        bundles[name] = Bundle(name, definition, storages[storage_name], repo_root, True)
 
     for include in manifest.get("included_manifests", []):
         include_path = safe_join(repo_root, str(include["path"]))
         included = read_json(include_path)
         if include.get("kind") != "test-data":
             raise AssetError(f"unsupported included manifest kind: {include.get('kind')}")
-        included_storage = storage_from(included)
+        included_storage = dataclass_replace(storage_from(included), name="test-data")
         root = test_data_root(included)
         for name, definition in included.get("bundles", {}).items():
             if name in bundles:
@@ -384,17 +423,21 @@ def merge_destination(
             ready.unlink(missing_ok=True)
 
 
-def obs_client(storage: Storage):
+def storage_credentials(storage: Storage) -> dict[str, str]:
+    pairs = [("access_key", storage.access_key_env), ("secret_key", storage.secret_key_env)]
+    if storage.provider == "huawei-obs":
+        pairs.insert(0, ("endpoint", storage.endpoint_env))
     values = {}
-    for field, env_name in (
-        ("endpoint", storage.endpoint_env),
-        ("access_key", storage.access_key_env),
-        ("secret_key", storage.secret_key_env),
-    ):
+    for field, env_name in pairs:
         value = os.environ.get(env_name)
         if not value:
-            raise AssetError(f"missing OBS environment variable: {env_name}")
+            raise AssetError(f"missing {storage.provider} environment variable: {env_name}")
         values[field] = value
+    return values
+
+
+def obs_client(storage: Storage):
+    values = storage_credentials(storage)
     try:
         from obs import ObsClient
     except ImportError as error:
@@ -408,6 +451,49 @@ def obs_client(storage: Storage):
     )
 
 
+def cos_client(storage: Storage):
+    values = storage_credentials(storage)
+    try:
+        from qcloud_cos import CosConfig, CosS3Client
+    except ImportError as error:
+        raise AssetError(
+            "missing Tencent COS SDK; run: python3 -m pip install cos-python-sdk-v5"
+        ) from error
+    options = dict(Region=storage.region, SecretId=values["access_key"],
+                   SecretKey=values["secret_key"], Scheme="https")
+    if storage.endpoint:
+        options["Endpoint"] = storage.endpoint.split("://", 1)[-1]
+    return CosS3Client(CosConfig(**options))
+
+
+class CosNotFound(Exception):
+    pass
+
+
+def cos_head(client, storage: Storage, key: str) -> dict[str, str]:
+    from qcloud_cos.cos_exception import CosServiceError
+    try:
+        headers = client.head_object(Bucket=storage.bucket, Key=key)
+    except CosServiceError as error:
+        if error.get_status_code() == 404:
+            raise CosNotFound(key) from error
+        raise AssetError(
+            f"cannot inspect tencent-cos object {key}: status={error.get_status_code()} "
+            f"code={error.get_error_code()}"
+        ) from error
+    return {str(k).lower(): str(v) for k, v in headers.items()}
+
+
+def cos_identity_from_headers(headers: dict[str, str]) -> tuple[int, Optional[str], Optional[str]]:
+    """COS 响应头 → (size, sha256 元数据, 加密标记)。`cos/kms` 归一为 \"kms\"，与 OBS 的判定口径一致。"""
+    content_length = headers.get("content-length")
+    if content_length is None:
+        raise AssetError("tencent-cos object has no content-length")
+    sse = headers.get("x-cos-server-side-encryption", "")
+    encryption = "kms" if sse.lower().startswith("cos/kms") else (sse or None)
+    return int(content_length), headers.get("x-cos-meta-sha256"), encryption
+
+
 def response_header(response, name: str) -> Optional[str]:
     wanted = name.lower()
     for key, value in response.header or []:
@@ -416,23 +502,118 @@ def response_header(response, name: str) -> Optional[str]:
     return None
 
 
-def remote_identity(bundle: Bundle) -> tuple[int, Optional[str], Optional[str]]:
-    client = obs_client(bundle.storage)
+def remote_identity_or_none(bundle: Bundle) -> Optional[tuple[int, Optional[str], Optional[str]]]:
+    """远端对象的 (size, sha256 元数据, 加密标记)；对象不存在时返回 None。"""
+    storage = bundle.storage
+    if storage.provider == "tencent-cos":
+        client = cos_client(storage)
+        try:
+            headers = cos_head(client, storage, bundle.object_key)
+        except CosNotFound:
+            return None
+        return cos_identity_from_headers(headers)
+    client = obs_client(storage)
     try:
-        response = client.getObjectMetadata(bundle.storage.bucket, bundle.object_key)
+        response = client.getObjectMetadata(storage.bucket, bundle.object_key)
     finally:
         client.close()
+    if response.status == 404:
+        return None
     if response.status >= 300:
         raise AssetError(
-            f"cannot inspect OBS object for {bundle.name}: "
+            f"cannot inspect huawei-obs object for {bundle.name}: "
             f"status={response.status} code={response.errorCode}"
         )
     content_length = response_header(response, "content-length")
     if content_length is None:
-        raise AssetError(f"OBS object has no content-length: {bundle.object_key}")
+        raise AssetError(f"huawei-obs object has no content-length: {bundle.object_key}")
     metadata_hash = response_header(response, "x-obs-meta-sha256")
     encryption = getattr(response.body, "sseKms", None)
     return int(content_length), metadata_hash, encryption
+
+
+def remote_identity(bundle: Bundle) -> tuple[int, Optional[str], Optional[str]]:
+    identity = remote_identity_or_none(bundle)
+    if identity is None:
+        raise AssetError(
+            f"cannot inspect {bundle.storage.provider} object for {bundle.name}: status=404 "
+            f"({bundle.storage.bucket}/{bundle.object_key})"
+        )
+    return identity
+
+
+def download_archive(bundle: Bundle, archive: Path, checkpoint: Path, *, restricted: bool) -> None:
+    storage = bundle.storage
+    if storage.provider == "tencent-cos":
+        client = cos_client(storage)
+        client.download_file(
+            Bucket=storage.bucket, Key=bundle.object_key, DestFilePath=str(archive),
+            PartSize=20, MAXThread=4, EnableCRC=False,
+            DumpRecordDir=None if restricted else str(archive.parent),
+        )
+        return
+    client = obs_client(storage)
+    try:
+        response = client.downloadFile(
+            storage.bucket,
+            bundle.object_key,
+            str(archive),
+            partSize=20 * 1024 * 1024,
+            taskNum=4,
+            enableCheckpoint=not restricted,
+            checkpointFile=None if restricted else str(checkpoint),
+        )
+    finally:
+        client.close()
+    if response.status >= 300:
+        raise AssetError(
+            f"huawei-obs download failed for {bundle.name}: "
+            f"status={response.status} code={response.errorCode}"
+        )
+
+
+def upload_archive(bundle: Bundle, archive: Path, checkpoint: Path, *, restricted: bool) -> None:
+    storage = bundle.storage
+    sha256 = str(bundle.definition["sha256"])
+    if storage.provider == "tencent-cos":
+        client = cos_client(storage)
+        options = {"Metadata": {"x-cos-meta-sha256": sha256}}
+        if restricted:
+            options["ServerSideEncryption"] = "cos/kms"
+        client.upload_file(
+            Bucket=storage.bucket, Key=bundle.object_key, LocalFilePath=str(archive),
+            PartSize=20, MAXThread=4, EnableMD5=True, **options,
+        )
+        return
+    headers = None
+    if restricted:
+        try:
+            from obs import PutObjectHeader, SseKmsHeader
+        except ImportError as error:
+            raise AssetError(
+                "missing Huawei OBS SDK; run: python3 -m pip install esdk-obs-python"
+            ) from error
+        headers = PutObjectHeader(sseHeader=SseKmsHeader.getInstance())
+    client = obs_client(storage)
+    try:
+        response = client.uploadFile(
+            storage.bucket,
+            bundle.object_key,
+            str(archive),
+            partSize=20 * 1024 * 1024,
+            taskNum=4,
+            enableCheckpoint=not restricted,
+            checkpointFile=None if restricted else str(checkpoint),
+            metadata={"sha256": sha256},
+            headers=headers,
+        )
+    finally:
+        client.close()
+    if response.status >= 300:
+        raise AssetError(
+            f"huawei-obs upload failed for {bundle.name}: "
+            f"status={response.status} code={response.errorCode}"
+        )
 
 
 def verify_remote(bundle: Bundle) -> None:
@@ -469,24 +650,7 @@ def fetch_bundle(bundle: Bundle, *, replace_existing: bool = False) -> Path:
     checkpoint = archive.with_suffix(".zip.checkpoint")
     try:
         if not archive.exists():
-            client = obs_client(bundle.storage)
-            try:
-                response = client.downloadFile(
-                    bundle.storage.bucket,
-                    bundle.object_key,
-                    str(archive),
-                    partSize=20 * 1024 * 1024,
-                    taskNum=4,
-                    enableCheckpoint=not restricted,
-                    checkpointFile=None if restricted else str(checkpoint),
-                )
-            finally:
-                client.close()
-            if response.status >= 300:
-                raise AssetError(
-                    f"OBS download failed for {bundle.name}: "
-                    f"status={response.status} code={response.errorCode}"
-                )
+            download_archive(bundle, archive, checkpoint, restricted=restricted)
         if restricted:
             os.chmod(archive, 0o600)
         verify_archive(archive, bundle)
@@ -509,72 +673,44 @@ def fetch_bundle(bundle: Bundle, *, replace_existing: bool = False) -> Path:
             checkpoint.unlink(missing_ok=True)
 
 
+def assert_remote_matches_or_absent(bundle: Bundle) -> bool:
+    """远端已有同键对象时必须与清单身份一致（不覆盖不同内容）；返回是否已存在。"""
+    restricted = bundle.definition.get("encryption") == "sse-kms"
+    existing = remote_identity_or_none(bundle)
+    if existing is None:
+        return False
+    size, metadata_hash, encryption = existing
+    if size != int(bundle.definition["size"]):
+        raise AssetError(
+            f"refusing to replace {bundle.storage.provider} object with different size: {bundle.object_key}"
+        )
+    if metadata_hash and metadata_hash != bundle.definition["sha256"]:
+        raise AssetError(
+            f"refusing to replace {bundle.storage.provider} object with different SHA-256: {bundle.object_key}"
+        )
+    if restricted and encryption != "kms":
+        raise AssetError(f"refusing unencrypted existing restricted object: {bundle.object_key}")
+    return True
+
+
 def publish_bundle(bundle: Bundle) -> str:
     if not bundle.owned:
         raise AssetError(f"included bundle {bundle.name} is published by its owning tool")
     restricted = bundle.definition.get("encryption") == "sse-kms"
-    downloads = download_root() / "uploads"
-    downloads.mkdir(parents=True, exist_ok=True)
+    uploads = download_root() / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
     if restricted:
-        os.chmod(downloads, 0o700)
-    archive = downloads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
+        os.chmod(uploads, 0o700)
+    archive = uploads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
     checkpoint = archive.with_suffix(".zip.upload-checkpoint")
-    headers = None
-    if restricted:
-        try:
-            from obs import PutObjectHeader, SseKmsHeader
-        except ImportError as error:
-            raise AssetError(
-                "missing Huawei OBS SDK; run: python3 -m pip install esdk-obs-python"
-            ) from error
-        headers = PutObjectHeader(sseHeader=SseKmsHeader.getInstance())
     try:
         build_archive(bundle, archive)
         if restricted:
             os.chmod(archive, 0o600)
-        client = obs_client(bundle.storage)
-        try:
-            existing = client.getObjectMetadata(bundle.storage.bucket, bundle.object_key)
-            if existing.status < 300:
-                content_length = response_header(existing, "content-length")
-                metadata_hash = response_header(existing, "x-obs-meta-sha256")
-                if content_length != str(bundle.definition["size"]):
-                    raise AssetError(
-                        f"refusing to replace OBS object with different size: {bundle.object_key}"
-                    )
-                if metadata_hash and metadata_hash != bundle.definition["sha256"]:
-                    raise AssetError(
-                        f"refusing to replace OBS object with different SHA-256: {bundle.object_key}"
-                    )
-                if restricted and getattr(existing.body, "sseKms", None) != "kms":
-                    raise AssetError(
-                        f"refusing unencrypted existing restricted object: {bundle.object_key}"
-                    )
-                archive.unlink()
-                return "already-present"
-            if existing.status != 404:
-                raise AssetError(
-                    f"cannot inspect OBS object for {bundle.name}: "
-                    f"status={existing.status} code={existing.errorCode}"
-                )
-            response = client.uploadFile(
-                bundle.storage.bucket,
-                bundle.object_key,
-                str(archive),
-                partSize=20 * 1024 * 1024,
-                taskNum=4,
-                enableCheckpoint=not restricted,
-                checkpointFile=None if restricted else str(checkpoint),
-                metadata={"sha256": bundle.definition["sha256"]},
-                headers=headers,
-            )
-        finally:
-            client.close()
-        if response.status >= 300:
-            raise AssetError(
-                f"OBS upload failed for {bundle.name}: "
-                f"status={response.status} code={response.errorCode}"
-            )
+        if assert_remote_matches_or_absent(bundle):
+            archive.unlink()
+            return "already-present"
+        upload_archive(bundle, archive, checkpoint, restricted=restricted)
         verify_remote(bundle)
         archive.unlink()
         checkpoint.unlink(missing_ok=True)
@@ -583,6 +719,33 @@ def publish_bundle(bundle: Bundle) -> str:
         if restricted:
             archive.unlink(missing_ok=True)
             checkpoint.unlink(missing_ok=True)
+
+
+def mirror_bundle(bundle: Bundle, source: Storage) -> str:
+    """把 bundle 的归档从 source 存储原样搬到清单声明的目标存储（不需要本地解压文件）。
+
+    下载后先按清单校验整包 SHA-256，再上传并做远端校验；目标已有同身份对象时跳过。
+    受限（SSE-KMS）bundle 不走镜像：目标侧的 KMS 密钥另行决定，它们保留在原存储。
+    """
+    if bundle.definition.get("encryption") == "sse-kms":
+        raise AssetError(f"restricted bundle {bundle.name} is not mirrored; keep it on its current storage")
+    if source == bundle.storage:
+        return "same-storage"
+    if assert_remote_matches_or_absent(bundle):
+        return "already-present"
+    staging = download_root() / "mirror"
+    staging.mkdir(parents=True, exist_ok=True)
+    archive = staging / f"{bundle.name}-{bundle.definition['sha256']}.zip"
+    checkpoint = archive.with_suffix(".zip.checkpoint")
+    origin = Bundle(bundle.name, bundle.definition, source, bundle.destination_root, bundle.owned)
+    if not archive.exists():
+        download_archive(origin, archive, checkpoint, restricted=False)
+    verify_archive(archive, bundle)
+    upload_archive(bundle, archive, archive.with_suffix(".zip.upload-checkpoint"), restricted=False)
+    verify_remote(bundle)
+    archive.unlink()
+    checkpoint.unlink(missing_ok=True)
+    return "mirrored"
 
 
 def ignored_files(repo_root: Path) -> list[str]:
@@ -660,6 +823,9 @@ def parse_args() -> argparse.Namespace:
     for command in ("verify", "remote-verify", "publish"):
         child = commands.add_parser(command)
         child.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
+    mirror = commands.add_parser("mirror", help="copy archives from a named legacy storage to the manifest storage")
+    mirror.add_argument("--from", dest="source", required=True, help="source storage name from manifest.storages")
+    mirror.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
     return parser.parse_args()
 
 
@@ -676,7 +842,8 @@ def main() -> int:
                 print(
                     f"{name}\t{bundle.definition.get('status', 'current')}\t{scope}\t"
                     f"{bundle.definition['size']}\t{bundle.definition['license']}\t"
-                    f"{bundle.definition['description']}\taliases={aliases}"
+                    f"{bundle.definition['description']}\taliases={aliases}\t"
+                    f"storage={bundle.storage.name}:{bundle.storage.provider}"
                 )
             for include in manifest.get("included_manifests", []):
                 included = read_json(safe_join(repo_root, str(include["path"])))
@@ -708,6 +875,15 @@ def main() -> int:
         elif args.command == "publish":
             for bundle in chosen:
                 print(f"{publish_bundle(bundle)} {bundle.name}")
+        elif args.command == "mirror":
+            storages = storages_from(manifest)
+            if args.source not in storages:
+                raise AssetError(f"unknown source storage {args.source}; known: {', '.join(sorted(storages))}")
+            for bundle in chosen:
+                if not bundle.owned:
+                    print(f"skipped {bundle.name}: included test-data bundle stays on its own storage")
+                    continue
+                print(f"{mirror_bundle(bundle, storages[args.source])} {bundle.name}")
         return 0
     except (AssetError, OSError, subprocess.CalledProcessError) as error:
         print(f"error: {error}", file=sys.stderr)

@@ -128,7 +128,6 @@ class RepositoryLayoutTest(unittest.TestCase):
             "docs/transsion_testset_guide.md",
             "original/morphodita/src_lib_only/morphodita.cpp",
             "original/morphodita/src_lib_only/morphodita.h",
-            "original/morphodita/models/russian-syntagrus-morphodita-only.tagger",
         }
         for locale in ("en", "zh", "ar", "bn", "ru"):
             sources.update(
@@ -138,6 +137,17 @@ class RepositoryLayoutTest(unittest.TestCase):
             with self.subTest(source=source):
                 self.assertIn(f"{root}/{source}", tracked)
                 self.assertTrue((ROOT / root / source).is_file())
+        # 23 MB 的俄语 tagger 2026-11-16 起不再进 Git，由 tts-training-inputs-v1 恢复；
+        # 这里只核对清单登记，不要求检出里有文件。
+        tagger = "original/morphodita/models/russian-syntagrus-morphodita-only.tagger"
+        self.assertNotIn(f"{root}/{tagger}", tracked, "tagger must live in the asset bundle")
+        manifest = json.loads((ROOT / "tools/assets/manifest.json").read_text(encoding="utf-8"))
+        bundle = manifest["bundles"]["tts-training-inputs-v1"]
+        self.assertEqual("tts/training/dingqiao_lits", bundle["destination"])
+        self.assertIn(
+            "Dingqiao_Multilingual_Text_Normalization_for_TTS/" + tagger,
+            {item["path"] for item in bundle["files"]},
+        )
 
     def test_rejects_missing_required_document(self) -> None:
         paths = self.valid_paths() - {"tts/docs/api/语音合成SDK接口.md"}
