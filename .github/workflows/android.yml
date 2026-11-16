@@ -554,6 +554,17 @@ jobs:
       - name: Install TypeScript
         run: npm install --global typescript@4.9.5
 
+      # sync_harmony_police_assets.py --check 要对 shared/models/asr/police/lac/v1/lac_encoder.onnx
+      # 算 sha256，该目录已外置到 COS（asr-shared-models-v1）。
+      - name: Restore shared ASR models from COS
+        env:
+          COS_SecretId: ${{ secrets.COS_SecretId }}
+          COS_SecretKey: ${{ secrets.COS_SecretKey }}
+        run: |
+          python3 -m pip install --quiet cos-python-sdk-v5
+          python3 tools/assets/sync.py fetch asr-shared-models-v1
+          python3 tools/assets/sync.py verify asr-shared-models-v1
+
       - name: Verify synchronized police assets and parity corpus
         run: |
           python3 asr/tools/sync_harmony_police_assets.py --check
