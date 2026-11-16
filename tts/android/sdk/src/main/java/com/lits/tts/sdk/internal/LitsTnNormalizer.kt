@@ -83,7 +83,12 @@ internal object LitsTnNormalizer {
         fun normalize(text: String, language: String, languageContext: String): String {
             val totalStartedAt = System.nanoTime()
             val cleanStartedAt = System.nanoTime()
-            val cleaned = Normalizer.normalize(expandSuperscriptUnits(TtsLineBreaks.normalize(text)), Normalizer.Form.NFKC)
+            // 缺陷 #94：换行归一化之后，再把贴着下一句的句末标点分开，否则 "ready?Yes"/"ready.Yes"
+            // 会被当成技术 token 读出 question mark / dot。
+            val cleaned = Normalizer.normalize(
+                expandSuperscriptUnits(
+                    LitsTtsFrontend.separateGluedSentencePunctuation(TtsLineBreaks.normalize(text))),
+                Normalizer.Form.NFKC)
                 .replace(Regex("[\\x00-\\x1f\\x7f-\\x9f]"), "")
                 .replace(Regex("\\s+"), " ")
                 .trim()
