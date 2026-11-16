@@ -73,6 +73,17 @@ TTS 协作输入拆成三个用途明确的 bundle：`tts-checkpoints-v3-2026080
 `tts-runtime-zhen-v1` 恢复 Android/Harmony 共用的 ONNX 与前端资源，`tts-harmony-tn-v1` 恢复
 HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或真机验证场景只取所需资产。
 
+## 2026-11-16 历史改写
+
+模型与原生二进制外置后，用 `git filter-repo` 把它们从全部历史里删除（打包体积 198 MiB → 19 MiB，
+main 顶端目录树不变）。所有提交哈希随之改变：
+
+- 旧 → 新提交映射：`delivery/archive-migrations/20261116-history-rewrite-commit-map.txt`；
+  证据文件里记录的旧哈希按此表查新值（右侧全 0 的提交只改过被移除文件，已被剪掉）。
+- 被移除的路径：`delivery/archive-migrations/20261116-history-rewrite-removed-paths.txt`。
+- 已有克隆不要 `git pull`，重新克隆；本地未推送分支用 `git rebase --onto <新基点> <旧基点>` 迁移。
+- 任何分支检出后都没有模型文件，按上文 `fetch all` 恢复。
+
 ## 名称与版本含义
 
 逻辑名称用于选择资产，OBS 对象键用于定位既有文件；二者不必相同。整包 SHA-256 才是
