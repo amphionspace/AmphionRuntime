@@ -1,16 +1,22 @@
 # Git 外资产同步
 
-模型、测试语料等不适合进入 Git 的协作输入统一存放在华为云 OBS。清单固定对象路径、大小、
+模型、测试语料等不适合进入 Git 的协作输入统一存放在对象存储。清单固定对象路径、大小、
 整包 SHA-256 和逐文件 SHA-256；干净检出可以恢复出与发布构建机相同的输入。
+
+2026-11-16 起默认存储是腾讯云 COS（`amphion-assets-1373259071`，`ap-guangzhou`，前缀
+`amphion-runtime/assets/v1`）。华为云 OBS 桶 `cuhk-anfeiweng-benchmark` 以具名存储 `obs-legacy`
+只读保留：受限（SSE-KMS）bundle 和测试语料清单仍从它读取；该账号欠费后已不能写入。
 
 ## 首次配置
 
-凭据只通过本机环境变量提供，禁止写入仓库：
+凭据只通过本机环境变量提供，禁止写入仓库。团队成员可从 `amphionbucket` 仓库的共享配置取值：
 
 ```bash
-export OBS_AccesskeyID=...
-export OBS_SecretAccesskey=...
-export OBS_Endpoint=https://obs.example.com
+export COS_SecretId=...
+export COS_SecretKey=...
+python3 -m pip install cos-python-sdk-v5
+# 只在需要受限 bundle（team-secure-state-*）或旧测试语料时才需要 OBS：
+export OBS_AccesskeyID=... OBS_SecretAccesskey=... OBS_Endpoint=https://obs.cn-north-9.myhuaweicloud.com
 python3 -m pip install esdk-obs-python
 ```
 
@@ -89,7 +95,12 @@ HarmonyOS arm64 TN 可执行文件。这样新机器可以按训练、导出或�
 ```bash
 python3 tools/assets/sync.py audit
 python3 tools/assets/sync.py publish asr-zhen-v1
+# 把旧存储上已有的归档原样搬到清单声明的默认存储（不需要本地解压文件；受限 bundle 不参与）：
+python3 tools/assets/sync.py mirror --from obs-legacy all
 ```
+
+`mirror` 从源存储下载 ZIP、按清单整包 SHA-256 校验后上传到目标，再做远端校验；目标已有同身份
+对象时跳过。bundle 可用 `"storage": "<名称>"` 指定留在某个具名存储（当前受限 bundle 指向 `obs-legacy`）。
 
 `publish` 只接受清单中逐文件身份完全匹配的仓库资产，并使用固定顺序、时间戳和权限构造
 可重复 ZIP。对象键包含整包 SHA-256，工具不会覆盖不同内容。受限 bundle 必须经对象级
