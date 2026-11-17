@@ -394,6 +394,14 @@ const LEADING_DOT_ASCII_TOKEN_REGEX: RegExp = /(^|[^A-Za-z0-9])\.(?=[A-Za-z0-9])
 const URL_SCHEME_SEPARATOR_REGEX: RegExp = /(^|[^A-Za-z0-9])(https?|ftp):\/\//gi;
 const CARET_POWER_TWO_REGEX: RegExp = /\^(?:2|二)/g;
 const TECHNICAL_ASCII_TOKEN_REGEX: RegExp = /(^|[^A-Za-z0-9])([A-Za-z0-9./\\_@:?=&#%+\-]*[A-Za-z0-9])(?![A-Za-z0-9])/g;
+// 缺陷 #94（与 Android LitsTtsFrontend 同步）：英文「?」后面紧跟字母时（"ready?Yes"），整段会被当成
+// URL 查询串那样的技术 token，'?' 被展开成 "question mark" / "问号" 播出来。只有 "?key=" 形式的查询串、
+// 或 token 本身像 URL/路径（含 "://"、"www."、'/'），'?' 才是技术符号。
+const QUERY_QUESTION_MARK_REGEX: RegExp = /^\?[A-Za-z0-9_%\-]+=/;
+const URL_LIKE_TOKEN_REGEX: RegExp = /(:\/\/|^www\.|\/|@)/i;
+// 句末标点贴着下一句：'?' 串、省略号（..、…）、单个 '.'；单个 '.' 另按 isGluedSentencePeriod 判定。
+const GLUED_SENTENCE_PUNCTUATION_REGEX: RegExp =
+  /(?<=[A-Za-z0-9\u4e00-\u9fff)\]"'])(\?+|\.{2,}|\u2026+|\.)(?=[A-Za-z\u4e00-\u9fff])/g;
 const CONNECTOR_HYPHEN_REGEX: RegExp = /(^|[^A-Za-z0-9])(USB|Type)-([A-Za-z])(?=$|[^A-Za-z0-9])/gi;
 const CONNECTOR_SPOKEN_HYPHEN_REGEX: RegExp = /(^|[^A-Za-z0-9])(USB|Type)杠([A-Za-z])(?=$|[^A-Za-z0-9])/gi;
 const CHATGPT_SPLIT_REGEX: RegExp = /(^|[^A-Za-z0-9])chat\s+g\s*p\s*t(?=$|[^A-Za-z0-9])/gi;
@@ -950,7 +958,8 @@ class DingqiaoTnNormalizer {
     const normalized = LitsTtsFrontend.applyFrontendRules(
       resources,
       'pre_tn',
-      LitsTtsFrontend.preprocessZhMixedInput(LitsTtsFrontend.normalizeText(text, languageContext))
+      LitsTtsFrontend.preprocessZhMixedInput(
+        LitsTtsFrontend.normalizeText(LitsTtsFrontend.separateGluedSentencePunctuation(text), languageContext))
     );
     for (let index = 0; index < normalized.length; index += 1) {
       const code = normalized.charCodeAt(index);
@@ -1850,6 +1859,69 @@ class LitsTtsFrontend {
     );
   }
 
+  private static isUrlLikeTokenAt(text: string, index: number): boolean {
+    const start = LitsTtsFrontend.scanNonSpaceTokenStart(text, index);
+    const end = LitsTtsFrontend.scanNonSpaceTokenEnd(text, index);
+    return URL_LIKE_TOKEN_REGEX.test(text.substring(start, end));
+  }
+
+  /** '?' 是否属于 URL 查询串（"?id=1"）或 URL/路径样 token；否则它就是句末标点。 */
+  static isQueryQuestionMark(text: string, index: number): boolean {
+    if (text[index] !== '?') {
+      return false;
+    }
+    if (LitsTtsFrontend.isUrlLikeTokenAt(text, index)) {
+      return true;
+    }
+    return QUERY_QUESTION_MARK_REGEX.test(text.substring(index));
+  }
+
+  private static isAsciiLetterChar(char: string | undefined): boolean {
+    return char !== undefined && ((char >= 'A' && char <= 'Z') || (char >= 'a' && char <= 'z'));
+  }
+
+  /** 单个 '.' 贴着下一句时是否为句号：下一字符是大写或汉字、token 不像 URL/邮箱、点前不是单个字母（U.S.A）。 */
+  private static isGluedSentencePeriod(text: string, index: number): boolean {
+    const next = index + 1 < text.length ? text[index + 1] : undefined;
+    if (next === undefined || !((next >= 'A' && next <= 'Z') || LitsTtsFrontend.isHanzi(next))) {
+      return false;
+    }
+    if (LitsTtsFrontend.isUrlLikeTokenAt(text, index)) {
+      return false;
+    }
+    const prev = index > 0 ? text[index - 1] : undefined;
+    if (prev === undefined) {
+      return false;
+    }
+    if (LitsTtsFrontend.isAsciiLetterChar(prev) &&
+      !LitsTtsFrontend.isAsciiLetterChar(index > 1 ? text[index - 2] : undefined)) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * 把贴着下一句的句末标点分开（"ready?Yes" → "ready? Yes"、"ready.Yes" → "ready. Yes"、
+   * "Ready...Yes" → "Ready... Yes"），URL 查询串、文件名、域名、小数、缩写保持原样。
+   * 放在 TN 入口：之后的技术 token 正则要求 token 以字母数字结尾，"ready?"/"ready." 不再命中。
+   */
+  static separateGluedSentencePunctuation(text: string): string {
+    if (text.indexOf('?') < 0 && text.indexOf('.') < 0 && text.indexOf('\u2026') < 0) {
+      return text;
+    }
+    return text.replace(GLUED_SENTENCE_PUNCTUATION_REGEX, (match: string, _group: string, offset: number): string => {
+      let keep: boolean;
+      if (match[0] === '?') {
+        keep = LitsTtsFrontend.isQueryQuestionMark(text, offset + match.length - 1);
+      } else if (match.length >= 2) {
+        keep = false;
+      } else {
+        keep = !LitsTtsFrontend.isGluedSentencePeriod(text, offset);
+      }
+      return keep ? match : `${match} `;
+    });
+  }
+
   private static isPunctuationInsideTechnicalToken(text: string, index: number): boolean {
     const char = text[index];
     const prev = index > 0 ? text[index - 1] : undefined;
@@ -1860,8 +1932,11 @@ class LitsTtsFrontend {
     if (LitsTtsFrontend.isAsciiDigit(prev) && LitsTtsFrontend.isAsciiDigit(next)) {
       return true;
     }
+    if (char === '?') {
+      return LitsTtsFrontend.isQueryQuestionMark(text, index);
+    }
     if (
-      (char === ':' || char === '/' || char === '?' || char === '=' || char === '&') &&
+      (char === ':' || char === '/' || char === '=' || char === '&') &&
       LitsTtsFrontend.hasAsciiNear(text, index)
     ) {
       return true;

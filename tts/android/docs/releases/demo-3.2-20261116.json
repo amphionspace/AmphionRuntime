@@ -1,0 +1,26 @@
+{
+ "date": "2026-11-16",
+ "version": "3.2",
+ "archive": "lits-dingqiao-tts-android-demo-vocos24k-3.2.zip",
+ "package_name": "com.lits.tts.demo32",
+ "app_label": "Lits TTS Demo 3.2",
+ "variant": "debug",
+ "sample_source_commit": "db7fd45a6298f90054b3d1b997f3af713eea951b",
+ "sample_main_source_changes": false,
+ "customer_license_files_included": false,
+ "model": "IMF 170000",
+ "size_bytes": 466316139,
+ "archive_sha256": "0a454b1efafd28fe795ed69b5efce00f3a34fd2f69846ad3fb1b8b13c5314db1",
+ "apk_sha256": "1521dc8e525812659326339263c8cb4bba82ebf15a7ff7aaeaf594936c4c66ea",
+ "aar_sha256": "49f37bc4871deb13c628f421931113ba3522c22cbea3a08faf75c44850bd762d",
+ "sdk_source_note": "Same locally built embedded Release AAR as SDK package.",
+ "resource_delivery": "Embedded in AAR and merged into APK; no external-resources directory",
+ "verification": {
+  "standalone_build": "NOT_RUN",
+  "device_install": "PASS: installed on BRA-AL00 via tools/install_demo.py with an internal device-bound licence",
+  "listening_check_94": "NOT_RUN (covered by byte-identical PCM)",
+  "archive_crc_and_hashes": "PASS",
+  "lifecycle_device_test": "PASS (OK 1 test)",
+  "glued_punctuation_94": "PASS 4/4 byte-identical PCM"
+ }
+}

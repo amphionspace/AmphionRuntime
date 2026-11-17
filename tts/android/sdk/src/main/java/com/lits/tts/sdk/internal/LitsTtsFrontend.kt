@@ -209,6 +209,16 @@ internal object LitsTtsFrontend {
     // A leading colon separates prose from the following word; URL-internal colons remain technical.
     private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])((?!:)[A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")
     private val technicalSymbolChars = setOf('.', '/', '\\', '_', '@', ':', '?', '=', '&', '#', '%', '+', '-')
+    // 缺陷 #94：句末标点贴着下一句（"ready?Yes"、"ready.Yes"、"Ready...Yes"）时，整段会被当成
+    // URL/文件名那样的技术 token，'?' 读成 "question mark"/「问号」、'.' 读成 "dot"/「点」，分句也
+    // 不在这里断开；带空格时正常只是因为技术 token 正则要求以字母数字结尾。处理原则：把贴着的句末
+    // 标点和下一句分开，让它走和带空格时完全一样的路径。合法粘连不动：'?' 属于 "?key=" 查询串或
+    // URL/路径样 token；'.' 后面是小写/数字（文件名、域名、小数）、token 像 URL/邮箱、或点前只有
+    // 一个字母（U.S.A 这类缩写）。
+    private val queryQuestionMarkRegex = Regex("\\?[A-Za-z0-9_%\\-]+=")
+    private val urlLikeTokenRegex = Regex("(://|^www\\.|/|@)", RegexOption.IGNORE_CASE)
+    private val gluedSentencePunctuationRegex = Regex(
+        "(?<=[A-Za-z0-9\\u4e00-\\u9fff)\\]\"'])(\\?+|\\.{2,}|\\u2026+|\\.)(?=[A-Za-z\\u4e00-\\u9fff])")
     private val serialCodeRegex = Regex("((?:设备)?(?:序列号|编号)|S/N|SN)(\\s*)([A-Z0-9]*[A-Z][A-Z0-9]*\\d[A-Z0-9]*)")
     private val roomNumberRegex = Regex("((?:房间|房号)(?:是|为)?\\s*)(\\d{3,4})(?!\\d)")
     private val stockCodeRegex = Regex("(股票\\s*(?:代码\\s*)?)(\\d{6})(?!\\d)")
@@ -623,7 +633,7 @@ internal object LitsTtsFrontend {
         wordsPerSegment: Int = 7,
         targetCharsPerSegment: Int = 50,
     ): List<String> {
-        val normalized = TtsLineBreaks.normalize(text).trim()
+        val normalized = separateGluedSentencePunctuation(TtsLineBreaks.normalize(text)).trim()
         if (normalized.isEmpty()) return emptyList()
         val segmentTarget = targetCharsPerSegment.coerceAtLeast(1)
         val segments = mutableListOf<String>()
@@ -763,13 +773,62 @@ internal object LitsTtsFrontend {
             (index + 1 < text.length && isAsciiAlnum(text[index + 1]) && token.count { it == '.' } >= 1)
     }
 
+    private fun isUrlLikeTokenAt(text: String, index: Int): Boolean {
+        val start = scanNonSpaceTokenStart(text, index)
+        val end = scanNonSpaceTokenEnd(text, index)
+        return urlLikeTokenRegex.containsMatchIn(text.substring(start, end))
+    }
+
+    /** '?' 是否属于 URL 查询串（"?id=1"）或 URL/路径样 token；否则它就是句末标点。 */
+    internal fun isQueryQuestionMark(text: String, index: Int): Boolean {
+        if (text.getOrNull(index) != '?') return false
+        if (isUrlLikeTokenAt(text, index)) return true
+        return queryQuestionMarkRegex.matchesAt(text, index)
+    }
+
+    /**
+     * 单个 '.' 贴着下一句时是否为句号：下一字符是大写字母或汉字（新句开头），token 不像 URL/邮箱，
+     * 且点前不是单个字母（U.S.A）。小写/数字跟在后面的 '.' 是文件名、域名、小数，保持技术读法。
+     */
+    private fun isGluedSentencePeriod(text: String, index: Int): Boolean {
+        val next = text.getOrNull(index + 1) ?: return false
+        if (!(next in 'A'..'Z' || isHanzi(next))) return false
+        if (isUrlLikeTokenAt(text, index)) return false
+        val prev = text.getOrNull(index - 1) ?: return false
+        if (prev in 'A'..'Z' || prev in 'a'..'z') {
+            val before = text.getOrNull(index - 2)
+            if (before == null || !(before in 'A'..'Z' || before in 'a'..'z')) return false
+        }
+        return true
+    }
+
+    /**
+     * 把贴着下一句的句末标点分开（"ready?Yes" → "ready? Yes"、"ready.Yes" → "ready. Yes"、
+     * "Ready...Yes" → "Ready... Yes"），URL 查询串、文件名、域名、小数、缩写保持原样。
+     * 放在 TN 入口：之后的技术 token 正则要求 token 以字母数字结尾，"ready?"/"ready." 不再命中，
+     * 符号不会被读成 question mark/dot/问号/点；分句也会在这里正常断开。
+     */
+    internal fun separateGluedSentencePunctuation(text: String): String {
+        if (text.none { it == '?' || it == '.' || it == '\u2026' }) return text
+        return gluedSentencePunctuationRegex.replace(text) { match ->
+            val run = match.value
+            val keep = when {
+                run[0] == '?' -> isQueryQuestionMark(text, match.range.last)
+                run.length >= 2 -> false
+                else -> !isGluedSentencePeriod(text, match.range.first)
+            }
+            if (keep) run else "$run "
+        }
+    }
+
     private fun isPunctuationInsideTechnicalToken(text: String, index: Int): Boolean {
         val char = text[index]
         val prev = text.getOrNull(index - 1)
         val next = text.getOrNull(index + 1)
         if (prev == null || next == null) return false
         if (prev.isDigit() && next.isDigit()) return true
-        if ((char == ':' || char == '/' || char == '?' || char == '=' || char == '&') && hasAsciiNear(text, index)) return true
+        if (char == '?') return isQueryQuestionMark(text, index)
+        if ((char == ':' || char == '/' || char == '=' || char == '&') && hasAsciiNear(text, index)) return true
         if ((char == '.' || char == '-' || char == '_' || char == '#') && isAsciiAlnum(next)) return true
         return false
     }
