@@ -37,9 +37,9 @@
   "docs/PSEUDOCODE.md"
  ],
  "checksum_file": "CHECKSUMS.txt",
- "aar_sha256": "f79a04de595630c72d91df7cb7468ab44fa0a9a3e76d95dc007654d060fe173d",
- "archive_sha256": "512d025f6c88b1ec061014692acfea827a3b6d83b0e57a052b510f46b314ebb1",
- "archive_size_bytes": 220148687,
+ "aar_sha256": "49f37bc4871deb13c628f421931113ba3522c22cbea3a08faf75c44850bd762d",
+ "archive_sha256": "519b34d5f5c717dbc4785bf68fab99d99a9f413443edd36b2f028ee8a29394b5",
+ "archive_size_bytes": 229580220,
  "source_commit": "db7fd45a6298f90054b3d1b997f3af713eea951b",
  "source_note": "release branch fix/android-tts-3.2-glued-punctuation = 3.1 line (feat/android-tts-student-10000-temp0 @ d0585abd) + #94 port + version bump; clean worktree.",
  "packaging_only": false,
@@ -51,8 +51,8 @@
   "packaging_tests_passed": "test_pack_sdk_only.py OK",
   "repository_version_tests_passed": "OK",
   "frontend_fix_94": "host unit tests: 5 new cases; glued '?', '.', '...' now tokenise identically to the spaced form; URL/query/file-name/version/decimal/abbreviation readings unchanged",
-  "device": "BRA-AL00 / Android 12 (internal test phone)",
-  "device_listening_check": "PENDING: demo installed with an internal device-bound TTS licence; listening check of 'Are you ready?Yes, I am.' etc. not yet performed",
+  "device": "BRA-AL00 / Android 12 / arm64-v8a (internal test phone, internal device-bound TTS licence)",
+  "device_listening_check": "NOT_RUN: byte-identical PCM to the spaced form makes a separate listening pass redundant for #94; general voice quality unchanged from 3.1 (same model, same inference)",
   "assets_byte_equality": "AAR bundles the 22 runtime resources of the IMF 170000 export; the five ONNX files are byte-identical to the 3.1 record",
   "not_run": [
    "full legacy API matrix",
@@ -60,7 +60,10 @@
    "full pronunciation corpus",
    "page recreation",
    "both screen layouts"
-  ]
+  ],
+  "device_lifecycle": "PASS: TtsLifecycleDeviceTest (real synthesis + stop/shutdown/recover ×3) OK (1 test) against the Release AAR embedded in the 3.2 Demo",
+  "device_glued_punctuation_94": "PASS: GluedPunctuationDeviceTest 4/4 — 'Are you ready?Yes, I am.' / 'Are you ready.Yes I am.' / 'Ready...Yes' / '你好吗?好的' each synthesise byte-identical PCM to the spaced form",
+  "build_input_note": "First 3.2 AAR lacked libonnxruntime.so/libonnxruntime4j_jni.so (not tracked on this branch; createEngine failed with dlopen). Rebuilt with the manifest-verified bundle tts-onnxruntime-android-v1; the shipped AAR carries liblits_tn.so, libonnxruntime.so, libonnxruntime4j_jni.so."
  },
  "supersedes": "3.1 (2026-09-17, aar 112e0b8d…, archive 29fa935f…)"
 }

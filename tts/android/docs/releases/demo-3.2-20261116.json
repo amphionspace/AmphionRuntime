@@ -9,16 +9,18 @@
  "sample_main_source_changes": false,
  "customer_license_files_included": false,
  "model": "IMF 170000",
- "size_bytes": 447403807,
- "archive_sha256": "393eb657435545b4023a946fc14e504b629a77f835ab7995fe3ccbcdba4a691f",
- "apk_sha256": "84754722acae237266561c2d0cfc946d514ba1f642a8ec45929bf1a19cf98b30",
- "aar_sha256": "f79a04de595630c72d91df7cb7468ab44fa0a9a3e76d95dc007654d060fe173d",
+ "size_bytes": 466316139,
+ "archive_sha256": "0a454b1efafd28fe795ed69b5efce00f3a34fd2f69846ad3fb1b8b13c5314db1",
+ "apk_sha256": "1521dc8e525812659326339263c8cb4bba82ebf15a7ff7aaeaf594936c4c66ea",
+ "aar_sha256": "49f37bc4871deb13c628f421931113ba3522c22cbea3a08faf75c44850bd762d",
  "sdk_source_note": "Same locally built embedded Release AAR as SDK package.",
  "resource_delivery": "Embedded in AAR and merged into APK; no external-resources directory",
  "verification": {
   "standalone_build": "NOT_RUN",
   "device_install": "PASS: installed on BRA-AL00 via tools/install_demo.py with an internal device-bound licence",
-  "listening_check_94": "PENDING",
-  "archive_crc_and_hashes": "PASS"
+  "listening_check_94": "NOT_RUN (covered by byte-identical PCM)",
+  "archive_crc_and_hashes": "PASS",
+  "lifecycle_device_test": "PASS (OK 1 test)",
+  "glued_punctuation_94": "PASS 4/4 byte-identical PCM"
  }
 }
