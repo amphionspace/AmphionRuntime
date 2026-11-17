@@ -283,3 +283,7 @@ asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.npy
 
 # Claude Code personal overrides
 .claude/settings.local.json
+
+# Generated noise suppression manifests; model ONNX files remain outside Git.
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/df3.manifest.json
+asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/noise_suppression.manifest.json

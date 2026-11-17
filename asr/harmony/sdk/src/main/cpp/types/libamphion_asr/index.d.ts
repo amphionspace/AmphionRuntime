@@ -99,3 +99,9 @@ export function probeMindSporeChain(modelPaths: string, backend?: string,
 
 export function probeOrtModel(modelPath: string, threads?: number,
   iterations?: number): Promise<string>;
+
+export type GtcrnDenoiserHandle = object;
+export interface GtcrnNativeResult { samples: Float32Array; durationMs: number; }
+export const createGtcrnDenoiser: (resourceManager: object, modelName?: string) => GtcrnDenoiserHandle;
+export const processGtcrn: (handle: GtcrnDenoiserHandle, samples: Float32Array, flush: boolean) => Promise<GtcrnNativeResult>;
+export const closeGtcrnDenoiser: (handle: GtcrnDenoiserHandle) => void;

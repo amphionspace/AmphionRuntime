@@ -266,7 +266,7 @@ class HarmonyAsyncAudioDispatchTest(unittest.TestCase):
         adapter = ADAPTER.read_text(encoding="utf-8")
         runtime = RUNTIME.read_text(encoding="utf-8")
         self.assertIn("from './SessionAudioDispatcher'", adapter)
-        self.assertIn("session.acceptPcmBytesAsync(audio)", adapter)
+        self.assertIn("session.acceptPcmBytesAsync(pcm)", adapter)
         self.assertNotIn("session.acceptPcmBytes(audio)", adapter)
         self.assertIn("session.acceptPcmFloatAsync(samples)", adapter)
         self.assertNotIn("session.acceptPcmFloat(samples)", adapter)

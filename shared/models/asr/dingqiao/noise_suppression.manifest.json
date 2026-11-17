@@ -1,0 +1,21 @@
+{
+  "deepFilterNetSource": "https://github.com/Rikorose/DeepFilterNet",
+  "deepFilterNetDetails": "df3.manifest.json",
+  "files": [
+    {
+      "file": "df3_enc_stream.onnx",
+      "bytes": 1949840,
+      "sha256": "8de224d74b1e4b074b5bffcf20fbd04689c1200f429068affe14d2c11db84da1"
+    },
+    {
+      "file": "df3_erb_dec_stream.onnx",
+      "bytes": 3290858,
+      "sha256": "ff8c9bad4e760c9c16d8bcc4758f43a919ad16f1acbdaa76b08e0721d87cd072"
+    },
+    {
+      "file": "df3_df_dec_stream.onnx",
+      "bytes": 3336966,
+      "sha256": "2c70b56609176a05ff65b6d7aa6beb38f4382f067032b6bdde4870d6c7b963ad"
+    }
+  ]
+}

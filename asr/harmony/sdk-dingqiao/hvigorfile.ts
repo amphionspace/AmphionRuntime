@@ -10,6 +10,12 @@ const rawfileModelDir = path.resolve(
   'src/main/resources/rawfile/amphion-dingqiao'
 );
 const sharedModelFiles = [
+  'df3_enc_stream.onnx',
+  'df3_erb_dec_stream.onnx',
+  'df3_df_dec_stream.onnx',
+  'df3.LICENSE',
+  'df3.manifest.json',
+  'noise_suppression.manifest.json',
   'eres2net.onnx',
   'campplus.onnx',
   'campplus.LICENSE',
@@ -19,6 +25,12 @@ const sharedModelFiles = [
 // Assets of the replaced windowed role-separation chain. An incremental HAR
 // build must not keep shipping them from an earlier checkout.
 const staleModelFiles = [
+  'ulunas_stream.onnx',
+  'ulunas.LICENSE',
+  'gtcrn_stream.onnx',
+  'gtcrn.LICENSE',
+  'gtcrn.manifest.json',
+
   'community-wespeaker-masked.fp32.onnx',
   'community-wespeaker-encoder.fp32.onnx',
   'community-wespeaker-encoder.int8.onnx',
@@ -43,6 +55,13 @@ export default {
 };
 
 function syncSharedModels(): void {
+  const denoising = JSON.parse(fs.readFileSync(path.join(sharedModelDir, 'noise_suppression.manifest.json'), 'utf-8'));
+  for (const entry of denoising.files) {
+    const bytes = fs.readFileSync(path.join(sharedModelDir, entry.file));
+    if (bytes.length !== entry.bytes || crypto.createHash('sha256').update(bytes).digest('hex') !== entry.sha256) {
+      throw new Error(`Noise suppression model mismatch: ${entry.file}`);
+    }
+  }
   fs.mkdirSync(rawfileModelDir, { recursive: true });
   staleModelFiles.forEach((fileName: string): void => {
     const stale = path.join(rawfileModelDir, fileName);

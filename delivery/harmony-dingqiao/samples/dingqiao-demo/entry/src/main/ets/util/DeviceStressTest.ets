@@ -59,6 +59,8 @@ const VOICEPRINT_SCENARIOS: string[] = [
 ];
 // Test-carrier option only. Every lifecycle mode uses the same public StartParams.
 let stressEnableDiarization: boolean = false;
+let stressNoiseSuppressionModel: string = '';
+let stressEnableGtcrn: boolean = false;
 let stressSpeakerIdentityMode: string = '';
 
 export class DeviceStressOptions {
@@ -95,6 +97,8 @@ export class DeviceStressOptions {
    * 跟随 SDK 默认（0.3.27 起为 'voiceprint'）。默认留空：真机验收必须跑交付的默认行为，
    * 载体不能替 SDK 决定模式；要做 A/B 时再显式传值。
    */
+  noiseSuppressionModel: string = '';
+  enableGtcrn: boolean = false;
   speakerIdentityMode: string = '';
   captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
@@ -1333,6 +1337,8 @@ function createColdStartEngine(options: DeviceStressOptions): Promise<EngineCrea
 function startParams(sessionId: string, mode: string, cycle: number): StartParams {
   const params = new StartParams();
   params.sessionId = sessionId;
+  params.extraParams['enableGtcrn'] = stressEnableGtcrn;
+  if (stressNoiseSuppressionModel.length > 0) params.extraParams['noiseSuppressionModel'] = stressNoiseSuppressionModel;
   params.audioInfo = new AudioInfo();
   if (stressEnableDiarization) {
     params.speakerDiarization = new SpeakerDiarizationConfig();
@@ -3039,6 +3045,8 @@ function safeDetail(value: string): string {
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
   stressEnableDiarization = options.enableDiarization;
+  stressNoiseSuppressionModel = options.noiseSuppressionModel;
+  stressEnableGtcrn = options.enableGtcrn;
   stressSpeakerIdentityMode = options.speakerIdentityMode ?? '';
   const startedAt = Date.now();
   const lines: string[] = [];
@@ -3223,6 +3231,8 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     power?.stop();
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
+    stressNoiseSuppressionModel = '';
+    stressEnableGtcrn = false;
     stressSpeakerIdentityMode = '';
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}

@@ -1,0 +1,144 @@
+{
+  "source": "https://github.com/Rikorose/DeepFilterNet",
+  "archiveSha256": "c94d91f70911001c946e0fabb4aa9adc37045f45a03b56008cb0c8244cb63616",
+  "modification": "Expose causal convolution history and GRU hidden states; original weights retained",
+  "graphs": [
+    {
+      "file": "df3_enc_stream.onnx",
+      "sha256": "8de224d74b1e4b074b5bffcf20fbd04689c1200f429068affe14d2c11db84da1",
+      "bytes": 1949840,
+      "sourceSha256": "7c5399d3da8a50ebef1c1a0ae421b33376aa5e45d0e92df16da7e83c9c131916",
+      "states": [
+        [
+          "state_0",
+          [
+            1,
+            1,
+            2,
+            32
+          ]
+        ],
+        [
+          "state_1",
+          [
+            1,
+            2,
+            2,
+            96
+          ]
+        ],
+        [
+          "state_2",
+          [
+            1,
+            1,
+            256
+          ]
+        ]
+      ],
+      "sequenceParity": [
+        {
+          "output": "e0",
+          "maxAbsError": 0.0
+        },
+        {
+          "output": "e1",
+          "maxAbsError": 0.0
+        },
+        {
+          "output": "e2",
+          "maxAbsError": 0.0
+        },
+        {
+          "output": "e3",
+          "maxAbsError": 0.0
+        },
+        {
+          "output": "emb",
+          "maxAbsError": 6.854534149169922e-07
+        },
+        {
+          "output": "c0",
+          "maxAbsError": 0.0
+        },
+        {
+          "output": "lsnr",
+          "maxAbsError": 2.86102294921875e-06
+        }
+      ]
+    },
+    {
+      "file": "df3_erb_dec_stream.onnx",
+      "sha256": "ff8c9bad4e760c9c16d8bcc4758f43a919ad16f1acbdaa76b08e0721d87cd072",
+      "bytes": 3290858,
+      "sourceSha256": "ab669a1d10afe20911728b33053a452071042317a90581092b325da7b2f9d895",
+      "states": [
+        [
+          "state_0",
+          [
+            1,
+            1,
+            256
+          ]
+        ],
+        [
+          "state_1",
+          [
+            1,
+            1,
+            256
+          ]
+        ]
+      ],
+      "sequenceParity": [
+        {
+          "output": "m",
+          "maxAbsError": 2.980232238769531e-07
+        }
+      ]
+    },
+    {
+      "file": "df3_df_dec_stream.onnx",
+      "sha256": "2c70b56609176a05ff65b6d7aa6beb38f4382f067032b6bdde4870d6c7b963ad",
+      "bytes": 3336966,
+      "sourceSha256": "23114ce3b0f6464b763ee62f7bb8aab6b2a129a21eabd5bcfe59413db05f278a",
+      "states": [
+        [
+          "state_0",
+          [
+            1,
+            1,
+            256
+          ]
+        ],
+        [
+          "state_1",
+          [
+            1,
+            1,
+            256
+          ]
+        ],
+        [
+          "state_2",
+          [
+            1,
+            64,
+            4,
+            96
+          ]
+        ]
+      ],
+      "sequenceParity": [
+        {
+          "output": "coefs",
+          "maxAbsError": 5.662441253662109e-07
+        },
+        {
+          "output": "235",
+          "maxAbsError": 5.960464477539063e-08
+        }
+      ]
+    }
+  ]
+}

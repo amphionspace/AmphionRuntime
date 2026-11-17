@@ -162,6 +162,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--pace-ms", type=int, default=20)
     parser.add_argument("--speaker-identity-mode", choices=("", "model", "voiceprint"), default="",
                         help="角色身份来源；空串表示不设置，跟随 SDK 默认（0.3.27 起为 voiceprint，0.3.26 为 model）。")
+    parser.add_argument("--noise-suppression-model", choices=("", "none", "deepfilternet3"), default="", help="Select one SDK noise suppression frontend.")
+    parser.add_argument("--enable-gtcrn", action="store_true", help="Enable SDK streaming GTCRN frontend.")
     parser.add_argument("--enable-diarization", action="store_true",
                          help="Enable offline diarization through public StartParams in lifecycle modes.")
     parser.add_argument("--capture-diagnostics", action="store_true",
@@ -1381,6 +1383,10 @@ def run_stress(args: argparse.Namespace) -> Path:
     ]
     # `aa start --ps` 不接受空值（实测报 invalid number of parameters for option --ps），
     # 所以只在显式指定时才追加这对参数；不指定就跟随 SDK 默认（0.3.27 起为 'voiceprint'）。
+    if args.noise_suppression_model:
+        start_command += ["--ps", "stressNoiseSuppressionModel", args.noise_suppression_model]
+    if args.enable_gtcrn:
+        start_command += ["--ps", "stressEnableGtcrn", "true"]
     if args.speaker_identity_mode:
         start_command += ["--ps", "stressSpeakerIdentityMode", args.speaker_identity_mode]
     start_result = hdc.shell(*start_command, check=False)
@@ -1560,6 +1566,8 @@ def run_stress(args: argparse.Namespace) -> Path:
             "speech_end_ms": args.speech_end_ms,
             "diarization_vad_end_ms": args.diarization_vad_end_ms,
             "enable_diarization": args.enable_diarization,
+            "enable_gtcrn": args.enable_gtcrn,
+            "noise_suppression_model": args.noise_suppression_model,
             "capture_diagnostics": args.capture_diagnostics,
             "allow_screen_off": args.allow_screen_off,
             "hold_mic_capture": args.hold_mic_capture,

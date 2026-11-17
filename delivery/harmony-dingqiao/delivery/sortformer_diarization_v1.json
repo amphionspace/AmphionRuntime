@@ -40,8 +40,8 @@
   "files": [
     {
       "file": "pre_encode.ort",
-      "sizeBytes": 2113472,
-      "sha256": "c69cb8be2442a6b869f4b62141b4c5d984735984093387c12c8f9700465d53fc",
+      "sizeBytes": 2113456,
+      "sha256": "5748edbe3f915298c221501992d0ef895e7d7fc5dd630d51e0a7dfc9e31a5388",
       "derivedFrom": "models/pre_encode.onnx",
       "sourceSha256": "92f08037097df25dde1d2b59d5cec0cf3dd0f89d0e0aa9559d5060126ae60cc0",
       "sourceSizeBytes": 2100710,
@@ -49,8 +49,8 @@
     },
     {
       "file": "encoder_layers.int8.ort",
-      "sizeBytes": 69971216,
-      "sha256": "2afb40a2f503b1dd7127122cf06a64be564669a3f8e0441a087caaa4f939d3e4",
+      "sizeBytes": 69971112,
+      "sha256": "40c92f26d4eb57077e272be612c2bfb51d47f7a5844ff74fbb362e09bc167b82",
       "derivedFrom": "models/int8/encoder_layers.int8.ort1163.onnx",
       "sourceSha256": "dfbea009b677d79adc4551ad7497e30d8df0c3effd5b9224fd24dafe9be3f99c",
       "sourceSizeBytes": 69570969,
@@ -58,8 +58,8 @@
     },
     {
       "file": "speaker_head.ort",
-      "sizeBytes": 4111384,
-      "sha256": "3a1a73a3c9c1ae47eeb6c8342db326241812a2fdcb53f525b788c94e42ac653a",
+      "sizeBytes": 4111400,
+      "sha256": "fc9c75dd0d92b84ed87f29fdc00ca47b6af178e96f203a997536bc1715db1f8a",
       "derivedFrom": "models/speaker_head.onnx",
       "sourceSha256": "c7c32d241c887caae9926491ead679bd2c946f078362706c84a4f45d7c1f695d",
       "sourceSizeBytes": 4094557,
@@ -67,8 +67,8 @@
     },
     {
       "file": "spkcache_update.ort",
-      "sizeBytes": 535480,
-      "sha256": "168e77ca9958d597093a77781a9b0d15efc79b987b0dfa9d194b3c4e52542d02",
+      "sizeBytes": 535568,
+      "sha256": "8969a018be9c0105e8a8a6d251649d6d340abf3ed1cbf989b8b6c962f4a1c84a",
       "derivedFrom": "models/spkcache_update.onnx",
       "sourceSha256": "0c7aa030999f999152b2e3af839a24ded2a58ead57f81639af8faf29301b5b4a",
       "sourceSizeBytes": 464032,

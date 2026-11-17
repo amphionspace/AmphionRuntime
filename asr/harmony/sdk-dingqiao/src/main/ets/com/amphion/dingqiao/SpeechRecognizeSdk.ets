@@ -23,6 +23,8 @@ import { maxAudioBytesOf } from './SessionAudioLimit';
 import { SessionStartGate } from './SessionStartGate';
 import { targetSpeakerEnhancementConfig } from './TargetSpeakerEnhancementConfig';
 import { TargetSpeakerEnhancer } from './TargetSpeakerEnhancer';
+import { GtcrnDenoiser } from './GtcrnDenoiser';
+import { noiseSuppressionModel } from './NoiseSuppressionConfig';
 import {
   TargetSpeakerEnhancementObserver,
   TargetSpeakerEnhancementPipeline
@@ -376,6 +378,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private startingSession: boolean = false;
   private sessionStartGate: SessionStartGate = new SessionStartGate();
   private cancelRequestedDuringStart: boolean = false;
+  private gtcrnDenoiser?: GtcrnDenoiser;
   private targetSpeakerEnhancer?: TargetSpeakerEnhancer;
   private targetSpeakerEnhancementPipeline?: TargetSpeakerEnhancementPipeline;
   private targetSpeakerEnhancementEnabled: boolean = false;
@@ -507,12 +510,17 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const verify = strictBooleanParam(params.extraParams, 'enableVoiceprintVerification', false);
     const speakerVad = strictBooleanParam(params.extraParams, 'enableSpeakerVad', false);
     const voiceprintIds = stringArrayParam(params.extraParams, 'voiceprintIds');
+    let denoisingModel: string = 'none';
     let enhancementEnabled = false;
     try {
+      denoisingModel = noiseSuppressionModel(params.extraParams);
       enhancementEnabled = targetSpeakerEnhancementConfig(
         params.extraParams,
         voiceprintIds
       ).enabled;
+      if (denoisingModel !== 'none' && enhancementEnabled) {
+        throw new Error('noise suppression and target speaker enhancement cannot be combined');
+      }
     } catch (e) {
       this.listener?.onError?.(
         params.sessionId,
@@ -562,6 +570,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         speakerModelPath = DingqiaoSpeakerModelAssets.bundledPath();
       }
       this.rebuildEngine(params, configureTarget, useTarget && speakerVad, speakerModelPath);
+      if (denoisingModel !== 'none') this.gtcrnDenoiser = new GtcrnDenoiser(this.context, denoisingModel);
       if (enhancementEnabled && embedding !== undefined && speakerModelPath !== undefined) {
         newEnhancer = new TargetSpeakerEnhancer(
           this.context,
@@ -657,12 +666,17 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       const audioGeneration = startGeneration;
       const audioSessionId = params.sessionId;
       let processedAsrSamples: number = 0;
+      const denoiser = this.gtcrnDenoiser;
       this.audioDispatcher = new SessionAudioDispatcher({
         write: async (audio: ArrayBuffer): Promise<void> => {
           if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
-          await session.acceptPcmBytesAsync(audio);
+          const pcm = denoiser === undefined ? audio : await denoiser.frontend.run(audio);
           if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
-          processedAsrSamples += audio.byteLength / 2;
+          if (pcm.byteLength === 0) return;
+          if (denoiser !== undefined) this.speakerDiarizationSession?.append(pcm);
+          await session.acceptPcmBytesAsync(pcm);
+          if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          processedAsrSamples += pcm.byteLength / 2;
           this.speakerDiarizationSession?.asrAudioProcessed(processedAsrSamples);
         },
         writeFloat: async (samples: Float32Array): Promise<void> => {
@@ -678,6 +692,21 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         },
         finish: async (): Promise<void> => {
           if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+          if (denoiser !== undefined) {
+            const tail = await denoiser.frontend.flush();
+            if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+            if (tail.byteLength > 0) {
+              this.speakerDiarizationSession?.append(tail);
+              await session.acceptPcmBytesAsync(tail);
+              if (!this.ownsAudioSession(audioGeneration, audioSessionId, session)) return;
+              processedAsrSamples += tail.byteLength / 2;
+              this.speakerDiarizationSession?.asrAudioProcessed(processedAsrSamples);
+            }
+            hilog.info(0x0000, 'GtcrnFrontend',
+              'DENOISER|model=%{public}s|inputSamples=%{public}d|outputSamples=%{public}d|processingMs=%{public}d',
+              denoiser.modelName, denoiser.frontend.inputSamples, denoiser.frontend.outputSamples, Math.round(denoiser.frontend.processingMs));
+            this.requestSpeakerDiarizationFinish();
+          }
           await session.stopAsync();
         }
       }, (message: string): void => {
@@ -842,7 +871,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     // A replacement session resets this counter during startListening, so the old reservation cannot
     // leak across generations.
     this.audioBytesWritten += audio.byteLength;
-    this.speakerDiarizationSession?.append(audio);
+    if (this.gtcrnDenoiser === undefined) this.speakerDiarizationSession?.append(audio);
     if (DiagnosticsModule.isEnabled()) this.audioFramesWritten += 1;
     if (this.targetSpeakerEnhancementPipeline !== undefined) {
       this.targetSpeakerEnhancementPipeline.append(pcm16ToFloat(audio));
@@ -873,7 +902,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.finishRequested = true;
       this.lastFinishedSessionId = sessionId;
       this.lastAutoFinishedSessionId = sessionId;
-      this.requestSpeakerDiarizationFinish();
+      if (this.gtcrnDenoiser === undefined) this.requestSpeakerDiarizationFinish();
       if (DiagnosticsModule.isEnabled()) {
         const fields: Record<string, Object> = {};
         fields['reason'] = 'maxAudioDuration';
@@ -938,7 +967,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     if (this.finishRequested) return;
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
-    this.requestSpeakerDiarizationFinish();
+    if (this.gtcrnDenoiser === undefined) this.requestSpeakerDiarizationFinish();
     if (DiagnosticsModule.isEnabled()) {
       const fields: Record<string, Object> = {};
       fields['audioBytesWritten'] = this.audioBytesWritten;
@@ -1131,6 +1160,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.voiceprintIds = [];
     this.speechActive = false;
     this.targetSpeakerEnhancementPipeline = undefined;
+    this.gtcrnDenoiser = undefined;
     this.targetSpeakerEnhancer = undefined;
     this.targetSpeakerEnhancementEnabled = false;
     this.speakerDiarizationSession = undefined;
@@ -1144,12 +1174,15 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     const oldAudioDispatcher = this.audioDispatcher;
     const oldPipeline = this.targetSpeakerEnhancementPipeline;
     const oldEnhancer = this.targetSpeakerEnhancer;
+    const oldDenoiser = this.gtcrnDenoiser;
     const oldDiarization = this.speakerDiarizationSession;
     oldPipeline?.cancel();
     oldAudioDispatcher?.cancel();
     this.resetSessionState();
     oldDiarization?.cleanup();
     oldEnhancer?.close();
+    // In-flight native work owns its model until completion; closed generations cannot dispatch it.
+    oldDenoiser?.close();
     oldSession?.close();
   }
 
@@ -1238,7 +1271,7 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
     this.finishRequested = true;
     this.lastFinishedSessionId = sessionId;
     this.lastAutoFinishedSessionId = sessionId;
-    this.requestSpeakerDiarizationFinish(true);
+    if (this.gtcrnDenoiser === undefined) this.requestSpeakerDiarizationFinish(true);
     if (DiagnosticsModule.isEnabled()) {
       const fields: Record<string, Object> = {};
       fields['reason'] = 'vadBegin';
