@@ -1,0 +1,66 @@
+{
+ "delivery_date": "2026-11-16",
+ "delivery_version": "3.2",
+ "aar_filename": "lits-dingqiao-tts-sdk-vocos24k-3.2.aar",
+ "archive_filename": "lits-dingqiao-tts-android-sdk-vocos24k-3.2.zip",
+ "license_files_included": false,
+ "authorization_public_key_text_sha256": "c48e5d4840224f4914af60be038146655bb6b1c681baf89f6ce52517153ba049",
+ "platform": {
+  "abi": "arm64-v8a",
+  "min_sdk": 24
+ },
+ "model": {
+  "id": "dingqiao_imf_step00170000_streaming_vocos24k",
+  "checkpoint": "step_step=00169999.ckpt",
+  "global_step": 170000,
+  "checkpoint_sha256": "fbaf5c4f7f96cf5864164c66b371f68994da54472b3e67fa1005df7a61c50c8a",
+  "precision": "FP32",
+  "sample_rate": 24000,
+  "temperature": 0,
+  "speaker_id": 1,
+  "streaming_chunk_frames": 50,
+  "flow_steps": 2,
+  "phoneme_tokens": 173
+ },
+ "onnx_sha256": {
+  "lits_hidden_encoder.onnx": "9f5ab237e6312fefe3fb18f33e903e92e9c069c8eab926302b641f8922ca09f9",
+  "lits_stream_condition_chunk.onnx": "7020b66ac7849a180edb6080aa6039a71850f0cbfc8202853a31c61222e636d3",
+  "lits_stream_decoder_cache_init.onnx": "9a62896e1fd9fd9af651d88e33cdc17a3cbacd64f980a64938c40504f56a17c6",
+  "lits_stream_decoder_cache_step.onnx": "21bc6f56277875b5288d4aa094a45f191e205cdc8fbf6a43e7ddca0f7f1ecf7f",
+  "vocos_vocoder.onnx": "56ba27c96c59a7c16534f1ebec038c4fedfa59104ea1aa074dd27626b9a1752c"
+ },
+ "customer_docs": [
+  "README.md",
+  "CHANGELOG.md",
+  "docs/API.md",
+  "docs/INTEGRATION.md",
+  "docs/PSEUDOCODE.md"
+ ],
+ "checksum_file": "CHECKSUMS.txt",
+ "aar_sha256": "f79a04de595630c72d91df7cb7468ab44fa0a9a3e76d95dc007654d060fe173d",
+ "archive_sha256": "512d025f6c88b1ec061014692acfea827a3b6d83b0e57a052b510f46b314ebb1",
+ "archive_size_bytes": 220148687,
+ "source_commit": "db7fd45a6298f90054b3d1b997f3af713eea951b",
+ "source_note": "release branch fix/android-tts-3.2-glued-punctuation = 3.1 line (feat/android-tts-student-10000-temp0 @ d0585abd) + #94 port + version bump; clean worktree.",
+ "packaging_only": false,
+ "resource_directory": "AAR assets/lits-models/tts",
+ "api_compatibility": "Public API, inference configuration, bundled-resource installer and license behaviour unchanged from 3.1; only the frontend separates sentence punctuation glued to the next sentence (#94).",
+ "validation": {
+  "sdk_unit_tests_passed": 157,
+  "sdk_unit_tests_skipped": 4,
+  "packaging_tests_passed": "test_pack_sdk_only.py OK",
+  "repository_version_tests_passed": "OK",
+  "frontend_fix_94": "host unit tests: 5 new cases; glued '?', '.', '...' now tokenise identically to the spaced form; URL/query/file-name/version/decimal/abbreviation readings unchanged",
+  "device": "BRA-AL00 / Android 12 (internal test phone)",
+  "device_listening_check": "PENDING: demo installed with an internal device-bound TTS licence; listening check of 'Are you ready?Yes, I am.' etc. not yet performed",
+  "assets_byte_equality": "AAR bundles the 22 runtime resources of the IMF 170000 export; the five ONNX files are byte-identical to the 3.1 record",
+  "not_run": [
+   "full legacy API matrix",
+   "1000-item endurance",
+   "full pronunciation corpus",
+   "page recreation",
+   "both screen layouts"
+  ]
+ },
+ "supersedes": "3.1 (2026-09-17, aar 112e0b8d…, archive 29fa935f…)"
+}
