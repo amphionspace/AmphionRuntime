@@ -11,8 +11,9 @@ class DiarizationSentenceOutputTest {
             Triple("你好 world", "你好world。", "S1"),
             Triple("hello world", "hello，world。", "S1"),
             Triple(" hello", "hello。", "S1"),
-            Triple("hello world", "helloworld。", "UNKNOWN"),
-            Triple("你好 世界", "你好地球。", "UNKNOWN"),
+            // 对不回 token 的改写：整句区间只有 S1 一个已知角色，归属仍是 S1（客户 #29）。
+            Triple("hello world", "helloworld。", "S1"),
+            Triple("你好 世界", "你好地球。", "S1"),
         )) {
             val state = DiarizationTranscriptState()
             state.addUtterance(raw, text, raw.map { it.toString() },
@@ -64,7 +65,9 @@ class DiarizationSentenceOutputTest {
         }
     }
 
-    @Test fun lexicalRewriteWithoutProvenanceDoesNotInventAnOwner() {
+    @Test fun lexicalRewriteWithoutProvenanceKeepsTheOnlyAcousticOwner() {
+        // 客户 #29：填单里的数字/电话经 ITN 改写、没有来源记录。整句区间内只有一个已知角色时，
+        // 归属由声学决定，不需要逐字对齐；两个角色同句时仍不猜。
         for ((raw, text) in listOf("一百元" to "100元。", "百分之三" to "3%。", "三" to "THREE。")) {
             val state = DiarizationTranscriptState()
             state.addUtterance(raw, text, raw.map { it.toString() }, raw.indices.map { it * 100 }, 0, 1000)
@@ -72,10 +75,28 @@ class DiarizationSentenceOutputTest {
             val result = state.sentenceUtterances().single()
             assertEquals(raw, result.rawText)
             assertEquals(text, result.text)
-            assertEquals("UNKNOWN", result.speakerId)
+            assertEquals("S1", result.speakerId)
             assertFalse(result.speakerInferred)
-            assertEquals(0f, result.confidence)
         }
+        val mixed = DiarizationTranscriptState()
+        mixed.addUtterance("一百元", "100元。", listOf("一", "百", "元"), listOf(0, 100, 200), 0, 1000)
+        mixed.applySpeakerTurns(listOf(turn(0, 500, "S1"), turn(500, 1000, "S2")))
+        val result = mixed.sentenceUtterances().single()
+        assertEquals("UNKNOWN", result.speakerId)
+        assertEquals(listOf("S1", "S2"), result.secondarySpeakerIds)
+        assertEquals(0f, result.confidence)
+    }
+
+    @Test fun tokenEvidenceCoversEmissionLagAndUntimedFinals() {
+        val state = DiarizationTranscriptState()
+        state.addUtterance("你好", "你好。", listOf("你", "好"), listOf(3300, 3900), 3100, 3900)
+        assertFalse("a track that ended before the first token has no evidence", state.hasTokenEvidence(0, 1330))
+        assertTrue("emission lag: a token 300 ms after the track still counts", state.hasTokenEvidence(2400, 3000))
+        assertFalse("beyond the 600 ms emission lag it does not", state.hasTokenEvidence(2400, 2600))
+        assertTrue(state.hasTokenEvidence(3500, 8000))
+        state.addUtterance("嗯", "嗯。", emptyList(), emptyList(), 9000, 9500)
+        assertTrue("an untimed final counts by interval overlap", state.hasTokenEvidence(9200, 12000))
+        assertFalse(state.hasTokenEvidence(9600, 12000))
     }
 
     @Test fun emissionLaggedTailOfACleanSentenceIsDirectAttribution() {

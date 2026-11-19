@@ -190,6 +190,19 @@ internal class DiarizationTranscriptState {
         }
     }
 
+    /**
+     * [beginMs, endMs] 内有没有 ASR 语音证据：任一 token 的发射时间落在区间内（允许
+     * [MAX_TOKEN_EMISSION_LAG_MS] 的发射滞后）；没有 token 时间的 final 按整句区间相交算。
+     * 供声纹身份分配把关：没有证据的分割轨道不开新身份（客户 #29）。
+     */
+    fun hasTokenEvidence(beginMs: Int, endMs: Int): Boolean = utterances.any { utterance ->
+        if (utterance.tokenTimesMs.isNotEmpty()) {
+            utterance.tokenTimesMs.any { it >= beginMs && it <= endMs + MAX_TOKEN_EMISSION_LAG_MS }
+        } else {
+            overlapMs(beginMs, endMs, utterance.beginTime, utterance.endTime) > 0
+        }
+    }
+
     /** 本次会话到目前为止解析出的已知身份；单人会话判定用它。 */
     private fun knownSpeakerIds(): Set<String> = turns.mapNotNull { turn ->
         turn.speakerId.takeIf { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
@@ -539,17 +552,20 @@ internal class DiarizationTranscriptState {
 
     private fun unsplit(utterance: StoredUtterance): DiarizedTranscriptUtterance {
         val assignment = assignmentFor(utterance.beginTime, utterance.endTime)
-        // Text-only ITN has no exact source provenance for lexical rewrites.
-        val exactText = tokenTextBoundaries(listOf(utterance.rawText), utterance.text) != null
+        // 文本对不回 token（ITN / 词法改写没有来源记录）时，整句的归属只看声学：这句区间内
+        // 只有一个已知角色、无重叠无未知，归属就是它，不需要逐字对齐——对齐只在要**切分**
+        // 文字时才有意义。此前这里一律给 UNKNOWN，让填单场景里凡带数字、电话、证件号（必经
+        // ITN 改写）的句子全部落成「其他角色」（客户 #29）。多人同句、重叠或未知仍按 assignmentFor 给 UNKNOWN。
+        val owned = assignment.speakerId != "UNKNOWN"
         return DiarizedTranscriptUtterance(
             utterance.utteranceId,
             utterance.rawText,
             utterance.text,
             utterance.beginTime,
             utterance.endTime,
-            if (exactText) utterance.speakerId else "UNKNOWN",
-            utterance.secondarySpeakerIds.toList(),
-            if (exactText) assignment.confidence else 0f,
+            if (owned) assignment.speakerId else "UNKNOWN",
+            assignment.secondarySpeakerIds.toList(),
+            if (owned) assignment.confidence else 0f,
             turns.any { it.overlap && overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 },
         )
     }

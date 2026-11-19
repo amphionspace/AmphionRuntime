@@ -69,6 +69,16 @@ internal class SpeakerDiarizationSession(
     /** 仅在 speakerIdentityMode=voiceprint 且嵌入能力可用时存在。 */
     private val identityResolver: SpeakerIdentityResolver? =
         speakerEmbed?.let { SpeakerIdentityResolver(SAMPLE_RATE, maxSpeakers, it) }
+    /**
+     * 公开 speakerCount 跟随公开 speakerIndex 的来源：开启声纹身份时数已开出的声纹身份数，否则数模型槽位。
+     * 此前一律数模型槽位，单人录音被 Sortformer 放进两个槽位时就报 2 位（客户 #35）。
+     */
+    private fun publicSpeakerCount(slotCount: Int): Int = identityResolver?.identityCount() ?: slotCount
+
+    /** 轨道区间内有没有 ASR token：声纹身份只给有语音证据的分割轨道（客户 #29）。 */
+    private val speechEvidence: SpeechEvidenceFn = { beginMs, endMs ->
+        transcript.hasTokenEvidence(beginMs.toInt(), endMs.toInt())
+    }
     private val callbacks = DiarizationCallbackQueue()
     // 模型自己的四个槽位轨道。final 块推进说话人缓存，preview 只是当前块的一瞥、会被同段 final 取代。
     private val finalTracks = mutableListOf<SortformerTrack>()
@@ -121,6 +131,8 @@ internal class SpeakerDiarizationSession(
                 lastAsrEndMs = maxOf(lastAsrEndMs, end)
                 val id = transcript.addUtterance(result.rawText, payload.result, result.tokens, timestamps, begin, end,
                     ((ResultAudioTimeline.endSample(result) ?: totalSamples) * 1000 / SAMPLE_RATE).toInt())
+                // 新到的 token 可能正是某条待定轨道缺的语音证据。
+                identityResolver?.retryPending(speechEvidence)
                 decoratePayloadLocked(payload.copy(utteranceId = id))
             }
             if (payload.isLast) terminalPayload = value
@@ -246,14 +258,16 @@ internal class SpeakerDiarizationSession(
                     }
                     // 声纹身份写回 track.identity，timelineTurns 会优先用它；未赋身份时留 -1 落到 UNKNOWN。
                     // 这里算嵌入，是会话期间、不在提交或收尾路径上——后者余量很小。
+                    // 先补分配更早的待定轨道，再分配本批：分配器是增量的，到达顺序决定编号。
                     identityResolver?.let { resolver ->
                         if (newTracks.isNotEmpty()) {
-                            val resolved = resolver.resolve(newTracks)
+                            resolver.retryPending(speechEvidence)
+                            val resolved = resolver.resolve(newTracks, speechEvidence)
                             newTracks.forEachIndexed { index, track -> track.identity = resolved[index] }
                         }
                     }
                     val identity = identities.commit(firstSpeech)
-                    finalSpeakerCount = identity.after
+                    finalSpeakerCount = publicSpeakerCount(identity.after)
                     // 同段音频的 final 取代它的预览。
                     previewTracks = previewTracks.filter { it.beginTime >= event.endTime }
                     inferenceEndMs = maxOf(inferenceEndMs, event.endTime.toInt())
@@ -369,7 +383,7 @@ internal class SpeakerDiarizationSession(
         updates.forEach { update ->
             callbacks.enqueue { observer.onUpdate(update.toPublic()) }
         }
-        finalSpeakerCount = identities.publishedCount()
+        finalSpeakerCount = publicSpeakerCount(identities.publishedCount())
         if (diagnostic != null) recordDecision("DIARIZATION_SORTFORMER_COMMIT", mapOf(
             "publicWindowIndex" to windowIndex,
             "beginTime" to commit.begin,

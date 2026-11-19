@@ -56,6 +56,47 @@ class HarmonySpeakerIdentityResolverTest(unittest.TestCase):
         finally:
             patched.unlink(missing_ok=True)
 
+    def test_tracks_without_speech_evidence_do_not_open_an_identity(self) -> None:
+        """客户 #29：录音开头 1.3 s 的按键/环境声轨道没有 ASR token，不能领走身份 0；
+        证据（ASR final）到了再补分配，编号仍按到达顺序。"""
+        self.run_resolver(
+            """
+            const r = new SpeakerIdentityResolver(SR, 4, byFirstSample);
+            // 假嵌入器看切片的第一个样本；resolver 取每段**中间** 3 s，所以标记放在中间切片的起点。
+            const pcm = new Int16Array(SR * 20);
+            pcm[0] = 3;                          // 0–1330 ms：噪声轨道（整段），方向 3
+            pcm[Math.round(SR * 5.325)] = 1;     // 2400–11250 ms：说话人 A，中间 3 s 起点 5325 ms
+            pcm[Math.round(SR * 13.5)] = 2;      // 12000–18000 ms：说话人 B，中间 3 s 起点 13500 ms
+            r.appendAudio(pcm.buffer);
+            const tokens = [];                   // ASR token 发射时间（ms）
+            const evidence = (b, e) => tokens.some((t) => t >= b && t <= e + 600);
+            const junk = [0, 1330, 0];
+            const a = [2400, 11250, 1];
+            // 第一批：只有噪声轨道，且还没有任何 token
+            assert.deepEqual(r.resolve([junk], evidence), [IDENTITY_UNRESOLVED]);
+            assert.equal(r.identityCount(), 0);
+            assert.equal(r.pendingCount(), 1);
+            // A 的 final 到了（token 3300–10700 ms），噪声轨道仍没有证据
+            tokens.push(3300, 5000, 10700);
+            assert.equal(r.retryPending(evidence), 0);
+            assert.deepEqual(r.resolve([a], evidence), [0]);           // A 拿到身份 0 → 「角色1」
+            assert.equal(r.identityCount(), 1);
+            // B 的轨道先于它的 final 到达：先待定，final 到了再补
+            const b = [12000, 18000, 0];
+            assert.deepEqual(r.resolve([b], evidence), [IDENTITY_UNRESOLVED]);
+            assert.equal(r.pendingCount(), 2);
+            tokens.push(12800, 17900);
+            assert.equal(r.retryPending(evidence), 1);
+            assert.equal(b[3], 1);                                     // 写回 track[3]
+            assert.equal(junk.length, 3);                               // 噪声轨道始终未赋身份
+            assert.equal(r.identityCount(), 2);
+            assert.equal(r.pendingCount(), 1);
+            assert.equal(r.deferredCount(), 2);
+            r.reset();
+            assert.equal(r.pendingCount(), 0);
+            """
+        )
+
     def test_identities_follow_arrival_order_not_slot_order(self) -> None:
         """Sortformer 按槽位报 runs；若不按起始时间重排，编号会跟着槽位顺序跑偏。"""
         self.run_resolver(
