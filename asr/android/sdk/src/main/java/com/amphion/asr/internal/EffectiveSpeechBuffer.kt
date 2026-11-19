@@ -7,7 +7,50 @@ import kotlin.math.sqrt
 internal data class EffectiveSpeechFinalDecision(
     val publish: Boolean,
     val samples: FloatArray,
+    /** publish=false 时的原因，供 RESULT_SUPPRESSED 指标区分来源；publish=true 时为空串。 */
+    val reason: String = "",
 )
+
+/**
+ * 只由填充词构成的文本（"嗯""呃""啊"…）在没有原生 VAD 语音证据时不发布（客户 #92）。
+ *
+ * 鸿蒙真机实测（Mate 80，0.3.29）：真人声之后接 −40～−70 dBFS 的粉噪，57 s 内会出 1～4 个
+ * "嗯。/呃。"，全部是 VAD 没判出语音、由原生 rule2 端点吐出的单字；它们能过 −74 dBFS 的声学
+ * 门禁，因为普通底噪电平远在其上（已知限制）。填充词是识别器在无语音输入时最常见的幻觉形态，
+ * 而真人说出的"嗯"在 Silero 下会被判成语音。所以只对"填充词 + 无 VAD 语音"收紧，不动有实词
+ * 的文本，也不另设字数或时长门槛。与鸿蒙 `EffectiveSpeechBuffer.ts` 的常量和规则一致。
+ */
+internal const val FILLER_ONLY_CHARS = "嗯呃额啊哦噢喔唔诶欸哎唉呀哼嘶"
+internal const val FILLER_ONLY_MAX_CHARS = 4
+private val FILLER_ONLY_WORDS = setOf("um", "uh", "uhm", "hmm", "hm", "mm", "mmm", "ah", "oh", "eh", "er")
+internal const val SUPPRESS_REASON_FILLER_WITHOUT_VAD = "filler-without-vad"
+internal const val SUPPRESS_REASON_NO_INDEPENDENT_EVIDENCE = "effective-speech-boundary"
+
+/** 去掉空白与标点后，是否只剩填充词（见 [FILLER_ONLY_CHARS]）。空文本返回 false。 */
+internal fun isFillerOnlyText(text: String): Boolean {
+    val core = buildString {
+        for (ch in text) {
+            if (ch.isWhitespace()) continue
+            val type = Character.getType(ch)
+            val punctuationOrSymbol = type == Character.CONNECTOR_PUNCTUATION.toInt() ||
+                type == Character.DASH_PUNCTUATION.toInt() ||
+                type == Character.START_PUNCTUATION.toInt() ||
+                type == Character.END_PUNCTUATION.toInt() ||
+                type == Character.INITIAL_QUOTE_PUNCTUATION.toInt() ||
+                type == Character.FINAL_QUOTE_PUNCTUATION.toInt() ||
+                type == Character.OTHER_PUNCTUATION.toInt() ||
+                type == Character.MATH_SYMBOL.toInt() ||
+                type == Character.CURRENCY_SYMBOL.toInt() ||
+                type == Character.MODIFIER_SYMBOL.toInt() ||
+                type == Character.OTHER_SYMBOL.toInt()
+            if (!punctuationOrSymbol) append(ch)
+        }
+    }
+    if (core.isEmpty()) return false
+    if (core.lowercase() in FILLER_ONLY_WORDS) return true
+    if (core.length > FILLER_ONLY_MAX_CHARS) return false
+    return core.all { FILLER_ONLY_CHARS.indexOf(it) >= 0 }
+}
 
 private class EffectiveSpeechRun {
     val parts = mutableListOf<FloatArray>()
@@ -114,14 +157,34 @@ internal class EffectiveSpeechBuffer(
         // processedWindows == 0 表示自上次 reset 以来一个窗都没喂过：这时没有判据，而且那段
         // 音频已经在上一次 terminal final 里发布过了，保持原行为放行。幻觉场景不会落到这里，
         // 因为运行时是持续喂音频的（哪怕是近似数字静音，也会产生窗和 run）。
+        // 被门禁拦下的非空 final 也是一句话的结束：清掉这一句保留的 run，否则长时间底噪里一句
+        // 接一句被拦，run 与 PCM 会一直累到上限，之后窗证据停止更新，且早先的 VAD 证据会被下一句继承。
         if (publicText.isNotEmpty() && processedWindows > 0 && !hasIndependentSpeechEvidence()) {
-            return EffectiveSpeechFinalDecision(publish = false, samples = FloatArray(0))
+            reset()
+            return EffectiveSpeechFinalDecision(
+                publish = false,
+                samples = FloatArray(0),
+                reason = SUPPRESS_REASON_NO_INDEPENDENT_EVIDENCE,
+            )
+        }
+        // 只有填充词、且原生 VAD 全程没判出语音：普通底噪能过声学门禁（见 [FILLER_ONLY_CHARS]），
+        // 这里要求独立于识别器且独立于能量的第二个信号。
+        if (processedWindows > 0 && isFillerOnlyText(publicText) && !hasVadSpeechEvidence()) {
+            reset()
+            return EffectiveSpeechFinalDecision(
+                publish = false,
+                samples = FloatArray(0),
+                reason = SUPPRESS_REASON_FILLER_WITHOUT_VAD,
+            )
         }
         return EffectiveSpeechFinalDecision(
             publish = true,
             samples = take(asrSpeechConfirmed),
         )
     }
+
+    /** 原生 VAD 是否确认过本句里的任一 run（不看窗数：真人"嗯"可能只有十几个窗）。 */
+    fun hasVadSpeechEvidence(): Boolean = runs.any { it.vadConfirmed }
 
     /**
      * 是否存在独立于识别器的语音证据：按 [PUBLISH_RMS_THRESHOLD] 确认的声学 run，或原生

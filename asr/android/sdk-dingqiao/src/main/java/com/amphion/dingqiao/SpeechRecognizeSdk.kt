@@ -552,7 +552,9 @@ object SpeechRecognizeSdk {
                 val templates = segments.mapNotNull { segment ->
                     runCatching { enroller.enroll(listOf(segment)) }.getOrNull()
                 }
-                store.saveVoiceprint(params.samplePaths, embedding, templates)
+                // 2 s 分段模板只供 final 打分（缺陷 #97 第二轮）。
+                val segmentTemplates = runCatching { enroller.enrollSegmentTemplates(segments) }.getOrDefault(emptyList())
+                store.saveVoiceprint(params.samplePaths, embedding, templates, segmentTemplates)
             }
         } catch (error: Throwable) {
             voiceprintRegistrationFailure(

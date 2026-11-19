@@ -949,6 +949,142 @@ class DingqiaoCustomerBugEvidenceInstrumentedTest {
         org.junit.Assert.assertTrue("机主的短指令必须被转写，实际长度=${published.length}", published.isNotEmpty())
     }
 
+    /**
+     * 缺陷 #100：安卓机主识别，按"机主 → 非机主 → 机主"说话，机主第二次发言丢失。
+     * 客户附件是调用方落盘的 SDK 输入（16 kHz 单声道）与三份注册样本，经 instrumentation 参数给出：
+     * bug100CaseWav、bug100EnrollA/B/C；可选 bug100SpeakerVad（默认 false）、bug100VadEnd（默认 1600，
+     * 客户生产值）、bug100FrameSleepMs（默认 20，实时）、bug100OwnerTexts（逗号分隔，机主必须发布的片段）、
+     * bug100OtherTexts（逗号分隔，非机主不得发布的片段）。
+     * 先不过滤跑一遍作为参照，再开机主识别跑一遍；断言只输出计数，不打印原文。
+     */
+    @Test
+    fun bug100OwnerReturn_secondOwnerUtteranceIsPublished() {
+        val args = InstrumentationRegistry.getArguments()
+        val casePath = args.getString("bug100CaseWav")
+        val enrollPaths = listOf("bug100EnrollA", "bug100EnrollB", "bug100EnrollC")
+            .mapNotNull { args.getString(it) }
+        org.junit.Assume.assumeTrue(
+            "需要 bug100CaseWav 与三份注册样本",
+            !casePath.isNullOrBlank() && enrollPaths.size == 3,
+        )
+        val speakerVad = args.getString("bug100SpeakerVad")?.toBoolean() ?: false
+        val vadEnd = args.getString("bug100VadEnd")?.toIntOrNull() ?: 1_600
+        val frameSleepMs = runnerLong("bug100FrameSleepMs", 20L)
+        fun textList(name: String) = args.getString(name).orEmpty()
+            .split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        val ownerTexts = textList("bug100OwnerTexts")
+        val otherTexts = textList("bug100OtherTexts")
+        val writer = EvidenceWriter(
+            targetContext,
+            "bug100-owner-return-" + if (speakerVad) "speaker-vad" else "target-only",
+        )
+        prepare(writer)
+        val registration = SpeechRecognizeSdk.registerVoiceprint(
+            VoiceprintRegisterParams(enrollPaths, AudioInfo()),
+        )
+        writer.append(
+            "bug100-registration",
+            mapOf(
+                "samples" to enrollPaths.size, "status" to registration.status,
+                "message" to registration.message, "idCount" to registration.voiceprintId.size,
+                "speakerVad" to speakerVad, "vadEnd" to vadEnd, "frameSleepMs" to frameSleepMs,
+            ),
+        )
+        assertEquals(
+            "声纹注册失败: ${registration.status} ${registration.message}",
+            1, registration.voiceprintId.size,
+        )
+        val voiceprintId = registration.voiceprintId.keys.single()
+        // 客户 App 的生产参数：long 模式、vadEnd=1600、不加 vadBegin。
+        val base = mapOf<String, Any>(
+            "recognizerMode" to "long", "enablePartialResult" to true,
+            "enablePoliceEnhancement" to true, "vadEnd" to vadEnd,
+        )
+        val owner = base + mapOf<String, Any>(
+            "enableVoiceprintVerification" to true, "enableSpeakerVad" to speakerVad,
+            "voiceprintIds" to listOf(voiceprintId),
+        )
+        val engine = createEngine()
+        val (reference, filtered) = try {
+            val reference = decodeFile(engine, "bug100-unfiltered", casePath!!, frameSleepMs, base, writer)
+            val filtered = decodeFile(engine, "bug100-owner", casePath, frameSleepMs, owner, writer)
+            reference to filtered
+        } finally {
+            engine.shutdown()
+        }
+        val published = normalizeText(filtered.finalText)
+        val missingOwner = ownerTexts.filter { !published.contains(normalizeText(it)) }
+        val leakedOther = otherTexts.filter { published.contains(normalizeText(it)) }
+        writer.append(
+            "bug100-assertion",
+            mapOf(
+                "referenceFinals" to reference.finals.count { it.text.isNotBlank() },
+                "referenceChars" to normalizeText(reference.finalText).length,
+                "publishedFinals" to filtered.finals.count { it.text.isNotBlank() },
+                "rejectedFinals" to filtered.finals.count { it.text.isBlank() },
+                "publishedChars" to published.length,
+                "similarities" to JSONArray(
+                    filtered.finals.map { it.speakerSimilarity?.toDouble() ?: JSONObject.NULL },
+                ),
+                "missingOwnerTexts" to missingOwner.size,
+                "leakedOtherTexts" to leakedOther.size,
+                "lifecycle" to JSONArray(lifecycleErrors(filtered)),
+            ),
+        )
+        assertEquals("会话不应有生命周期错误", emptyList<String>(), lifecycleErrors(filtered))
+        assertTrue("机主发言缺失 ${missingOwner.size} 段", missingOwner.isEmpty())
+        assertTrue("非机主发言泄漏 ${leakedOther.size} 段", leakedOther.isEmpty())
+    }
+
+    /**
+     * 缺陷 #92（鸿蒙报，两端同规则）：真人声之后的普通底噪里反复转写出"嗯"。
+     * bug92CaseWavs 为逗号分隔的设备文件路径（每条 = 约 5 s 真人声 + 长底噪），long 模式、vadEnd=1600。
+     * 断言：7 s 之后不得出现只含填充词的非空 final；前 7 s 的真人声照常发布。
+     */
+    @Test
+    fun bug92NoiseTail_fillerWithoutVadIsNotPublished() {
+        val args = InstrumentationRegistry.getArguments()
+        val casePaths = args.getString("bug92CaseWavs").orEmpty()
+            .split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        org.junit.Assume.assumeTrue("需要 bug92CaseWavs", casePaths.isNotEmpty())
+        val writer = EvidenceWriter(targetContext, "bug92-noise-tail")
+        prepare(writer)
+        val base = mapOf<String, Any>(
+            "recognizerMode" to "long", "enablePartialResult" to true,
+            "enablePoliceEnhancement" to true, "vadEnd" to 1_600,
+        )
+        val fillers = "嗯呃额啊哦噢喔唔诶欸哎唉呀哼嘶"
+        fun fillerOnly(text: String): Boolean {
+            val core = text.filter { !it.isWhitespace() && it.isLetterOrDigit() }
+            return core.isNotEmpty() && core.length <= 4 && core.all { fillers.indexOf(it) >= 0 }
+        }
+        val engine = createEngine()
+        val failures = mutableListOf<String>()
+        try {
+            casePaths.forEachIndexed { index, path ->
+                val outcome = decodeFile(engine, "bug92-$index", path, runnerLong("bug92FrameSleepMs", 20L), base, writer)
+                val nonEmpty = outcome.finals.filter { it.text.isNotBlank() }
+                val early = nonEmpty.filter { (it.beginTime ?: 0) < 7_000 }
+                val lateFillers = nonEmpty.filter { (it.beginTime ?: 0) >= 7_000 && fillerOnly(it.text) }
+                val lateOther = nonEmpty.filter { (it.beginTime ?: 0) >= 7_000 && !fillerOnly(it.text) }
+                writer.append(
+                    "bug92-assertion",
+                    mapOf(
+                        "case" to index, "nonEmptyFinals" to nonEmpty.size, "earlyFinals" to early.size,
+                        "lateFillerFinals" to lateFillers.size, "lateOtherFinals" to lateOther.size,
+                        "lifecycle" to JSONArray(lifecycleErrors(outcome)),
+                    ),
+                )
+                if (lifecycleErrors(outcome).isNotEmpty()) failures += "case $index lifecycle=${lifecycleErrors(outcome)}"
+                if (early.isEmpty()) failures += "case $index lost the real speech before 7 s"
+                if (lateFillers.isNotEmpty()) failures += "case $index published ${lateFillers.size} filler-only finals in the noise tail"
+            }
+        } finally {
+            engine.shutdown()
+        }
+        assertTrue("bug92 failures: $failures", failures.isEmpty())
+    }
+
     private fun decodeFile(
         engine: SpeechRecognitionEngine,
         label: String,
