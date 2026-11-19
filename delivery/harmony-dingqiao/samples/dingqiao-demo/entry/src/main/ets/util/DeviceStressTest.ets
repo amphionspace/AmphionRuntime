@@ -87,6 +87,12 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  /** speaker-vad-turn 复现客户配置用：>0 时显式传 vadEnd（客户现场 1600），0 跟随 SDK 默认。 */
+  speakerVadVadEndMs: number = 0;
+  /** speaker-vad-turn 复现客户配置用：'short' | 'long'，空串不传。 */
+  speakerVadRecognizerMode: string = '';
+  /** speaker-vad-turn 复现客户配置用：客户主工程同时传 enableVoiceprintVerification=true。 */
+  speakerVadVerification: boolean = false;
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
@@ -1733,6 +1739,12 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   if (options.speakerVadThreshold >= -1 && options.speakerVadThreshold <= 1) {
     params.extraParams['speakerVadThreshold'] = options.speakerVadThreshold;
   }
+  // 客户主工程（OfflineAmphionEngine）下发口径：verification + speakerVad 同开、vadEnd=1600、long 模式。
+  if (options.speakerVadVadEndMs > 0) params.extraParams['vadEnd'] = options.speakerVadVadEndMs;
+  if (options.speakerVadRecognizerMode.length > 0) {
+    params.extraParams['recognizerMode'] = options.speakerVadRecognizerMode;
+  }
+  if (options.speakerVadVerification) params.extraParams['enableVoiceprintVerification'] = true;
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     const startDetail = events.errorMessages.length > 0 ?

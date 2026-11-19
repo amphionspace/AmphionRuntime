@@ -170,6 +170,11 @@ export default class EntryAbility extends UIAbility {
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
         this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
+      options.speakerVadVadEndMs = this.numberParameter(want, 'stressSpeakerVadVadEndMs', 0);
+      const speakerVadMode = this.stringParameter(want, 'stressSpeakerVadRecognizerMode', 'none');
+      options.speakerVadRecognizerMode = speakerVadMode === 'none' ? '' : speakerVadMode;
+      options.speakerVadVerification =
+        this.stringParameter(want, 'stressSpeakerVadVerification', 'false') === 'true';
       // Screen-off reproduction: a customer recording app runs as a background continuous
       // task instead of holding a keep-screen-on lock.
       this.allowScreenOff = this.stringParameter(want, 'stressAllowScreenOff', 'false') === 'true';

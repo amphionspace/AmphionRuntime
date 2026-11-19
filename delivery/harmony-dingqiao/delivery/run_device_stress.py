@@ -206,6 +206,18 @@ def parse_args() -> argparse.Namespace:
         help="Override speakerVadThreshold for sequential speaker-turn experiments.",
     )
     parser.add_argument(
+        "--speaker-vad-vad-end-ms", type=int, default=0,
+        help="speaker-vad-turn: pass vadEnd explicitly (customer app uses 1600); 0 keeps the SDK default.",
+    )
+    parser.add_argument(
+        "--speaker-vad-recognizer-mode", choices=("", "short", "long"), default="",
+        help="speaker-vad-turn: pass recognizerMode explicitly; empty keeps the SDK default.",
+    )
+    parser.add_argument(
+        "--speaker-vad-verification", action="store_true",
+        help="speaker-vad-turn: also pass enableVoiceprintVerification=true like the customer app.",
+    )
+    parser.add_argument(
         "--skip-target-content-check",
         action="store_true",
         help="Keep lifecycle checks but skip the carrier's C1 text assertion.",
@@ -1378,6 +1390,9 @@ def run_stress(args: argparse.Namespace) -> Path:
         ",".join(sorted(finish_recovery_entry_ids)) or "none",
         "--ps", "stressSpeakerVadThreshold",
         str((args.speaker_vad_threshold if args.speaker_vad_threshold is not None else -2) + 2),
+        "--ps", "stressSpeakerVadVadEndMs", str(args.speaker_vad_vad_end_ms),
+        "--ps", "stressSpeakerVadRecognizerMode", args.speaker_vad_recognizer_mode or "none",
+        "--ps", "stressSpeakerVadVerification", "true" if args.speaker_vad_verification else "false",
     ]
     # `aa start --ps` 不接受空值（实测报 invalid number of parameters for option --ps），
     # 所以只在显式指定时才追加这对参数；不指定就跟随 SDK 默认（0.3.27 起为 'voiceprint'）。
@@ -1579,6 +1594,9 @@ def run_stress(args: argparse.Namespace) -> Path:
             "post_run_observe_seconds": args.post_run_observe,
             "target_content_check_enabled": not args.skip_target_content_check,
             "speaker_vad_threshold": args.speaker_vad_threshold,
+            "speaker_vad_vad_end_ms": args.speaker_vad_vad_end_ms,
+            "speaker_vad_recognizer_mode": args.speaker_vad_recognizer_mode,
+            "speaker_vad_verification": args.speaker_vad_verification,
             "finish_recovery_entry_ids": sorted(finish_recovery_entry_ids),
         },
         "inventory": inventory,
