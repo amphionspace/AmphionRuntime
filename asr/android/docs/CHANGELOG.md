@@ -8,6 +8,10 @@
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-11-19
+
+- 基于 0.3.10（客户已收到的版本）。识别模型、热词、公共接口与回调顺序不变。
+
 - **角色分离公开 `speakerCount` 改为跟随声纹身份（客户 #35）。** 单人连续朗读被 Sortformer 放进两个槽位时，全部文字已归角色 1，
   `speakerCount` 却报 2。开启声纹身份时现在数已开出的声纹身份数，关闭时仍数模型槽位。客户 #35 录音两端复测 speakerCount 1，
   文字全部归角色 1；弱尾音末句（−31～−34 dBFS，模型无说话段）仍为「其他角色」，按契约不跨句补全。
@@ -62,6 +66,8 @@
   `VOICEPRINT_SAMPLE_DURATION` 拒绝，复测时裁到 7.9 s；客户 App 如何完成注册待与鼎桥确认。
   复现用例 `DingqiaoCustomerBugEvidenceInstrumentedTest#bug100OwnerReturn_secondOwnerUtteranceIsPublished`
   （录音经 instrumentation 参数外挂），详见 `docs/speaker/OWNER_RETURN_ANDROID_DEVICE_20261117.md`。
+
+## [0.3.9 – 0.3.10] - 2026-10-30 / 2026-11-12
 
 - **鼎桥 Android 实时识别降功耗：停止 ORT 空转，识别线程 4 → 2。** 客户在 EC521S（MT6853）上
   报告识别时机身持续升温。simpleperf 显示 SDK 一半以上的 CPU 时间在 ORT worker 的 `Run` 间空转。
