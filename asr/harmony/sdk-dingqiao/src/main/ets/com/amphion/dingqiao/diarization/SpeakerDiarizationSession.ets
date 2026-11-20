@@ -4,7 +4,7 @@ import {
   DiarizedUtterance, SpeakerDiarizationDegradedReason, SpeakerDiarizationResult,
   SpeakerDiarizationUpdate, SpeakerTurn, SpeakerTextSpan, SpeechRecognitionResult
 } from '../DingqiaoModels';
-import { SpeakerIdentityResolver, SpeakerEmbedFn } from './SpeakerIdentityResolver';
+import { SpeakerIdentityResolver, SpeakerEmbedFn, SpeechEvidenceFn } from './SpeakerIdentityResolver';
 import { SortformerLocalClient, SortformerLocalObserver, SortformerLocalClientOptions,
   SortformerLocalFeedResult } from './SortformerLocalClient';
 import { SortformerSpeakerIdentity } from './SortformerSpeakerIdentity';
@@ -102,6 +102,19 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
   /** 仅在 speakerIdentityMode='voiceprint' 时存在；缺少嵌入能力时保持 undefined（回落到槽位）。 */
   private identityResolver?: SpeakerIdentityResolver;
 
+  /**
+   * 公开 speakerCount 跟随公开 speakerIndex 的来源：开启声纹身份时数已开出的声纹身份数，
+   * 否则数模型槽位。此前一律数模型槽位，单人录音被 Sortformer 放进两个槽位时就报 2 位
+   * （客户 #35：全部文字都是角色 1，speakerCount 却是 2）。
+   */
+  private publicSpeakerCount(slotCount: number): number {
+    return this.identityResolver !== undefined ? this.identityResolver.identityCount() : slotCount;
+  }
+
+  /** 轨道区间内有没有 ASR token：声纹身份只给有语音证据的分割轨道（客户 #29）。 */
+  private readonly speechEvidence: SpeechEvidenceFn = (beginMs: number, endMs: number): boolean =>
+    this.transcript.hasTokenEvidence(beginMs, endMs);
+
   constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void,
@@ -187,6 +200,8 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       audioEndTime: (ResultAudioTimeline.endSample(result) ?? this.totalSamples) * 1000 / SAMPLE_RATE,
     });
     payload.utteranceId = utteranceId;
+    // 新到的 token 可能正是某条待定轨道缺的语音证据。
+    this.identityResolver?.retryPending(this.speechEvidence);
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['utteranceId'] = utteranceId;
@@ -354,14 +369,16 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
         }
         // 声纹身份写回 track[3]，timelineTurns 会优先用它；未赋身份时留 -1 落到 UNKNOWN。
         // 这里算嵌入，是会话期间、不在提交或收尾路径上——后者只剩约 300 ms 余量。
+        // 先补分配更早的待定轨道，再分配本批：分配器是增量的，到达顺序决定编号。
         if (this.identityResolver !== undefined && newTracks.length > 0) {
-          const identities = this.identityResolver.resolve(newTracks);
+          this.identityResolver.retryPending(this.speechEvidence);
+          const identities = this.identityResolver.resolve(newTracks, this.speechEvidence);
           for (let index = 0; index < newTracks.length; index++) {
             newTracks[index][3] = identities[index];
           }
         }
         const identity = this.identities.commit(firstSpeech);
-        this.finalSpeakerCount = identity.after;
+        this.finalSpeakerCount = this.publicSpeakerCount(identity.after);
         // A final chunk supersedes any preview of the same audio.
         this.previewTracks = this.previewTracks.filter((track: SortformerTrack): boolean =>
           track[0] >= event.endTime);
@@ -507,7 +524,7 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(update));
       if (this.finished) return;
     }
-    this.finalSpeakerCount = this.identities.publishedCount();
+    this.finalSpeakerCount = this.publicSpeakerCount(this.identities.publishedCount());
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['publicWindowIndex'] = this.windowIndex;

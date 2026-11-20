@@ -7,6 +7,16 @@ import kotlin.math.min
 internal typealias SpeakerEmbedFn = (samples: FloatArray) -> FloatArray?
 
 /**
+ * 轨道区间 [beginMs, endMs] 内有没有独立于分割模型的语音证据。调用方用 ASR token 时间戳实现。
+ *
+ * 为什么需要它（客户 #29）：Sortformer 会把录音开头的按键声/环境声报成一段 1.3 s 的"发言"
+ * （鸿蒙 Mate 80 真机：0–1330 ms，期间 VAD 无语音、ASR 无 token），它第一个到达，就领走了身份 0，
+ * 三位真实说话人于是成了「角色2 / 角色3 / 角色4」。身份号是公开冻结的，必须在开号之前把关。
+ * 与鸿蒙 `SpeakerIdentityResolver.ets` 同一套规则。
+ */
+internal typealias SpeechEvidenceFn = (beginMs: Long, endMs: Long) -> Boolean
+
+/**
  * 把 Sortformer 的发言段换成声纹身份：取回该段音频 -> 算嵌入 -> 增量分配。
  * 与鸿蒙 `SpeakerIdentityResolver.ets` 同一套规则与常量。
  *
@@ -30,6 +40,13 @@ internal class SpeakerIdentityResolver(
     /** 嵌入失败的段数。 */
     var embedFailureCount: Int = 0
         private set
+    /** 已算出嵌入、等语音证据的轨道（按到达顺序）。 */
+    private val pending = mutableListOf<Pair<SortformerTrack, FloatArray>>()
+    /** 因没有语音证据而推迟分配的段数（诊断）。 */
+    var deferredCount: Int = 0
+        private set
+    /** 仍在等语音证据的段数。 */
+    val pendingCount: Int get() = pending.size
 
     /** 分流一份近期 PCM。必须与喂给推理客户端的是同一批字节、同一顺序。 */
     fun appendAudio(pcm: ByteArray) = window.append(pcm)
@@ -42,7 +59,7 @@ internal class SpeakerIdentityResolver(
      *
      * 取不到音频或嵌入失败的段返回 [UNRESOLVED]，不猜。
      */
-    fun resolve(tracks: List<SortformerTrack>): IntArray {
+    fun resolve(tracks: List<SortformerTrack>, hasSpeechEvidence: SpeechEvidenceFn? = null): IntArray {
         val identities = IntArray(tracks.size) { UNRESOLVED }
         for (index in tracks.indices.sortedBy { tracks[it].beginTime }) {
             val track = tracks[index]
@@ -62,9 +79,34 @@ internal class SpeakerIdentityResolver(
                 embedFailureCount += 1
                 continue
             }
+            // 没有语音证据的段不进分配器：既不开新身份，也不更新质心。嵌入已算好，证据
+            // （ASR final）到了由 retryPending 补分配；始终没有证据的段保持 -1，落到 UNKNOWN。
+            if (hasSpeechEvidence != null && !hasSpeechEvidence(track.beginTime, track.endTime)) {
+                pending += track to embedding
+                deferredCount += 1
+                continue
+            }
             identities[index] = assigner.assign(embedding, (track.endTime - track.beginTime) / 1000.0).identity
         }
         return identities
+    }
+
+    /**
+     * 给已有语音证据的待定轨道补分配，身份直接写回 [SortformerTrack.identity]。
+     * 按到达顺序处理，返回本次分配的段数。调用时机：每个 ASR final 到达后、下一批轨道分配前。
+     */
+    fun retryPending(hasSpeechEvidence: SpeechEvidenceFn): Int {
+        if (pending.isEmpty()) return 0
+        var assigned = 0
+        val iterator = pending.iterator()
+        while (iterator.hasNext()) {
+            val (track, embedding) = iterator.next()
+            if (!hasSpeechEvidence(track.beginTime, track.endTime)) continue
+            track.identity = assigner.assign(embedding, (track.endTime - track.beginTime) / 1000.0).identity
+            iterator.remove()
+            assigned += 1
+        }
+        return assigned
     }
 
     /** 已开出的身份数。 */
@@ -76,6 +118,8 @@ internal class SpeakerIdentityResolver(
         assigner.reset()
         audioMissCount = 0
         embedFailureCount = 0
+        pending.clear()
+        deferredCount = 0
     }
 
     companion object {

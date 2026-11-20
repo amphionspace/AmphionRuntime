@@ -83,6 +83,8 @@ internal class SessionImpl(
 
     /** 注册样本的独立模板（缺陷 #97）：多模板时打分取最大，避免合并质心稀释判别力。 */
     private var targetTemplates: List<FloatArray> = emptyList()
+    /** final 打分专用的多尺度模板（整文件 + 2 s 分段）；为空时 final 退回 [targetTemplates]。 */
+    private var targetFinalTemplates: List<FloatArray> = emptyList()
 
     /** 声纹打分器；decoder 线程独占，首次开关开启时懒加载。 */
     private var speakerVerifier: SpeakerVerifier? = null
@@ -127,6 +129,8 @@ internal class SessionImpl(
 
     /** A replayed non-target suffix stays rejected until a window reconfirms the target. */
     private var svAwaitingTargetAfterDeparture = false
+    /** 自上一次声纹打分以来，VAD 是否在本跳窗口内看到过语音；静音窗口的低分不构成离场。 */
+    private var svHopSpeechSeen = false
     private var svContextWaitStartedSample = -1
 
     /** publicSamplesFed when the speaker-turn buffer last restarted; maps stream timestamps onto it. */
@@ -376,6 +380,7 @@ internal class SessionImpl(
         if (closed.get()) return
         targetEmbedding = embedding.copyOf()
         targetTemplates = emptyList()
+        targetFinalTemplates = emptyList()
         Logger.i("session $sessionId target speaker embedding set: dim=${embedding.size}")
     }
 
@@ -386,8 +391,20 @@ internal class SessionImpl(
         Logger.i("session $sessionId target speaker templates set: count=${templates.size}")
     }
 
+    /**
+     * final 打分专用的多尺度模板（整文件 + 2 s 分段）。客户「OKOK」有效语音不到 1 s，对 8 s 整文件
+     * 模板只有 0.37（刚过 0.35）；同尺度的分段模板把它抬到 0.44。只影响 final：流式确认、离场检测
+     * 与收尾切片继续用 [targetTemplates]，非机主被"确认"的门槛不变（与鸿蒙 setTargetSpeakerFinalTemplates 同口径）。
+     */
+    fun setTargetSpeakerFinalTemplates(templates: List<FloatArray>) {
+        if (closed.get()) return
+        targetFinalTemplates = templates.map { it.copyOf() }
+        Logger.i("session $sessionId target speaker final templates set: count=${templates.size}")
+    }
+
     fun clearTargetSpeaker() {
         targetEmbedding = null
+        targetFinalTemplates = emptyList()
         Logger.i("session $sessionId target speaker embedding cleared")
     }
 
@@ -668,7 +685,10 @@ internal class SessionImpl(
             stablePrefixSamples += processedSamples.size
         }
 
-        if (targetSpeakerEnabled || speakerVadEnabled) effectiveSpeechBuffer.observe(rawSamples)
+        // 发布门禁（resolveFinal）要靠这里的窗证据判断"非空文本有没有独立于识别器的语音支撑"，
+        // 与是否开机主识别无关：只在声纹开启时喂音频，会让普通转写场景的门禁因 processedWindows=0
+        // 而整体放行（客户 #92 的"嗯"就是这样漏出来的）。保留的 PCM 有 UTT_MAX_SAMPLES 上限。
+        effectiveSpeechBuffer.observe(rawSamples)
         speakerPcmBuffers.observe(
             rawSamples,
             // 仅机主识别时也要留 speaker-VAD 缓冲：离场检测与收尾切片都取这一段。
@@ -738,6 +758,7 @@ internal class SessionImpl(
                 effectiveSpeechBuffer.confirmSpeech()
                 // 任何一个窗口看到 speech，就把累计静音清零。中间夹杂少量静音窗口
                 // （正常说话时 vad 在 0.5 阈值附近抖动）不会被误判成结束。
+                svHopSpeechSeen = true
                 if (!vadSpeechActive) {
                     vadSpeechActive = true
                     Logger.d("session $sessionId VAD speech onset")
@@ -1037,6 +1058,7 @@ internal class SessionImpl(
     }
 
     private fun restartStreamAfterUtterance(r: OnlineRecognizerResult) {
+        leaveSpeakerTurnUtterance()
         if (shouldHardRestartAfter(r)) {
             hardRestartStream()
         } else {
@@ -1138,6 +1160,7 @@ internal class SessionImpl(
                 vadSpeechActive = false
                 trailingSilenceMs = 0
                 vadCarry = FloatArray(0)
+                leaveSpeakerTurnUtterance()
                 resetSpeakerVadState()
                 Logger.i("session $sessionId hard-restarted stream after long utterance")
                 warmUpEncoder(RESTART_STREAM_WARMUP_DURATION_MS)
@@ -1151,10 +1174,22 @@ internal class SessionImpl(
                     recognizer.reset(stream)
                 }
                 streamStartSample = publicSamplesFed
+                leaveSpeakerTurnUtterance()
                 resetSpeakerVadState()
                 return false
             }
         }
+    }
+
+    /**
+     * 一句话结束、stream 重建或 reset 时调用：新流是一次新的进入，旧的"离场后待确认"不能继承。
+     * 否则换人切分后只要后缀被拒绝一次，`svRejectCurrentUtterance` 就永远等于 true，机主再说话
+     * 时无论分数多高都被拒绝（缺陷 #100 真机实测：机主第二句 0.754 仍被拒），而清除该标志的
+     * 唯一出口又在"发布机主 final 之后"，形成死锁。与鸿蒙 `restartRejectedSpeakerTurn` 同义；
+     * 重放的后缀仍按新证据重新打分，非机主相似度 0.1~0.2 仍会被拒（缺陷 #87 的拦截不变）。
+     */
+    private fun leaveSpeakerTurnUtterance() {
+        svAwaitingTargetAfterDeparture = false
     }
 
     private fun toAsrResult(r: OnlineRecognizerResult): AsrResult = toAsrResult(r, streamStartSample)
@@ -1196,6 +1231,12 @@ internal class SessionImpl(
         val terminal = raw.copy(isLast = isLast)
         val boundary = effectiveSpeechBuffer.resolveFinal(terminal.text, hasEvidence, isLast)
         if (!boundary.publish) {
+            if (terminal.text.isNotEmpty()) {
+                Logger.metric(
+                    "kind=RESULT_SUPPRESSED sessionId=$sessionId reason=${boundary.reason} " +
+                        "hasEvidence=$hasEvidence textChars=${terminal.text.length} isLast=$isLast",
+                )
+            }
             if (speakerVadEnabled) speakerPcmBuffers.clearNativeSegment()
             return null
         }
@@ -1237,8 +1278,10 @@ internal class SessionImpl(
                 )
             }
             if (target != null && verifier != null && selection.samples.isNotEmpty()) {
-                val score = if (targetTemplates.size > 1) {
-                    verifier.segmentScoreAny(selection.samples, targetTemplates)
+                // final 用多尺度模板（整文件 + 2 s 分段）取最大；没有分段模板时退回整文件模板。
+                val finalTemplates = if (targetFinalTemplates.size > 1) targetFinalTemplates else targetTemplates
+                val score = if (finalTemplates.size > 1) {
+                    verifier.segmentScoreAny(selection.samples, finalTemplates)
                 } else {
                     verifier.segmentScore(selection.samples, target)
                 }
@@ -1306,12 +1349,15 @@ internal class SessionImpl(
 
     private fun maybeTriggerSpeakerVadEndpoint(samplesInChunk: Int): Boolean {
         val speakerVad = effectiveSpeakerVad ?: return false
-        // 未开 Speaker VAD、只开机主识别时也检测离场，但只认"已确认机主后连续低于阈值"，
-        // 不启用 PRE_TARGET 提前端点，避免机主开口阶段被切。
-        val departureOnly = !speakerVadEnabled
-        if (departureOnly && (!targetSpeakerEnabled || targetEmbedding == null)) return false
+        // 未开 Speaker VAD、只开机主识别时也运行同一套换人检测：离场切分与带语音证据的
+        // pre-target 端点都生效，静音窗口两者都不触发（见下方两处判定）。
+        if (!speakerVadEnabled && (!targetSpeakerEnabled || targetEmbedding == null)) return false
         val scheduler = speakerVadScoreScheduler(speakerVad)
         if (!scheduler.observe(samplesInChunk)) return false
+        // 这一跳窗口有没有 VAD 确认的语音：与鸿蒙 speakerVadSpeechWasActive() 同义，
+        // 既决定低分窗口能否构成离场，也决定 pre-target 能否强制端点。
+        val speechWasActive = svHopSpeechSeen
+        svHopSpeechSeen = false
         val target = targetEmbedding ?: return false
         val verifier = ensureVerifier() ?: return false
         val finalizer = speakerTurnFinalizer(speakerVad)
@@ -1324,7 +1370,7 @@ internal class SessionImpl(
             verifier.windowScore(speakerPcmBuffers.speakerVadTail(winSamples), target)
         }
             ?: return false
-        val state = finalizer.observeScore(scheduler.totalSamples, score, speakerVad.threshold)
+        val state = finalizer.observeScore(scheduler.totalSamples, score, speakerVad.threshold, speechWasActive)
         syncSpeakerTurnState(finalizer)
         val scoreElapsedMs = (System.nanoTime() - scoreStartNs) / 1_000_000.0
         val scoreRtf = scoreElapsedMs / (winSamples * 1000.0 / sampleRate)
@@ -1347,10 +1393,16 @@ internal class SessionImpl(
                 return false
             }
             SpeakerTurnScoreState.PRE_TARGET -> {
-                if (departureOnly) {
-                    postSpeakerVadDebug("pre_target_ignored", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                if (!speechWasActive) {
+                    // 静音里也会被打成 pre-target（鸿蒙实测分 0.071 恒定）。若照样强制端点，会形成
+                    // "打分→判非机主→重启"的循环把紧跟的机主语音切碎；短指令说完后的静音也会把
+                    // 这句切掉（缺陷 #97）。静音不构成换人，交给 vadEnd / 收尾门控处理。
+                    postSpeakerVadDebug("pre_target_silent", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
                     return false
                 }
+                // 仅机主识别时同样强制端点：非机主连续说话时不切句，非机主说完机主紧接着说
+                // （停顿短于 vadEnd）会把两人并成一句，整句分数被非机主稀释，机主这句被整体拒绝
+                // （缺陷 #100：机主 → 非机主 → 机主，机主第二次发言丢失）。
                 postSpeakerVadDebug("pre_target_endpoint", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
                 Logger.d(
                     "session $sessionId speaker vad pre-target endpoint: score=$score " +
@@ -1369,6 +1421,12 @@ internal class SessionImpl(
         // Target confirmed earlier, consecutive low windows now: the target left and someone else
         // may already be speaking inside this utterance. Find the turn and split it instead of
         // publishing the mixed speculative text as the target's final.
+        if (!finalizer.hasPendingDeparture()) {
+            // 两跳低分都落在静音里：本句没有下一个说话人可切分，那只是机主停口后窗口被静音稀释
+            // （鸿蒙 #98 实测 0.327 / -0.072）。据此切分会把机主句尾切掉。
+            postSpeakerVadDebug("departure_silent", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+            return false
+        }
         if (!vadSpeechActive) {
             postSpeakerVadDebug("below", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
             return false
@@ -1795,6 +1853,7 @@ internal class SessionImpl(
         svBelowCount = 0
         svRejectCurrentUtterance = svAwaitingTargetAfterDeparture
         svLastScore = null
+        svHopSpeechSeen = false
     }
 
     // -------- callback dispatch --------

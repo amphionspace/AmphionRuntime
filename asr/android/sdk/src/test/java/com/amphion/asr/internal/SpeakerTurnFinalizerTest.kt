@@ -192,6 +192,70 @@ class SpeakerTurnFinalizerTest {
     }
 
     @Test
+    fun silentLowWindowsAfterTheTargetAreNotADeparture() {
+        // 鸿蒙 #98 真机：机主停口后两个尾部静音窗口打 0.327 / -0.072，凑够 consecutiveBelow 却没有人接话。
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(2_000, 0.65f, 0.35f, true))
+        assertEquals(SpeakerTurnScoreState.BELOW, finalizer.observeScore(3_000, 0.327f, 0.35f, false))
+        assertEquals(SpeakerTurnScoreState.DEPARTURE, finalizer.observeScore(3_200, -0.072f, 0.35f, false))
+        assertEquals(2, finalizer.consecutiveLowScores())
+        assertEquals(false, finalizer.hasSpeechBearingLowScore())
+        assertEquals(false, finalizer.hasPendingDeparture())
+    }
+
+    @Test
+    fun oneSpeechBearingLowWindowIsEnoughDepartureEvidence() {
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        finalizer.observeScore(2_000, 0.65f, 0.35f, true)
+        assertEquals(SpeakerTurnScoreState.BELOW, finalizer.observeScore(3_000, 0.20f, 0.35f, true))
+        // 第二跳落在静音里：接话的人停顿了，离场证据仍然成立。
+        assertEquals(SpeakerTurnScoreState.DEPARTURE, finalizer.observeScore(3_200, 0.10f, 0.35f, false))
+        assertTrue(finalizer.hasSpeechBearingLowScore())
+        assertTrue(finalizer.hasPendingDeparture())
+        assertNotNull(finalizer.resolve(listOf(0.3f, 1.0f, 2.2f), 0.35f, leftTargetRightOther))
+    }
+
+    @Test
+    fun targetReturnClearsSpeechBearingLowScore() {
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        finalizer.observeScore(2_000, 0.65f, 0.35f, true)
+        finalizer.observeScore(2_400, 0.20f, 0.35f, true)
+        assertEquals(SpeakerTurnScoreState.TARGET_ACTIVE, finalizer.observeScore(2_600, 0.70f, 0.35f, true))
+        assertEquals(false, finalizer.hasSpeechBearingLowScore())
+        finalizer.observeScore(3_000, 0.30f, 0.35f, false)
+        assertEquals(SpeakerTurnScoreState.DEPARTURE, finalizer.observeScore(3_200, 0.10f, 0.35f, false))
+        assertEquals(false, finalizer.hasPendingDeparture())
+    }
+
+    @Test
+    fun finishDepartureCandidateNeedsASpeechBearingLowWindow() {
+        val silent = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        silent.accept(squareWave(3_600, 2_000, 2_200))
+        silent.observeScore(2_000, 0.65f, 0.35f, true)
+        silent.observeScore(3_000, 0.20f, 0.35f, false)
+        assertEquals(false, silent.hasPendingFinishDeparture())
+
+        val spoken = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        spoken.accept(squareWave(3_600, 2_000, 2_200))
+        spoken.observeScore(2_000, 0.65f, 0.35f, true)
+        spoken.observeScore(3_000, 0.20f, 0.35f, true)
+        assertTrue(spoken.hasPendingFinishDeparture())
+    }
+
+    @Test
+    fun preTargetStateIsReportedRegardlessOfSpeechSoTheCallerCanGateIt() {
+        // 静音里的 pre-target 由 SessionImpl 按 speechWasActive 决定是否强制端点；状态机只负责报告。
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(squareWave(3_600, 2_000, 2_200))
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, finalizer.observeScore(1_200, 0.07f, 0.35f, false))
+        assertEquals(SpeakerTurnScoreState.PRE_TARGET, finalizer.observeScore(1_400, 0.07f, 0.35f, false))
+        assertTrue(finalizer.shouldRejectCurrent())
+    }
+
+    @Test
     fun unconfirmedUtteranceMustClearTheMeasuredFloor() {
         // 真机上那段 1.6 s 的非机主句子打 0.362，越过默认阈值 0.35 被当作机主发布。
         assertEquals(0.45f, speakerFinalGateScore(0.35f, false))

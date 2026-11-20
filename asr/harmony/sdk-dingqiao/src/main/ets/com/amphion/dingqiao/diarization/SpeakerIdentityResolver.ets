@@ -20,6 +20,26 @@ export type SpeakerEmbedFn = (samples: Float32Array) => Float32Array | undefined
 export const IDENTITY_UNRESOLVED: number = -1;
 
 /**
+ * 轨道区间 [beginMs, endMs] 内有没有独立于分割模型的语音证据。调用方用 ASR token 时间戳实现。
+ *
+ * 为什么需要它（客户 #29）：Sortformer 会把录音开头的按键声/环境声报成一段 1.3 s 的"发言"
+ * （Mate 80 真机：0–1330 ms，期间 VAD 无语音、ASR 无 token），它第一个到达，就领走了身份 0，
+ * 三位真实说话人于是成了「角色2 / 角色3 / 角色4」。身份号是公开冻结的，必须在开号之前把关。
+ */
+export type SpeechEvidenceFn = (beginMs: number, endMs: number) => boolean;
+
+/** 已算出嵌入、但还没有语音证据的轨道；ASR final 到达后重试分配。 */
+class PendingIdentity {
+  track: number[];
+  embedding: Float32Array;
+
+  constructor(track: number[], embedding: Float32Array) {
+    this.track = track;
+    this.embedding = embedding;
+  }
+}
+
+/**
  * 每段最多送多少秒音频去算嵌入。
  *
  * 声纹嵌入几秒就饱和，不需要整段。实测（丁桥 4 条、143 个发言段）：不截断 34/34 对判对、
@@ -39,6 +59,10 @@ export class SpeakerIdentityResolver {
   private audioMisses: number = 0;
   /** 嵌入失败的段数。 */
   private embedFailures: number = 0;
+  /** 已算出嵌入、等语音证据的轨道（按到达顺序）。 */
+  private pending: PendingIdentity[] = [];
+  /** 因没有语音证据而推迟分配的段数（诊断）。 */
+  private deferred: number = 0;
 
   constructor(sampleRate: number, maxSpeakers: number, embed: SpeakerEmbedFn,
     retainSeconds: number = PCM_WINDOW_RETAIN_SECONDS) {
@@ -60,7 +84,7 @@ export class SpeakerIdentityResolver {
    *
    * 取不到音频或嵌入失败的段返回 [IDENTITY_UNRESOLVED]，不猜。
    */
-  resolve(tracks: number[][]): number[] {
+  resolve(tracks: number[][], hasSpeechEvidence?: SpeechEvidenceFn): number[] {
     const order: number[] = [];
     for (let index = 0; index < tracks.length; index++) order.push(index);
     order.sort((a, b) => tracks[a][0] - tracks[b][0]);
@@ -84,10 +108,48 @@ export class SpeakerIdentityResolver {
         this.embedFailures += 1;
         continue;
       }
+      // 没有语音证据的段不进分配器：既不开新身份，也不更新质心。嵌入已算好，证据
+      // （ASR final）到了由 retryPending 补分配；始终没有证据的段保持 -1，落到 UNKNOWN。
+      if (hasSpeechEvidence !== undefined && !hasSpeechEvidence(track[0], track[1])) {
+        this.pending.push(new PendingIdentity(track, embedding));
+        this.deferred += 1;
+        continue;
+      }
       const decision = this.assigner.assign(embedding, (track[1] - track[0]) / 1000);
       identities[index] = decision.identity;
     }
     return identities;
+  }
+
+  /**
+   * 给已有语音证据的待定轨道补分配，身份直接写回 track[3]（与 resolve 的写回位置相同）。
+   * 按到达顺序处理，返回本次分配的段数。调用时机：每个 ASR final 到达后、下一批轨道分配前。
+   */
+  retryPending(hasSpeechEvidence: SpeechEvidenceFn): number {
+    if (this.pending.length === 0) return 0;
+    const remaining: PendingIdentity[] = [];
+    let assigned = 0;
+    for (const item of this.pending) {
+      if (!hasSpeechEvidence(item.track[0], item.track[1])) {
+        remaining.push(item);
+        continue;
+      }
+      const decision = this.assigner.assign(item.embedding, (item.track[1] - item.track[0]) / 1000);
+      item.track[3] = decision.identity;
+      assigned += 1;
+    }
+    this.pending = remaining;
+    return assigned;
+  }
+
+  /** 仍在等语音证据的段数。 */
+  pendingCount(): number {
+    return this.pending.length;
+  }
+
+  /** 诊断计数：曾因没有语音证据而推迟分配的段数。 */
+  deferredCount(): number {
+    return this.deferred;
   }
 
   /** 已开出的身份数。 */
@@ -111,5 +173,7 @@ export class SpeakerIdentityResolver {
     this.assigner.reset();
     this.audioMisses = 0;
     this.embedFailures = 0;
+    this.pending = [];
+    this.deferred = 0;
   }
 }

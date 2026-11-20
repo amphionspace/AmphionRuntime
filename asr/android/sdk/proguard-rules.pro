@@ -35,6 +35,9 @@
 -keep class com.amphion.asr.internal.NativeEndpointTransitionPolicy { *; }
 -keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason { *; }
 -keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason$Companion { *; }
+# 分段模板切窗规则由 release 单测直接调用；companion 类名被混淆会让测试引用的
+# 字段描述符对不上（NoSuchFieldError），与上面同类规则的处理一致。
+-keep class com.amphion.asr.SpeakerEnroller$Companion { *; }
 -keep class com.amphion.asr.internal.SpeakerPcmBuffers { *; }
 -keep class com.amphion.asr.internal.SpeakerVadScoreScheduler { *; }
 -keep class com.amphion.asr.internal.SpeakerVadFinalGateKt { *; }

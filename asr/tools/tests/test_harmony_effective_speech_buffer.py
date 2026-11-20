@@ -38,6 +38,79 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
             cwd=REPO_ROOT,
         )
 
+    def test_filler_without_vad_evidence_is_suppressed_even_with_acoustic_support(self) -> None:
+        # 客户 #92：真人声之后的普通底噪能过 −74 dBFS 声学门禁，识别器却吐出"嗯"；VAD 全程无语音。
+        self.run_buffer(
+            f"""
+            import {{ SUPPRESS_REASON_FILLER_WITHOUT_VAD }} from {BUFFER.as_uri()!r};
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(speech(2 * sampleRate));
+            assert.equal(buffer.hasIndependentSpeechEvidence(), true);
+            const decision = buffer.resolveFinal('嗯', true, false);
+            assert.equal(decision.publish, false);
+            assert.equal(decision.reason, SUPPRESS_REASON_FILLER_WITHOUT_VAD);
+            assert.equal(decision.samples.length, 0);
+            """
+        )
+
+    def test_suppressed_filler_clears_the_utterance(self) -> None:
+        self.run_buffer(
+            """
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(speech(sampleRate));
+            buffer.confirmSpeech();
+            assert.equal(buffer.hasVadSpeechEvidence(), true);
+            assert.equal(buffer.resolveFinal('嗯', true, false).publish, true);
+            buffer.observe(speech(2 * sampleRate));
+            assert.equal(buffer.resolveFinal('嗯', true, false).publish, false);
+            assert.equal(buffer.take().length, 0);
+            assert.equal(buffer.hasIndependentSpeechEvidence(), false);
+            """
+        )
+
+    def test_runtime_feeds_the_publish_gate_regardless_of_voiceprint(self) -> None:
+        runtime = RUNTIME.read_text(encoding="utf-8")
+        self.assertNotIn(
+            "if (this.targetSpeakerEnabled || this.speakerVadEnabled) {\n      this.effectiveSpeechBuffer.observe(rawSamples);",
+            runtime,
+        )
+        self.assertEqual(runtime.count("this.effectiveSpeechBuffer.observe(rawSamples);"), 2)
+
+    def test_filler_with_vad_evidence_publishes(self) -> None:
+        self.run_buffer(
+            """
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(speech(sampleRate));
+            buffer.confirmSpeech();
+            const decision = buffer.resolveFinal('嗯。', true, false);
+            assert.equal(decision.publish, true);
+            assert.equal(decision.reason, '');
+            """
+        )
+
+    def test_short_real_word_without_vad_evidence_still_publishes(self) -> None:
+        self.run_buffer(
+            """
+            const buffer = new EffectiveSpeechBuffer(sampleRate, 25 * sampleRate);
+            buffer.observe(speech(sampleRate));
+            assert.equal(buffer.resolveFinal('好', true, false).publish, true);
+            assert.equal(buffer.resolveFinal('嗯好的', true, false).publish, true);
+            """
+        )
+
+    def test_filler_only_text_definition(self) -> None:
+        self.run_buffer(
+            f"""
+            import {{ isFillerOnlyText }} from {BUFFER.as_uri()!r};
+            for (const text of ['嗯', '嗯。', '嗯嗯', '呃，啊', 'Um.', 'hmm']) {{
+              assert.equal(isFillerOnlyText(text), true, text);
+            }}
+            for (const text of ['', '。', '喂', '嗯好', '嗯嗯嗯嗯嗯', 'ok']) {{
+              assert.equal(isFillerOnlyText(text), false, text);
+            }}
+            """
+        )
+
     def test_leading_silence_does_not_satisfy_minimum_speech_duration(self) -> None:
         self.run_buffer(
             """
@@ -395,7 +468,10 @@ class HarmonyEffectiveSpeechBufferTest(unittest.TestCase):
         self.assertIn("this.effectiveSpeechBuffer.confirmSpeech()", runtime)
         self.assertIn("this.effectiveSpeechBuffer.resolveFinal(result.text, hasEvidence, isLast)", runtime)
         suppressed_start = runtime.index("if (!boundary.publish) {")
-        suppressed_reason = runtime.index("reason=effective-speech-boundary", suppressed_start)
+        suppressed_reason = runtime.index(
+            "reason=${boundary.reason.length > 0 ? boundary.reason : 'effective-speech-boundary'}",
+            suppressed_start,
+        )
         clear_segment = runtime.index(
             "if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment()",
             suppressed_reason,

@@ -289,6 +289,24 @@ export class SpeakerDiarizationTranscriptState {
     return utteranceId;
   }
 
+  /**
+   * [beginMs, endMs] 内有没有 ASR 语音证据：任一 token 的发射时间落在区间内（允许
+   * MAX_TOKEN_EMISSION_LAG_MS 的发射滞后）；没有 token 时间的 final 按整句区间相交算。
+   * 供声纹身份分配把关：没有证据的分割轨道不开新身份（客户 #29）。
+   */
+  hasTokenEvidence(beginMs: number, endMs: number): boolean {
+    for (const utterance of this.utterances) {
+      if (utterance.tokenTimesMs.length > 0) {
+        for (const time of utterance.tokenTimesMs) {
+          if (time >= beginMs && time <= endMs + MAX_TOKEN_EMISSION_LAG_MS) return true;
+        }
+      } else if (overlapMs(beginMs, endMs, utterance.beginTime, utterance.endTime) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   currentAssignment(utteranceId: string): DiarizationTranscriptUpdate | undefined {
     const utterance = this.utterances.find(
       (candidate: StoredUtterance): boolean => candidate.utteranceId === utteranceId);
@@ -1038,9 +1056,12 @@ export class SpeakerDiarizationTranscriptState {
 
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
     const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
-    // Wetext currently returns only a string. Without exact source relations,
-    // lexical merges/expansions/replacements cannot acquire a guessed owner.
-    const exactText = tokenTextBoundaries([utterance.rawText], utterance.text) !== undefined;
+    // 文本对不回 token（ITN / 词法改写没有来源记录）时，整句的归属只看声学：这句区间内
+    // 只有一个已知角色、无重叠无未知，归属就是它，不需要逐字对齐——对齐只在要**切分**
+    // 文字时才有意义。此前这里一律给 UNKNOWN，让填单场景里凡带数字、电话、证件号（必经
+    // ITN 改写）的句子全部落成「其他角色」（客户 #29：机主第一句"我是角色112345678910"
+    // 真机 -1、次说话人 [S2]）。多人同句、重叠或未知仍按 assignmentFor 给 UNKNOWN。
+    const owned = assignment.speakerId !== UNKNOWN_SPEAKER;
     return {
       utteranceId: utterance.utteranceId,
       sourceUtteranceId: utterance.utteranceId,
@@ -1048,9 +1069,9 @@ export class SpeakerDiarizationTranscriptState {
       text: utterance.text,
       beginTime: utterance.beginTime,
       endTime: utterance.endTime,
-      speakerId: exactText ? utterance.speakerId : UNKNOWN_SPEAKER,
-      secondarySpeakerIds: utterance.secondarySpeakerIds.slice(),
-      confidence: exactText ? assignment.confidence : 0,
+      speakerId: owned ? assignment.speakerId : UNKNOWN_SPEAKER,
+      secondarySpeakerIds: assignment.secondarySpeakerIds.slice(),
+      confidence: owned ? assignment.confidence : 0,
       overlap: this.hasOverlap(utterance.beginTime, utterance.endTime),
     };
   }

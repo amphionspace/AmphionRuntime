@@ -2266,7 +2266,8 @@ export class AsrSession {
     // spans a suppressed token-only endpoint, but the next stream must not score this segment again.
     if (!boundary.publish) {
       Logger.metric(`kind=RESULT_SUPPRESSED sessionId=${this.sessionId} ` +
-        `reason=effective-speech-boundary streamGeneration=${this.streamGeneration} ` +
+        `reason=${boundary.reason.length > 0 ? boundary.reason : 'effective-speech-boundary'} ` +
+        `streamGeneration=${this.streamGeneration} ` +
         `totalPcmBytes=${this.totalPcmBytes} utterancePcmBytes=${this.pcmBytesAccepted} ` +
         `hasEvidence=${hasEvidence} textChars=${native.text.length} tokens=${native.tokens.length}`);
       if (this.speakerVadEnabled) this.speakerPcmBuffers.clearNativeSegment();
@@ -2497,9 +2498,10 @@ export class AsrSession {
       (!replay && this.initialSilenceTracker.hasTimedOut())) return;
     if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
-    if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
-      this.effectiveSpeechBuffer.observe(rawSamples);
-    }
+    // 发布门禁（resolveFinal）要靠这里的窗证据判断"非空文本有没有独立于识别器的语音支撑"，
+    // 与是否开机主识别无关：只在声纹开启时喂音频，会让普通转写场景的门禁因 processedWindows=0
+    // 而整体放行（客户 #92 的"嗯"就是这样漏出来的）。保留的 PCM 有 UTT_MAX_SAMPLES 上限。
+    this.effectiveSpeechBuffer.observe(rawSamples);
     // Speaker VAD resets at native stream boundaries; fallback scoring resets only at a public final.
     // The two buffers must remain independent when a token-only native endpoint is suppressed.
     this.speakerPcmBuffers.observe(
@@ -2634,9 +2636,10 @@ export class AsrSession {
     }
     if (!replay) this.publicSamplesFed += rawSamples.length;
     if (!replay) this.initialSilenceTracker.observeAcousticSamples(rawSamples);
-    if (this.targetSpeakerEnabled || this.speakerVadEnabled) {
-      this.effectiveSpeechBuffer.observe(rawSamples);
-    }
+    // 发布门禁（resolveFinal）要靠这里的窗证据判断"非空文本有没有独立于识别器的语音支撑"，
+    // 与是否开机主识别无关：只在声纹开启时喂音频，会让普通转写场景的门禁因 processedWindows=0
+    // 而整体放行（客户 #92 的"嗯"就是这样漏出来的）。保留的 PCM 有 UTT_MAX_SAMPLES 上限。
+    this.effectiveSpeechBuffer.observe(rawSamples);
     this.speakerPcmBuffers.observe(
       rawSamples, this.speakerVadEnabled, this.targetSpeakerEnabled || this.speakerVadEnabled);
     if (this.speakerVadEnabled) {

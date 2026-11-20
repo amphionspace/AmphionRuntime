@@ -28,6 +28,7 @@ internal class VoiceprintStore(private val workPath: File) {
         samplePaths: List<String>,
         embedding: FloatArray,
         templates: List<FloatArray> = emptyList(),
+        segmentTemplates: List<FloatArray> = emptyList(),
     ): VoiceprintRegisterResult {
         val voiceprintId = "vp-${UUID.randomUUID()}"
         val dir = File(root, voiceprintId)
@@ -35,6 +36,9 @@ internal class VoiceprintStore(private val workPath: File) {
         writeEmbedding(File(dir, "embedding.bin"), embedding)
         // 每份注册样本单独留档（缺陷 #97）：合并质心会稀释判别力，评分时对模板取最大。
         if (templates.size > 1) writeTemplates(File(dir, "templates.bin"), templates)
+        // 2 s 分段模板只供 final 打分（缺陷 #97 第二轮，与鸿蒙 segment-templates.bin 同格式）；
+        // 单独一个文件，旧档案没有时退回整文件模板。
+        if (segmentTemplates.isNotEmpty()) writeTemplates(File(dir, "segment-templates.bin"), segmentTemplates)
         File(dir, "meta.json").writeText(
             """{"voiceprintId":"$voiceprintId","sample":"${File(samplePaths.first()).name}"}""",
         )
@@ -56,8 +60,14 @@ internal class VoiceprintStore(private val workPath: File) {
         File(root, voiceprintId).isDirectory && loadEmbedding(voiceprintId) != null
 
     /** 每份注册样本的嵌入；旧档案没有该文件时返回空列表，调用方退回单模板。 */
-    fun loadTemplates(voiceprintId: String): List<FloatArray> {
-        val file = File(root, "$voiceprintId/templates.bin")
+    fun loadTemplates(voiceprintId: String): List<FloatArray> = loadTemplateFile(voiceprintId, "templates.bin")
+
+    /** 2 s 分段模板（只供 final 打分）；旧档案没有该文件时返回空列表。 */
+    fun loadSegmentTemplates(voiceprintId: String): List<FloatArray> =
+        loadTemplateFile(voiceprintId, "segment-templates.bin")
+
+    private fun loadTemplateFile(voiceprintId: String, name: String): List<FloatArray> {
+        val file = File(root, "$voiceprintId/$name")
         if (!file.isFile) return emptyList()
         return runCatching {
             val buffer = java.nio.ByteBuffer.wrap(file.readBytes()).order(java.nio.ByteOrder.LITTLE_ENDIAN)

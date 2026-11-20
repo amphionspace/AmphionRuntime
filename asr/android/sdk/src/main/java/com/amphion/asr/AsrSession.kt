@@ -77,6 +77,15 @@ public class AsrSession internal constructor(private val impl: SessionImpl) : Au
         impl.setTargetSpeakerTemplates(templates)
     }
 
+    /**
+     * 注入 final 打分专用的多尺度模板（整文件 + 2 s 分段，缺陷 #97 第二轮）。只影响句末判定：
+     * 流式机主确认与换人边界校验继续用 [setTargetSpeakerTemplates] 的整文件模板，非机主被"确认"的
+     * 门槛不变。传空列表或调用 [setTargetSpeaker] 会退回整文件模板。
+     */
+    public fun setTargetSpeakerFinalTemplates(templates: List<FloatArray>) {
+        impl.setTargetSpeakerFinalTemplates(templates)
+    }
+
     /** 清除已设置的目标说话人向量；之后即使开关开启也不会过滤（等价于放行全部）。 */
     public fun clearTargetSpeaker() {
         impl.clearTargetSpeaker()

@@ -17,6 +17,38 @@ class SpeakerIdentityResolverTest {
     private val fixed: SpeakerEmbedFn = { floatArrayOf(1f, 0f, 0f) }
 
     @Test
+    fun tracksWithoutSpeechEvidenceDoNotOpenAnIdentity() {
+        // 客户 #29：录音开头 1.3 s 的按键/环境声轨道没有 ASR token，不能领走身份 0；
+        // 证据（ASR final）到了再补分配，编号仍按到达顺序。
+        var call = 0
+        val directions = listOf(floatArrayOf(0f, 0f, 1f), floatArrayOf(1f, 0f, 0f), floatArrayOf(0f, 1f, 0f))
+        val byCall: SpeakerEmbedFn = { directions[minOf(call++, 2)] }
+        val r = SpeakerIdentityResolver(sr, 4, byCall)
+        r.appendAudio(silence(20_000))
+        val tokens = mutableListOf<Long>()
+        val evidence: SpeechEvidenceFn = { b, e -> tokens.any { it >= b && it <= e + 600 } }
+        val junk = track(0, 1_330)
+        val a = track(2_400, 11_250, 1)
+        assertEquals(SpeakerIdentityResolver.UNRESOLVED, r.resolve(listOf(junk), evidence)[0])
+        assertEquals(0, r.identityCount())
+        assertEquals(1, r.pendingCount)
+        tokens += listOf(3_300L, 5_000L, 10_700L)
+        assertEquals(0, r.retryPending(evidence))
+        assertEquals(0, r.resolve(listOf(a), evidence)[0])          // A 拿到身份 0 → 「角色1」
+        val b = track(12_000, 18_000)
+        assertEquals(SpeakerIdentityResolver.UNRESOLVED, r.resolve(listOf(b), evidence)[0])
+        tokens += listOf(12_800L, 17_900L)
+        assertEquals(1, r.retryPending(evidence))
+        assertEquals(1, b.identity)                                    // 写回 track.identity
+        assertEquals(null, junk.identity)                              // 噪声轨道始终未赋身份
+        assertEquals(2, r.identityCount())
+        assertEquals(1, r.pendingCount)
+        assertEquals(2, r.deferredCount)
+        r.reset()
+        assertEquals(0, r.pendingCount)
+    }
+
+    @Test
     fun identitiesFollowArrivalOrderNotSlotOrder() {
         val r = SpeakerIdentityResolver(sr, 4, fixed)
         r.appendAudio(silence(10_000))

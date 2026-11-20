@@ -397,6 +397,7 @@ internal class DingqiaoRecognitionEngine(
                     )
                 currentSession.setTargetSpeaker(embedding)
                 loadTargetTemplates(voiceprintIds)?.let { currentSession.setTargetSpeakerTemplates(it) }
+                loadTargetFinalTemplates(voiceprintIds)?.let { currentSession.setTargetSpeakerFinalTemplates(it) }
             }
             currentSession.setTargetSpeakerEnabled(voiceprintEnabled || enabled)
             currentSession.setSpeakerVadEnabled(enabled)
@@ -962,6 +963,7 @@ internal class DingqiaoRecognitionEngine(
             ?: throw IllegalStateException("voiceprint not found")
         session.setTargetSpeaker(embedding)
         loadTargetTemplates(voiceprintIds)?.let { session.setTargetSpeakerTemplates(it) }
+        loadTargetFinalTemplates(voiceprintIds)?.let { session.setTargetSpeakerFinalTemplates(it) }
         session.setTargetSpeakerEnabled(needsVoiceprint)
         session.setSpeakerVadEnabled(speakerVadEnabled)
     }
@@ -973,6 +975,21 @@ internal class DingqiaoRecognitionEngine(
             if (perProfile.isNotEmpty()) perProfile else listOfNotNull(voiceprintStore.loadEmbedding(id))
         }
         return if (templates.size > 1) templates else null
+    }
+
+    /**
+     * final 打分专用的多尺度模板：整文件模板 + 2 s 分段模板（缺陷 #97 第二轮，与鸿蒙同口径）。
+     * 没有任何分段模板（旧档案）时返回 null，final 退回整文件模板。
+     */
+    private fun loadTargetFinalTemplates(voiceprintIds: List<String>): List<FloatArray>? {
+        val segments = voiceprintIds.flatMap { voiceprintStore.loadSegmentTemplates(it) }
+        if (segments.isEmpty()) return null
+        val whole = voiceprintIds.flatMap { id ->
+            val perProfile = voiceprintStore.loadTemplates(id)
+            if (perProfile.isNotEmpty()) perProfile else listOfNotNull(voiceprintStore.loadEmbedding(id))
+        }
+        val all = whole + segments
+        return if (all.size > 1) all else null
     }
 
     private fun validateVoiceprintParams(params: StartParams) {

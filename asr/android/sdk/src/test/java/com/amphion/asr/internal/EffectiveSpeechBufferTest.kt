@@ -249,6 +249,74 @@ class EffectiveSpeechBufferTest {
         assertTrue(decision.publish)
     }
 
+    @Test
+    fun fillerWithoutVadEvidenceIsSuppressedEvenWithAcousticSupport() {
+        // 客户 #92：真人声之后的普通底噪能过 −74 dBFS 声学门禁，识别器却吐出"嗯"；VAD 全程无语音。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(varyingSpeechLike(2 * sampleRate))
+        assertTrue(buffer.hasIndependentSpeechEvidence())
+
+        val decision = buffer.resolveFinal(publicText = "嗯", asrSpeechConfirmed = true, isLast = false)
+
+        assertFalse(decision.publish)
+        assertEquals(SUPPRESS_REASON_FILLER_WITHOUT_VAD, decision.reason)
+        assertEquals(0, decision.samples.size)
+    }
+
+    @Test
+    fun suppressedFillerClearsTheUtteranceSoStaleVadEvidenceIsNotInherited() {
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(varyingSpeechLike(sampleRate))
+        buffer.confirmSpeech()
+        assertTrue(buffer.hasVadSpeechEvidence())
+        // 这一句有 VAD 证据，正常发布并清空。
+        assertTrue(buffer.resolveFinal(publicText = "嗯", asrSpeechConfirmed = true, isLast = false).publish)
+        // 之后 40 s 底噪里被拦下的填充词不能把 run 留给下一句。
+        buffer.observe(varyingSpeechLike(2 * sampleRate))
+        assertFalse(buffer.resolveFinal(publicText = "嗯", asrSpeechConfirmed = true, isLast = false).publish)
+        assertEquals(0, buffer.take().size)
+        assertFalse(buffer.hasIndependentSpeechEvidence())
+    }
+
+    @Test
+    fun fillerWithVadEvidencePublishes() {
+        // 真人说的"嗯"：Silero 判出语音，照常发布。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(varyingSpeechLike(sampleRate))
+        buffer.confirmSpeech()
+
+        val decision = buffer.resolveFinal(publicText = "嗯。", asrSpeechConfirmed = true, isLast = false)
+
+        assertTrue(decision.publish)
+        assertEquals("", decision.reason)
+    }
+
+    @Test
+    fun shortRealWordWithoutVadEvidenceStillPublishes() {
+        // 不是统一的字数门槛：有实词的短句只要有声学支撑就发布。
+        val buffer = EffectiveSpeechBuffer(sampleRate, 25 * sampleRate)
+        buffer.observe(varyingSpeechLike(sampleRate))
+
+        assertTrue(buffer.resolveFinal(publicText = "好", asrSpeechConfirmed = true, isLast = false).publish)
+        assertTrue(buffer.resolveFinal(publicText = "嗯好的", asrSpeechConfirmed = true, isLast = false).publish)
+    }
+
+    @Test
+    fun fillerOnlyTextDefinition() {
+        assertTrue(isFillerOnlyText("嗯"))
+        assertTrue(isFillerOnlyText("嗯。"))
+        assertTrue(isFillerOnlyText("嗯嗯"))
+        assertTrue(isFillerOnlyText("呃，啊"))
+        assertTrue(isFillerOnlyText("Um."))
+        assertTrue(isFillerOnlyText("hmm"))
+        assertFalse(isFillerOnlyText(""))
+        assertFalse(isFillerOnlyText("。"))
+        assertFalse(isFillerOnlyText("喂"))
+        assertFalse(isFillerOnlyText("嗯好"))
+        assertFalse(isFillerOnlyText("嗯嗯嗯嗯嗯"))
+        assertFalse(isFillerOnlyText("ok"))
+    }
+
     private fun constantEnvelope(size: Int, level: Float): FloatArray =
         FloatArray(size) { index -> if (index % 16 < 8) level else -level }
 
