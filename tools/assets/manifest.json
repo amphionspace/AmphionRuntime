@@ -1332,6 +1332,341 @@
       "merge_destination": true,
       "allow_extra_files": true,
       "pipeline_generation": "v3"
+    },
+    "tts-runtime-imf170000-v1": {
+      "description": "Dingqiao IMF 170000 streaming Vocos 24k runtime model + frontend resources as shipped in Android TTS 3.1/3.2 (lexicon has the 南站 na1 error)",
+      "license": "internal-controlled-model",
+      "source": "Amphion controlled pipeline (IMF step 170000 export + frontend binary assets)",
+      "redistribution": "bundled-in-customer-sdk",
+      "destination": "tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0",
+      "archive_root": "0.1.0",
+      "archive_type": "zip",
+      "model_id": "dingqiao_imf_step00170000_streaming_vocos24k",
+      "model_version": "0.1.0",
+      "object": "tts-runtime-imf170000-v1/240ce4b0ff10d635041f2e9ce8019853852093c6b736a8da8b27e5f636e36bc9.zip",
+      "size": 204942046,
+      "sha256": "240ce4b0ff10d635041f2e9ce8019853852093c6b736a8da8b27e5f636e36bc9",
+      "status": "historical",
+      "superseded_by": "tts-runtime-imf170000-v2",
+      "files": [
+        {
+          "path": "arpabet_to_tokens.json",
+          "size": 2256,
+          "sha256": "8bb94d9197247499f2d19853479369d8f0137998991ff300db6af546822e1dfb",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.bin",
+          "size": 18755837,
+          "sha256": "8643111adbc3e84fd2eea6765f6bb9cf395d233d082e3816992b7255fe48cdfc",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.txt",
+          "size": 14780125,
+          "sha256": "aeef947a20c488fb0454df2f61478ebea13ef56876089e0306b2cbeaa199d207",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_surname_lexicon.txt",
+          "size": 1043,
+          "sha256": "2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.bin",
+          "size": 6594504,
+          "sha256": "393901ab6836ecbd14cc537cf2e4ecfcb816bb4ab8494ee687ac52d054ac60e1",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.txt",
+          "size": 3592051,
+          "sha256": "a4ff51409376837d2ed216f50e318ecbe0b4882524ade3aaace52e82acfca05d",
+          "mode": "0644"
+        },
+        {
+          "path": "export_report.json",
+          "size": 2697,
+          "sha256": "d1cdc3399315488340a26933664427cc8b38ca9628c1ace8bd71137361de7e7f",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_golden.json",
+          "size": 1231,
+          "sha256": "f4c5d1b708b3cf4d0431c200396ff8409747034096adf6231ee1bd8d3e9e9191",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_rules.json",
+          "size": 1330,
+          "sha256": "34ee16dc6362df43938214448d3ecacda1d693c6e632752066d7fb1cc10a41b6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_hidden_encoder.onnx",
+          "size": 54801433,
+          "sha256": "9f5ab237e6312fefe3fb18f33e903e92e9c069c8eab926302b641f8922ca09f9",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_condition_chunk.onnx",
+          "size": 187,
+          "sha256": "7020b66ac7849a180edb6080aa6039a71850f0cbfc8202853a31c61222e636d3",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_decoder_cache_init.onnx",
+          "size": 50344271,
+          "sha256": "9a62896e1fd9fd9af651d88e33cdc17a3cbacd64f980a64938c40504f56a17c6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_decoder_cache_step.onnx",
+          "size": 50331684,
+          "sha256": "21bc6f56277875b5288d4aa094a45f191e205cdc8fbf6a43e7ddca0f7f1ecf7f",
+          "mode": "0644"
+        },
+        {
+          "path": "manifest.json",
+          "size": 4441,
+          "sha256": "d4c4a1bab8f999893178ca7798faf82be7def628e9c861c32229da640c0cb372",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_2_bpmf.txt",
+          "size": 5262,
+          "sha256": "dc8b048a20cf61d04b5a36bc6939db74095719b8099269a1269023ee3e6535b4",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_to_tokens.json",
+          "size": 174576,
+          "sha256": "f8720157dd0f4eec39227749a2fb553272ebce622ef1fdd25c680102a93141f6",
+          "mode": "0644"
+        },
+        {
+          "path": "polychar.txt",
+          "size": 636,
+          "sha256": "9df819e371415c23e26a2907236a0228ef93772cc698d93dc0c18844956d1011",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_context.txt",
+          "size": 763,
+          "sha256": "d3e84dd4d0965d49121438fa0677fe231a9dba216730bd013912dad744ccf757",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_phrases.txt",
+          "size": 3341,
+          "sha256": "b27237bff76f20ab38b8fe2e8f4a66c02db8a010c82827a3d4faa74388ccf55a",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/en.full.json",
+          "size": 112853,
+          "sha256": "0e1a2a1170de5076e4b3996d7ff3a92c2ca848a2b70e72d5e5dfd16931275865",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh.full.json",
+          "size": 132603,
+          "sha256": "3366e98ba8049285c5a2d1bbf4a3062341719c4502f965e0ee3e54e28f2f5481",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh_pinyin.json",
+          "size": 22481,
+          "sha256": "d41a8043fb8be91309e531e7d48d18e57ec4e557a49f82463be1df16c8d9c3bf",
+          "mode": "0644"
+        },
+        {
+          "path": "supplement_lexicon.json",
+          "size": 278290,
+          "sha256": "9978ffca6229d9faba74dd9d7f2b713278b86195173609b72d0ef70843c1a4da",
+          "mode": "0644"
+        },
+        {
+          "path": "vocos_vocoder.onnx",
+          "size": 61513246,
+          "sha256": "56ba27c96c59a7c16534f1ebec038c4fedfa59104ea1aa074dd27626b9a1752c",
+          "mode": "0644"
+        },
+        {
+          "path": "zh_en_symbols.json",
+          "size": 1912,
+          "sha256": "797b2728a1b4d6899d4f7a4d38cadbeeae5f3ad71b116ac95c7b4bf8d9ef085b",
+          "mode": "0644"
+        }
+      ]
+    },
+    "tts-runtime-imf170000-v2": {
+      "description": "Dingqiao IMF 170000 streaming Vocos 24k runtime model + frontend resources with the 3.3 lexicon fix (南站/南昆线 nan2, 重做/重跑/重测/重拨 chong2 in chinese_lexicon.txt/.bin and polyphone_phrases.txt); ONNX unchanged",
+      "license": "internal-controlled-model",
+      "source": "Amphion controlled pipeline (IMF step 170000 export + frontend binary assets)",
+      "redistribution": "bundled-in-customer-sdk",
+      "destination": "tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0",
+      "archive_root": "0.1.0",
+      "archive_type": "zip",
+      "model_id": "dingqiao_imf_step00170000_streaming_vocos24k",
+      "model_version": "0.1.0",
+      "object": "tts-runtime-imf170000-v2/ae3e1288dd56fd7f8f3c6f7cf4d778071a466c337dddc3b1a25a019f0bae0667.zip",
+      "size": 204942245,
+      "sha256": "ae3e1288dd56fd7f8f3c6f7cf4d778071a466c337dddc3b1a25a019f0bae0667",
+      "status": "current",
+      "files": [
+        {
+          "path": "arpabet_to_tokens.json",
+          "size": 2256,
+          "sha256": "8bb94d9197247499f2d19853479369d8f0137998991ff300db6af546822e1dfb",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.bin",
+          "size": 18755937,
+          "sha256": "fd9b0c62ec1499119014bfaef52a6cf38eb8b6c2e762f722303f32fa8190ac4e",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_lexicon.txt",
+          "size": 14780201,
+          "sha256": "289344b00984c46e55465b19e1faeb0c26c4528c14ce72c2ae0fbd4dfe2e2749",
+          "mode": "0644"
+        },
+        {
+          "path": "chinese_surname_lexicon.txt",
+          "size": 1043,
+          "sha256": "2010afe0b843ec728aad4f36533394fa895dd0d8a21c0f7254ebfb1e8d2776b8",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.bin",
+          "size": 6594504,
+          "sha256": "393901ab6836ecbd14cc537cf2e4ecfcb816bb4ab8494ee687ac52d054ac60e1",
+          "mode": "0644"
+        },
+        {
+          "path": "cmudict.txt",
+          "size": 3592051,
+          "sha256": "a4ff51409376837d2ed216f50e318ecbe0b4882524ade3aaace52e82acfca05d",
+          "mode": "0644"
+        },
+        {
+          "path": "export_report.json",
+          "size": 2697,
+          "sha256": "d1cdc3399315488340a26933664427cc8b38ca9628c1ace8bd71137361de7e7f",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_golden.json",
+          "size": 1231,
+          "sha256": "f4c5d1b708b3cf4d0431c200396ff8409747034096adf6231ee1bd8d3e9e9191",
+          "mode": "0644"
+        },
+        {
+          "path": "frontend_rules.json",
+          "size": 1330,
+          "sha256": "34ee16dc6362df43938214448d3ecacda1d693c6e632752066d7fb1cc10a41b6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_hidden_encoder.onnx",
+          "size": 54801433,
+          "sha256": "9f5ab237e6312fefe3fb18f33e903e92e9c069c8eab926302b641f8922ca09f9",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_condition_chunk.onnx",
+          "size": 187,
+          "sha256": "7020b66ac7849a180edb6080aa6039a71850f0cbfc8202853a31c61222e636d3",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_decoder_cache_init.onnx",
+          "size": 50344271,
+          "sha256": "9a62896e1fd9fd9af651d88e33cdc17a3cbacd64f980a64938c40504f56a17c6",
+          "mode": "0644"
+        },
+        {
+          "path": "lits_stream_decoder_cache_step.onnx",
+          "size": 50331684,
+          "sha256": "21bc6f56277875b5288d4aa094a45f191e205cdc8fbf6a43e7ddca0f7f1ecf7f",
+          "mode": "0644"
+        },
+        {
+          "path": "manifest.json",
+          "size": 4440,
+          "sha256": "5c605e2b0177c5e0287a1f0eb396e2b5192205ab13ff8b36308249f771835f9c",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_2_bpmf.txt",
+          "size": 5262,
+          "sha256": "dc8b048a20cf61d04b5a36bc6939db74095719b8099269a1269023ee3e6535b4",
+          "mode": "0644"
+        },
+        {
+          "path": "pinyin_to_tokens.json",
+          "size": 174576,
+          "sha256": "f8720157dd0f4eec39227749a2fb553272ebce622ef1fdd25c680102a93141f6",
+          "mode": "0644"
+        },
+        {
+          "path": "polychar.txt",
+          "size": 636,
+          "sha256": "9df819e371415c23e26a2907236a0228ef93772cc698d93dc0c18844956d1011",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_context.txt",
+          "size": 763,
+          "sha256": "d3e84dd4d0965d49121438fa0677fe231a9dba216730bd013912dad744ccf757",
+          "mode": "0644"
+        },
+        {
+          "path": "polyphone_phrases.txt",
+          "size": 3533,
+          "sha256": "fb852dac3974b5e29f6a5ad3ba2684074a46073387e6120e3acc442f557943e8",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/en.full.json",
+          "size": 112853,
+          "sha256": "0e1a2a1170de5076e4b3996d7ff3a92c2ca848a2b70e72d5e5dfd16931275865",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh.full.json",
+          "size": 132603,
+          "sha256": "3366e98ba8049285c5a2d1bbf4a3062341719c4502f965e0ee3e54e28f2f5481",
+          "mode": "0644"
+        },
+        {
+          "path": "rules_v2/zh_pinyin.json",
+          "size": 22481,
+          "sha256": "d41a8043fb8be91309e531e7d48d18e57ec4e557a49f82463be1df16c8d9c3bf",
+          "mode": "0644"
+        },
+        {
+          "path": "supplement_lexicon.json",
+          "size": 278290,
+          "sha256": "9978ffca6229d9faba74dd9d7f2b713278b86195173609b72d0ef70843c1a4da",
+          "mode": "0644"
+        },
+        {
+          "path": "vocos_vocoder.onnx",
+          "size": 61513246,
+          "sha256": "56ba27c96c59a7c16534f1ebec038c4fedfa59104ea1aa074dd27626b9a1752c",
+          "mode": "0644"
+        },
+        {
+          "path": "zh_en_symbols.json",
+          "size": 1912,
+          "sha256": "797b2728a1b4d6899d4f7a4d38cadbeeae5f3ad71b116ac95c7b4bf8d9ef085b",
+          "mode": "0644"
+        }
+      ]
     }
   },
   "ignored_asset_policy": {
