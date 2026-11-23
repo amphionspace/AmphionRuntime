@@ -15,6 +15,7 @@ import com.amphion.dingqiao.CreateEngineParams
 import com.amphion.dingqiao.DingqiaoOnlineMode
 import com.amphion.dingqiao.RecognitionListener
 import com.amphion.dingqiao.SpeakerDiarizationConfig
+import com.amphion.dingqiao.SpeakerDiarizationResult
 import com.amphion.dingqiao.SpeakerDiarizationUpdate
 import com.amphion.dingqiao.SpeechRecognitionEngine
 import com.amphion.dingqiao.SpeechRecognitionResult
@@ -156,6 +157,19 @@ class ScenarioParamSweepInstrumentedTest {
                 .put("speakerIndex", update.speakerIndex).put("secondary", JSONArray(update.secondarySpeakerIndexes))
                 .put("beginTime", update.beginTime).put("endTime", update.endTime).put("confidence", update.confidence.toDouble())
         }
+        /** 与鸿蒙载体同口径：累计每个窗口的 speakerTurns（公开 speakerIndex 时间轴），用于 DER。 */
+        val turns: MutableList<JSONObject> = Collections.synchronizedList(mutableListOf())
+        val windows: MutableList<JSONObject> = Collections.synchronizedList(mutableListOf())
+        override fun onSpeakerDiarizationResult(sessionId: String, result: SpeakerDiarizationResult) {
+            speakerCount = result.speakerCount
+            result.speakerTurns.forEach { t ->
+                turns += JSONObject().put("beginTime", t.beginTime).put("endTime", t.endTime).put("speakerIndex", t.speakerIndex)
+                    .put("modelSpeakerIndex", t.modelSpeakerIndex).put("secondary", JSONArray(t.secondarySpeakerIndexes)).put("overlap", t.overlap)
+            }
+            windows += JSONObject().put("t", now()).put("windowIndex", result.windowIndex).put("windowBeginTime", result.windowBeginTime)
+                .put("speakerCount", result.speakerCount).put("degraded", result.degraded).put("utterances", result.utterances.size)
+                .put("turns", result.speakerTurns.size).put("inferenceMs", result.inferenceMs).put("rtf", result.rtf.toDouble())
+        }
         override fun onComplete(sessionId: String, eventMessage: String) { complete.countDown() }
         override fun onError(sessionId: String, errorCode: Int, errorMessage: String) {
             errors += JSONObject().put("t", now()).put("code", errorCode).put("msg", errorMessage); complete.countDown()
@@ -229,7 +243,8 @@ class ScenarioParamSweepInstrumentedTest {
                         .put("firstPartialMs", listener.firstPartialAt).put("firstFinalMs", listener.firstFinalAt)
                         .put("finals", JSONArray(listener.finals)).put("partialCount", listener.partials.size)
                         .put("lastPartial", listener.partials.lastOrNull()?.optString("text") ?: "")
-                        .put("diarizationUpdates", JSONArray(listener.updates)).put("events", JSONArray(listener.events)).put("errors", JSONArray(listener.errors)))
+                        .put("diarizationUpdates", JSONArray(listener.updates)).put("diarizationTurns", JSONArray(listener.turns)).put("diarizationWindows", JSONArray(listener.windows))
+                        .put("speakerCount", listener.speakerCount).put("events", JSONArray(listener.events)).put("errors", JSONArray(listener.errors)))
                 } else {
                     runCatching { engine.cancel(sessionId) }
                     append(JSONObject().put("type", "file").put("index", index).put("path", path).put("started", false).put("errors", JSONArray(listener.errors)))
