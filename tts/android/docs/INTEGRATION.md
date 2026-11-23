@@ -14,13 +14,13 @@ SDK AAR 包含 ONNX Runtime Java 类、arm64 native 库及完整模型和前端�
 
 ## 2. Gradle 接入
 
-源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-dingqiao-tts-sdk-vocos24k-3.2.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
+源码工程默认产物文件名是 `sdk-release.aar`。如果你在对外交付前把它重命名成 `lits-dingqiao-tts-sdk-vocos24k-3.3.aar`，下面的接入示例可以直接照抄；如果没重命名，就把依赖里的文件名改成 `sdk-release.aar`。
 
-把 `lits-dingqiao-tts-sdk-vocos24k-3.2.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
+把 `lits-dingqiao-tts-sdk-vocos24k-3.3.aar` 放到宿主 App 的 `app/libs/` 后添加依赖：
 
 ```kotlin
 dependencies {
-    implementation(files("libs/lits-dingqiao-tts-sdk-vocos24k-3.2.aar"))
+    implementation(files("libs/lits-dingqiao-tts-sdk-vocos24k-3.3.aar"))
     implementation("org.jetbrains.kotlin:kotlin-stdlib:1.9.22")
 }
 ```
@@ -244,7 +244,7 @@ engine.shutdown()
 ## 12. 离线授权（License）
 
 To B 交付使用纯离线 ECDSA P-256 签名授权，校验 TTS 权限、设备 SN 白名单和 SDK 兼容主版本；包名、证书、运行到期和维护期按 license 实际字段校验。
-本包不附授权文件；使用已签发的 TTS-ONLY 或 ASR-TTS license。交付版本为 3.2，授权兼容字段 `sdkMajor` 仍为 1。
+本包不附授权文件；使用已签发的 TTS-ONLY 或 ASR-TTS license。交付版本为 3.3，授权兼容字段 `sdkMajor` 仍为 1。
 
 判断 SDK 是否被武装：构建期 gradle 属性 `AMPHION_LICENSE_PUBLIC_KEY` 是否注入了公钥。
 

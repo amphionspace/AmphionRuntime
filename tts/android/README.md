@@ -12,7 +12,7 @@ AmphionRuntime/tts/android/
 
 | 项 | 值 |
 | --- | --- |
-| SDK 构建版本 | `3.2`，见 [build.gradle.kts](build.gradle.kts) 的 `sdkVersion` |
+| SDK 构建版本 | `3.3`，见 [build.gradle.kts](build.gradle.kts) 的 `sdkVersion` |
 | 模型 ID | `dingqiao_imf_step00170000_streaming_vocos24k` |
 | 模型资源版本 | `0.1.0`（不是 SDK 版本） |
 | 支持语种 | `zh-en`, `en-US` |

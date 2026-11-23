@@ -4,7 +4,7 @@ import argparse
 from pathlib import Path
 import subprocess
 
-APP_ID = 'com.lits.tts.demo32'
+APP_ID = 'com.lits.tts.demo33'
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -14,7 +14,7 @@ def main():
     parser.add_argument('--serial', help='ADB target when multiple devices are connected')
     parser.add_argument('--sn', help='Actual license-bound device SN; defaults to ADB serial')
     parser.add_argument('--license', type=Path, required=True)
-    parser.add_argument('--apk', type=Path, default=ROOT / 'apk/lits-dingqiao-tts-demo-vocos24k-3.2.apk')
+    parser.add_argument('--apk', type=Path, default=ROOT / 'apk/lits-dingqiao-tts-demo-vocos24k-3.3.apk')
     args = parser.parse_args()
     license_bytes = args.license.read_bytes()
     if not license_bytes or not args.apk.is_file():

@@ -1,13 +1,13 @@
-# Lits TTS Android Demo 3.2
+# Lits TTS Android Demo 3.3
 
 ## 包内内容
 
-- `apk/lits-dingqiao-tts-demo-vocos24k-3.2.apk`：可安装的 Debug Demo。
-- `android-demo/`：可独立编译的 Android Studio 工程，依赖 app/libs 中的 3.2 Release AAR。
+- `apk/lits-dingqiao-tts-demo-vocos24k-3.3.apk`：可安装的 Debug Demo。
+- `android-demo/`：可独立编译的 Android Studio 工程，依赖 app/libs 中的 3.3 Release AAR。
 - `tools/install_demo.py`：安装 APK、配置用户自有授权。
 - `LICENSE`、`NOTICE`、`CHECKSUMS.txt`：使用条件、第三方声明和文件校验。
 
-应用包名 `com.lits.tts.demo32`，显示名 `Lits TTS Demo 3.2`。支持 Android API 24+、arm64-v8a，沿用现有大屏/小屏界面。
+应用包名 `com.lits.tts.demo33`，显示名 `Lits TTS Demo 3.3`。支持 Android API 24+、arm64-v8a，沿用现有大屏/小屏界面。
 本包不包含授权文件、私钥或设备 SN；模型及前端资源已内置于 AAR/APK；APK 安装后只需配置有效授权。首次创建引擎时自动解包，后续复用。
 
 ## 安装和配置
