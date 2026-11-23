@@ -1,0 +1,90 @@
+{
+ "delivery_date": "2026-11-23",
+ "delivery_version": "3.3",
+ "aar_filename": "lits-dingqiao-tts-sdk-vocos24k-3.3.aar",
+ "archive_filename": "lits-dingqiao-tts-android-sdk-vocos24k-3.3.zip",
+ "license_files_included": false,
+ "authorization_public_key_text_sha256": "767520ee2fa6244f797b142636a818d5d258aee48c884e74cdbed042fce429fb",
+ "authorization_public_key_note": "Same key text as the 3.1 record and as embedded in the shipped 3.2 AAR (BuildConfig.LICENSE_PUBLIC_KEY_B64 verified); the 3.2 JSON hashed a different text form.",
+ "platform": {
+  "abi": "arm64-v8a",
+  "min_sdk": 24
+ },
+ "model": {
+  "id": "dingqiao_imf_step00170000_streaming_vocos24k",
+  "checkpoint": "step_step=00169999.ckpt",
+  "global_step": 170000,
+  "checkpoint_sha256": "fbaf5c4f7f96cf5864164c66b371f68994da54472b3e67fa1005df7a61c50c8a",
+  "precision": "FP32",
+  "sample_rate": 24000,
+  "temperature": 0,
+  "speaker_id": 1,
+  "streaming_chunk_frames": 50,
+  "flow_steps": 2,
+  "phoneme_tokens": 173,
+  "runtime_package_bundle": "tts-runtime-imf170000-v2",
+  "previous_runtime_package_bundle": "tts-runtime-imf170000-v1"
+ },
+ "onnx_sha256": {
+  "lits_hidden_encoder.onnx": "9f5ab237e6312fefe3fb18f33e903e92e9c069c8eab926302b641f8922ca09f9",
+  "lits_stream_condition_chunk.onnx": "7020b66ac7849a180edb6080aa6039a71850f0cbfc8202853a31c61222e636d3",
+  "lits_stream_decoder_cache_init.onnx": "9a62896e1fd9fd9af651d88e33cdc17a3cbacd64f980a64938c40504f56a17c6",
+  "lits_stream_decoder_cache_step.onnx": "21bc6f56277875b5288d4aa094a45f191e205cdc8fbf6a43e7ddca0f7f1ecf7f",
+  "vocos_vocoder.onnx": "56ba27c96c59a7c16534f1ebec038c4fedfa59104ea1aa074dd27626b9a1752c"
+ },
+ "frontend_resource_changes": {
+  "chinese_lexicon.txt": {
+   "3.2_sha256_prefix": "aeef947a20c488fb",
+   "3.3_md5": "eb2927108f66be8a0a0b5ac6a5845b5f",
+   "size": 14780201,
+   "change": "南站 na1→nan2, 南昆线 na1→nan2; + 重做/重跑/重测/重拨 chong2"
+  },
+  "chinese_lexicon.bin": {
+   "3.3_md5": "02a9c4e82ac76ff188ab1314ed285845",
+   "size": 18755937,
+   "change": "rebuilt from the patched txt with tts/tools/android/build_frontend_binary_assets.py"
+  },
+  "polyphone_phrases.txt": {
+   "3.3_md5": "298124c42d6202deb8a1bf839949c834",
+   "size": 3533,
+   "change": "+6 override entries (same words) so the fix also holds if a host ships an older main lexicon"
+  }
+ },
+ "customer_docs": [
+  "README.md",
+  "CHANGELOG.md",
+  "docs/API.md",
+  "docs/INTEGRATION.md",
+  "docs/PSEUDOCODE.md"
+ ],
+ "checksum_file": "CHECKSUMS.txt",
+ "aar_sha256": "b16606011c5f515c3ed367ccc8bc1aec9383f7e3db22110bdbf493f58a9cf871",
+ "archive_sha256": "f20cdc5eeb12bf7a133b623b7520324a5d6d92c1380566da28686ba5b476f8d8",
+ "archive_size_bytes": 229580090,
+ "source_commit": "ae54bd26941bb83eb5138ab0267f27e9c8a438e5",
+ "source_note": "release branch fix/android-tts-3.3-lexicon-nanzhan = 3.2 line (fix/android-tts-3.2-glued-punctuation @ ed409a24) + lexicon regression test + version bump; clean worktree. ORT .so from bundle tts-onnxruntime-android-v1 (untracked on this branch).",
+ "packaging_only": false,
+ "resource_directory": "AAR assets/lits-models/tts",
+ "api_compatibility": "Public API, inference configuration, bundled-resource installer and licence behaviour unchanged from 3.2; only three frontend lexicon resources changed (no Kotlin/native code change).",
+ "validation": {
+  "sdk_unit_tests_total": 158,
+  "sdk_unit_tests_skipped": 4,
+  "sdk_unit_tests_failed": 0,
+  "sdk_unit_tests_new": "LexiconPronunciationFix33Test: 成都南站/广州南站/南昆线 → nan2; 重试/重做/重跑/重拨 → chong2; 重庆北站 → chong2 qing4; 南无阿弥陀佛 → na1 mo2 (unchanged)",
+  "packaging_tests_passed": "test_pack_sdk_only.py OK (7 tests)",
+  "archive_checks": "ZIP CRC OK; CHECKSUMS.txt 8 entries all OK; APK assets/lits-models byte-identical to AAR assets",
+  "assets_byte_equality": "AAR bundles the 22 runtime resources of the IMF 170000 export; the five ONNX files are byte-identical to the 3.1/3.2 records",
+  "device": "BRA-AL00 / Android 12 / arm64-v8a (internal test phone, internal device-bound TTS licence TTS-33-VERIFY-20261123)",
+  "device_lifecycle": "PASS: TtsLifecycleDeviceTest (real synthesis + stop/shutdown/recover ×3) OK (1 test) against the Release AAR embedded in the 3.3 Demo",
+  "device_pronunciation_33": "PASS: PronunciationFix33DeviceTest 3/3 — '成都南站到了。' / '请重做一次。' / '正在重试。' each synthesise byte-identical PCM to the homophone spellings '成都难站到了。' / '请虫做一次。' / '正在虫试。'. Same test on the installed 3.2 Demo FAILS on 南站 (79872 vs 79104 bytes) and 重做, and PASSES on 重试 (control); 3.3 PCM for 成都南站 is byte-identical to 3.2 PCM for 成都难站, so only the lexicon changed. Host ASR cross-check: 3.2 南站 wav → '成都呢占道了', 3.3 → '成都南站到了'; 3.2 重做 wav → '请重坐一次', 3.3 → '请重做一次'.",
+  "not_run": [
+   "full legacy API matrix",
+   "1000-item endurance",
+   "full pronunciation corpus",
+   "page recreation",
+   "both screen layouts"
+  ],
+  "device_install": "PASS: installed from the packed Demo ZIP with tools/install_demo.py (package com.lits.tts.demo33) and licence TTS-33-VERIFY-20261123"
+ },
+ "supersedes": "3.2 (2026-11-16, aar 49f37bc4…, archive 519b34d5…)"
+}
