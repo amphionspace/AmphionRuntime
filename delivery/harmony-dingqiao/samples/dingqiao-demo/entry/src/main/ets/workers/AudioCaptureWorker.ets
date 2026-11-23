@@ -18,9 +18,16 @@ let callbackGapExcessMs: number = 0;
 let maxCallbackWorkMs: number = 0;
 let bufferSizeBytes: number = 0;
 
+// 工程 compatibleSdkVersion 是 API 12，SOURCE_TYPE_UNPROCESSED(14, @since 14) 与 SOURCE_TYPE_LIVE(17, @since 20)
+// 不能按枚举名引用，按数值传入；低版本系统创建失败时走下面的 catch 分支报"麦克风启动失败"。
+const SOURCE_TYPE_UNPROCESSED_VALUE: number = 14;
+const SOURCE_TYPE_LIVE_VALUE: number = 17;
+
 function requestedSource(name: string): audio.SourceType {
   if (name === 'voiceRecognition') return audio.SourceType.SOURCE_TYPE_VOICE_RECOGNITION;
   if (name === 'voiceCommunication') return audio.SourceType.SOURCE_TYPE_VOICE_COMMUNICATION;
+  if (name === 'live') return SOURCE_TYPE_LIVE_VALUE as audio.SourceType;
+  if (name === 'unprocessed') return SOURCE_TYPE_UNPROCESSED_VALUE as audio.SourceType;
   return audio.SourceType.SOURCE_TYPE_MIC;
 }
 

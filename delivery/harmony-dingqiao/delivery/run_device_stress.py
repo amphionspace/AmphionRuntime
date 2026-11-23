@@ -160,6 +160,14 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--settle-ms", type=int, default=0)
     parser.add_argument("--pace-ms", type=int, default=20)
+    parser.add_argument("--vad-end-ms", type=int, default=0,
+                        help="customer-* modes: override the profile vadEnd (0 keeps the profile value).")
+    parser.add_argument("--recognizer-mode", choices=("", "short", "long"), default="",
+                        help="customer-* modes: override the profile recognizerMode.")
+    parser.add_argument("--max-speakers", type=int, default=0,
+                        help="customer-meeting-minutes / diarization-windows: override SpeakerDiarizationConfig.maxSpeakers (1..4).")
+    parser.add_argument("--hotwords-file", type=Path, default=None,
+                        help="UTF-8 text, one user hotword per line; passed as sysGeneralLexicon when creating the engine.")
     parser.add_argument("--speaker-identity-mode", choices=("", "model", "voiceprint"), default="",
                         help="角色身份来源；空串表示不设置，跟随 SDK 默认（0.3.27 起为 voiceprint，0.3.26 为 model）。")
     parser.add_argument("--enable-diarization", action="store_true",
@@ -1350,6 +1358,19 @@ def run_stress(args: argparse.Namespace) -> Path:
         build_identity = verified_build_identity()
 
     print(f"[INFO] sending {sum(int(item['pcm_bytes']) for item in mapping) / 1024 / 1024:.1f} MiB PCM payload")
+    remote_hotwords = "none"
+    if args.hotwords_file is not None:
+        words = [line.strip() for line in args.hotwords_file.read_text(encoding="utf-8").splitlines() if line.strip()]
+        # 载体的输入通道只走 ASCII：每行一个词的 UTF-16BE hex。
+        (payload / "hotwords.txt").write_text(
+            "\n".join("".join(f"{ord(ch):04x}" for ch in word) for word in words) + "\n", encoding="ascii")
+        remote_hotwords = f"{remote_dir}/hotwords.txt"
+        (artifact_dir / "hotwords.txt").write_text("\n".join(words) + "\n", encoding="utf-8")
+    (artifact_dir / "session-overrides.json").write_text(json.dumps({
+        "vad_end_ms": args.vad_end_ms, "recognizer_mode": args.recognizer_mode,
+        "max_speakers": args.max_speakers, "hotwords": (len(words) if args.hotwords_file is not None else 0),
+        "speaker_identity_mode": args.speaker_identity_mode, "diarization_vad_end_ms": args.diarization_vad_end_ms,
+    }, indent=2) + "\n")
     hdc.app_send(payload, remote_dir)
     hdc.shell("hilog", "-r", check=False)
     hdc.shell("aa", "force-stop", BUNDLE, check=False)
@@ -1393,6 +1414,10 @@ def run_stress(args: argparse.Namespace) -> Path:
         "--ps", "stressSpeakerVadVadEndMs", str(args.speaker_vad_vad_end_ms),
         "--ps", "stressSpeakerVadRecognizerMode", args.speaker_vad_recognizer_mode or "none",
         "--ps", "stressSpeakerVadVerification", "true" if args.speaker_vad_verification else "false",
+        "--ps", "stressVadEndMs", str(args.vad_end_ms),
+        "--ps", "stressRecognizerMode", args.recognizer_mode or "none",
+        "--ps", "stressMaxSpeakers", str(args.max_speakers),
+        "--ps", "stressHotwordsFile", remote_hotwords,
     ]
     # `aa start --ps` 不接受空值（实测报 invalid number of parameters for option --ps），
     # 所以只在显式指定时才追加这对参数；不指定就跟随 SDK 默认（0.3.27 起为 'voiceprint'）。

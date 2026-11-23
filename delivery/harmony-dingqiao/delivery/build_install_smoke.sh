@@ -19,6 +19,7 @@ DEVICE=""
 TIMEOUT_SECONDS=30
 SKIP_BUILD=false
 PREPARE_ONLY=false
+BUILD_ONLY=false
 ZH_EN_ONLY=true
 BUILD_MODE="debug"
 SMOKE_DIR="$PROJECT_ROOT/build/smoke"
@@ -40,6 +41,7 @@ Options:
   --timeout SEC     Engine-ready timeout; default 30 seconds.
   --skip-build      Reuse the existing signed HAP.
   --prepare-only    Prepare and discard an isolated source tree; do not require device/signing.
+  --build-only      Build, sign and verify the HAP, then stop before install (no device needed).
   --build-mode MODE Build debug or diagnostics artifacts; default debug.
   --zh-en-only      Verify and build the current USB carrier without unrelated Yue-English assets.
   --signing-config  Local signing material JSON; defaults to .secure/harmony-signing.json.
@@ -53,6 +55,7 @@ while [[ $# -gt 0 ]]; do
     --timeout) TIMEOUT_SECONDS="$2"; shift 2 ;;
     --skip-build) SKIP_BUILD=true; shift ;;
     --prepare-only) PREPARE_ONLY=true; shift ;;
+    --build-only) BUILD_ONLY=true; shift ;;
     --build-mode) BUILD_MODE="$2"; shift 2 ;;
     --zh-en-only) ZH_EN_ONLY=true; shift ;;
     --signing-config) SIGNING_CONFIG="$2"; shift 2 ;;
@@ -72,7 +75,7 @@ fi
   exit 2
 }
 
-if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]; then
+if [[ "$PREPARE_ONLY" != true && "$BUILD_ONLY" != true && -z "$DEVICE" ]]; then
   TARGETS="$("$HDC" list targets | tr -d '\r' | awk 'NF && $0 != "[Empty]"')"
   TARGET_COUNT="$(printf '%s\n' "$TARGETS" | awk 'NF {count++} END {print count+0}')"
   [[ "$TARGET_COUNT" -eq 1 ]] || {
@@ -514,6 +517,11 @@ if [[ -n "$SIGNING_CONFIG" ]]; then
   VERIFY_ARGS+=(--signing-config "$SIGNING_CONFIG")
 fi
 "$SCRIPT_DIR/verify_demo_inputs.sh" "${VERIFY_ARGS[@]}"
+
+if [[ "$BUILD_ONLY" == true ]]; then
+  echo "[DONE] build-only: HAP verified at $HAP (not installed)"
+  exit 0
+fi
 
 echo "[INFO] installing HAP on the USB device"
 "$HDC" -t "$DEVICE" install -r -d "$HAP" >"$INSTALL_LOG"

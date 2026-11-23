@@ -52,7 +52,7 @@ const SPEAKER_VAD_CONSECUTIVE_BELOW = 2;
 const BRAND_ACCENT = '#2E6BE6';
 const CUSTOMER_SCENARIOS: CustomerScenarioName[] =
   ['tap-vad', 'ptt', 'transcription', 'form', 'meeting-minutes'];
-const AUDIO_SOURCES: DemoAudioSource[] = ['mic', 'voiceRecognition', 'voiceCommunication'];
+const AUDIO_SOURCES: DemoAudioSource[] = ['mic', 'voiceRecognition', 'voiceCommunication', 'live', 'unprocessed'];
 
 class FinalSegment {
   text: string;
@@ -106,6 +106,9 @@ struct Index {
   @State voiceprintVerifyDesired: boolean = false;
   @State speakerVadDesired: boolean = false;
   @State speakerDiarizationDesired: boolean = false;
+  /** 角色分离上限（SpeakerDiarizationConfig.maxSpeakers，1~4），默认跟随场景 profile。 */
+  @State speakerMaxSpeakers: number = 4;
+  private capturedMaxSpeakers: number = 4;
   @State policeEnhancementDesired: boolean = true;
   // 「四川话 / 无警务后处理」包不随包发行后处理资产，此时开关无意义，隐藏并恒为关。
   @State policePostprocessingAvailable: boolean = true;
@@ -418,6 +421,7 @@ struct Index {
     this.capturedSpeakerVad = profile.allowVoiceprint && this.speakerVadDesired &&
       this.capturedVoiceprintId.length > 0;
     this.capturedSpeakerDiarization = this.speakerDiarizationDesired;
+    this.capturedMaxSpeakers = this.speakerMaxSpeakers;
     this.lastDiarizationWindowIndex = -1;
     this.diarizationDegraded = false;
     this.capturedPoliceEnhancement =
@@ -557,7 +561,7 @@ struct Index {
 
   private buildCapturedStartParams(sessionId: string): StartParams {
     const startParams = customerProfileStartParams(
-      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization);
+      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization, this.capturedMaxSpeakers);
     const extra = startParams.extraParams;
     const profile = customerScenarioProfile(this.capturedCustomerScenario);
     extra['enableContinuousRecognition'] = customerProfileUsesContinuousRecognition(profile);
@@ -679,27 +683,37 @@ struct Index {
     const profile = customerScenarioProfile(name);
     this.audioSource = profile.audioSource;
     this.speakerDiarizationDesired = profile.speakerDiarizationMaxSpeakers !== undefined;
+    this.speakerMaxSpeakers = profile.speakerDiarizationMaxSpeakers ?? 4;
     this.status = `${this.scenarioLabel(name)} · SourceType=${profile.audioSource}`;
   }
 
   private audioSourceLabel(source: DemoAudioSource): string {
     if (source === 'voiceRecognition') return 'VOICE_RECOGNITION';
     if (source === 'voiceCommunication') return 'VOICE_COMMUNICATION';
+    if (source === 'live') return 'LIVE（风噪抑制）';
+    if (source === 'unprocessed') return 'UNPROCESSED';
     return 'MIC（原始）';
   }
 
   private audioSourceName(source: DemoAudioSource): string {
     if (source === 'voiceRecognition') return 'SOURCE_TYPE_VOICE_RECOGNITION';
     if (source === 'voiceCommunication') return 'SOURCE_TYPE_VOICE_COMMUNICATION';
+    if (source === 'live') return 'SOURCE_TYPE_LIVE';
+    if (source === 'unprocessed') return 'SOURCE_TYPE_UNPROCESSED';
     return 'SOURCE_TYPE_MIC';
   }
 
+  /**
+   * 采集源在所有场景下都允许手动切换（场景划分方案要求按场景对比 MIC / VOICE_RECOGNITION /
+   * VOICE_COMMUNICATION / LIVE）。切换场景时仍回到该场景 profile 的默认源；profile 的
+   * lockAudioSource 只决定默认值，不再禁用按钮。实际使用的源写进每次会话的 metadata.audioSource。
+   */
   private selectAudioSource(source: DemoAudioSource): void {
     if (this.listening || this.replaying) return;
-    const profile = customerScenarioProfile(this.customerScenario);
-    if (profile.lockAudioSource) return;
     this.audioSource = source;
-    this.status = `${this.scenarioLabel(this.customerScenario)} · SourceType=${source}`;
+    const profile = customerScenarioProfile(this.customerScenario);
+    const note = source === profile.audioSource ? '' : '（手动覆盖）';
+    this.status = `${this.scenarioLabel(this.customerScenario)} · SourceType=${this.audioSourceName(source)}${note}`;
   }
 
   private formatMaxAudioDuration(durationMs: number): string {
@@ -834,8 +848,9 @@ struct Index {
     meta['audioSource'] = this.audioSourceName(this.capturedAudioSource);
     meta['customerScenario'] = this.capturedCustomerScenario;
     meta['speakerDiarization'] = this.capturedSpeakerDiarization;
+    meta['maxSpeakers'] = this.capturedMaxSpeakers;
     meta['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
-      this.capturedSpeakerDiarization).extraParams['vadEnd'];
+      this.capturedSpeakerDiarization, this.capturedMaxSpeakers).extraParams['vadEnd'];
     meta['softwareGainDb'] = 0;
     meta['frameBytes'] = SDK_FRAME_BYTES;
     meta['frameCount'] = this.sdkCaptureFrames.length;
@@ -898,8 +913,9 @@ struct Index {
     metadata['durationMs'] = Math.round(this.sdkCaptureFrames.length * FRAME_AUDIO_MS);
     metadata['enablePartialResult'] = profile.enablePartialResult;
     metadata['speakerDiarization'] = this.capturedSpeakerDiarization;
+    metadata['maxSpeakers'] = this.capturedMaxSpeakers;
     metadata['vadEnd'] = customerProfileStartParams('metadata', this.capturedCustomerScenario,
-      this.capturedSpeakerDiarization).extraParams['vadEnd'];
+      this.capturedSpeakerDiarization, this.capturedMaxSpeakers).extraParams['vadEnd'];
     metadata['maxAudioDuration'] = profile.maxAudioDuration;
     if (profile.vadBegin !== undefined) metadata['vadBegin'] = profile.vadBegin;
     metadata['voiceprintVerify'] = this.capturedVoiceprintVerify;
@@ -1464,14 +1480,14 @@ struct Index {
           .fontSize(11)
           .fontColor(Color.Gray)
           .width('100%')
-        Row({ space: 4 }) {
+        Flex({ wrap: FlexWrap.Wrap, justifyContent: FlexAlign.SpaceBetween }) {
           ForEach(AUDIO_SOURCES, (source: DemoAudioSource) => {
             Button(this.audioSourceLabel(source))
-              .layoutWeight(1)
+              .width('49%')
               .height(32)
               .fontSize(10)
-              .enabled(!this.fileInput && !this.listening && !this.replaying && !this.loading &&
-                !customerScenarioProfile(this.customerScenario).lockAudioSource)
+              .margin({ bottom: 4 })
+              .enabled(!this.fileInput && !this.listening && !this.replaying && !this.loading)
               .backgroundColor(this.audioSource === source ? '#16803A' : '#D8DEE9')
               .onClick((): void => this.selectAudioSource(source))
           })
@@ -1520,6 +1536,26 @@ struct Index {
       }
       .width('100%')
       .alignItems(VerticalAlign.Center)
+
+      if (this.speakerDiarizationDesired) {
+        Row({ space: 6 }) {
+          Text('角色上限 maxSpeakers').fontSize(12).fontColor(Color.Gray).layoutWeight(1)
+          ForEach([1, 2, 3, 4], (n: number) => {
+            Button(`${n}`)
+              .width(44)
+              .height(30)
+              .fontSize(12)
+              .enabled(!this.listening && !this.replaying && !this.loading)
+              .backgroundColor(this.speakerMaxSpeakers === n ? '#16803A' : '#D8DEE9')
+              .onClick((): void => {
+                this.speakerMaxSpeakers = n;
+                this.status = `角色上限 maxSpeakers=${n}（超出的说话人归“其他”）`;
+              })
+          })
+        }
+        .width('100%')
+        .alignItems(VerticalAlign.Center)
+      }
 
       if (this.policePostprocessingAvailable) {
         Row() {
