@@ -1,12 +1,25 @@
 {
   "schema_version": 1,
   "dataset_version": "v1",
-  "obs": {
-    "bucket": "cuhk-anfeiweng-benchmark",
-    "endpoint_env": "OBS_Endpoint",
-    "access_key_env": "OBS_AccesskeyID",
-    "secret_key_env": "OBS_SecretAccesskey",
+  "storage": {
+    "provider": "tencent-cos",
+    "bucket": "amphion-assets-1373259071",
+    "region": "ap-guangzhou",
+    "endpoint": "https://cos.ap-guangzhou.tencentcos.cn",
+    "access_key_env": "COS_SecretId",
+    "secret_key_env": "COS_SecretKey",
     "prefix": "amphion-runtime/test-data/v1"
+  },
+  "storages": {
+    "obs-legacy": {
+      "provider": "huawei-obs",
+      "bucket": "cuhk-anfeiweng-benchmark",
+      "endpoint_env": "OBS_Endpoint",
+      "access_key_env": "OBS_AccesskeyID",
+      "secret_key_env": "OBS_SecretAccesskey",
+      "prefix": "amphion-runtime/test-data/v1",
+      "note": "2026-11-22 前的位置，只读保留以便追溯；对象键与 COS 相同"
+    }
   },
   "bundles": {
     "aishell3-500": {
@@ -380,14 +393,15 @@
   "catalog": {
     "police-asr-eval-20260914": {
       "description": "Police ASR evaluation handoff updated 2026-09-21: 19 datasets including 3,773 V6 command recordings; mostly synthetic audio; manual tar.zst download",
-      "bucket": "cuhk-anfeiweng-benchmark",
-      "object_key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst",
+      "provider": "tencent-cos",
+      "bucket": "amphion-assets-1373259071",
+      "object_key": "amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst",
       "archive_type": "tar.zst",
       "size": 3098940742,
       "sha256": "f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9",
-      "checksum_object_key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst.sha256",
-      "readme_object_key": "asr_testsets/2026-09-14/summary/README.md",
-      "summary_object_key": "asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv",
+      "checksum_object_key": "amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst.sha256",
+      "readme_object_key": "amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/summary/README.md",
+      "summary_object_key": "amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv",
       "purposes": [
         "police-terminology-accuracy",
         "license-plate-accuracy",
@@ -395,18 +409,29 @@
       ],
       "redistribution": "team-internal-only; contains customer audio; no public redistribution",
       "verification_scope": "Archive downloaded and SHA-256 verified on 2026-09-21; V6 labels are synthetic supervision with automatic ASR QC, not human-reviewed unseen-command ground truth",
-      "updated_at": "2026-09-21"
+      "updated_at": "2026-09-21",
+      "legacy_obs": {
+        "bucket": "cuhk-anfeiweng-benchmark",
+        "object_key": "asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst"
+      },
+      "migrated_at": "2026-11-22"
     },
     "police-terminology-legacy-v1": {
       "description": "Separate legacy police terminology archive; contents not inspected; not interchangeable with police-asr-eval-20260914",
-      "bucket": "cuhk-anfeiweng-benchmark",
-      "object_key": "datasets/police-terminology-testset-v1.tar.gz",
+      "provider": "tencent-cos",
+      "bucket": "amphion-assets-1373259071",
+      "object_key": "amphion-runtime/test-data/catalog/datasets/police-terminology-testset-v1.tar.gz",
       "archive_type": "tar.gz",
       "size": 20176931,
       "sha256": "14539cfd47e46583e7747541defd130df3b9e600e603951a6aea5e1002ef8a25",
-      "checksum_object_key": "datasets/police-terminology-testset-v1.tar.gz.sha256",
+      "checksum_object_key": "amphion-runtime/test-data/catalog/datasets/police-terminology-testset-v1.tar.gz.sha256",
       "redistribution": "not-established; do not redistribute",
-      "verification_scope": "Remote size and published checksum inspected; contents and annotation quality not inspected"
+      "verification_scope": "Remote size and published checksum inspected; contents and annotation quality not inspected",
+      "legacy_obs": {
+        "bucket": "cuhk-anfeiweng-benchmark",
+        "object_key": "datasets/police-terminology-testset-v1.tar.gz"
+      },
+      "migrated_at": "2026-11-22"
     }
   }
 }
