@@ -2385,6 +2385,10 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     params.extraParams['vadEnd'] = diarizationVadEndMs;
     events.auditVadEndMs = diarizationVadEndMs;
   }
+  // stressSpeakerIdentityMode 此前只在通用 startParams 生效，客户场景 profile 路径没有应用，model/voiceprint 对比会跑成同一组。
+  if (params.speakerDiarization !== undefined && stressSpeakerIdentityMode.length > 0) {
+    params.speakerDiarization.speakerIdentityMode = stressSpeakerIdentityMode;
+  }
   // 场景参数交叉验证：显式覆盖 profile 的会话参数（不改 profile 本身）。
   if (overrides !== undefined) {
     if (overrides.vadEndMs > 0) {
