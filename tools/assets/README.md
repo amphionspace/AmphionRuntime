@@ -65,6 +65,7 @@ OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式
 | `tts-harmony-icu-v1` | `tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib` | 鸿蒙 arm64 ICU 静态库 |
 | `tts-onnxruntime-android-v1` | `tts/android/sdk/src/main/jniLibs/arm64-v8a` | 安卓 ONNX Runtime `.so` 与 JNI 绑定 |
 | `tts-onnxruntime-harmony-v1` | `tts/harmony/sdk/libs/arm64-v8a` | 鸿蒙 ONNX Runtime `.so` |
+| `tts-runtime-imf170000-v2` | `tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0` | 鼎桥 Android TTS 3.x 客户线的 IMF 170000 流式 Vocos 24k 运行时模型包（含前端资源与 `.bin`），3.3 起用的词典修复版；`-v1` 为 3.1/3.2 所用旧包（historical） |
 | `tts-training-inputs-v1` | `tts/training/dingqiao_lits`（合并模式） | MorphoDiTa 俄语 tagger、训练 filelist、CMUdict 0.7b、中文词典源文件 |
 
 `tts-runtime-zhen-v1` 的目标目录 `tts/tools/trial-export/.../0.1.0/` 此前还有 19 个文本文件留在 Git 里，
