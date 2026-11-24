@@ -712,7 +712,7 @@ struct Index {
     if (this.listening || this.replaying) return;
     this.audioSource = source;
     const profile = customerScenarioProfile(this.customerScenario);
-    const note = source === profile.audioSource ? '' : '（手动覆盖）';
+    const note = source === profile.audioSource ? '' : profile.lockAudioSource ? '（手动覆盖方案默认源）' : '（手动覆盖）';
     this.status = `${this.scenarioLabel(this.customerScenario)} · SourceType=${this.audioSourceName(source)}${note}`;
   }
 
