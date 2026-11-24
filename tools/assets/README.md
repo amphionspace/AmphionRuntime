@@ -5,7 +5,8 @@
 
 2026-11-16 起默认存储是腾讯云 COS（`amphion-assets-1373259071`，`ap-guangzhou`，前缀
 `amphion-runtime/assets/v1`）。华为云 OBS 桶 `cuhk-anfeiweng-benchmark` 以具名存储 `obs-legacy`
-只读保留：受限（SSE-KMS）bundle 和测试语料清单仍从它读取；该账号欠费后已不能写入。
+只读保留。2026-11-22 起测试语料清单（`asr/test-data/manifest.json`）与 catalog 归档也已迁到 COS；
+仍留在 OBS 的只有受限（SSE-KMS）bundle，等 COS 侧 KMS 可用后再迁（见下文）。
 
 ## 首次配置
 
@@ -15,7 +16,7 @@
 export COS_SecretId=...
 export COS_SecretKey=...
 python3 -m pip install cos-python-sdk-v5
-# 只在需要受限 bundle（team-secure-state-*）或旧测试语料时才需要 OBS：
+# 只在需要受限 bundle（team-secure-state-*、harmony-demo-license-v1）时才需要 OBS：
 export OBS_AccesskeyID=... OBS_SecretAccesskey=... OBS_Endpoint=https://obs.cn-north-9.myhuaweicloud.com
 python3 -m pip install esdk-obs-python
 ```
@@ -112,6 +113,13 @@ python3 tools/assets/sync.py mirror --from obs-legacy all
 
 `mirror` 从源存储下载 ZIP、按清单整包 SHA-256 校验后上传到目标，再做远端校验；目标已有同身份
 对象时跳过。bundle 可用 `"storage": "<名称>"` 指定留在某个具名存储（当前受限 bundle 指向 `obs-legacy`）。
+
+2026-11-22 迁移记录：非受限 bundle 全部 19 个中的 14 个已在 COS（含当日用 `mirror --from obs-legacy`
+补齐的 `tts-checkpoints-v3-20260806`、`tts-harmony-tn-v1`、`asr-zhen-police-179m-v1-1-v1.1.0`、
+`asr-itn-zh-v1`）；测试语料 `aishell3-500`、`dingqiao-meeting-20260918` 与两个 catalog 归档也已复制到 COS。
+5 个受限 bundle 仍在 `obs-legacy`：向 COS 桶做 `cos/kms` 加密上传探测返回 500 InternalError，
+说明腾讯云账号尚未开通 KMS 或桶区域没有可用 CMK；开通后 `publish team-secure-state-v5 harmony-demo-license-v1`
+（本机有明文）即可，v2~v4 为历史快照需先从 OBS 取回再发布。
 
 `publish` 只接受清单中逐文件身份完全匹配的仓库资产，并使用固定顺序、时间戳和权限构造
 可重复 ZIP。对象键包含整包 SHA-256，工具不会覆盖不同内容。受限 bundle 必须经对象级
