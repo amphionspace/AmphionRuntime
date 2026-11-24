@@ -848,8 +848,9 @@ def main() -> int:
             for include in manifest.get("included_manifests", []):
                 included = read_json(safe_join(repo_root, str(include["path"])))
                 for name, entry in sorted(included.get("catalog", {}).items()):
+                    scheme = "cos" if entry.get("provider") == "tencent-cos" else "obs"
                     print(
-                        f"{name}\tcatalog-only\tobs://{entry['bucket']}/{entry['object_key']}\t"
+                        f"{name}\tcatalog-only\t{scheme}://{entry['bucket']}/{entry['object_key']}\t"
                         f"{entry['size']}\t{entry['description']}\tmanual download; see asr/test-data/README.md"
                     )
             return 0
