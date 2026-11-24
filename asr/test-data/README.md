@@ -1,7 +1,9 @@
 # Versioned test data
 
-Test corpora that are too large for Git live in Huawei Cloud OBS. The manifest
-pins every object by byte size and SHA-256 so a test run on another machine uses
+Test corpora that are too large for Git live in object storage: Tencent COS bucket
+`amphion-assets-1373259071` (`ap-guangzhou`, prefix `amphion-runtime/test-data/v1`) since 2026-11-22;
+the previous Huawei OBS copies in `cuhk-anfeiweng-benchmark` are kept read-only under the same keys.
+The manifest pins every object by byte size and SHA-256 so a test run on another machine uses
 the same input.
 
 The default local root is `~/.cache/amphion-runtime/test-data/v1`. Override it
@@ -9,8 +11,8 @@ with `AMPHION_TEST_DATA_DIR`.
 
 ## 按测试目的选择
 
-权威索引为 [manifest.json](manifest.json)，下表资产均位于华为云 OBS 桶
-`cuhk-anfeiweng-benchmark`。`bundles` 是工具可以自动恢复的语料；`catalog` 是需要手动下载的
+权威索引为 [manifest.json](manifest.json)，下表资产均位于腾讯云 COS 桶
+`amphion-assets-1373259071`（2026-11-22 自华为云 OBS `cuhk-anfeiweng-benchmark` 迁入，对象键不变；OBS 副本只读保留）。`bundles` 是工具可以自动恢复的语料；`catalog` 是需要手动下载的
 外部归档索引，两类都会出现在 `test_data.py list` 和 `tools/assets/sync.py list` 中。
 `catalog-only` 不参与 `fetch all`、`verify all` 或 `publish`。
 
@@ -22,7 +24,7 @@ with `AMPHION_TEST_DATA_DIR`.
 | `police-terminology-legacy-v1` | 单独存放的旧警务术语包 | 手动下载；尚未检查内容，不应当作上面的完整警务评测包 |
 
 `aishell3-500` 使用中性名称；旧名称 `aishell3-hotwords-500` 仍作为别名，两个名称同时指定
-只选中一次。OBS 对象键仍为
+只选中一次。对象键仍为
 `amphion-runtime/test-data/v1/amphion-test-data-aishell3-hotwords-500-v1.zip`，本地目录仍为
 `~/.cache/amphion-runtime/test-data/v1/aishell3_test_hotwords_500`，包内文件及 SHA-256 均不变。
 这保留了现有命令、缓存和历史报告的可追溯性。`dataset_version=v1` 表示缓存命名空间，
@@ -40,14 +42,15 @@ Linux 可以用于警务算法迭代，正式交付的平台生命周期和性�
 
 ## 警务评测归档的位置
 
-完整警务包逻辑名称为 `police-asr-eval-20260914`，物理对象键保留历史命名：
+完整警务包逻辑名称为 `police-asr-eval-20260914`。2026-11-22 起位于 COS 桶 `amphion-assets-1373259071`，
+历史对象键整体挪到 `amphion-runtime/test-data/catalog/` 前缀下（OBS 原键登记在 `catalog.*.legacy_obs`）：
 
-| 内容 | OBS 对象键 |
+| 内容 | COS 对象键 |
 | --- | --- |
-| 完整包 | `asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst` |
-| 整包校验和 | `asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst.sha256` |
-| 来源、范围及目录说明 | `asr_testsets/2026-09-14/summary/README.md` |
-| 分数据集统计 | `asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv` |
+| 完整包 | `amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst` |
+| 整包校验和 | `amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst.sha256` |
+| 来源、范围及目录说明 | `amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/summary/README.md` |
+| 分数据集统计 | `amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/summary/DATASET_SUMMARY.tsv` |
 
 远端说明记录 19 个数据集、18,054 对音频和文本，约 24.78 小时，另有 1 条无可靠标注的音频。
 根目录的 `manifest.jsonl` / `manifest.tsv` 和 `datasets/<dataset_id>/pairs.tsv` 提供输入映射；
@@ -59,7 +62,7 @@ Linux 可以用于警务算法迭代，正式交付的平台生命周期和性�
 ```bash
 ab remotes
 mkdir -p "$HOME/.cache/amphion-runtime/test-data/external/police-asr-eval-20260914"
-ab pull obs-cuhk-anfeiweng-benchmark:asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst \
+ab pull cos-amphion-assets:amphion-runtime/test-data/catalog/asr_testsets/2026-09-14/asr_testsets_handoff_20260914.tar.zst \
   "$HOME/.cache/amphion-runtime/test-data/external/police-asr-eval-20260914/asr_testsets_handoff_20260914.tar.zst"
 ```
 
@@ -67,24 +70,25 @@ ab pull obs-cuhk-anfeiweng-benchmark:asr_testsets/2026-09-14/asr_testsets_handof
 `f1b4bc4e3589f44e1d7fe20abd2bb8d7a594494e324a264bcd812cd30beb91b9`；在 Linux 可用
 `sha256sum`，macOS 可用 `shasum -a 256`。自动恢复工具目前不接管这个 `tar.zst` 归档。
 
-另一个旧包位于 `datasets/police-terminology-testset-v1.tar.gz`，大小 `20176931` 字节；
+另一个旧包位于 `amphion-runtime/test-data/catalog/datasets/police-terminology-testset-v1.tar.gz`，大小 `20176931` 字节；
 其对象键和校验和单独登记在 `catalog.police-terminology-legacy-v1`。仅凭名称不能判断它覆盖
 哪些子集，使用前须检查内容及授权，不与完整警务包混用。
 
-## Configure OBS credentials
+## Configure credentials
 
-Export these variables without committing their values:
+默认存储是 COS，只需要两个环境变量（取值见 `amphionbucket` 仓库的共享配置，禁止写入仓库）：
 
 ```bash
-export OBS_AccesskeyID=...
-export OBS_SecretAccesskey=...
-export OBS_Endpoint=https://obs.cn-north-9.myhuaweicloud.com
+export COS_SecretId=...
+export COS_SecretKey=...
+python3 -m pip install cos-python-sdk-v5
 ```
 
-Install Huawei Cloud's OBS Python SDK, then fetch and verify the data:
+`storages.obs-legacy` 只是迁移前位置的只读登记；如需从 OBS 取旧副本，另设
+`OBS_AccesskeyID` / `OBS_SecretAccesskey` / `OBS_Endpoint` 并安装 `esdk-obs-python`，
+把清单里的 `storage` 临时换成该块即可（工具同时支持两种 provider）。
 
 ```bash
-python3 -m pip install esdk-obs-python
 python3 asr/tools/test_data.py list
 python3 asr/tools/test_data.py fetch all
 python3 asr/tools/test_data.py verify all

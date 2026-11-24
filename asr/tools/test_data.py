@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch, verify, and publish versioned test-data bundles stored in OBS."""
+"""Fetch, verify, and publish versioned test-data bundles stored in object storage (Tencent COS by default; Huawei OBS manifests still supported)."""
 
 from __future__ import annotations
 
@@ -28,11 +28,18 @@ class TestDataError(RuntimeError):
 
 
 @dataclass(frozen=True)
-class ObsConfig:
+class StorageConfig:
+    provider: str
     bucket: str
-    endpoint: str
+    prefix: str
     access_key: str
     secret_key: str
+    endpoint: str = ""
+    region: str = ""
+
+
+# 兼容旧名称：历史脚本/测试引用过 ObsConfig。
+ObsConfig = StorageConfig
 
 
 def load_manifest(path: Path = MANIFEST_PATH) -> dict:
@@ -146,22 +153,40 @@ def extract_archive(archive: Path, destination_parent: Path, bundle: dict) -> No
         replacement.rename(target)
 
 
-def obs_config(manifest: dict) -> ObsConfig:
-    settings = manifest["obs"]
+def storage_settings(manifest: dict) -> dict:
+    """默认存储块：新清单用 `storage`（可声明 provider），旧清单用 `obs`。"""
+    settings = manifest.get("storage") or manifest.get("obs")
+    if not isinstance(settings, dict):
+        raise TestDataError("test-data manifest storage must be an object")
+    return settings
+
+
+def storage_config(manifest: dict) -> StorageConfig:
+    settings = storage_settings(manifest)
+    provider = str(settings.get("provider", "huawei-obs"))
+    if provider not in ("huawei-obs", "tencent-cos"):
+        raise TestDataError(f"unsupported test-data storage provider: {provider}")
     values = {}
-    for field, key in (
-        ("endpoint", settings["endpoint_env"]),
-        ("access_key", settings["access_key_env"]),
-        ("secret_key", settings["secret_key_env"]),
-    ):
+    pairs = [("access_key", settings["access_key_env"]), ("secret_key", settings["secret_key_env"])]
+    if provider == "huawei-obs":
+        pairs.insert(0, ("endpoint", settings["endpoint_env"]))
+    for field, key in pairs:
         value = os.environ.get(key)
         if not value:
-            raise TestDataError(f"missing OBS environment variable: {key}")
+            raise TestDataError(f"missing {provider} environment variable: {key}")
         values[field] = value
-    return ObsConfig(bucket=settings["bucket"], **values)
+    if provider == "tencent-cos":
+        values["endpoint"] = str(settings.get("endpoint", "")).rstrip("/")
+        values["region"] = str(settings.get("region", ""))
+        if not values["region"]:
+            raise TestDataError("tencent-cos test-data storage needs region")
+    return StorageConfig(provider=provider, bucket=str(settings["bucket"]), prefix=str(settings["prefix"]), **values)
 
 
-def obs_client(config: ObsConfig):
+obs_config = storage_config  # 兼容旧名称
+
+
+def obs_client(config: StorageConfig):
     try:
         from obs import ObsClient
     except ImportError as error:
@@ -175,8 +200,26 @@ def obs_client(config: ObsConfig):
     )
 
 
+def cos_client(config: StorageConfig):
+    try:
+        from qcloud_cos import CosConfig, CosS3Client
+    except ImportError as error:
+        raise TestDataError(
+            "missing Tencent COS SDK; run: python3 -m pip install cos-python-sdk-v5"
+        ) from error
+    options = dict(Region=config.region, SecretId=config.access_key, SecretKey=config.secret_key, Scheme="https")
+    if config.endpoint:
+        options["Endpoint"] = config.endpoint.split("://", 1)[-1]
+    return CosS3Client(CosConfig(**options))
+
+
 def object_key(manifest: dict, bundle: dict) -> str:
-    return f"{manifest['obs']['prefix'].rstrip('/')}/{bundle['object']}"
+    return f"{storage_settings(manifest)['prefix'].rstrip('/')}/{bundle['object']}"
+
+
+def object_url(config: StorageConfig, key: str) -> str:
+    scheme = "cos" if config.provider == "tencent-cos" else "obs"
+    return f"{scheme}://{config.bucket}/{key}"
 
 
 def response_header(response, name: str) -> str | None:
@@ -194,24 +237,40 @@ def fetch_bundle(manifest: dict, name: str) -> Path:
     downloads.mkdir(parents=True, exist_ok=True)
     archive = downloads / str(bundle["object"])
     checkpoint = archive.with_suffix(archive.suffix + ".checkpoint")
-    config = obs_config(manifest)
-    client = obs_client(config)
-    try:
-        response = client.downloadFile(
-            config.bucket,
-            object_key(manifest, bundle),
-            str(archive),
-            partSize=20 * 1024 * 1024,
-            taskNum=4,
-            enableCheckpoint=True,
-            checkpointFile=str(checkpoint),
-        )
-    finally:
-        client.close()
-    if response.status >= 300:
-        raise TestDataError(
-            f"OBS download failed for {name}: status={response.status} code={response.errorCode}"
-        )
+    config = storage_config(manifest)
+    key = object_key(manifest, bundle)
+    if config.provider == "tencent-cos":
+        from qcloud_cos.cos_exception import CosClientError, CosServiceError
+        client = cos_client(config)
+        try:
+            client.download_file(
+                Bucket=config.bucket,
+                Key=key,
+                DestFilePath=str(archive),
+                PartSize=20,
+                MAXThread=4,
+                EnableCRC=False,
+            )
+        except (CosServiceError, CosClientError) as error:
+            raise TestDataError(f"COS download failed for {name}: {object_url(config, key)}: {error}") from error
+    else:
+        client = obs_client(config)
+        try:
+            response = client.downloadFile(
+                config.bucket,
+                key,
+                str(archive),
+                partSize=20 * 1024 * 1024,
+                taskNum=4,
+                enableCheckpoint=True,
+                checkpointFile=str(checkpoint),
+            )
+        finally:
+            client.close()
+        if response.status >= 300:
+            raise TestDataError(
+                f"OBS download failed for {name}: status={response.status} code={response.errorCode}"
+            )
     verify_archive(archive, bundle)
     extract_archive(archive, root, bundle)
     archive.unlink()
@@ -234,8 +293,36 @@ def verify_bundle(manifest: dict, name: str) -> Path:
 def publish_bundle(manifest: dict, name: str, archive: Path) -> None:
     bundle = manifest["bundles"][name]
     verify_archive(archive, bundle)
-    config = obs_config(manifest)
+    config = storage_config(manifest)
     key = object_key(manifest, bundle)
+    if config.provider == "tencent-cos":
+        from qcloud_cos.cos_exception import CosServiceError
+        client = cos_client(config)
+        try:
+            existing = client.head_object(Bucket=config.bucket, Key=key)
+        except CosServiceError as error:
+            if error.get_status_code() != 404:
+                raise TestDataError(
+                    f"cannot inspect COS object {object_url(config, key)}: status={error.get_status_code()} code={error.get_error_code()}"
+                ) from error
+            existing = None
+        if existing is not None:
+            remote_size = int(existing.get("Content-Length", -1))
+            if remote_size == archive.stat().st_size:
+                raise TestDataError(f"COS object already exists: {object_url(config, key)}")
+            raise TestDataError(f"refusing to replace COS object with different size: {object_url(config, key)}")
+        try:
+            client.upload_file(
+                Bucket=config.bucket,
+                Key=key,
+                LocalFilePath=str(archive),
+                PartSize=100,
+                MAXThread=4,
+                Metadata={"x-cos-meta-sha256": str(bundle["sha256"])},
+            )
+        except CosServiceError as error:
+            raise TestDataError(f"COS upload failed for {name}: status={error.get_status_code()} code={error.get_error_code()}") from error
+        return
     client = obs_client(config)
     try:
         existing = client.getObjectMetadata(config.bucket, key)
@@ -297,8 +384,9 @@ def main() -> int:
                     f"{bundle['license']}\t{bundle['description']}\taliases={aliases}"
                 )
             for name, entry in sorted(manifest.get("catalog", {}).items()):
+                scheme = "cos" if entry.get("provider") == "tencent-cos" else "obs"
                 print(
-                    f"{name}\tcatalog-only\tobs://{entry['bucket']}/{entry['object_key']}\t"
+                    f"{name}\tcatalog-only\t{scheme}://{entry['bucket']}/{entry['object_key']}\t"
                     f"{entry['size']}\t{entry['description']}\tmanual download; see asr/test-data/README.md"
                 )
             return 0
