@@ -355,6 +355,18 @@ internal object LitsTnNormalizer {
                 match.groupValues[1] + digitSequenceToHanzi(number.filter { it in '0'..'9' }) +
                     if (number.endsWith("x", ignoreCase = true)) " X" else ""
             }
+            // 号码类字段（号码/工号/警号/编号/卡号…）与拨号动词后的 ≥5 位整数一律逐位读，
+            // 否则下面的 bigCardinalRegex 会把 18912345678 读成"一百八十九亿…"。
+            // 电话类标签沿用"幺"读法，其余编号沿用身份证的"一"读法。
+            output = labeledCodeNumberRegex.replace(output) { match ->
+                val label = match.groupValues[1]
+                val spoken = digitSequenceToHanzi(match.groupValues[2])
+                label + if (phoneLabelRegex.containsMatchIn(label)) spoken.replace('一', '幺') else spoken
+            }
+            // 无标签的大陆手机号形态（1[3-9] 开头 11 位）本身就不是基数词；后面跟量词/单位时仍按金额或数量读。
+            output = bareMainlandMobileRegex.replace(output) { match ->
+                digitSequenceToHanzi(match.groupValues[1]).replace('一', '幺')
+            }
             return output
         }
 
@@ -653,8 +665,20 @@ internal object LitsTnNormalizer {
                     "([0-9]{17}[0-9Xx]|[0-9]{6} [0-9]{8} [0-9]{3}[0-9Xx]|" +
                     "[0-9]{6}-[0-9]{8}-[0-9]{3}[0-9Xx]|[0-9]{15})" + numberFieldEnd,
             )
-            // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail)
-            private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])(\\d{7,15})(?![0-9])")
+            private val labeledCodeNumberRegex = Regex(
+                "((?<!身份)(?:手机号码?|手机|电话号码?|联系电话|联系方式|来电号码|来电|报警电话|号码|" +
+                    "拨打|回拨|呼叫|工号|警号|案件编号|案号|编号|订单号|单号|运单号|快递单号|卡号|账号|户号|证件号码?|证号|" +
+                    "流水号|序列号|车架号)\\s*(?:为|是)?\\s*[:：]?\\s*)(\\d{5,20})(?![0-9A-Za-z.]|[ .-][0-9])" +
+                    "(?!\\s*(?:元|块|万|亿|人|个|次|名|位|件|条|台|辆|吨|米|公里|千米|年|天|小时|分钟|秒))",
+            )
+            private val phoneLabelRegex = Regex("手机|电话|联系方式|来电|号码|拨打|回拨|呼叫")
+            private val bareMainlandMobileRegex = Regex(
+                "(?<![0-9A-Za-z.])(1[3-9][0-9]{9})(?![0-9A-Za-z.]|[ .-][0-9])" +
+                    "(?!\\s*(?:元|块|万|亿|人|个|次|名|位|件|条|台|辆|吨|米|公里|千米|年|天|小时|分钟|秒))",
+            )
+            // >=7-digit isolated number (native only spells out <=6 digits); not after '.' (decimal tail).
+            // Leading-zero runs are never cardinals (area-code numbers, zero-padded codes): native TN reads them digit by digit.
+            private val bigCardinalRegex = Regex("(?<![0-9A-Za-z.])([1-9]\\d{6,14})(?![0-9])")
             private val semanticVersionRegex = Regex("(?<![A-Za-z0-9])([vV])(\\d+(?:\\.\\d+)+)(?![A-Za-z0-9])")
             // A leading colon separates prose from the following word; URL-internal colons remain technical.
             private val technicalAsciiTokenRegex = Regex("(?<![A-Za-z0-9])((?!:)[A-Za-z0-9./\\\\_@:?=&#%+\\-]*[A-Za-z0-9])(?![A-Za-z0-9])")

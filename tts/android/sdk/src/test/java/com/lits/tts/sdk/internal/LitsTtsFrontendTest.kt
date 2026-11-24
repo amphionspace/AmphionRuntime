@@ -428,12 +428,15 @@ class LitsTtsFrontendTest {
     fun mainlandNumberRulesRequireACompleteLabeledNumber() {
         val layout = testLayout()
         val cardinal = "一百三十八亿零一十三万八千"
-        listOf("13800138000", "金额13800138000元", "订单号13800138000").forEach { raw ->
-            assertEquals(raw.replace("13800138000", cardinal), LitsTnNormalizer.normalize(layout, raw, "zh-en", "zh-en"))
-        }
+        // 3.3：跟着量词/单位的大数仍是基数词；裸手机号形态与号码类字段逐位读（客户反馈 18912345678 被读成一百八十九亿）。
+        assertEquals("金额" + cardinal + "元", LitsTnNormalizer.normalize(layout, "金额13800138000元", "zh-en", "zh-en"))
+        assertEquals("幺三八零零幺三八零零零", LitsTnNormalizer.normalize(layout, "13800138000", "zh-en", "zh-en"))
+        assertEquals("订单号一三八零零一三八零零零", LitsTnNormalizer.normalize(layout, "订单号13800138000", "zh-en", "zh-en"))
+        // 电话类标签后的整数即使不是合法手机号长度，也逐位读而不是读成亿。
+        assertEquals("手机号:幺三八零零幺三八零零零零", LitsTnNormalizer.normalize(layout, "手机号:138001380000", "zh-en", "zh-en"))
+        assertEquals("手机号:幺二八零零幺三八零零零", LitsTnNormalizer.normalize(layout, "手机号:12800138000", "zh-en", "zh-en"))
         // Compare with an unrelated field label: the new rules must not affect these bodies.
         listOf(
-            "手机号" to "138001380000", "手机号" to "12800138000",
             "手机号" to "13800138000.25", "手机号" to "13800138000A",
             "手机号" to "138-0013-8000-1", "手机号" to "13800138000元",
             "身份证号" to "11010119900101123XA", "身份证号" to "1101011990010112345",
