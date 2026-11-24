@@ -5,14 +5,14 @@
  "package_name": "com.lits.tts.demo33",
  "app_label": "Lits TTS Demo 3.3",
  "variant": "debug",
- "sample_source_commit": "ae54bd26941bb83eb5138ab0267f27e9c8a438e5",
+ "sample_source_commit": "cf3c178d7a0edd901f0c486f3d961e4bc28e1359",
  "sample_main_source_changes": false,
  "customer_license_files_included": false,
  "model": "IMF 170000 (runtime package tts-runtime-imf170000-v2)",
- "size_bytes": 466315488,
- "archive_sha256": "90390adfdda67561083b8560d309b72089d62d845a13e37c0016f721c73f5229",
- "apk_sha256": "2982606e7a516526f2e6ea367f23e99c6611d8af6326c397a0ba783f5126baa2",
- "aar_sha256": "b16606011c5f515c3ed367ccc8bc1aec9383f7e3db22110bdbf493f58a9cf871",
+ "size_bytes": 466322657,
+ "archive_sha256": "6e3374619281ef2b1504a07b6f5e2766e19335efb2873c0df99c7ebbfc53fa55",
+ "apk_sha256": "1aec784b6d07089d861fd4362732b9f5b69c59f65a84538d19b1b236c82b092f",
+ "aar_sha256": "0260aba44f09859c632a21457b891b11ea42192faa84d34421f24e9b385848e2",
  "sdk_source_note": "Same locally built embedded Release AAR as SDK package.",
  "resource_delivery": "Embedded in AAR and merged into APK; no external-resources directory",
  "verification": {
@@ -20,6 +20,7 @@
   "device_install": "PASS: installed on BRA-AL00 via the packaged tools/install_demo.py with an internal device-bound licence",
   "archive_crc_and_hashes": "PASS",
   "lifecycle_device_test": "PASS (OK 1 test)",
-  "pronunciation_33": "PASS 3/3 byte-identical PCM to homophone spellings; 3.2 Demo fails the same test on 南站/重做"
+  "pronunciation_33": "PASS 3/3 byte-identical PCM to homophone spellings; 3.2 Demo fails the same test on 南站/重做",
+  "phone_numbers_33": "PASS 4/4 byte-identical PCM to the digit-by-digit hanzi spelling"
  }
 }

@@ -58,24 +58,24 @@
   "docs/PSEUDOCODE.md"
  ],
  "checksum_file": "CHECKSUMS.txt",
- "aar_sha256": "b16606011c5f515c3ed367ccc8bc1aec9383f7e3db22110bdbf493f58a9cf871",
- "archive_sha256": "f20cdc5eeb12bf7a133b623b7520324a5d6d92c1380566da28686ba5b476f8d8",
- "archive_size_bytes": 229580090,
- "source_commit": "ae54bd26941bb83eb5138ab0267f27e9c8a438e5",
- "source_note": "release branch fix/android-tts-3.3-lexicon-nanzhan = 3.2 line (fix/android-tts-3.2-glued-punctuation @ ed409a24) + lexicon regression test + version bump; clean worktree. ORT .so from bundle tts-onnxruntime-android-v1 (untracked on this branch).",
+ "aar_sha256": "0260aba44f09859c632a21457b891b11ea42192faa84d34421f24e9b385848e2",
+ "archive_sha256": "bcaa328d69842e37f1ab4e6d3b201b88b56e012c0189f648e48b7eabff588ee9",
+ "archive_size_bytes": 229585043,
+ "source_commit": "cf3c178d7a0edd901f0c486f3d961e4bc28e1359",
+ "source_note": "release branch fix/android-tts-3.3-lexicon-nanzhan = 3.2 line (fix/android-tts-3.2-glued-punctuation @ ed409a24) + lexicon fix + phone-number pre-TN fix + version bump; clean worktree. ORT .so from bundle tts-onnxruntime-android-v1 (untracked on this branch). First 3.3 build (aar b1660601…, archive f20cdc5e…) lacked the phone-number fix and was never shipped.",
  "packaging_only": false,
  "resource_directory": "AAR assets/lits-models/tts",
- "api_compatibility": "Public API, inference configuration, bundled-resource installer and licence behaviour unchanged from 3.2; only three frontend lexicon resources changed (no Kotlin/native code change).",
+ "api_compatibility": "Public API, inference configuration, bundled-resource installer and licence behaviour unchanged from 3.2. Changes: three frontend lexicon resources (南站/重X readings) and one Kotlin frontend pre-TN change (long digit strings in number/code fields and bare mainland mobile numbers are read digit by digit instead of as cardinals).",
  "validation": {
-  "sdk_unit_tests_total": 158,
+  "sdk_unit_tests_total": 160,
   "sdk_unit_tests_skipped": 4,
   "sdk_unit_tests_failed": 0,
-  "sdk_unit_tests_new": "LexiconPronunciationFix33Test: 成都南站/广州南站/南昆线 → nan2; 重试/重做/重跑/重拨 → chong2; 重庆北站 → chong2 qing4; 南无阿弥陀佛 → na1 mo2 (unchanged)",
+  "sdk_unit_tests_new": "LexiconPronunciationFix33Test: 成都南站/广州南站/南昆线 → nan2; 重试/重做/重跑/重拨 → chong2; 重庆北站 → chong2 qing4; 南无阿弥陀佛 → na1 mo2 (unchanged); PhoneNumberReadingFix33Test: 号码/拨打/工号/警号/编号/卡号 + digits → digit-by-digit (幺 for phone labels), 金额…元 / 人口…人 stay cardinals",
   "packaging_tests_passed": "test_pack_sdk_only.py OK (7 tests)",
   "archive_checks": "ZIP CRC OK; CHECKSUMS.txt 8 entries all OK; APK assets/lits-models byte-identical to AAR assets",
   "assets_byte_equality": "AAR bundles the 22 runtime resources of the IMF 170000 export; the five ONNX files are byte-identical to the 3.1/3.2 records",
   "device": "BRA-AL00 / Android 12 / arm64-v8a (internal test phone, internal device-bound TTS licence TTS-33-VERIFY-20261123)",
-  "device_lifecycle": "PASS: TtsLifecycleDeviceTest (real synthesis + stop/shutdown/recover ×3) OK (1 test) against the Release AAR embedded in the 3.3 Demo",
+  "device_lifecycle": "PASS: TtsLifecycleDeviceTest (real synthesis + stop/shutdown/recover ×3) OK (1 test) against the Release AAR embedded in the rebuilt 3.3 Demo (apk 1aec784b…)",
   "device_pronunciation_33": "PASS: PronunciationFix33DeviceTest 3/3 — '成都南站到了。' / '请重做一次。' / '正在重试。' each synthesise byte-identical PCM to the homophone spellings '成都难站到了。' / '请虫做一次。' / '正在虫试。'. Same test on the installed 3.2 Demo FAILS on 南站 (79872 vs 79104 bytes) and 重做, and PASSES on 重试 (control); 3.3 PCM for 成都南站 is byte-identical to 3.2 PCM for 成都难站, so only the lexicon changed. Host ASR cross-check: 3.2 南站 wav → '成都呢占道了', 3.3 → '成都南站到了'; 3.2 重做 wav → '请重坐一次', 3.3 → '请重做一次'.",
   "not_run": [
    "full legacy API matrix",
@@ -84,7 +84,8 @@
    "page recreation",
    "both screen layouts"
   ],
-  "device_install": "PASS: installed from the packed Demo ZIP with tools/install_demo.py (package com.lits.tts.demo33) and licence TTS-33-VERIFY-20261123"
+  "device_install": "PASS: installed from the packed Demo ZIP with tools/install_demo.py (package com.lits.tts.demo33) and licence TTS-33-VERIFY-20261123",
+  "device_phone_numbers_33": "PASS: PhoneNumberReadingFix33DeviceTest 4/4 — '现在播报号码18912345678。' / '请拨打18912345678。' / '警号123456。' synthesise byte-identical PCM to '…幺八九幺二三四五六七八。' / '警号一二三四五六。', and '金额13800138000元。' to '金额一百三十八亿零一十三万八千元。'. Same test on the first (unshipped) 3.3 build fails the first three (e.g. 281856 vs 191232 bytes); host ASR of that old audio reads '一百八十九一一千二百三十四万…', new audio reads '现在播报号码幺八九幺二三四五六七八'."
  },
  "supersedes": "3.2 (2026-11-16, aar 49f37bc4…, archive 519b34d5…)"
 }
