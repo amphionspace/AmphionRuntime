@@ -102,6 +102,12 @@ export class DeviceStressOptions {
    * 载体不能替 SDK 决定模式；要做 A/B 时再显式传值。
    */
   speakerIdentityMode: string = '';
+  /** 场景参数交叉验证（2026-11-23）：customer-* 模式的会话级覆盖，0/空串表示跟随 profile。 */
+  vadEndMs: number = 0;
+  recognizerMode: string = '';
+  maxSpeakers: number = 0;
+  /** 用户热词文件（每行一个词的 UTF-16BE hex，ASCII 传输），非空时作为 sysGeneralLexicon 建引擎。 */
+  hotwordsPath: string = '';
   captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
 }
@@ -1145,6 +1151,25 @@ function stringToUtf16Hex(value: string): string {
   return result;
 }
 
+function utf16HexToString(hex: string): string {
+  let out = '';
+  for (let i = 0; i + 4 <= hex.length; i += 4) out += String.fromCharCode(parseInt(hex.substring(i, i + 4), 16));
+  return out;
+}
+
+/** 读取用户热词文件：每行一个词的 UTF-16BE hex（manifest 同样走 ASCII 通道），空行跳过。 */
+function readHotwords(path: string): string[] {
+  if (path.length === 0) return [];
+  const text = asciiBytesToString(new Uint8Array(readBytes(path)));
+  const words: string[] = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.length > 0) words.push(utf16HexToString(line));
+  }
+  return words;
+}
+
 function readBytes(path: string): ArrayBuffer {
   const fp = fs.openSync(path);
   try {
@@ -1310,6 +1335,8 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  const hotwords = readHotwords(options.hotwordsPath);
+  if (hotwords.length > 0) params.extraParams['sysGeneralLexicon'] = hotwords;
   params.language = 'zh-CN';
   params.online = 1;
   return SpeechRecognizeSdk.createEngine(params);
@@ -2334,7 +2361,8 @@ async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: 
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0,
+  overrides?: DeviceStressOptions): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -2356,6 +2384,21 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     (diarizationVadEndMs === 400 || diarizationVadEndMs === 600 || diarizationVadEndMs === 800)) {
     params.extraParams['vadEnd'] = diarizationVadEndMs;
     events.auditVadEndMs = diarizationVadEndMs;
+  }
+  // 场景参数交叉验证：显式覆盖 profile 的会话参数（不改 profile 本身）。
+  if (overrides !== undefined) {
+    // speakerIdentityMode 此前只在通用 startParams 生效，客户场景 profile 路径没有应用，model/voiceprint 对比会跑成同一组。
+    if (params.speakerDiarization !== undefined && overrides.speakerIdentityMode.length > 0) {
+      params.speakerDiarization.speakerIdentityMode = overrides.speakerIdentityMode;
+    }
+    if (overrides.vadEndMs > 0) {
+      params.extraParams['vadEnd'] = overrides.vadEndMs;
+      events.auditVadEndMs = overrides.vadEndMs;
+    }
+    if (overrides.recognizerMode.length > 0) params.extraParams['recognizerMode'] = overrides.recognizerMode;
+    if (params.speakerDiarization !== undefined && overrides.maxSpeakers > 0) {
+      params.speakerDiarization.maxSpeakers = overrides.maxSpeakers;
+    }
   }
   // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
   const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
@@ -3178,7 +3221,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes' ||
         options.mode === 'diarization-windows') {
         result = await runCustomerScenarioCycle(
-          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs);
+          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs, options);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {

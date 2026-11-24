@@ -470,7 +470,7 @@ class HarmonyCustomerScenarioDemoTest(unittest.TestCase):
         self.assertIn("CUSTOMER_SCENARIOS", source)
         self.assertIn(
             "customerProfileStartParams(\n"
-            "      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization)",
+            "      sessionId, this.capturedCustomerScenario, this.capturedSpeakerDiarization, this.capturedMaxSpeakers)",
             source,
         )
         self.assertNotIn("speakerDiarizationServiceUrl", source)

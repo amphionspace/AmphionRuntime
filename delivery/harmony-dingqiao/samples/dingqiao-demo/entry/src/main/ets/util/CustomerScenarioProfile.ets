@@ -100,7 +100,7 @@ export function customerProfileUsesContinuousRecognition(profile: CustomerScenar
 }
 
 export function customerProfileStartParams(sessionId: string, name: CustomerScenarioName,
-  speakerDiarizationEnabled?: boolean): StartParams {
+  speakerDiarizationEnabled?: boolean, maxSpeakersOverride?: number): StartParams {
   const profile = customerScenarioProfile(name);
   const params = new StartParams();
   params.sessionId = sessionId;
@@ -117,7 +117,10 @@ export function customerProfileStartParams(sessionId: string, name: CustomerScen
     // rely on the diarization timeline rather than silence detection.
     params.extraParams['vadEnd'] = 800;
     const diarization = new SpeakerDiarizationConfig();
-    diarization.maxSpeakers = profile.speakerDiarizationMaxSpeakers ?? 4;
+    // Demo 允许按《场景划分方案》锁定角色上限（访谈 2 人锁 2）；1~4 之外的值回落到 profile。
+    const override = maxSpeakersOverride !== undefined && maxSpeakersOverride >= 1 && maxSpeakersOverride <= 4 ?
+      maxSpeakersOverride : undefined;
+    diarization.maxSpeakers = override ?? profile.speakerDiarizationMaxSpeakers ?? 4;
     params.speakerDiarization = diarization;
   }
   if (profile.vadBegin !== undefined) params.extraParams['vadBegin'] = profile.vadBegin;

@@ -148,6 +148,13 @@ export default class EntryAbility extends UIAbility {
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
       options.speakerIdentityMode = this.stringParameter(want, 'stressSpeakerIdentityMode', '');
+      // 场景参数交叉验证（customer-* 模式）：0 / 'none' 表示跟随 profile。
+      options.vadEndMs = this.numberParameter(want, 'stressVadEndMs', 0);
+      const recognizerMode = this.stringParameter(want, 'stressRecognizerMode', 'none');
+      options.recognizerMode = recognizerMode === 'none' ? '' : recognizerMode;
+      options.maxSpeakers = this.numberParameter(want, 'stressMaxSpeakers', 0);
+      const hotwordsPath = this.stringParameter(want, 'stressHotwordsFile', 'none');
+      options.hotwordsPath = hotwordsPath === 'none' ? '' : hotwordsPath;
       options.captureDiagnostics = this.stringParameter(want, 'stressCaptureDiagnostics', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       options.samplePower = params !== undefined && params['samplePower'] === 'true';
