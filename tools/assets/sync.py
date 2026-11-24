@@ -90,6 +90,107 @@ def sha256_file(path: Path, block_size: int = 8 * 1024 * 1024) -> str:
     return digest.hexdigest()
 
 
+CLIENT_ENCRYPTION = "client-aes256-gcm"
+SUPPORTED_ENCRYPTION = (None, "sse-kms", CLIENT_ENCRYPTION)
+ASSET_KEY_ENV = "AMPHION_ASSET_KEY_B64"
+ENCRYPTED_MAGIC = b"AMPHENC1"
+ENCRYPTED_NONCE_SIZE = 12
+ENCRYPTED_SUFFIX = ".zip.enc"
+
+
+def is_restricted(definition: dict) -> bool:
+    return definition.get("encryption") in ("sse-kms", CLIENT_ENCRYPTION)
+
+
+def is_client_encrypted(definition: dict) -> bool:
+    return definition.get("encryption") == CLIENT_ENCRYPTION
+
+
+def asset_key() -> bytes:
+    """客户端加密密钥：环境变量 AMPHION_ASSET_KEY_B64（32 字节 AES-256 密钥的 base64），由团队凭据注入脚本提供。"""
+    import base64
+
+    raw = os.environ.get(ASSET_KEY_ENV, "").strip()
+    if not raw:
+        raise AssetError(
+            f"missing {ASSET_KEY_ENV}: client-encrypted bundles need the team asset key "
+            "(see tools/assets/README.md, section 受限 bundle)"
+        )
+    try:
+        key = base64.b64decode(raw, validate=True)
+    except (ValueError, TypeError) as error:
+        raise AssetError(f"{ASSET_KEY_ENV} is not valid base64") from error
+    if len(key) != 32:
+        raise AssetError(f"{ASSET_KEY_ENV} must decode to 32 bytes, got {len(key)}")
+    return key
+
+
+def aesgcm():
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    except ImportError as error:
+        raise AssetError(
+            "missing cryptography package for client-encrypted bundles; run with the repository "
+            ".venv (python3 -m pip install cryptography)"
+        ) from error
+    return AESGCM
+
+
+def encrypted_nonce(key: bytes, plain_sha256: str) -> bytes:
+    """确定性 nonce：由密钥与明文 SHA-256 派生。同一明文得到同一密文，便于清单登记与远端比对；
+    不同明文的 nonce 不同，满足 AES-GCM 的 nonce 唯一性要求。"""
+    import hmac
+
+    return hmac.new(key, b"amphion-asset-nonce:" + plain_sha256.encode("ascii"), hashlib.sha256).digest()[:ENCRYPTED_NONCE_SIZE]
+
+
+def encrypted_aad(nonce: bytes, plain_sha256: str) -> bytes:
+    return ENCRYPTED_MAGIC + nonce + plain_sha256.encode("ascii")
+
+
+def encrypt_archive(plain: Path, encrypted: Path, plain_sha256: str) -> None:
+    key = asset_key()
+    nonce = encrypted_nonce(key, plain_sha256)
+    data = plain.read_bytes()
+    body = aesgcm()(key).encrypt(nonce, data, encrypted_aad(nonce, plain_sha256))
+    encrypted.parent.mkdir(parents=True, exist_ok=True)
+    encrypted.write_bytes(ENCRYPTED_MAGIC + nonce + body)
+    os.chmod(encrypted, 0o600)
+
+
+def decrypt_archive(encrypted: Path, plain: Path, plain_sha256: str) -> None:
+    key = asset_key()
+    blob = encrypted.read_bytes()
+    header = len(ENCRYPTED_MAGIC) + ENCRYPTED_NONCE_SIZE
+    if len(blob) <= header or not blob.startswith(ENCRYPTED_MAGIC):
+        raise AssetError(f"{encrypted.name} is not an AMPHENC1 client-encrypted archive")
+    nonce = blob[len(ENCRYPTED_MAGIC):header]
+    if nonce != encrypted_nonce(key, plain_sha256):
+        raise AssetError(f"{encrypted.name} nonce does not match the manifest identity (wrong key or tampered archive)")
+    try:
+        data = aesgcm()(key).decrypt(nonce, blob[header:], encrypted_aad(nonce, plain_sha256))
+    except Exception as error:  # InvalidTag
+        raise AssetError(f"{encrypted.name} failed authentication (wrong key or tampered archive)") from error
+    plain.write_bytes(data)
+    os.chmod(plain, 0o600)
+
+
+def is_sealed(definition: dict) -> bool:
+    """客户端加密包是否已登记密文身份；未登记的条目可以加载，但发布 / 拉取 / 远端校验前必须先 `seal`。"""
+    return "encrypted_size" in definition or "encrypted_sha256" in definition
+
+
+def remote_expectation(definition: dict) -> tuple[int, str, Optional[str]]:
+    """远端对象应有的 (size, sha256 元数据, 加密标记)：客户端加密包登记的是密文身份，并要求 COS 侧再叠一层 SSE-COS。"""
+    if is_client_encrypted(definition):
+        if not is_sealed(definition):
+            raise AssetError("client-encrypted bundle has no encrypted identity yet; run: sync.py seal <bundle>")
+        return int(definition["encrypted_size"]), str(definition["encrypted_sha256"]), "AES256"
+    if definition.get("encryption") == "sse-kms":
+        return int(definition["size"]), str(definition["sha256"]), "kms"
+    return int(definition["size"]), str(definition["sha256"]), None
+
+
 def read_json(path: Path) -> dict:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
@@ -171,6 +272,16 @@ def validate_bundle(name: str, definition: dict) -> None:
         raise AssetError(f"bundle {name} uses unsupported archive type")
     if len(str(definition["sha256"])) != 64 or int(definition["size"]) <= 0:
         raise AssetError(f"bundle {name} has an invalid archive identity")
+    if definition.get("encryption") not in SUPPORTED_ENCRYPTION:
+        raise AssetError(f"bundle {name} has an unsupported encryption mode {definition.get('encryption')!r}")
+    if is_client_encrypted(definition) and is_sealed(definition):
+        if not str(definition["object"]).endswith(ENCRYPTED_SUFFIX):
+            raise AssetError(f"bundle {name} client-encrypted object must end with {ENCRYPTED_SUFFIX}")
+        if (
+            len(str(definition.get("encrypted_sha256", ""))) != 64
+            or int(definition.get("encrypted_size", 0)) <= int(definition["size"])
+        ):
+            raise AssetError(f"bundle {name} has an invalid encrypted archive identity")
 
 
 def load_registry(manifest_path: Path, repo_root: Path) -> tuple[dict, dict[str, Bundle]]:
@@ -276,7 +387,7 @@ def verify_local(bundle: Bundle) -> Path:
     destination = bundle.destination
     if not destination.is_dir():
         raise AssetError(f"bundle {bundle.name} is missing: {destination}")
-    if bundle.definition.get("encryption") == "sse-kms":
+    if is_restricted(bundle.definition):
         directory_mode = stat.S_IMODE(destination.stat().st_mode)
         if directory_mode & 0o077:
             raise AssetError(
@@ -389,7 +500,7 @@ def merge_destination(
     verify_file_identities(extracted, bundle, allow_extra=False, check_mode=False)
     destination = bundle.destination
     destination.mkdir(parents=True, exist_ok=True)
-    if bundle.definition.get("encryption") == "sse-kms":
+    if is_restricted(bundle.definition):
         os.chmod(destination, 0o700)
 
     conflicts = []
@@ -574,12 +685,14 @@ def download_archive(bundle: Bundle, archive: Path, checkpoint: Path, *, restric
 
 def upload_archive(bundle: Bundle, archive: Path, checkpoint: Path, *, restricted: bool) -> None:
     storage = bundle.storage
-    sha256 = str(bundle.definition["sha256"])
+    _, sha256, required_encryption = remote_expectation(bundle.definition)
     if storage.provider == "tencent-cos":
         client = cos_client(storage)
         options = {"Metadata": {"x-cos-meta-sha256": sha256}}
-        if restricted:
+        if required_encryption == "kms":
             options["ServerSideEncryption"] = "cos/kms"
+        elif required_encryption == "AES256":
+            options["ServerSideEncryption"] = "AES256"
         client.upload_file(
             Bucket=storage.bucket, Key=bundle.object_key, LocalFilePath=str(archive),
             PartSize=20, MAXThread=4, EnableMD5=True, **options,
@@ -618,17 +731,20 @@ def upload_archive(bundle: Bundle, archive: Path, checkpoint: Path, *, restricte
 
 def verify_remote(bundle: Bundle) -> None:
     size, metadata_hash, encryption = remote_identity(bundle)
-    if size != int(bundle.definition["size"]):
+    expected_size, expected_hash, required_encryption = remote_expectation(bundle.definition)
+    if size != expected_size:
         raise AssetError(
-            f"remote size mismatch for {bundle.name}: expected {bundle.definition['size']}, got {size}"
+            f"remote size mismatch for {bundle.name}: expected {expected_size}, got {size}"
         )
-    if metadata_hash and metadata_hash != bundle.definition["sha256"]:
+    if metadata_hash and metadata_hash != expected_hash:
         raise AssetError(
             f"remote SHA-256 metadata mismatch for {bundle.name}: "
-            f"expected {bundle.definition['sha256']}, got {metadata_hash}"
+            f"expected {expected_hash}, got {metadata_hash}"
         )
-    if bundle.definition.get("encryption") == "sse-kms" and encryption != "kms":
+    if required_encryption == "kms" and encryption != "kms":
         raise AssetError(f"remote object for {bundle.name} is not encrypted with SSE-KMS")
+    if required_encryption == "AES256" and (encryption or "").upper() != "AES256":
+        raise AssetError(f"remote object for {bundle.name} lacks the SSE-COS AES256 layer")
 
 
 def download_root() -> Path:
@@ -641,15 +757,22 @@ def fetch_bundle(bundle: Bundle, *, replace_existing: bool = False) -> Path:
         return verify_local(bundle)
     except AssetError:
         pass
-    restricted = bundle.definition.get("encryption") == "sse-kms"
+    restricted = is_restricted(bundle.definition)
+    client_encrypted = is_client_encrypted(bundle.definition)
     downloads = download_root() / "downloads"
     downloads.mkdir(parents=True, exist_ok=True)
     if restricted:
         os.chmod(downloads, 0o700)
     archive = downloads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
+    encrypted = archive.with_suffix(ENCRYPTED_SUFFIX)
     checkpoint = archive.with_suffix(".zip.checkpoint")
     try:
-        if not archive.exists():
+        if client_encrypted:
+            if not archive.exists():
+                download_archive(bundle, encrypted, checkpoint, restricted=True)
+                verify_encrypted_archive(encrypted, bundle)
+                decrypt_archive(encrypted, archive, str(bundle.definition["sha256"]))
+        elif not archive.exists():
             download_archive(bundle, archive, checkpoint, restricted=restricted)
         if restricted:
             os.chmod(archive, 0o600)
@@ -670,47 +793,77 @@ def fetch_bundle(bundle: Bundle, *, replace_existing: bool = False) -> Path:
     finally:
         if restricted:
             archive.unlink(missing_ok=True)
+            encrypted.unlink(missing_ok=True)
             checkpoint.unlink(missing_ok=True)
+
+
+def verify_encrypted_archive(path: Path, bundle: Bundle) -> None:
+    expected_size, expected_hash, _ = remote_expectation(bundle.definition)
+    actual_size = path.stat().st_size
+    if actual_size != expected_size:
+        raise AssetError(
+            f"encrypted archive size mismatch for {bundle.name}: expected {expected_size}, got {actual_size}"
+        )
+    actual_hash = sha256_file(path)
+    if actual_hash != expected_hash:
+        raise AssetError(
+            f"encrypted archive SHA-256 mismatch for {bundle.name}: expected {expected_hash}, got {actual_hash}"
+        )
 
 
 def assert_remote_matches_or_absent(bundle: Bundle) -> bool:
     """远端已有同键对象时必须与清单身份一致（不覆盖不同内容）；返回是否已存在。"""
-    restricted = bundle.definition.get("encryption") == "sse-kms"
     existing = remote_identity_or_none(bundle)
     if existing is None:
         return False
     size, metadata_hash, encryption = existing
-    if size != int(bundle.definition["size"]):
+    expected_size, expected_hash, required_encryption = remote_expectation(bundle.definition)
+    if size != expected_size:
         raise AssetError(
             f"refusing to replace {bundle.storage.provider} object with different size: {bundle.object_key}"
         )
-    if metadata_hash and metadata_hash != bundle.definition["sha256"]:
+    if metadata_hash and metadata_hash != expected_hash:
         raise AssetError(
             f"refusing to replace {bundle.storage.provider} object with different SHA-256: {bundle.object_key}"
         )
-    if restricted and encryption != "kms":
+    if required_encryption == "kms" and encryption != "kms":
         raise AssetError(f"refusing unencrypted existing restricted object: {bundle.object_key}")
+    if required_encryption == "AES256" and (encryption or "").upper() != "AES256":
+        raise AssetError(f"refusing existing restricted object without SSE-COS layer: {bundle.object_key}")
     return True
 
 
 def publish_bundle(bundle: Bundle) -> str:
     if not bundle.owned:
         raise AssetError(f"included bundle {bundle.name} is published by its owning tool")
-    restricted = bundle.definition.get("encryption") == "sse-kms"
+    restricted = is_restricted(bundle.definition)
+    client_encrypted = is_client_encrypted(bundle.definition)
     uploads = download_root() / "uploads"
     uploads.mkdir(parents=True, exist_ok=True)
     if restricted:
         os.chmod(uploads, 0o700)
     archive = uploads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
+    encrypted = archive.with_suffix(ENCRYPTED_SUFFIX)
     checkpoint = archive.with_suffix(".zip.upload-checkpoint")
     try:
         build_archive(bundle, archive)
         if restricted:
             os.chmod(archive, 0o600)
+        upload_path = archive
+        if client_encrypted:
+            encrypt_archive(archive, encrypted, str(bundle.definition["sha256"]))
+            try:
+                verify_encrypted_archive(encrypted, bundle)
+            except AssetError as error:
+                raise AssetError(
+                    f"{error}; the manifest encrypted identity is stale or the key differs — "
+                    f"run: sync.py seal {bundle.name}"
+                ) from error
+            upload_path = encrypted
         if assert_remote_matches_or_absent(bundle):
             archive.unlink()
             return "already-present"
-        upload_archive(bundle, archive, checkpoint, restricted=restricted)
+        upload_archive(bundle, upload_path, checkpoint, restricted=restricted)
         verify_remote(bundle)
         archive.unlink()
         checkpoint.unlink(missing_ok=True)
@@ -718,7 +871,43 @@ def publish_bundle(bundle: Bundle) -> str:
     finally:
         if restricted:
             archive.unlink(missing_ok=True)
+            encrypted.unlink(missing_ok=True)
             checkpoint.unlink(missing_ok=True)
+
+
+def seal_bundle(bundle: Bundle, manifest_path: Path) -> dict:
+    """为客户端加密的 bundle 计算并写回密文身份（object / encrypted_size / encrypted_sha256）。
+
+    归档由本地文件按清单确定性构造，再用团队密钥确定性加密，因此同一内容总得到同一密文身份。
+    """
+    if not is_client_encrypted(bundle.definition):
+        raise AssetError(f"bundle {bundle.name} is not {CLIENT_ENCRYPTION}; nothing to seal")
+    uploads = download_root() / "uploads"
+    uploads.mkdir(parents=True, exist_ok=True)
+    os.chmod(uploads, 0o700)
+    archive = uploads / f"{bundle.name}-{bundle.definition['sha256']}.zip"
+    encrypted = archive.with_suffix(ENCRYPTED_SUFFIX)
+    try:
+        build_archive(bundle, archive)
+        os.chmod(archive, 0o600)
+        encrypt_archive(archive, encrypted, str(bundle.definition["sha256"]))
+        current_object = str(bundle.definition["object"])
+        prefix = current_object.rsplit("/", 1)[0] if "/" in current_object else bundle.name
+        identity = {
+            "object": f"{prefix}/{bundle.definition['sha256']}{ENCRYPTED_SUFFIX}",
+            "encrypted_size": encrypted.stat().st_size,
+            "encrypted_sha256": sha256_file(encrypted),
+        }
+    finally:
+        archive.unlink(missing_ok=True)
+        encrypted.unlink(missing_ok=True)
+    payload = read_json(manifest_path)
+    entry = payload["bundles"][bundle.name]
+    changed = {k: v for k, v in identity.items() if entry.get(k) != v}
+    entry.update(identity)
+    manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    bundle.definition.update(identity)
+    return changed
 
 
 def mirror_bundle(bundle: Bundle, source: Storage) -> str:
@@ -727,8 +916,8 @@ def mirror_bundle(bundle: Bundle, source: Storage) -> str:
     下载后先按清单校验整包 SHA-256，再上传并做远端校验；目标已有同身份对象时跳过。
     受限（SSE-KMS）bundle 不走镜像：目标侧的 KMS 密钥另行决定，它们保留在原存储。
     """
-    if bundle.definition.get("encryption") == "sse-kms":
-        raise AssetError(f"restricted bundle {bundle.name} is not mirrored; keep it on its current storage")
+    if is_restricted(bundle.definition):
+        raise AssetError(f"restricted bundle {bundle.name} is not mirrored; publish it from local files instead")
     if source == bundle.storage:
         return "same-storage"
     if assert_remote_matches_or_absent(bundle):
@@ -823,6 +1012,8 @@ def parse_args() -> argparse.Namespace:
     for command in ("verify", "remote-verify", "publish"):
         child = commands.add_parser(command)
         child.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
+    seal = commands.add_parser("seal", help="compute and record the encrypted identity of client-encrypted bundles")
+    seal.add_argument("bundles", nargs="+", help="client-encrypted bundle names")
     mirror = commands.add_parser("mirror", help="copy archives from a named legacy storage to the manifest storage")
     mirror.add_argument("--from", dest="source", required=True, help="source storage name from manifest.storages")
     mirror.add_argument("bundles", nargs="+", help="bundle names/aliases, or 'all' for current bundles")
@@ -876,6 +1067,10 @@ def main() -> int:
         elif args.command == "publish":
             for bundle in chosen:
                 print(f"{publish_bundle(bundle)} {bundle.name}")
+        elif args.command == "seal":
+            for bundle in chosen:
+                changed = seal_bundle(bundle, manifest_path)
+                print(f"sealed {bundle.name}: {'updated ' + ', '.join(sorted(changed)) if changed else 'unchanged'}")
         elif args.command == "mirror":
             storages = storages_from(manifest)
             if args.source not in storages:

@@ -25,14 +25,14 @@ class AssetSyncTest(unittest.TestCase):
         _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
         selected = {bundle.name for bundle in MODULE.selected_bundles(bundles, ["all"])}
         self.assertEqual(
-            {"team-secure-state-v5"},
+            {"team-secure-state-v6"},
             {name for name in selected if name.startswith("team-secure-state-")},
         )
         self.assertIn("asr-itn-zh-v2", selected)
         self.assertNotIn("asr-itn-zh-v1", selected)
         self.assertEqual(
-            [bundles["team-secure-state-v2"]],
-            MODULE.selected_bundles(bundles, ["team-secure-state-v2"]),
+            [bundles["asr-itn-zh-v1"]],
+            MODULE.selected_bundles(bundles, ["asr-itn-zh-v1"]),
         )
 
     def test_corpus_alias_reuses_archive_and_cache_without_duplicate_selection(self) -> None:
@@ -388,3 +388,53 @@ class AssetSyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_client_encryption_round_trip_is_deterministic_and_authenticated(self) -> None:
+        import base64, os, tempfile
+        from pathlib import Path
+        key = base64.b64encode(bytes(range(32))).decode()
+        with tempfile.TemporaryDirectory() as directory, unittest.mock.patch.dict(os.environ, {MODULE.ASSET_KEY_ENV: key}):
+            plain = Path(directory) / "a.zip"
+            plain.write_bytes(b"PK\x05\x06" + b"x" * 100)
+            sha = MODULE.sha256_file(plain)
+            enc1 = Path(directory) / "a1.zip.enc"
+            enc2 = Path(directory) / "a2.zip.enc"
+            MODULE.encrypt_archive(plain, enc1, sha)
+            MODULE.encrypt_archive(plain, enc2, sha)
+            self.assertEqual(enc1.read_bytes(), enc2.read_bytes())
+            self.assertTrue(enc1.read_bytes().startswith(MODULE.ENCRYPTED_MAGIC))
+            self.assertNotIn(b"x" * 50, enc1.read_bytes())
+            out = Path(directory) / "out.zip"
+            MODULE.decrypt_archive(enc1, out, sha)
+            self.assertEqual(plain.read_bytes(), out.read_bytes())
+            tampered = Path(directory) / "t.zip.enc"
+            blob = bytearray(enc1.read_bytes()); blob[-1] ^= 1; tampered.write_bytes(bytes(blob))
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.decrypt_archive(tampered, out, sha)
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.decrypt_archive(enc1, out, "0" * 64)
+
+    def test_validate_bundle_requires_encrypted_identity_for_client_encryption(self) -> None:
+        base = {
+            "description": "d", "license": "l", "redistribution": "r", "destination": "x", "archive_root": "x",
+            "archive_type": "zip", "object": "x/abc.zip.enc", "size": 10, "sha256": "a" * 64,
+            "encryption": MODULE.CLIENT_ENCRYPTION,
+        }
+        MODULE.validate_bundle("x", dict(base))  # 未 seal 可加载
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.remote_expectation(dict(base))  # 但不能发布 / 拉取
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, encrypted_size=5, encrypted_sha256="b" * 64))
+        MODULE.validate_bundle("x", dict(base, encrypted_size=38, encrypted_sha256="b" * 64))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, object="x/abc.zip", encrypted_size=38, encrypted_sha256="b" * 64))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, encryption="sse-c"))
+        self.assertEqual((38, "b" * 64, "AES256"), MODULE.remote_expectation(dict(base, encrypted_size=38, encrypted_sha256="b" * 64)))
+
+    def test_restricted_current_bundles_are_client_encrypted_on_default_storage(self) -> None:
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        for name in ("team-secure-state-v6", "harmony-demo-license-v2"):
+            self.assertEqual(MODULE.CLIENT_ENCRYPTION, bundles[name].definition["encryption"])
+            self.assertEqual("default", bundles[name].storage.name)
+        self.assertFalse(any(b.definition.get("encryption") == "sse-kms" for b in bundles.values()))

@@ -6,7 +6,7 @@
 2026-11-16 起默认存储是腾讯云 COS（`amphion-assets-1373259071`，`ap-guangzhou`，前缀
 `amphion-runtime/assets/v1`）。华为云 OBS 桶 `cuhk-anfeiweng-benchmark` 以具名存储 `obs-legacy`
 只读保留。2026-11-22 起测试语料清单（`asr/test-data/manifest.json`）与 catalog 归档也已迁到 COS；
-仍留在 OBS 的只有受限（SSE-KMS）bundle，等 COS 侧 KMS 可用后再迁（见下文）。
+2026-11-24 起受限 bundle 改为客户端 AES-256-GCM 加密后放 COS（见下文），清单不再引用 OBS 上的对象。
 
 ## 首次配置
 
@@ -16,10 +16,12 @@
 export COS_SecretId=...
 export COS_SecretKey=...
 python3 -m pip install cos-python-sdk-v5
-# 只在需要受限 bundle（team-secure-state-*、harmony-demo-license-v1）时才需要 OBS：
-export OBS_AccesskeyID=... OBS_SecretAccesskey=... OBS_Endpoint=https://obs.cn-north-9.myhuaweicloud.com
-python3 -m pip install esdk-obs-python
+# 只在需要受限 bundle（team-secure-state-v6、harmony-demo-license-v2）时才需要团队资产密钥：
+export AMPHION_ASSET_KEY_B64=...   # 32 字节 AES-256 密钥的 base64，来自 amphionbucket 的 storage.ini [asset-encryption]
+python3 -m pip install cryptography  # 仓库 .venv 已带；受限 bundle 的命令用 .venv/bin/python 运行
 ```
+
+本机可用 `amphionbucket` 旁的 `with_storage_env.sh <命令>` 一次性注入以上变量，不会回显凭据。
 
 ## 跨机恢复
 
@@ -49,13 +51,24 @@ python3 tools/assets/sync.py verify all
 中文 ITN 当前使用 `asr-itn-zh-v2`，保留识别出的“啊、呃”；两端打包默认读取
 `asr/tools/weitn-fsts-v2`。`asr-itn-zh-v1` 仅保留为旧规则记录，不用于新构建。
 
-当前 canonical 受限资产是 `team-secure-state-v5`，包含团队授权根、可跨机签名配置、DevEco 解密材料、
-完整签名材料和设备清单；该版本已通过 Harmony 真机构建、安装和 SDK smoke。新机器按需执行
-`python3 tools/assets/sync.py fetch team-secure-state-v5`。v2-v4 仅作为不可变历史快照保留，不应用于新环境。
-对象使用 OBS SSE-KMS；拥有同一
-OBS/KMS 权限的团队成员下载时会透明解密。恢复采用合并模式，不删除 `.secure` 下其他本地内容，
-也不会默认覆盖同名但内容不同的文件；确认要采用远端版本时显式增加 `--replace-existing`。
-受限 ZIP 的本地明文临时文件无论成功或失败都会清理，并保留清单声明的 `0600`/`0644` 权限。
+当前 canonical 受限资产是 `team-secure-state-v6`（2026-11-24，内容 = v5 + 扩充后的测试机 SN 清单），
+包含团队授权根、可跨机签名配置、DevEco 解密材料、完整签名材料和设备清单。新机器按需执行
+`.venv/bin/python tools/assets/sync.py fetch team-secure-state-v6`。v2~v5 的 OBS 快照已从清单移除，
+OBS 账号只读、不再作为来源。
+
+受限 bundle 的加密方式是 **客户端 AES-256-GCM**（`"encryption": "client-aes256-gcm"`）：
+`publish` 先按清单确定性构造明文 ZIP，再用团队密钥加密成 `<sha256>.zip.enc` 上传，COS 上只有密文，
+桶凭据泄露也拿不到明文；上传时再叠一层 SSE-COS（AES256），`remote-verify` 会同时核对密文大小、
+密文 SHA-256 与该标记。nonce 由密钥和明文 SHA-256 派生，同一内容总得到同一密文，因此密文身份可以
+登记在清单里。密钥不在仓库、不在 CI，只在团队的 `storage.ini`；密钥丢失则远端密文不可恢复，请与
+授权私钥同等备份。
+
+更新受限 bundle 的流程：改 `.secure` 内容 → 清单里更新逐文件身份与明文 `size/sha256`（新修订号）→
+`sync.py seal <bundle>` 计算并写回 `object / encrypted_size / encrypted_sha256` → `publish` → `remote-verify`。
+未 `seal` 的条目可以加载，但 `publish / fetch / remote-verify` 会报错提示先 `seal`。
+恢复采用合并模式，不删除 `.secure` 下其他本地内容，也不会默认覆盖同名但内容不同的文件；确认要采用
+远端版本时显式增加 `--replace-existing`。受限 ZIP 的本地明文与密文临时文件无论成功或失败都会清理，
+并保留清单声明的 `0600`/`0644` 权限。
 
 2026-11-16 起，此前仍跟踪在 Git 里的模型与原生二进制也全部外置，仓库只保留源码：
 
@@ -97,7 +110,7 @@ main 顶端目录树不变）。所有提交哈希随之改变：
 | `asr-zhen-police-179m-v1-1-v1.1.0` | `model_id=police-179m-v1-1`，`model_version=1.1.0`；名称中的两个版本片段属于不同字段 |
 | `tts-runtime-zhen-v1` | bundle 修订 `v1`，训练流程代次 `v3`，导出模型版本 `0.1.0`；三个数字不能互相代替 |
 | `tts-checkpoints-v3-20260806` | 训练流程代次 `v3`，checkpoint 快照日期 `2026-08-06` |
-| `team-secure-state-v5` | 团队签名及授权材料的第 5 版快照，不是 SDK 或模型版本 |
+| `team-secure-state-v6` | 团队签名及授权材料的第 6 版快照，不是 SDK 或模型版本 |
 
 上述模型版本、流程代次和 checkpoint 日期已在清单中分字段记录。`amphion-runtime/assets/v1` 和
 `amphion-runtime/test-data/v1` 中的 `v1` 是存储命名空间版本，不代表所有资产内容都处于第 1 版。
@@ -113,14 +126,15 @@ python3 tools/assets/sync.py mirror --from obs-legacy all
 ```
 
 `mirror` 从源存储下载 ZIP、按清单整包 SHA-256 校验后上传到目标，再做远端校验；目标已有同身份
-对象时跳过。bundle 可用 `"storage": "<名称>"` 指定留在某个具名存储（当前受限 bundle 指向 `obs-legacy`）。
+对象时跳过。bundle 可用 `"storage": "<名称>"` 指定留在某个具名存储（当前没有 bundle 这样做）。
+受限 bundle 不走 `mirror`，只能从本地明文 `publish`。
 
 2026-11-22 迁移记录：非受限 bundle 全部 19 个中的 14 个已在 COS（含当日用 `mirror --from obs-legacy`
 补齐的 `tts-checkpoints-v3-20260806`、`tts-harmony-tn-v1`、`asr-zhen-police-179m-v1-1-v1.1.0`、
 `asr-itn-zh-v1`）；测试语料 `aishell3-500`、`dingqiao-meeting-20260918` 与两个 catalog 归档也已复制到 COS。
-5 个受限 bundle 仍在 `obs-legacy`：向 COS 桶做 `cos/kms` 加密上传探测返回 500 InternalError，
-说明腾讯云账号尚未开通 KMS 或桶区域没有可用 CMK；开通后 `publish team-secure-state-v5 harmony-demo-license-v1`
-（本机有明文）即可，v2~v4 为历史快照需先从 OBS 取回再发布。
+受限 bundle 当时仍在 `obs-legacy`（COS 侧 `cos/kms` 上传探测返回 500，账号未开通 KMS）。
+2026-11-24 改为客户端加密后发布到 COS：`team-secure-state-v6`、`harmony-demo-license-v2`；
+`team-secure-state-v2~v5` 不再迁移，条目已从清单删除（OBS 上的对象原样留存但不再被引用）。
 
 `publish` 只接受清单中逐文件身份完全匹配的仓库资产，并使用固定顺序、时间戳和权限构造
 可重复 ZIP。对象键包含整包 SHA-256，工具不会覆盖不同内容。受限 bundle 必须经对象级
