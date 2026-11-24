@@ -17,11 +17,19 @@ export COS_SecretId=...
 export COS_SecretKey=...
 python3 -m pip install cos-python-sdk-v5
 # 只在需要受限 bundle（team-secure-state-v6、harmony-demo-license-v2）时才需要团队资产密钥：
-export AMPHION_ASSET_KEY_B64=...   # 32 字节 AES-256 密钥的 base64，来自 amphionbucket 的 storage.ini [asset-encryption]
+export AMPHION_ASSET_KEY_B64=...   # 32 字节 AES-256 密钥的 base64，来自 amphionkeys 仓库的 amphion-assets.env
 python3 -m pip install cryptography  # 仓库 .venv 已带；受限 bundle 的命令用 .venv/bin/python 运行
 ```
 
-本机可用 `amphionbucket` 旁的 `with_storage_env.sh <命令>` 一次性注入以上变量，不会回显凭据。
+团队密钥统一放在私有仓库 `amphionkeys`（git.amphiondev.com/amphion/amphionkeys，一个服务一个 `.env`），
+有权限的人 clone 后用它的 `load.sh` 注入，例如：
+
+```bash
+~/amphionkeys/load.sh tencent-cos amphion-assets -- .venv/bin/python tools/assets/sync.py fetch team-secure-state-v6
+```
+
+`tencent-cos.env` 里的变量名是 `COS_SecretID`（大写 ID），本工具读的是 `COS_SecretId`，用 `load.sh` 时先
+`export COS_SecretId="$COS_SecretID"` 或在 shell 里做一次映射。
 
 ## 跨机恢复
 
@@ -60,8 +68,8 @@ OBS 账号只读、不再作为来源。
 `publish` 先按清单确定性构造明文 ZIP，再用团队密钥加密成 `<sha256>.zip.enc` 上传，COS 上只有密文，
 桶凭据泄露也拿不到明文；上传时再叠一层 SSE-COS（AES256），`remote-verify` 会同时核对密文大小、
 密文 SHA-256 与该标记。nonce 由密钥和明文 SHA-256 派生，同一内容总得到同一密文，因此密文身份可以
-登记在清单里。密钥不在仓库、不在 CI，只在团队的 `storage.ini`；密钥丢失则远端密文不可恢复，请与
-授权私钥同等备份。
+登记在清单里。密钥不在本仓库、不在 CI，只在 `amphionkeys` 的 `amphion-assets.env`（GitLab 即备份）；
+密钥丢失则远端密文不可恢复。
 
 更新受限 bundle 的流程：改 `.secure` 内容 → 清单里更新逐文件身份与明文 `size/sha256`（新修订号）→
 `sync.py seal <bundle>` 计算并写回 `object / encrypted_size / encrypted_sha256` → `publish` → `remote-verify`。
