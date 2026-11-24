@@ -292,3 +292,6 @@ tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/orig
 tts/training/dingqiao_lits/data/filelists/before_mix/*.txt
 tts/training/dingqiao_lits/temp_cmu_g2p/data/cmudict-0.7b
 tts/training/dingqiao_lits/lits/text/sources/chinese_lexicon.txt
+
+# IMF 170000 客户线运行时模型包（bundle tts-runtime-imf170000-v*），不入库
+tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/
