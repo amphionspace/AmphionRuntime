@@ -16,6 +16,7 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlin.math.exp
+import kotlin.math.max
 
 /**
  * 单次识别会话：一条 native [OnlineStream] + 三条专用线程。
@@ -129,6 +130,8 @@ internal class SessionImpl(
 
     /** A replayed non-target suffix stays rejected until a window reconfirms the target. */
     private var svAwaitingTargetAfterDeparture = false
+    /** 本会话是否已发布过机主 final：到达侧切分只在"机主 → 非机主 → 机主"的回归场景启用（缺陷 #102）。 */
+    private var svTargetPublishedInSession = false
     /** 自上一次声纹打分以来，VAD 是否在本跳窗口内看到过语音；静音窗口的低分不构成离场。 */
     private var svHopSpeechSeen = false
     private var svContextWaitStartedSample = -1
@@ -1227,7 +1230,12 @@ internal class SessionImpl(
      * isTargetSpeaker==false 改派
      * onFinalRejected 完成；这里只负责打分与打标，保证 metrics / 后处理时序与未启用时一致。
      */
-    private fun prepareFinal(raw: AsrResult, hasEvidence: Boolean, isLast: Boolean): AsrResult? {
+    private fun prepareFinal(
+        raw: AsrResult,
+        hasEvidence: Boolean,
+        isLast: Boolean,
+        forceReject: Boolean = false,
+    ): AsrResult? {
         val terminal = raw.copy(isLast = isLast)
         val boundary = effectiveSpeechBuffer.resolveFinal(terminal.text, hasEvidence, isLast)
         if (!boundary.publish) {
@@ -1286,7 +1294,14 @@ internal class SessionImpl(
                     verifier.segmentScore(selection.samples, target)
                 }
                 if (score != null) {
-                    val threshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
+                    val callerThreshold = engineImpl.targetSpeakerConfig?.threshold ?: DEFAULT_TS_THRESHOLD
+                    // 句级业务门与流式换人检测用同一把尺子（与鸿蒙 Runtime 对齐）。鼎桥层把调用方阈值
+                    // 设为 -1 只打分，若句级门按 -1 放行，非机主一跳 0.39 的误确认就会让随后 0.29 的
+                    // 非机主片段原样发布（缺陷 #102："到了事情的全"漏出）。
+                    val threshold = effectiveSpeakerVad
+                        ?.takeIf { speakerTurnDetectionActive() }
+                        ?.let { max(callerThreshold, it.threshold) }
+                        ?: callerThreshold
                     // 流式机器没确认过目标的句子（换人瞬间接上的 1~2 s 短句就是这种），
                     // 只剩句级分可依，需同时过调用方阈值和实测空带下沿。
                     // 离场后重放的句子还没重新确认目标，即使流式状态仍是"已确认"也要用
@@ -1298,6 +1313,10 @@ internal class SessionImpl(
                     prepared = terminal.copy(speakerScore = score, isTargetSpeaker = score >= gate)
                 }
             }
+        }
+        if (forceReject) {
+            // 到达侧切分的前缀：确认机主之前别人说的话，不论分数一律按非机主拒绝（分数照常记录）。
+            return prepared.copy(speakerScore = prepared.speakerScore ?: svLastScore, isTargetSpeaker = false)
         }
         val reject = shouldRejectSpeakerVadFinal(
             // 仅机主识别时同样要执行"离场后重新确认"的拒绝：否则被切下来的非机主段只要
@@ -1312,7 +1331,10 @@ internal class SessionImpl(
             return prepared.copy(speakerScore = score, isTargetSpeaker = false)
         }
         // 真正发布了一条机主 final，才认为换人后的重放段重新确认了目标。
-        if (prepared.isTargetSpeaker == true) svAwaitingTargetAfterDeparture = false
+        if (prepared.isTargetSpeaker == true) {
+            svAwaitingTargetAfterDeparture = false
+            svTargetPublishedInSession = true
+        }
         return prepared
     }
 
@@ -1378,6 +1400,32 @@ internal class SessionImpl(
             SpeakerTurnScoreState.TARGET_CONFIRMED -> {
                 Logger.d("session $sessionId speaker vad target confirmed: score=$score")
                 postSpeakerVadDebug("target_confirmed", score, speakerVad.threshold, scoreElapsedMs, scoreRtf)
+                // 到达侧切分（缺陷 #102）：机主说过话之后别人接话、机主再接回来，若停顿短于 vadEnd，
+                // 两人会并成一句，整句分数被机主抬高后把别人的话一起发布（实测 0.83 发布
+                // "主要路主路开走了。好的，请把…"）。换人检测原来只切"机主 → 非机主"方向；这里在
+                // 目标刚确认、且这句确认之前已有带语音的低分窗口时，把确认窗口起点之前切下来拒绝。
+                // 只在本会话已发布过机主 final 后启用，不改会话开头短指令的行为（缺陷 #97）。
+                if (svTargetPublishedInSession && vadSpeechActive) {
+                    val arrival = finalizer.resolveArrival(
+                        (sampleRate * ARRIVAL_MIN_PREFIX_SPEECH_SEC).toInt(),
+                        (sampleRate * ARRIVAL_MIN_PREFIX_SPEECH_NO_VALLEY_SEC).toInt(),
+                    )
+                    if (arrival != null) {
+                        svPendingSplit = arrival
+                        Logger.metric(
+                            "kind=SPEAKER_TURN sessionId=$sessionId decision=contain-on-arrival " +
+                                "cutSample=${arrival.cutSample} reason=${finalizer.lastResolutionReason()}",
+                        )
+                        vadSpeechActive = false
+                        trailingSilenceMs = 0
+                        triggerSpeakerVadEndpoint()
+                        return true
+                    }
+                    Logger.metric(
+                        "kind=SPEAKER_TURN sessionId=$sessionId decision=arrival-kept " +
+                            "reason=${finalizer.lastResolutionReason()}",
+                    )
+                }
                 return false
             }
             SpeakerTurnScoreState.TARGET_ACTIVE -> {
@@ -1671,6 +1719,20 @@ internal class SessionImpl(
             is NativeResult.Ok -> cleanR.value
             is NativeResult.Err -> null
         }
+        if (!split.prefixIsTarget && cleanR is NativeResult.Ok &&
+            (clean == null || (clean.text.isEmpty() && clean.tokens.isEmpty()))
+        ) {
+            // 到达切分的前缀没解出任何 token：没有可拒绝的文字，直接按机主后缀继续。
+            Logger.metric(
+                "kind=SPEAKER_TURN sessionId=$sessionId decision=arrival-prefix-empty " +
+                    "cutSample=${split.cutSample} reason=${finalizer.lastResolutionReason()}",
+            )
+            metrics.onEndpointDetected()
+            postEndpoint()
+            NativeGuard.runQuietly("speculativeStream.release") { speculativeStream.release() }
+            startSpeakerSuffixAsTarget(split, bufferStartSample, decodeStartNs)
+            return
+        }
         if (clean == null || (clean.text.isEmpty() && clean.tokens.isEmpty())) {
             val message = when (cleanR) {
                 is NativeResult.Err -> cleanR.error.message
@@ -1721,16 +1783,28 @@ internal class SessionImpl(
         effectiveSpeechBuffer.reset()
         effectiveSpeechBuffer.observe(split.prefix)
         effectiveSpeechBuffer.confirmSpeech()
-        svTargetConfirmed = true
-        svRejectCurrentUtterance = false
+        if (split.prefixIsTarget) {
+            svTargetConfirmed = true
+            svRejectCurrentUtterance = false
+        }
         val decoded = toAsrResult(clean, bufferStartSample)
         val hasEvidence = decoded.text.isNotEmpty() || decoded.tokens.isNotEmpty()
         metrics.onRawFinalReady()
-        val finalResult = prepareFinal(decoded, hasEvidence, isLast = false)
+        val finalResult = prepareFinal(decoded, hasEvidence, isLast = false, forceReject = !split.prefixIsTarget)
         if (finalResult != null) {
             postFinalToProcessor(finalResult, endSample = bufferStartSample + split.cutSample)
         }
         NativeGuard.runQuietly("speculativeStream.release") { speculativeStream.release() }
+        if (!split.prefixIsTarget) {
+            Logger.metric(
+                "kind=SPEAKER_TURN sessionId=$sessionId decision=arrival-prefix-rejected " +
+                    "decodeMs=${(System.nanoTime() - decodeStartNs) / 1_000_000L} " +
+                    "prefixSamples=${split.prefix.size} suffixSamples=${split.suffix.size} " +
+                    "score=${finalResult?.speakerScore ?: "none"}",
+            )
+            startSpeakerSuffixAsTarget(split, bufferStartSample, decodeStartNs)
+            return
+        }
         Logger.metric(
             "kind=SPEAKER_TURN sessionId=$sessionId decision=prefix-published " +
                 "decodeMs=${(System.nanoTime() - decodeStartNs) / 1_000_000L} " +
@@ -1769,6 +1843,42 @@ internal class SessionImpl(
         postDebug(
             "speaker turn clean split: cutSample=${split.cutSample} " +
                 "prefix=${split.prefix.size} suffix=${split.suffix.size}",
+        )
+    }
+
+    /**
+     * 到达切分之后的后缀是机主：开一条新流，状态当作一次全新进入（不带"离场后待确认"），
+     * 按实时节奏重放，让流式换人检测在后缀上重新确认机主并照常发布。
+     */
+    private fun startSpeakerSuffixAsTarget(split: SpeakerTurnSplit, bufferStartSample: Long, decodeStartNs: Long) {
+        val suffixR = NativeGuard.run("speakerTurn.arrivalSuffixStream") {
+            recognizer.createStream(hotwords = currentHotwords)
+        }
+        val previousStream = stream
+        when (suffixR) {
+            is NativeResult.Ok -> stream = suffixR.value
+            is NativeResult.Err -> {
+                postError(suffixR.error)
+                close()
+                return
+            }
+        }
+        if (previousStream !== stream) NativeGuard.runQuietly("arrivalPrefixStream.release") { previousStream.release() }
+        streamStartSample = bufferStartSample + split.cutSample
+        recognizerResetGeneration.markReset()
+        resetStablePrefixSchedule()
+        lastPartialText = ""
+        resetVadGateState()
+        speakerPcmBuffers.clearAll()
+        effectiveSpeechBuffer.reset()
+        svTurnBufferStartSample = streamStartSample
+        svAwaitingTargetAfterDeparture = false
+        svRejectCurrentUtterance = false
+        replaySpeakerSuffix(split)
+        postDebug(
+            "speaker turn arrival split: cutSample=${split.cutSample} " +
+                "prefix=${split.prefix.size} suffix=${split.suffix.size} " +
+                "elapsedMs=${(System.nanoTime() - decodeStartNs) / 1_000_000L}",
         )
     }
 
@@ -2012,6 +2122,10 @@ internal class SessionImpl(
 
         /** 目标说话人默认阈值兜底（与 TargetSpeakerConfig.threshold 默认一致）。 */
         const val DEFAULT_TS_THRESHOLD = 0.30f
+        /** 到达侧切分：切点对齐到静音谷时，前缀至少要有这么多秒语音。 */
+        const val ARRIVAL_MIN_PREFIX_SPEECH_SEC = 0.3f
+        /** 找不到静音谷、只能切在确认窗口起点时的前缀语音下限，防止把机主自己的慢起头切掉。 */
+        const val ARRIVAL_MIN_PREFIX_SPEECH_NO_VALLEY_SEC = 1.0f
 
         @Suppress("unused")
         const val SESSION_ALREADY_CLOSED_CODE = AsrErrorCode.SESSION_ALREADY_CLOSED
