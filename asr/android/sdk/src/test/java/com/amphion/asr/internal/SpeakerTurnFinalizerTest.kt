@@ -305,4 +305,116 @@ class SpeakerTurnFinalizerTest {
         assertTrue(contained.cutSample > 0)
         assertTrue(contained.suffix.isNotEmpty())
     }
+
+    // ---- 到达侧切分（缺陷 #102）：非机主先说、机主接上并成一句 ----
+
+    /** 1 kHz 采样、1 s 窗 / 0.2 s 跳：前 1.4 s 为非机主语音，之后机主语音。 */
+    private fun arrivalWave(total: Int = 3_000, otherEnd: Int = 1_400): FloatArray =
+        FloatArray(total) { i -> if (i < otherEnd) (if (i % 2 == 0) 0.15f else -0.15f) else (if (i % 2 == 0) 0.2f else -0.2f) }
+
+    @Test
+    fun arrivalAfterSpeechBearingLowHopsCutsAtTheConfirmingWindowStart() {
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(arrivalWave())
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, finalizer.observeScore(1_000, 0.24f, 0.35f, speechWasActive = true))
+        assertEquals(SpeakerTurnScoreState.PRE_TARGET, finalizer.observeScore(1_200, 0.30f, 0.35f, speechWasActive = true))
+        // 2 000 处窗口（1 000–2 000）里机主已经占多数：确认目标。
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(2_000, 0.48f, 0.35f, speechWasActive = true))
+        val split = finalizer.resolveArrival(minimumPrefixSpeechSamples = 800)
+        assertNotNull(split)
+        split!!
+        assertEquals(1_000, split.cutSample)
+        assertEquals(false, split.prefixIsTarget)
+        assertEquals(1_000, split.prefix.size)
+        assertEquals(2_000, split.suffix.size)
+        assertTrue(finalizer.lastResolutionReason().startsWith("arrival-safe-prefix:window-start:1000"))
+    }
+
+    @Test
+    fun arrivalSnapsTheCutToTheQuietValleyBetweenTheTwoSpeakers() {
+        // 非机主 0–1 200，停顿 1 200–1 500，机主 1 500 起；确认窗口（1 500–2 500）起点正好落在停顿里。
+        val wave = FloatArray(3_500) { i ->
+            when {
+                i < 1_200 -> if (i % 2 == 0) 0.15f else -0.15f
+                i < 1_500 -> 0f
+                else -> if (i % 2 == 0) 0.2f else -0.2f
+            }
+        }
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(wave)
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, finalizer.observeScore(1_400, 0.24f, 0.35f, speechWasActive = true))
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(2_500, 0.52f, 0.35f, speechWasActive = true))
+        // 对齐到静音谷后前缀只需 0.3 s 语音；前缀 1.2 s 非机主语音全部切走，后缀从机主开口处开始。
+        val split = finalizer.resolveArrival(minimumPrefixSpeechSamples = 300, minimumUnalignedPrefixSpeechSamples = 1_000)
+        assertNotNull(split)
+        split!!
+        assertEquals(1_500, split.cutSample)
+        assertEquals(false, split.prefixIsTarget)
+        assertEquals(0.2f, split.suffix[0], 0f)
+        assertTrue(finalizer.lastResolutionReason().startsWith("arrival-safe-prefix:valley:1500"))
+    }
+
+    @Test
+    fun arrivalIsNotSplitWhenThePrefixIsMostlySilenceOrNoLowSpeechHopPrecededTheTarget() {
+        // 机主慢起头：确认之前只有一跳低分，且前缀 1 s 里只有 0.3 s 语音 → 不切。
+        val slowStart = FloatArray(3_000) { i -> if (i in 700 until 3_000) (if (i % 2 == 0) 0.2f else -0.2f) else 0f }
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(slowStart)
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, finalizer.observeScore(1_000, 0.30f, 0.35f, speechWasActive = true))
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(2_000, 0.60f, 0.35f, speechWasActive = true))
+        assertNull(finalizer.resolveArrival(minimumPrefixSpeechSamples = 800))
+        assertTrue(finalizer.lastResolutionReason().startsWith("arrival-prefix-speech-too-short:"))
+
+        // 静音里的低分窗口（speechWasActive=false）不构成到达证据。
+        val silentThenTarget = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        silentThenTarget.accept(arrivalWave())
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, silentThenTarget.observeScore(1_000, 0.07f, 0.35f, speechWasActive = false))
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, silentThenTarget.observeScore(2_000, 0.60f, 0.35f, speechWasActive = true))
+        assertNull(silentThenTarget.resolveArrival(minimumPrefixSpeechSamples = 800))
+        assertEquals("arrival-not-ready", silentThenTarget.lastResolutionReason())
+
+        // 没确认目标就没有到达。
+        val waiting = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        waiting.accept(arrivalWave())
+        waiting.observeScore(1_000, 0.2f, 0.35f, speechWasActive = true)
+        assertNull(waiting.resolveArrival(minimumPrefixSpeechSamples = 800))
+    }
+
+    @Test
+    fun arrivalPrefersTheLastLongEnoughValleyOverAnEarlierLongerPause() {
+        // 非机主 0–600，句内停顿 600–1 000（0.4 s），非机主 1 000–1 700，交接停顿 1 700–2 000（0.3 s），机主 2 000 起。
+        val wave = FloatArray(4_000) { i ->
+            when {
+                i < 600 || (i in 1_000 until 1_700) -> if (i % 2 == 0) 0.15f else -0.15f
+                i < 2_000 -> 0f
+                else -> if (i % 2 == 0) 0.2f else -0.2f
+            }
+        }
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(wave)
+        assertEquals(SpeakerTurnScoreState.WAITING_TARGET, finalizer.observeScore(1_800, 0.24f, 0.35f, speechWasActive = true))
+        // 确认窗口 1 600–2 600：里面有交接停顿 1 700–2 000，之前（搜索范围从 1 400 起）没有更长的停顿可选。
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(2_600, 0.52f, 0.35f, speechWasActive = true))
+        val split = finalizer.resolveArrival(300, 1_000)
+        assertNotNull(split)
+        assertEquals(2_000, split!!.cutSample)
+        assertEquals(0.2f, split.suffix[0], 0f)
+    }
+
+    @Test
+    fun arrivalEvidenceIsClearedByResetAndDoesNotLeakIntoDepartureLogic() {
+        val finalizer = SpeakerTurnFinalizer(1_000, 1_000, 200, 2, 10_000)
+        finalizer.accept(arrivalWave())
+        finalizer.observeScore(1_000, 0.24f, 0.35f, speechWasActive = true)
+        finalizer.observeScore(2_000, 0.48f, 0.35f, speechWasActive = true)
+        assertNotNull(finalizer.resolveArrival(800))
+        // 到达切分不等于离场：没有 departure，也不会给出 containment。
+        assertEquals(false, finalizer.hasPendingDeparture())
+        assertNull(finalizer.resolveContainment())
+        finalizer.reset()
+        finalizer.accept(arrivalWave())
+        assertEquals(SpeakerTurnScoreState.TARGET_CONFIRMED, finalizer.observeScore(1_000, 0.6f, 0.35f))
+        assertNull(finalizer.resolveArrival(800))
+        assertEquals("arrival-not-ready", finalizer.lastResolutionReason())
+    }
 }

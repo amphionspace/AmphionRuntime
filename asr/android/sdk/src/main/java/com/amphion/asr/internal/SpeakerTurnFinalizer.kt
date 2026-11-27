@@ -21,6 +21,9 @@ import kotlin.math.sqrt
  */
 internal const val UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE = 0.45f
 
+/** 到达侧切分认可的最短交接停顿；机主句内停顿一般短于它，换人停顿一般长于它（缺陷 #102 实测 0.48 s）。 */
+internal const val ARRIVAL_VALLEY_MIN_SEC = 0.25f
+
 /** 句级门：已确认目标用调用方阈值；未确认时取调用方阈值与实测下沿的较大者（调用方更严时以其为准）。 */
 internal fun speakerFinalGateScore(threshold: Float, targetConfirmed: Boolean): Float =
     if (targetConfirmed) threshold else max(threshold, UNCONFIRMED_SPEAKER_FINAL_MIN_SCORE)
@@ -56,6 +59,8 @@ internal class SpeakerTurnSplit(
     val suffix: FloatArray,
     processedPrefix: FloatArray? = null,
     processedSuffix: FloatArray? = null,
+    /** 离场切分前缀是机主（发布）；到达切分前缀是非机主（拒绝），后缀才是机主。 */
+    val prefixIsTarget: Boolean = true,
 ) {
     val processedPrefix: FloatArray = processedPrefix ?: prefix
     val processedSuffix: FloatArray = processedSuffix ?: suffix
@@ -99,6 +104,9 @@ internal class SpeakerTurnFinalizer(
     private var lastTargetScore: Float? = null
     private var resolutionReason = "not-resolved"
     private var pendingCandidatePrefixEndSample = -1
+    // 到达侧（非机主 → 机主）证据：目标确认之前带语音的低分窗口数，以及确认窗口的起点。
+    private var preTargetSpeechLowHops = 0
+    private var arrivalWindowStartSample = -1
 
     fun accept(samples: FloatArray, processedSamples: FloatArray = samples) {
         if (samples.isEmpty()) return
@@ -134,6 +142,7 @@ internal class SpeakerTurnFinalizer(
         latestScore = score
         if (score >= threshold) {
             val firstTarget = !targetSeen
+            if (firstTarget) arrivalWindowStartSample = max(0, end - windowSamples)
             targetSeen = true
             belowCount = 0
             lastTargetEndSample = end
@@ -147,6 +156,7 @@ internal class SpeakerTurnFinalizer(
         if (speechWasActive) speechBearingLowScore = true
         belowCount += 1
         if (!targetSeen) {
+            if (speechWasActive) preTargetSpeechLowHops += 1
             if (belowCount >= consecutiveBelow) {
                 rejectBeforeTarget = true
                 return SpeakerTurnScoreState.PRE_TARGET
@@ -189,6 +199,119 @@ internal class SpeakerTurnFinalizer(
     /** 至少一跳低分窗口带 VAD 语音，离场才有声学依据（见 [observeScore]）。 */
     fun hasSpeechBearingLowScore(): Boolean = speechBearingLowScore
     fun hasPendingDeparture(): Boolean = departureSeen && speechBearingLowScore
+
+    /**
+     * 到达侧切分（缺陷 #102）：目标刚被确认，而这句里确认之前已有带语音的低分窗口，说明句首是别人在说、
+     * 机主随后接上（停顿短于 vadEnd 时两人并成一句）。
+     *
+     * 切点优先对齐到确认窗口附近的静音谷（两人交接时通常有几百毫秒停顿）：在 [窗口起点 − 一跳, 窗口终点]
+     * 内取最后一个不短于 [ARRIVAL_VALLEY_MIN_SEC] 的静音段，切在静音段末尾，前缀是谷之前的部分——
+     * 机主刚开口的一两秒里很少有这么长的停顿，而非机主句内的停顿（实测 0.32 s）会被更靠后的交接停顿
+     * （0.48 s）取代。对齐成功时前缀语音至少要有
+     * [minimumPrefixSpeechSamples]（调用方取 0.3 s）；找不到静音谷时退回确认窗口起点，并要求前缀语音
+     * 至少 [minimumUnalignedPrefixSpeechSamples]（调用方取 1.0 s），避免把机主自己的慢起头切掉。
+     * 前缀按非机主拒绝、后缀作为机主重放。只能在目标刚确认、缓冲未截断时调用。
+     */
+    fun resolveArrival(
+        minimumPrefixSpeechSamples: Int,
+        minimumUnalignedPrefixSpeechSamples: Int = minimumPrefixSpeechSamples,
+    ): SpeakerTurnSplit? {
+        resolutionReason = "arrival-not-ready"
+        if (!targetSeen || capped || preTargetSpeechLowHops <= 0 || arrivalWindowStartSample < 0) {
+            if (capped) resolutionReason = "arrival-buffer-capped"
+            return null
+        }
+        val windowStart = arrivalWindowStartSample
+        if (windowStart <= 0 || windowStart >= retainedSamples) {
+            resolutionReason = "arrival-no-safe-prefix:$windowStart"
+            return null
+        }
+        val all = samples()
+        val frameSamples = max(1, sampleRate / 50)
+        val searchStart = max(0, windowStart - hopSamples)
+        val searchEnd = min(retainedSamples, windowStart + windowSamples)
+        // 静音段从缓冲起点开始统计（交接停顿可能在搜索起点之前就开始），只要求它结束在搜索范围内。
+        val valley = lastQuietRun(all, 0, searchEnd, frameSamples, (sampleRate * ARRIVAL_VALLEY_MIN_SEC).roundToInt(), endAfter = searchStart)
+        val cutSample: Int
+        val speech: Int
+        val minimumSpeech: Int
+        val how: String
+        if (valley != null && valley.second > 0 && valley.second < retainedSamples) {
+            cutSample = valley.second
+            speech = speechSamplesEstimate(all, 0, valley.first)
+            minimumSpeech = minimumPrefixSpeechSamples
+            how = "valley"
+        } else {
+            cutSample = windowStart
+            speech = speechSamplesEstimate(all, 0, windowStart)
+            minimumSpeech = minimumUnalignedPrefixSpeechSamples
+            how = "window-start"
+        }
+        if (speech < minimumSpeech) {
+            resolutionReason = "arrival-prefix-speech-too-short:$how:$speech"
+            return null
+        }
+        val processed = processedSamples()
+        resolutionReason = "arrival-safe-prefix:$how:$cutSample:speech=$speech"
+        return SpeakerTurnSplit(
+            cutSample, all.copyOfRange(0, cutSample), all.copyOfRange(cutSample, all.size),
+            processed.copyOfRange(0, cutSample), processed.copyOfRange(cutSample, processed.size),
+            prefixIsTarget = false,
+        )
+    }
+
+    /** 与 [findQuietRun] 同一静音判据，但返回范围内最后一个长度不少于 [minimumRunSamples] 的静音段。 */
+    private fun lastQuietRun(
+        samples: FloatArray,
+        start: Int,
+        end: Int,
+        frameSamples: Int,
+        minimumRunSamples: Int,
+        endAfter: Int = start,
+    ): Pair<Int, Int>? {
+        var referenceRms = 0f
+        val frames = mutableListOf<Float>()
+        var offset = start
+        while (offset + frameSamples <= end) {
+            val rms = rangeRms(samples, offset, offset + frameSamples)
+            frames += rms
+            referenceRms = max(referenceRms, rms)
+            offset += frameSamples
+        }
+        if (frames.isEmpty() || referenceRms <= 0f) return null
+        val quietThreshold = min(0.01f, referenceRms * 0.15f)
+        val minimumQuietFrames = max(1, ceil(minimumRunSamples.toDouble() / frameSamples).toInt())
+        var runStart = -1
+        var last: Pair<Int, Int>? = null
+        for (index in 0..frames.size) {
+            val quiet = index < frames.size && frames[index] <= quietThreshold
+            if (quiet && runStart < 0) runStart = index
+            if (quiet) continue
+            if (runStart >= 0 && index - runStart >= minimumQuietFrames) {
+                val runEnd = min(end, start + index * frameSamples)
+                if (runEnd > endAfter) last = (start + runStart * frameSamples) to runEnd
+            }
+            runStart = -1
+        }
+        return last
+    }
+
+    /** 20 ms 帧 RMS 高于整段参考值 15%（上限 0.01）的帧计为语音，与 [findQuietRun] 的静音判据互补。 */
+    private fun speechSamplesEstimate(samples: FloatArray, start: Int, end: Int): Int {
+        val frameSamples = max(1, sampleRate / 50)
+        var referenceRms = 0f
+        var offset = start
+        val frames = mutableListOf<Float>()
+        while (offset + frameSamples <= end) {
+            val rms = rangeRms(samples, offset, offset + frameSamples)
+            frames += rms
+            referenceRms = max(referenceRms, rms)
+            offset += frameSamples
+        }
+        if (frames.isEmpty() || referenceRms <= 0f) return 0
+        val quietThreshold = min(0.01f, referenceRms * 0.15f)
+        return frames.count { it > quietThreshold } * frameSamples
+    }
 
     /**
      * Finish-time departure test.
@@ -399,6 +522,8 @@ internal class SpeakerTurnFinalizer(
         lastTargetScore = null
         resolutionReason = "not-resolved"
         pendingCandidatePrefixEndSample = -1
+        preTargetSpeechLowHops = 0
+        arrivalWindowStartSample = -1
     }
 
     private fun findQuietRun(samples: FloatArray, start: Int, end: Int, frameSamples: Int): Pair<Int, Int>? {
