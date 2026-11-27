@@ -16,7 +16,9 @@ class BuildInstallSmokeTest(unittest.TestCase):
         source = SCRIPT.read_text(encoding="utf-8")
 
         self.assertIn("--prepare-only", source)
-        self.assertIn('if [[ "$PREPARE_ONLY" != true && -z "$DEVICE" ]]', source)
+        self.assertIn("--build-only", source)
+        self.assertIn('if [[ "$PREPARE_ONLY" != true && "$BUILD_ONLY" != true && -z "$DEVICE" ]]', source)
+        self.assertIn('if [[ "$BUILD_ONLY" == true ]]', source)
         self.assertIn('if [[ "$PREPARE_ONLY" == true ]]', source)
         self.assertLess(source.index("prepare_build_workspace"), source.index("apply_local_signing"))
 

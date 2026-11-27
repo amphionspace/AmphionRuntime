@@ -33,6 +33,8 @@ export interface SpeakerTimelineTurn {
   beginTime: number;
   endTime: number;
   speakerId: string;
+  /** 只按 Sortformer 槽位得到的主身份；开启声纹身份后 speakerId 被覆盖，这里保留模型判断。 */
+  modelSpeakerId?: string;
   secondarySpeakerIds: string[];
   confidence?: number;
   overlap?: boolean;
@@ -287,6 +289,24 @@ export class SpeakerDiarizationTranscriptState {
     return utteranceId;
   }
 
+  /**
+   * [beginMs, endMs] 内有没有 ASR 语音证据：任一 token 的发射时间落在区间内（允许
+   * MAX_TOKEN_EMISSION_LAG_MS 的发射滞后）；没有 token 时间的 final 按整句区间相交算。
+   * 供声纹身份分配把关：没有证据的分割轨道不开新身份（客户 #29）。
+   */
+  hasTokenEvidence(beginMs: number, endMs: number): boolean {
+    for (const utterance of this.utterances) {
+      if (utterance.tokenTimesMs.length > 0) {
+        for (const time of utterance.tokenTimesMs) {
+          if (time >= beginMs && time <= endMs + MAX_TOKEN_EMISSION_LAG_MS) return true;
+        }
+      } else if (overlapMs(beginMs, endMs, utterance.beginTime, utterance.endTime) > 0) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   currentAssignment(utteranceId: string): DiarizationTranscriptUpdate | undefined {
     const utterance = this.utterances.find(
       (candidate: StoredUtterance): boolean => candidate.utteranceId === utteranceId);
@@ -315,6 +335,7 @@ export class SpeakerDiarizationTranscriptState {
         beginTime: newTurns[i].beginTime,
         endTime: newTurns[i].endTime,
         speakerId: newTurns[i].speakerId,
+        modelSpeakerId: newTurns[i].modelSpeakerId,
         secondarySpeakerIds: visibleSecondaryIds(evidenceIds, newTurns[i].speakerId),
         confidence: newTurns[i].confidence,
         overlap: newTurns[i].overlap,
@@ -523,7 +544,15 @@ export class SpeakerDiarizationTranscriptState {
         // it must not strip a display sentence whose own acoustic turns and tokens
         // already name one speaker. A known secondary or an overlap with no named
         // source still blocks, and the marker itself stays in `overlap`.
-        const blocked = turns.some(turn => this.blocksBackfill(turn));
+        // 同一个人被 Sortformer 同时放进两个槽位时，次说话人会标成与主说话人同一个身份；
+        // 那不是"这句还有别人"，不能因此阻断整句归属。整场只解析出一个已知身份时，
+        // 任何重叠都只能是同一人占两个槽位，同样不阻断（缺陷 #77：单人落到"其他角色"）。
+        const singleSpeakerSession = this.knownSpeakerIds().length <= 1;
+        const blocked = !singleSpeakerSession && turns.some(turn => {
+          const others = turn.secondarySpeakerIds.filter(id => id !== turn.speakerId);
+          const sameSpeakerOverlap = turn.secondarySpeakerIds.length > 0 && others.length === 0;
+          return this.blocksBackfillWith(others, (turn.overlap ?? false) && !sameSpeakerOverlap);
+        });
         const single = known.length === 1 && !blocked && bounded && parts.length > 0 &&
           parts.every(part => part.speakerId === known[0]);
         const inferred = parts.some(part => part.speakerInferred) ||
@@ -709,6 +738,7 @@ export class SpeakerDiarizationTranscriptState {
       beginTime: turn.beginTime,
       endTime: turn.endTime,
       speakerId: turn.speakerId,
+      modelSpeakerId: turn.modelSpeakerId,
       secondarySpeakerIds: turn.secondarySpeakerIds.slice(),
       confidence: turn.confidence,
       overlap: turn.overlap,
@@ -854,20 +884,27 @@ export class SpeakerDiarizationTranscriptState {
   } {
     const participants = new Set<string>();
     let overlap = false;
+    let unidentified = false;
     let confidence = 1;
     for (let i = 0; i < this.turns.length; i++) {
       const turn = this.turns[i];
       const duration = overlapMs(beginTime, endTime, turn.beginTime, turn.endTime);
       if (duration <= 0) continue;
       participants.add(turn.speakerId);
-      overlap = overlap || !!turn.overlap || turn.secondarySpeakerIds.length > 0;
       confidence = Math.min(confidence, turn.confidence ?? 0);
+      // 更新通道比"句子显示"更保守：只要还看到未定的次说话人就不给确定身份。
+      // 只放开两条：#77 需要的"同人次说话人不算冲突"与"单人会话的重叠是误报"。
+      const others = turn.secondarySpeakerIds.filter(id => id !== turn.speakerId);
+      if (others.some(id => id === UNKNOWN_SPEAKER || id === 'UNKNOWN_SECONDARY')) unidentified = true;
+      const sameSpeakerOverlap = turn.secondarySpeakerIds.length > 0 && others.length === 0;
+      overlap = overlap || (!!turn.overlap && !sameSpeakerOverlap) || others.length > 0;
       for (let j = 0; j < turn.secondarySpeakerIds.length; j++) {
         participants.add(turn.secondarySpeakerIds[j]);
       }
     }
+    const effectiveOverlap = overlap && this.knownSpeakerIds().length > 1;
     const single = participants.size === 1 && !participants.has(UNKNOWN_SPEAKER) &&
-      !participants.has('UNKNOWN_SECONDARY') && !overlap;
+      !participants.has('UNKNOWN_SECONDARY') && !effectiveOverlap && !unidentified;
     const speakerId = single ? Array.from(participants)[0] : UNKNOWN_SPEAKER;
     return {
       speakerId,
@@ -996,6 +1033,20 @@ export class SpeakerDiarizationTranscriptState {
     return merged;
   }
 
+  /** 本次会话到目前为止解析出的已知身份；单人会话判定用它。 */
+  private knownSpeakerIds(): string[] {
+    const ids = new Set<string>();
+    for (const turn of this.turns) {
+      if (turn.speakerId !== UNKNOWN_SPEAKER && turn.speakerId !== 'UNKNOWN_SECONDARY') ids.add(turn.speakerId);
+    }
+    return Array.from(ids);
+  }
+
+  private blocksBackfillWith(secondary: string[], overlap: boolean): boolean {
+    return secondary.some(id => id !== 'UNKNOWN' && id !== 'UNKNOWN_SECONDARY') ||
+      (overlap && secondary.length === 0);
+  }
+
   private blocksBackfill(part: SpeakerTimelineTurn): boolean {
     // An unidentified secondary voice does not establish a different primary
     // identity. Preserve that uncertainty in the merged text and raw timeline.
@@ -1005,9 +1056,12 @@ export class SpeakerDiarizationTranscriptState {
 
   private unsplitUtterance(utterance: StoredUtterance): DiarizedTranscriptUtterance {
     const assignment = this.assignmentFor(utterance.beginTime, utterance.endTime);
-    // Wetext currently returns only a string. Without exact source relations,
-    // lexical merges/expansions/replacements cannot acquire a guessed owner.
-    const exactText = tokenTextBoundaries([utterance.rawText], utterance.text) !== undefined;
+    // 文本对不回 token（ITN / 词法改写没有来源记录）时，整句的归属只看声学：这句区间内
+    // 只有一个已知角色、无重叠无未知，归属就是它，不需要逐字对齐——对齐只在要**切分**
+    // 文字时才有意义。此前这里一律给 UNKNOWN，让填单场景里凡带数字、电话、证件号（必经
+    // ITN 改写）的句子全部落成「其他角色」（客户 #29：机主第一句"我是角色112345678910"
+    // 真机 -1、次说话人 [S2]）。多人同句、重叠或未知仍按 assignmentFor 给 UNKNOWN。
+    const owned = assignment.speakerId !== UNKNOWN_SPEAKER;
     return {
       utteranceId: utterance.utteranceId,
       sourceUtteranceId: utterance.utteranceId,
@@ -1015,9 +1069,9 @@ export class SpeakerDiarizationTranscriptState {
       text: utterance.text,
       beginTime: utterance.beginTime,
       endTime: utterance.endTime,
-      speakerId: exactText ? utterance.speakerId : UNKNOWN_SPEAKER,
-      secondarySpeakerIds: utterance.secondarySpeakerIds.slice(),
-      confidence: exactText ? assignment.confidence : 0,
+      speakerId: owned ? assignment.speakerId : UNKNOWN_SPEAKER,
+      secondarySpeakerIds: assignment.secondarySpeakerIds.slice(),
+      confidence: owned ? assignment.confidence : 0,
       overlap: this.hasOverlap(utterance.beginTime, utterance.endTime),
     };
   }

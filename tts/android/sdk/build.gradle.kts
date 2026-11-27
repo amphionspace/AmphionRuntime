@@ -85,3 +85,20 @@ dependencies {
 tasks.matching { it.name == "mergeDebugAndroidTestAssets" }.configureEach {
     dependsOn(stageAndroidTestAssets)
 }
+
+// ONNX Runtime 的 .so 已不在 Git 里（tools/assets 的 tts-onnxruntime-android-v1）。AGP 对缺失的
+// jniLibs 不报错，会打出加载即崩的 AAR，所以在 preBuild 前硬失败。
+val verifyExternalOnnxRuntimeJniLibs = tasks.register("verifyExternalOnnxRuntimeJniLibs") {
+    group = "verification"
+    description = "Fail fast when the OBS-managed ONNX Runtime jniLibs were not fetched."
+    val jniDir = layout.projectDirectory.dir("src/main/jniLibs/arm64-v8a")
+    doLast {
+        val missing = listOf("libonnxruntime.so", "libonnxruntime4j_jni.so")
+            .filterNot { jniDir.file(it).asFile.isFile }
+        require(missing.isEmpty()) {
+            "ONNX Runtime jniLibs missing: ${missing.joinToString()} — run " +
+                "`python3 tools/assets/sync.py fetch tts-onnxruntime-android-v1` (see tools/assets/README.md)"
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifyExternalOnnxRuntimeJniLibs) }

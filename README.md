@@ -82,7 +82,15 @@ cd amphion-runtime
 
 # 已有仓库忘了 --recurse-submodules：
 git submodule update --init --recursive
+
+# 模型与原生二进制不在 Git 里（远程仓库只保留源码）。首次构建前从对象存储恢复：
+#   凭据只走环境变量 COS_SecretId / COS_SecretKey（腾讯云 COS），见 tools/assets/README.md
+python3 -m pip install cos-python-sdk-v5
+python3 tools/assets/sync.py fetch all
 ```
+
+`fetch all` 恢复当前受维护的全部资产，包括共享 ASR 模型（`shared/models/asr`）、TTS 的 ONNX Runtime /
+ICU 原生库与运行时资源；缺少它们时各端构建会在第一步直接报错并提示要拉取的 bundle 名称。
 
 各端编译入口：
 
@@ -137,8 +145,8 @@ bash asr/tools/07_sync_kotlin_from_upstream.sh   # 同步 Kotlin 桥接文件
 
 | 能力 / 平台 | 当前版本 | 权威来源 |
 | --- | --- | --- |
-| ASR Android | `0.3.9` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
-| ASR HarmonyOS | `0.3.26` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
+| ASR Android | `0.3.11` | [asr/android/gradle.properties](asr/android/gradle.properties) `AMPHION_RUNTIME_VERSION` |
+| ASR HarmonyOS | `0.3.30` | [asr/harmony/sdk/oh-package.json5](asr/harmony/sdk/oh-package.json5) `version` |
 | ASR iOS 预览版 | `0.3.4-alpha.1` | [asr/ios/AmphionRuntime.podspec](asr/ios/AmphionRuntime.podspec) `s.version` |
 | TTS Android | `3.0` | [tts/android/build.gradle.kts](tts/android/build.gradle.kts) `sdkVersion` |
 | TTS HarmonyOS | `3.0.0` | [tts/harmony/sdk/oh-package.json5](tts/harmony/sdk/oh-package.json5) `version` |

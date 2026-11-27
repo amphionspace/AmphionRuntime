@@ -58,8 +58,6 @@ asr/android/samples/public-demo/src/main/jniLibs/**/*.so
 asr/android/sdk/maven-repo/
 tts/android/sdk/src/main/assets/
 tts/android/sdk/src/main/jniLibs/**/*.so
-!tts/android/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime.so
-!tts/android/sdk/src/main/jniLibs/arm64-v8a/libonnxruntime4j_jni.so
 asr/ios/AmphionRuntime.xcframework/
 asr/ios/AmphionRuntime.xcframework.zip
 asr/ios/AmphionRuntime.xcframework.zip.sha256
@@ -161,10 +159,6 @@ shared/regression-set/audio/
 # Demo 模型由 asr/tools/00_fetch_demo_model.sh 拉取到 asr/tools/demo-model/
 # 自有模型由 asr/tools/00_push_my_model.sh 推到设备，本地目录由用户自管
 *.onnx
-# 多平台共用的发布模型只在 shared/models 保留一份；各平台构建时复制到包内运行路径。
-!shared/models/asr/dingqiao/eres2net.onnx
-!shared/models/asr/dingqiao/pyannote-segmentation-3.0.onnx
-!shared/models/asr/police/lac/v1/lac_encoder.onnx
 # Harmony Hvigor 会把共享许可证同步到 rawfile；源文件只跟踪 shared/models 下的一份。
 asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/pyannote-segmentation-3.0.LICENSE
 *.wav
@@ -283,3 +277,21 @@ asr/harmony/sdk-dingqiao/src/main/resources/rawfile/amphion-dingqiao/**/*.npy
 
 # Claude Code personal overrides
 .claude/settings.local.json
+
+# --- Git 外资产：由 tools/assets/manifest.json 管理，`python3 tools/assets/sync.py fetch all` 恢复 ---
+# 共享 ASR 模型（asr-shared-models-v1）：*.onnx 已被上面的全局规则忽略，这里补许可证文件。
+shared/models/asr/dingqiao/campplus.LICENSE
+shared/models/asr/dingqiao/pyannote-segmentation-3.0.LICENSE
+# TTS 原生依赖（tts-harmony-icu-v1 / tts-onnxruntime-android-v1 / tts-onnxruntime-harmony-v1）
+tts/harmony/sdk/src/main/cpp/third_party/ohos-icu/lib/*.a
+tts/harmony/sdk/libs/arm64-v8a/*.so
+# TTS 运行时资源整目录由 tts-runtime-zhen-v1 恢复（此前 txt/json 源文件仍在 Git 里，现已外置）
+tts/tools/trial-export/dingqiao_lits_en_zh_vocos24k_streaming_proto_external_loop/0.1.0/
+# TTS 训练输入（tts-training-inputs-v1）
+tts/training/dingqiao_lits/Dingqiao_Multilingual_Text_Normalization_for_TTS/original/morphodita/models/russian-syntagrus-morphodita-only.tagger
+tts/training/dingqiao_lits/data/filelists/before_mix/*.txt
+tts/training/dingqiao_lits/temp_cmu_g2p/data/cmudict-0.7b
+tts/training/dingqiao_lits/lits/text/sources/chinese_lexicon.txt
+
+# IMF 170000 客户线运行时模型包（bundle tts-runtime-imf170000-v*），不入库
+tts/tools/trial-export/dingqiao_imf_step00170000_streaming_vocos24k/0.1.0/

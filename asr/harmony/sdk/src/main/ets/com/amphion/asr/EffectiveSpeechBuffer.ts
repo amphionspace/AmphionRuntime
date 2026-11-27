@@ -17,6 +17,38 @@ export const MIN_SPEECH_ENERGY_RATIO: number = 3;
  * 远在安全带之上。所以这道门禁挡的是近似数字静音，**挡不住普通房间噪声里的幻觉**。
  */
 export const PUBLISH_RMS_THRESHOLD: number = 0.0002;
+/**
+ * 只由填充词构成的文本（"嗯""呃""啊"…）在没有原生 VAD 语音证据时不发布（客户 #92）。
+ *
+ * 真机实测（Mate 80，0.3.29）：真人声之后接 −40～−70 dBFS 的粉噪，57 s 内会出 1～4 个"嗯。/呃。"，
+ * 全部是 VAD 没判出语音、由原生 rule2 端点吐出的单字；它们能过上面那条 −74 dBFS 的声学门禁，
+ * 因为普通底噪电平远在其上（已知限制）。填充词是识别器在无语音输入时最常见的幻觉形态，
+ * 而真人说出的"嗯"在 Silero（阈值 0.5、窗 512、minSpeechDuration 0.25 s）下会被判成语音
+ * （客户同一录音里 3～5 s 的真人"嗯"走的就是 vad-active 端点）。所以只对"填充词 + 无 VAD 语音"
+ * 收紧，不动有实词的文本，也不另设字数或时长门槛。两端规则一致。
+ */
+export const FILLER_ONLY_CHARS: string = '嗯呃额啊哦噢喔唔诶欸哎唉呀哼嘶';
+export const FILLER_ONLY_MAX_CHARS: number = 4;
+const FILLER_ONLY_WORDS: string[] = ['um', 'uh', 'uhm', 'hmm', 'hm', 'mm', 'mmm', 'ah', 'oh', 'eh', 'er'];
+export const SUPPRESS_REASON_FILLER_WITHOUT_VAD: string = 'filler-without-vad';
+export const SUPPRESS_REASON_NO_INDEPENDENT_EVIDENCE: string = 'effective-speech-boundary';
+
+/** 去掉空白与标点后，是否只剩填充词（见 FILLER_ONLY_CHARS）。空文本返回 false。 */
+export function isFillerOnlyText(text: string): boolean {
+  let core = '';
+  for (const ch of text) {
+    if (/[\s\p{P}\p{S}]/u.test(ch)) continue;
+    core += ch;
+  }
+  if (core.length === 0) return false;
+  const lower = core.toLowerCase();
+  if (FILLER_ONLY_WORDS.indexOf(lower) >= 0) return true;
+  if (core.length > FILLER_ONLY_MAX_CHARS) return false;
+  for (const ch of core) {
+    if (FILLER_ONLY_CHARS.indexOf(ch) < 0) return false;
+  }
+  return true;
+}
 const MIN_EDGE_SILENCE_MS: number = 5;
 const MAX_EDGE_SILENCE_AMPLITUDE: number = ACOUSTIC_ACTIVE_RMS_THRESHOLD / 2;
 const MAX_VAD_EVIDENCE_LAG_WINDOWS: number = 3;
@@ -38,10 +70,13 @@ class EffectiveSpeechRun {
 export class EffectiveSpeechFinalDecision {
   publish: boolean;
   samples: Float32Array;
+  /** publish=false 时的原因，供 RESULT_SUPPRESSED 指标区分来源；publish=true 时为空串。 */
+  reason: string;
 
-  constructor(publish: boolean, samples: Float32Array) {
+  constructor(publish: boolean, samples: Float32Array, reason: string = '') {
     this.publish = publish;
     this.samples = samples;
+    this.reason = reason;
   }
 }
 
@@ -145,10 +180,27 @@ export class EffectiveSpeechBuffer {
     // processedWindows === 0 表示自上次 reset 以来一个窗都没喂过：这时没有判据，而且那段
     // 音频已经在上一次 terminal final 里发布过了，保持原行为放行。幻觉场景不会落到这里，
     // 因为运行时是持续喂音频的（哪怕是近似数字静音，也会产生窗和 run）。
+    // 被门禁拦下的非空 final 也是一句话的结束：清掉这一句保留的 run，否则长时间底噪里一句
+    // 接一句被拦，run 与 PCM 会一直累到 UTT_MAX_SAMPLES 上限，之后窗证据停止更新，且早先
+    // 的 VAD 证据会被下一句继承。
     if (this.processedWindows > 0 && !this.hasIndependentSpeechEvidence()) {
-      return new EffectiveSpeechFinalDecision(false, new Float32Array(0));
+      this.reset();
+      return new EffectiveSpeechFinalDecision(false, new Float32Array(0),
+        SUPPRESS_REASON_NO_INDEPENDENT_EVIDENCE);
+    }
+    // 只有填充词、且原生 VAD 全程没判出语音：普通底噪能过声学门禁（见 FILLER_ONLY_CHARS 注释），
+    // 这里要求独立于识别器且独立于能量的第二个信号。
+    if (this.processedWindows > 0 && isFillerOnlyText(publicText) && !this.hasVadSpeechEvidence()) {
+      this.reset();
+      return new EffectiveSpeechFinalDecision(false, new Float32Array(0),
+        SUPPRESS_REASON_FILLER_WITHOUT_VAD);
     }
     return new EffectiveSpeechFinalDecision(true, this.take(asrSpeechConfirmed));
+  }
+
+  /** 原生 VAD 是否确认过本句里的任一 run（不看窗数：真人"嗯"可能只有十几个窗）。 */
+  hasVadSpeechEvidence(): boolean {
+    return this.runs.some((run: EffectiveSpeechRun): boolean => run.vadConfirmed);
   }
 
   // 是否存在独立于识别器的语音证据：按 PUBLISH_RMS_THRESHOLD 确认的声学 run，或原生 VAD

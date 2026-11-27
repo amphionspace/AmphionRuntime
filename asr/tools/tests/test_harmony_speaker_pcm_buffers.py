@@ -118,6 +118,79 @@ class HarmonySpeakerPcmBuffersTest(unittest.TestCase):
             """
         )
 
+    def test_fallback_speech_samples_cut_at_the_vad_speech_end(self) -> None:
+        """final 分数只用到语音结束为止的 PCM，vadEnd 尾部静音不进评分窗口。"""
+        self.run_buffers(
+            """
+            const buffers = new SpeakerPcmBuffers(1000);
+            const speech = new Float32Array(300).fill(0.5);
+            const silence = new Float32Array(200);
+            buffers.observe(speech, true, true);
+            buffers.observe(silence, true, true);
+
+            const bounded = buffers.fallbackSpeechSamples(200);
+            assert.equal(bounded.length, 300);
+            assert.ok(bounded.every((v) => v === 0.5));
+            assert.equal(buffers.fallbackSamples().length, 500);
+
+            // trailing=0 等价于整段；trailing 超过观测总数时为空，由调用方决定退回整段。
+            assert.equal(buffers.fallbackSpeechSamples(0).length, 500);
+            assert.equal(buffers.fallbackSpeechSamples(600).length, 0);
+            """
+        )
+
+    def test_fallback_speech_samples_are_chunking_invariant(self) -> None:
+        """同一 PCM 一次写入与多次小块写入必须得到逐样本相同的评分 PCM。"""
+        self.run_buffers(
+            """
+            const pcm = Float32Array.from({ length: 1200 }, (_, i) => Math.sin(i / 7));
+            const whole = new SpeakerPcmBuffers(10_000);
+            whole.observe(pcm, true, true);
+
+            const chunked = new SpeakerPcmBuffers(10_000);
+            for (let offset = 0; offset < pcm.length; offset += 37) {
+              chunked.observe(pcm.subarray(offset, Math.min(pcm.length, offset + 37)), true, true);
+            }
+            for (const trailing of [0, 1, 36, 37, 38, 500, 1199]) {
+              const a = whole.fallbackSpeechSamples(trailing);
+              const b = chunked.fallbackSpeechSamples(trailing);
+              assert.equal(a.length, 1200 - trailing);
+              assert.deepEqual(Array.from(a), Array.from(b));
+            }
+            """
+        )
+
+    def test_fallback_speech_end_is_measured_against_uncapped_observation(self) -> None:
+        """封顶后仍按真实观测总数定位语音结束，否则尾静音会被误算进评分 PCM。"""
+        self.run_buffers(
+            """
+            const buffers = new SpeakerPcmBuffers(100);
+            buffers.observe(new Float32Array(90).fill(1), true, true);
+            buffers.observe(new Float32Array(60), true, true);  // 只保留 10 个，观测到 150
+            // 语音结束在观测位置 90：150 - 60 = 90，正好在封顶之内。
+            assert.equal(buffers.fallbackSpeechSamples(60).length, 90);
+            // 语音结束在封顶之后（观测位置 120）时按封顶长度返回整段保留内容。
+            assert.equal(buffers.fallbackSpeechSamples(30).length, 100);
+            """
+        )
+
+    def test_public_utterance_clear_bumps_the_epoch(self) -> None:
+        """投机算好的分数只能在同一代缓冲上消费：清空公开句必须换代，清 native 段不换。"""
+        self.run_buffers(
+            """
+            const buffers = new SpeakerPcmBuffers(100);
+            const epoch = buffers.fallbackEpoch();
+            buffers.observe(new Float32Array(10), true, true);
+            buffers.clearNativeSegment();
+            assert.equal(buffers.fallbackEpoch(), epoch);
+            buffers.clearPublicUtterance();
+            assert.equal(buffers.fallbackEpoch(), epoch + 1);
+            assert.equal(buffers.fallbackSpeechSamples(0).length, 0);
+            buffers.clearAll();
+            assert.equal(buffers.fallbackEpoch(), epoch + 2);
+            """
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -59,6 +59,7 @@ const VOICEPRINT_SCENARIOS: string[] = [
 ];
 // Test-carrier option only. Every lifecycle mode uses the same public StartParams.
 let stressEnableDiarization: boolean = false;
+let stressSpeakerIdentityMode: string = '';
 
 export class DeviceStressOptions {
   asrQos: string = 'default';
@@ -86,9 +87,27 @@ export class DeviceStressOptions {
   enforceTargetSpeakerBusinessText: boolean = true;
   speakerVadFinishRecoveryEntryIds: string = 'none';
   speakerVadThreshold: number = -2;
+  /** speaker-vad-turn 复现客户配置用：>0 时显式传 vadEnd（客户现场 1600），0 跟随 SDK 默认。 */
+  speakerVadVadEndMs: number = 0;
+  /** speaker-vad-turn 复现客户配置用：'short' | 'long'，空串不传。 */
+  speakerVadRecognizerMode: string = '';
+  /** speaker-vad-turn 复现客户配置用：客户主工程同时传 enableVoiceprintVerification=true。 */
+  speakerVadVerification: boolean = false;
   speechEndMs: number = 0;
   diarizationVadEndMs: number = 0;
   enableDiarization: boolean = false;
+  /**
+   * 'model'（Sortformer 槽位）或 'voiceprint'（声纹嵌入按发言段判身份）；空串表示不设置、
+   * 跟随 SDK 默认（0.3.27 起为 'voiceprint'）。默认留空：真机验收必须跑交付的默认行为，
+   * 载体不能替 SDK 决定模式；要做 A/B 时再显式传值。
+   */
+  speakerIdentityMode: string = '';
+  /** 场景参数交叉验证（2026-11-23）：customer-* 模式的会话级覆盖，0/空串表示跟随 profile。 */
+  vadEndMs: number = 0;
+  recognizerMode: string = '';
+  maxSpeakers: number = 0;
+  /** 用户热词文件（每行一个词的 UTF-16BE hex，ASCII 传输），非空时作为 sysGeneralLexicon 建引擎。 */
+  hotwordsPath: string = '';
   captureDiagnostics: boolean = false;
   holdMicCapture: boolean = false;
 }
@@ -1132,6 +1151,25 @@ function stringToUtf16Hex(value: string): string {
   return result;
 }
 
+function utf16HexToString(hex: string): string {
+  let out = '';
+  for (let i = 0; i + 4 <= hex.length; i += 4) out += String.fromCharCode(parseInt(hex.substring(i, i + 4), 16));
+  return out;
+}
+
+/** 读取用户热词文件：每行一个词的 UTF-16BE hex（manifest 同样走 ASCII 通道），空行跳过。 */
+function readHotwords(path: string): string[] {
+  if (path.length === 0) return [];
+  const text = asciiBytesToString(new Uint8Array(readBytes(path)));
+  const words: string[] = [];
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.length > 0) words.push(utf16HexToString(line));
+  }
+  return words;
+}
+
 function readBytes(path: string): ArrayBuffer {
   const fp = fs.openSync(path);
   try {
@@ -1297,6 +1335,8 @@ function createEngine(options: DeviceStressOptions = new DeviceStressOptions()):
   params.scheduling = scheduling;
   params.numThreads = options.asrNumThreads;
   params.extraParams['disablePrepack'] = options.asrDisablePrepack;
+  const hotwords = readHotwords(options.hotwordsPath);
+  if (hotwords.length > 0) params.extraParams['sysGeneralLexicon'] = hotwords;
   params.language = 'zh-CN';
   params.online = 1;
   return SpeechRecognizeSdk.createEngine(params);
@@ -1327,7 +1367,13 @@ function startParams(sessionId: string, mode: string, cycle: number): StartParam
   const params = new StartParams();
   params.sessionId = sessionId;
   params.audioInfo = new AudioInfo();
-  if (stressEnableDiarization) params.speakerDiarization = new SpeakerDiarizationConfig();
+  if (stressEnableDiarization) {
+    params.speakerDiarization = new SpeakerDiarizationConfig();
+    // 空串当未设置：拼错的值由 SDK 抛错，载体不替它兜。
+    if (stressSpeakerIdentityMode.length > 0) {
+      params.speakerDiarization.speakerIdentityMode = stressSpeakerIdentityMode;
+    }
+  }
   params.extraParams['enablePartialResult'] = false;
   // Standard lifecycle tests must end only at their explicit finish. The max-duration mode overrides this.
   params.extraParams['maxAudioDuration'] = 28800000;
@@ -1720,6 +1766,12 @@ async function runSpeakerVadTurnCycle(engine: SpeechRecognitionEngine,
   if (options.speakerVadThreshold >= -1 && options.speakerVadThreshold <= 1) {
     params.extraParams['speakerVadThreshold'] = options.speakerVadThreshold;
   }
+  // 客户主工程（OfflineAmphionEngine）下发口径：verification + speakerVad 同开、vadEnd=1600、long 模式。
+  if (options.speakerVadVadEndMs > 0) params.extraParams['vadEnd'] = options.speakerVadVadEndMs;
+  if (options.speakerVadRecognizerMode.length > 0) {
+    params.extraParams['recognizerMode'] = options.speakerVadRecognizerMode;
+  }
+  if (options.speakerVadVerification) params.extraParams['enableVoiceprintVerification'] = true;
   engine.startListening(params);
   if (!await waitFor((): boolean => events.starts === 1, START_TIMEOUT_MS)) {
     const startDetail = events.errorMessages.length > 0 ?
@@ -2309,7 +2361,8 @@ async function runSpeechEndLatencyCycle(engine: SpeechRecognitionEngine, entry: 
 }
 
 async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: CorpusEntry,
-  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0): Promise<CycleResult> {
+  index: number, mode: string, paceMs: number, diarizationVadEndMs: number = 0,
+  overrides?: DeviceStressOptions): Promise<CycleResult> {
   const startedAt = Date.now();
   let scenario: CustomerScenarioName = 'ptt';
   if (mode === 'customer-tap-vad') scenario = 'tap-vad';
@@ -2331,6 +2384,21 @@ async function runCustomerScenarioCycle(engine: SpeechRecognitionEngine, entry: 
     (diarizationVadEndMs === 400 || diarizationVadEndMs === 600 || diarizationVadEndMs === 800)) {
     params.extraParams['vadEnd'] = diarizationVadEndMs;
     events.auditVadEndMs = diarizationVadEndMs;
+  }
+  // 场景参数交叉验证：显式覆盖 profile 的会话参数（不改 profile 本身）。
+  if (overrides !== undefined) {
+    // speakerIdentityMode 此前只在通用 startParams 生效，客户场景 profile 路径没有应用，model/voiceprint 对比会跑成同一组。
+    if (params.speakerDiarization !== undefined && overrides.speakerIdentityMode.length > 0) {
+      params.speakerDiarization.speakerIdentityMode = overrides.speakerIdentityMode;
+    }
+    if (overrides.vadEndMs > 0) {
+      params.extraParams['vadEnd'] = overrides.vadEndMs;
+      events.auditVadEndMs = overrides.vadEndMs;
+    }
+    if (overrides.recognizerMode.length > 0) params.extraParams['recognizerMode'] = overrides.recognizerMode;
+    if (params.speakerDiarization !== undefined && overrides.maxSpeakers > 0) {
+      params.speakerDiarization.maxSpeakers = overrides.maxSpeakers;
+    }
   }
   // Feed five hours under an eight-hour guard so explicit finish owns the gate's terminal callback.
   const maxAudioDurationMs = mode === 'diarization-windows' ? 28800000 : profile.maxAudioDuration;
@@ -3026,6 +3094,7 @@ function safeDetail(value: string): string {
 export async function runDeviceStress(context: common.UIAbilityContext,
   options: DeviceStressOptions): Promise<void> {
   stressEnableDiarization = options.enableDiarization;
+  stressSpeakerIdentityMode = options.speakerIdentityMode ?? '';
   const startedAt = Date.now();
   const lines: string[] = [];
   const totals = new StressTotals();
@@ -3152,7 +3221,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
         options.mode === 'customer-form' || options.mode === 'customer-meeting-minutes' ||
         options.mode === 'diarization-windows') {
         result = await runCustomerScenarioCycle(
-          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs);
+          engine, entry, i, options.mode, options.paceMs, options.diarizationVadEndMs, options);
       } else if (options.mode === 'endpoint-reentrant') {
         result = await runEndpointReentrantCycle(engine, entry, i);
       } else if (options.mode === 'finish-shutdown') {
@@ -3209,6 +3278,7 @@ export async function runDeviceStress(context: common.UIAbilityContext,
     power?.stop();
     if (engine !== undefined) engine.shutdown();
     stressEnableDiarization = false;
+    stressSpeakerIdentityMode = '';
     if (stressVoiceprintId.length > 0) {
       try { SpeechRecognizeSdk.deleteVoiceprint(stressVoiceprintId); } catch (_e) {}
     }

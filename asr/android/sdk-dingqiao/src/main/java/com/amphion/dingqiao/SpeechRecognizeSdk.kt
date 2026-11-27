@@ -548,7 +548,13 @@ object SpeechRecognizeSdk {
             }
             SpeakerEnroller(modelPath.absolutePath).use { enroller ->
                 val embedding = enroller.enroll(segments)
-                store.saveVoiceprint(params.samplePaths, embedding)
+                // 每份样本的独立嵌入（单段 enroll 即该段归一化嵌入），供会话按模板取最大分。
+                val templates = segments.mapNotNull { segment ->
+                    runCatching { enroller.enroll(listOf(segment)) }.getOrNull()
+                }
+                // 2 s 分段模板只供 final 打分（缺陷 #97 第二轮）。
+                val segmentTemplates = runCatching { enroller.enrollSegmentTemplates(segments) }.getOrDefault(emptyList())
+                store.saveVoiceprint(params.samplePaths, embedding, templates, segmentTemplates)
             }
         } catch (error: Throwable) {
             voiceprintRegistrationFailure(

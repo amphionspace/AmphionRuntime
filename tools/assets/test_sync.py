@@ -25,14 +25,14 @@ class AssetSyncTest(unittest.TestCase):
         _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
         selected = {bundle.name for bundle in MODULE.selected_bundles(bundles, ["all"])}
         self.assertEqual(
-            {"team-secure-state-v5"},
+            {"team-secure-state-v6"},
             {name for name in selected if name.startswith("team-secure-state-")},
         )
         self.assertIn("asr-itn-zh-v2", selected)
         self.assertNotIn("asr-itn-zh-v1", selected)
         self.assertEqual(
-            [bundles["team-secure-state-v2"]],
-            MODULE.selected_bundles(bundles, ["team-secure-state-v2"]),
+            [bundles["asr-itn-zh-v1"]],
+            MODULE.selected_bundles(bundles, ["asr-itn-zh-v1"]),
         )
 
     def test_corpus_alias_reuses_archive_and_cache_without_duplicate_selection(self) -> None:
@@ -253,6 +253,85 @@ class AssetSyncTest(unittest.TestCase):
                 self.assertEqual("generated-output", MODULE.policy_match(path, manifest))
         self.assertIsNone(MODULE.policy_match("private/model.bin", manifest))
 
+    def test_synchronized_repository_assets_are_not_tracked_by_git(self) -> None:
+        """外置资产不得再被 Git 跟踪：2026-11-16 起仓库只保留源码，模型/原生库全部由 bundle 恢复。
+
+        以前 `shared/models` 与 `tts/tools/trial-export` 的文件既在 bundle 里又在 Git 里，
+        远程仓库因此长到 200 MB。这里对每个仓库内 bundle 的逐文件清单查 `git ls-files`，
+        任何一条被跟踪就失败；新增大文件请走 bundle，不要用 .gitignore 的 `!` 负规则放行。
+        """
+        import subprocess
+        manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        repo_root = MODULE.DEFAULT_REPO_ROOT
+        tracked = []
+        for name, bundle in manifest["bundles"].items():
+            for item in bundle.get("files", []):
+                relative = f"{bundle['destination']}/{item['path']}"
+                result = subprocess.run(
+                    ["git", "-C", str(repo_root), "ls-files", "--error-unmatch", relative],
+                    capture_output=True, text=True,
+                )
+                if result.returncode == 0:
+                    tracked.append(f"{name}: {relative}")
+        self.assertEqual([], tracked, "synchronized asset files must not be tracked by Git")
+        for name in ("asr-shared-models-v1", "tts-harmony-icu-v1", "tts-onnxruntime-android-v1",
+                     "tts-onnxruntime-harmony-v1", "tts-training-inputs-v1"):
+            self.assertIn(name, manifest["bundles"])
+
+    def test_manifest_defaults_to_cos_and_keeps_obs_legacy_for_restricted_bundles(self) -> None:
+        """2026-11-16 起默认存储是腾讯云 COS；受限（SSE-KMS）bundle 留在具名的 obs-legacy 只读存储。"""
+        manifest = json.loads(MODULE.DEFAULT_MANIFEST.read_text(encoding="utf-8"))
+        storages = MODULE.storages_from(manifest)
+        self.assertEqual("tencent-cos", storages["default"].provider)
+        self.assertEqual("ap-guangzhou", storages["default"].region)
+        self.assertEqual(("COS_SecretId", "COS_SecretKey"),
+                         (storages["default"].access_key_env, storages["default"].secret_key_env))
+        self.assertEqual("huawei-obs", storages["obs-legacy"].provider)
+        self.assertEqual("OBS_Endpoint", storages["obs-legacy"].endpoint_env)
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        for name, bundle in bundles.items():
+            if not bundle.owned:
+                continue
+            expected = "obs-legacy" if bundle.definition.get("encryption") == "sse-kms" else "default"
+            self.assertEqual(expected, bundle.storage.name, name)
+        # 新外置的五个 bundle 全部在默认（COS）存储上。
+        for name in ("asr-shared-models-v1", "tts-harmony-icu-v1", "tts-onnxruntime-android-v1",
+                     "tts-onnxruntime-harmony-v1", "tts-training-inputs-v1"):
+            self.assertEqual("tencent-cos", bundles[name].storage.provider)
+
+    def test_storage_parsing_rejects_incomplete_or_unknown_providers(self) -> None:
+        base = {"bucket": "b", "access_key_env": "A", "secret_key_env": "S", "prefix": "p"}
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": {**base, "provider": "aws-s3"}})
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": {**base, "provider": "tencent-cos"}})  # no region
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storage_from({"storage": base})  # obs without endpoint_env
+        legacy = MODULE.storage_from({"storage": {**base, "endpoint_env": "E"}})
+        self.assertEqual("huawei-obs", legacy.provider)
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.storages_from({"storage": {**base, "endpoint_env": "E"}, "storages": {"default": base}})
+
+    def test_cos_identity_normalizes_headers_like_obs(self) -> None:
+        size, sha, enc = MODULE.cos_identity_from_headers(
+            {"content-length": "42", "x-cos-meta-sha256": "ab" * 32, "x-cos-server-side-encryption": "cos/kms"})
+        self.assertEqual((42, "ab" * 32, "kms"), (size, sha, enc))
+        size, sha, enc = MODULE.cos_identity_from_headers({"content-length": "7"})
+        self.assertEqual((7, None, None), (size, sha, enc))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.cos_identity_from_headers({"etag": "x"})
+
+    def test_mirror_refuses_restricted_bundles_and_same_storage(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            bundle = self.restricted_bundle(root)
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.mirror_bundle(bundle, MODULE.Storage("other", "E", "A", "S", "p", name="src"))
+            definition = dict(bundle.definition)
+            definition.pop("encryption", None)
+            plain = MODULE.Bundle("plain", definition, bundle.storage, root, True)
+            self.assertEqual("same-storage", MODULE.mirror_bundle(plain, plain.storage))
+
     def test_test_data_include_uses_shared_cache_root(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -309,3 +388,53 @@ class AssetSyncTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+    def test_client_encryption_round_trip_is_deterministic_and_authenticated(self) -> None:
+        import base64, os, tempfile
+        from pathlib import Path
+        key = base64.b64encode(bytes(range(32))).decode()
+        with tempfile.TemporaryDirectory() as directory, unittest.mock.patch.dict(os.environ, {MODULE.ASSET_KEY_ENV: key}):
+            plain = Path(directory) / "a.zip"
+            plain.write_bytes(b"PK\x05\x06" + b"x" * 100)
+            sha = MODULE.sha256_file(plain)
+            enc1 = Path(directory) / "a1.zip.enc"
+            enc2 = Path(directory) / "a2.zip.enc"
+            MODULE.encrypt_archive(plain, enc1, sha)
+            MODULE.encrypt_archive(plain, enc2, sha)
+            self.assertEqual(enc1.read_bytes(), enc2.read_bytes())
+            self.assertTrue(enc1.read_bytes().startswith(MODULE.ENCRYPTED_MAGIC))
+            self.assertNotIn(b"x" * 50, enc1.read_bytes())
+            out = Path(directory) / "out.zip"
+            MODULE.decrypt_archive(enc1, out, sha)
+            self.assertEqual(plain.read_bytes(), out.read_bytes())
+            tampered = Path(directory) / "t.zip.enc"
+            blob = bytearray(enc1.read_bytes()); blob[-1] ^= 1; tampered.write_bytes(bytes(blob))
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.decrypt_archive(tampered, out, sha)
+            with self.assertRaises(MODULE.AssetError):
+                MODULE.decrypt_archive(enc1, out, "0" * 64)
+
+    def test_validate_bundle_requires_encrypted_identity_for_client_encryption(self) -> None:
+        base = {
+            "description": "d", "license": "l", "redistribution": "r", "destination": "x", "archive_root": "x",
+            "archive_type": "zip", "object": "x/abc.zip.enc", "size": 10, "sha256": "a" * 64,
+            "encryption": MODULE.CLIENT_ENCRYPTION,
+        }
+        MODULE.validate_bundle("x", dict(base))  # 未 seal 可加载
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.remote_expectation(dict(base))  # 但不能发布 / 拉取
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, encrypted_size=5, encrypted_sha256="b" * 64))
+        MODULE.validate_bundle("x", dict(base, encrypted_size=38, encrypted_sha256="b" * 64))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, object="x/abc.zip", encrypted_size=38, encrypted_sha256="b" * 64))
+        with self.assertRaises(MODULE.AssetError):
+            MODULE.validate_bundle("x", dict(base, encryption="sse-c"))
+        self.assertEqual((38, "b" * 64, "AES256"), MODULE.remote_expectation(dict(base, encrypted_size=38, encrypted_sha256="b" * 64)))
+
+    def test_restricted_current_bundles_are_client_encrypted_on_default_storage(self) -> None:
+        _, bundles = MODULE.load_registry(MODULE.DEFAULT_MANIFEST, MODULE.DEFAULT_REPO_ROOT)
+        for name in ("team-secure-state-v6", "harmony-demo-license-v2"):
+            self.assertEqual(MODULE.CLIENT_ENCRYPTION, bundles[name].definition["encryption"])
+            self.assertEqual("default", bundles[name].storage.name)
+        self.assertFalse(any(b.definition.get("encryption") == "sse-kms" for b in bundles.values()))

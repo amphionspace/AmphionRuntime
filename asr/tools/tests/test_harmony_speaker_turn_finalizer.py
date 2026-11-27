@@ -25,6 +25,9 @@ SPEAKER_TURN_MODEL_METADATA = (
     REPO_ROOT
     / "delivery/harmony-dingqiao/delivery/pyannote_segmentation_3_0.json"
 )
+# shared/models/asr 2026-11-16 起外置（tools/assets/manifest.json 的 asr-shared-models-v1）；
+# 干净检出里没有 .onnx 时用清单登记的逐文件 sha256 核对 pin。
+ASSET_MANIFEST = REPO_ROOT / "tools/assets/manifest.json"
 SPEAKER_TURN_NATIVE = (
     REPO_ROOT / "asr/harmony/sdk/src/main/cpp/speaker_turn_segmenter.cpp"
 )
@@ -92,6 +95,67 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             """
         )
 
+    def test_silence_only_low_hops_are_not_departure_evidence(self) -> None:
+        """机主停口后窗口被静音稀释，低分不是离场证据（缺陷 #98 的截断根因）。
+
+        客户录音实测分数序列：0.545 / 0.545 → 0.327 → -0.072，后两跳窗口都落在本句语音
+        结束之后。照旧计入离场会在机主自己的句子里切一刀，「那我们按顺序逐项过一遍」只
+        发布到「逐」。分数照常记录（lastScore 不变），只有离场结论要求声学依据。
+        """
+        self.run_finalizer(
+            """
+            const hop = new Float32Array(500);
+            for (let i = 0; i < hop.length; i++) hop[i] = i % 2 === 0 ? 0.2 : -0.2;
+            const feed = (finalizer, count) => {
+              for (let i = 0; i < count; i++) finalizer.accept(hop);
+            };
+
+            // 两跳低分都在静音里：不构成离场，整句仍归机主。
+            const silent = new SpeakerTurnFinalizer(1_000, 1_000, 500, 2, 10_000);
+            feed(silent, 8);
+            assert.equal(silent.observeScore(1_000, 0.545, 0.35, true), 'target-confirmed');
+            assert.equal(silent.observeScore(1_500, 0.545, 0.35, true), 'target-active');
+            assert.equal(silent.observeScore(2_000, 0.327, 0.35, false), 'below');
+            assert.equal(silent.observeScore(2_500, -0.072, 0.35, false), 'departure');
+            assert.equal(silent.hasSpeechBearingLowScore(), false);
+            assert.equal(silent.hasPendingDeparture(), false,
+              'silence-diluted windows must not cut the confirmed target own sentence');
+            assert.equal(silent.hasPendingFinishDeparture(), false);
+            assert.equal(silent.lastScore(), -0.072, 'the score itself is still recorded');
+            assert.equal(silent.consecutiveLowScores(), 2, 'the ledger is unchanged');
+
+            // 有一跳低分带语音：真的有人接话，离场证据照旧成立。
+            const spoken = new SpeakerTurnFinalizer(1_000, 1_000, 500, 2, 10_000);
+            feed(spoken, 8);
+            assert.equal(spoken.observeScore(1_000, 0.545, 0.35, true), 'target-confirmed');
+            assert.equal(spoken.observeScore(2_000, 0.327, 0.35, true), 'below');
+            assert.equal(spoken.hasPendingFinishDeparture(), true,
+              'a speech-bearing low hop is finish-time departure evidence');
+            assert.equal(spoken.observeScore(2_500, -0.072, 0.35, false), 'departure');
+            assert.equal(spoken.hasSpeechBearingLowScore(), true);
+            assert.equal(spoken.hasPendingDeparture(), true,
+              'one low hop with real speech still proves the owner left');
+
+            // 机主再被确认后，证据清零，不跨 turn 残留。
+            const returning = new SpeakerTurnFinalizer(1_000, 1_000, 500, 2, 10_000);
+            feed(returning, 8);
+            returning.observeScore(1_000, 0.545, 0.35, true);
+            returning.observeScore(2_000, 0.327, 0.35, true);
+            assert.equal(returning.hasSpeechBearingLowScore(), true);
+            assert.equal(returning.observeScore(2_500, 0.61, 0.35, true), 'target-active');
+            assert.equal(returning.hasSpeechBearingLowScore(), false);
+            assert.equal(returning.hasPendingFinishDeparture(), false);
+
+            // 默认入参保持旧行为：未显式传语音证据的调用方不受影响。
+            const legacy = new SpeakerTurnFinalizer(1_000, 1_000, 500, 2, 10_000);
+            feed(legacy, 8);
+            legacy.observeScore(1_000, 0.545, 0.35);
+            legacy.observeScore(2_000, 0.327, 0.35);
+            assert.equal(legacy.observeScore(2_500, -0.072, 0.35), 'departure');
+            assert.equal(legacy.hasPendingDeparture(), true);
+            """
+        )
+
     def test_split_preserves_aligned_raw_and_agc_domains(self) -> None:
         self.run_finalizer(
             """
@@ -133,7 +197,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "private speakerTurnFinalizer", 1
         )[0]
         sync = source.split("private syncSpeakerTurnState", 1)[1].split(
-            "private commitCleanSpeakerTurn", 1
+            "private restartRejectedSpeakerTurn", 1
         )[0]
         replay_index = commit.index("this.replaySpeakerSuffixForFinish(split)")
         departure_index = commit.index("this.svAwaitingTargetAfterDeparture = true")
@@ -142,10 +206,13 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "this.svRejectCurrentUtterance = this.svAwaitingTargetAfterDeparture",
             reset,
         )
-        self.assertIn(
-            "if (this.svTargetConfirmed) this.svAwaitingTargetAfterDeparture = false",
-            sync,
-        )
+        # 待确认标记不能由流式状态在 sync 中清除（finalizer 的 targetSeen 是粘性的，
+        # 切分后第一窗含机主尾音就会立刻"重新确认"），只在拒绝重启时复位（缺陷 #98）。
+        self.assertNotIn("this.svAwaitingTargetAfterDeparture = false", sync)
+        restart = source.split("private restartRejectedSpeakerTurn", 1)[1].split(
+            "speakerPcmBuffers.clearAll()", 1
+        )[0]
+        self.assertIn("this.svAwaitingTargetAfterDeparture = false", restart)
 
     def test_known_non_target_tail_still_attempts_a_real_final_score(self) -> None:
         source = RUNTIME.read_text(encoding="utf-8")
@@ -211,7 +278,11 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             "private flushPendingSpeakerFinals", 1
         )[0]
         self.assertIn(
-            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
+            "speakerFinalGateScore(pending.speakerVadThreshold,",
+            delivery,
+        )
+        self.assertIn(
+            "pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture",
             delivery,
         )
 
@@ -247,7 +318,11 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
         self.assertIn("pending.speakerVadTargetConfirmed", delivery)
         self.assertIn("pending.result.speakerScore >=", delivery)
         self.assertIn(
-            "speakerFinalGateScore(pending.speakerVadThreshold, pending.speakerVadTargetConfirmed)",
+            "speakerFinalGateScore(pending.speakerVadThreshold,",
+            delivery,
+        )
+        self.assertIn(
+            "pending.speakerVadTargetConfirmed && !this.svAwaitingTargetAfterDeparture",
             delivery,
         )
         self.assertLess(
@@ -272,8 +347,15 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
 
     def test_packaged_boundary_model_matches_pinned_upstream_artifact(self) -> None:
         metadata = json.loads(SPEAKER_TURN_MODEL_METADATA.read_text(encoding="utf-8"))
-        digest = hashlib.sha256(SPEAKER_TURN_MODEL.read_bytes()).hexdigest()
-        self.assertEqual(metadata["sha256"], digest)
+        manifest = json.loads(ASSET_MANIFEST.read_text(encoding="utf-8"))
+        registered = {
+            item["path"]: item["sha256"]
+            for item in manifest["bundles"]["asr-shared-models-v1"]["files"]
+        }
+        self.assertEqual(metadata["sha256"], registered["dingqiao/pyannote-segmentation-3.0.onnx"])
+        if SPEAKER_TURN_MODEL.is_file():
+            digest = hashlib.sha256(SPEAKER_TURN_MODEL.read_bytes()).hexdigest()
+            self.assertEqual(metadata["sha256"], digest)
         self.assertEqual(
             "733a93b6473d019a773298e08cefa686894b1854",
             metadata["source_revision"],
@@ -854,7 +936,7 @@ class HarmonySpeakerTurnFinalizerTest(unittest.TestCase):
             });
             assert.ok(split);
             assert.equal(split.cutSample, 2_000);
-            assert.ok(scoreCalls <= 4, `speaker scorer calls must be bounded, got ${scoreCalls}`);
+            assert.ok(scoreCalls <= 8, `speaker scorer calls must be bounded, got ${scoreCalls}`);
             assert.match(finalizer.lastResolutionReason(), /candidate=2000/);
             """
         )

@@ -259,15 +259,65 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
         drain = method_body(self.runtime, "processDecodedResultAsync")
         drain_lane = method_body(self.runtime, "drainSpeakerInferenceAsync")
         prepare = method_body(self.runtime, "prepareVadEndpointSpeakerScoreAsync")
+        take = method_body(self.runtime, "takeOrComputeFinalSpeakerScoreAsync")
         probe = method_body(self.runtime, "probeInitialSpeechAtTimeoutAsync")
         score = method_body(self.runtime, "scoreSamplesAsync")
         self.assertIn("await this.drainSpeakerInferenceAsync", drain)
         self.assertIn("await this.speakerInferenceLane.drain", drain_lane)
         self.assertIn("await this.prepareVadEndpointSpeakerScoreAsync", drain)
-        self.assertIn("await this.scoreSamplesAsync", prepare)
+        # 整句分数经 takeOrComputeFinalSpeakerScoreAsync 消费投机结果或现算，两条分支都异步。
+        self.assertIn("await this.takeOrComputeFinalSpeakerScoreAsync", prepare)
+        self.assertIn("await this.scoreSamplesAsync", take)
+        self.assertNotIn("this.scoreSamples(", prepare)
+        self.assertNotIn("this.scoreSamples(", take)
         self.assertIn("await this.prepareVadEndpointSpeakerScoreAsync", probe)
         self.assertIn("await extractor.computeAsync", score)
         self.assertNotIn(".compute(", score)
+
+    def test_full_utterance_fallback_score_waits_for_the_clean_split_decision(self) -> None:
+        """整句回退分数是对 fallbackSamples() 的一次嵌入，不能抢在干净切分结论之前。
+
+        抢在前面有两个后果（缺陷 #98 手机 80 实测）：这次嵌入白压在 endpoint→final 的
+        关键路径上（该句 1212 → 984 ms）；且 svSpeakerScorePrepared 被置真后
+        commitCleanSpeakerTurnAsync 会跳过 computeCleanPrefixSpeakerScoreAsync，
+        机主前缀带着"前缀+非机主后缀"的混合分数发布。
+        """
+        finalize = method_body(self.runtime, "finalizeAnnouncedVadEndpointAsync")
+        commit = finalize.index("await this.commitCleanSpeakerTurnAsync(")
+        prepare = finalize.index("await this.prepareVadEndpointSpeakerScoreAsync()")
+        self.assertLess(
+            commit,
+            prepare,
+            "the clean split decides whether a full-utterance score is needed at all",
+        )
+
+        for name in (
+            "feedChunkAndDecodeAsync",
+            "finalizeReadySpeakerEndpointAsync",
+            "processDecodedResultAsync",
+        ):
+            body = method_body(self.runtime, name)
+            finalize_calls = [
+                m.start()
+                for m in re.finditer(r"this\.finalizeAnnouncedVadEndpointAsync\(", body)
+            ]
+            prepare_calls = [
+                m.start()
+                for m in re.finditer(
+                    r"this\.prepareVadEndpointSpeakerScoreAsync\(\)", body
+                )
+            ]
+            if not finalize_calls or not prepare_calls:
+                continue
+            self.assertGreater(
+                min(prepare_calls),
+                max(finalize_calls),
+                f"{name} must not score the whole utterance before the split decision",
+            )
+
+        commit_body = method_body(self.runtime, "commitCleanSpeakerTurnAsync")
+        self.assertIn("if (!this.svSpeakerScorePrepared)", commit_body)
+        self.assertIn("this.computeCleanPrefixSpeakerScoreAsync(split)", commit_body)
 
     def test_speaker_vad_only_final_is_prepared_asynchronously(self) -> None:
         prepare = method_body(self.runtime, "prepareVadEndpointSpeakerScoreAsync")
@@ -651,6 +701,52 @@ class HarmonySpeakerInferenceThreadingTest(unittest.TestCase):
             "await this.drainFinalWithSpeakerScoreAsync(true, suffixTailDecodeMs)", commit
         )
         self.assertIn("await this.feedChunkAndDecodeAsync", replay)
+
+    def test_final_speaker_score_is_speech_bounded_and_speculated_in_vad_end_window(self) -> None:
+        """整句 final 分数截到 VAD 语音结束，并在 vadEnd 等待空档里提前算好。
+
+        手机 80 实测 endpoint→final 几乎全是这次整句嵌入（6.92 s 句 406 ms，与句长成正比），
+        而它同时是 deliverSpeakerFinal 的发布/拒绝闸门输入。把评分 PCM 截到语音结束既让它在
+        端点前定型（才能提前算），也让 speakerSimilarity 不再随 vadEnd 配置漂移。投机结果
+        只能在缓冲代、语音结束样本、有界长度和 lane generation 全部一致时消费；两条发布路径
+        必须用同一个样本选择器，否则准备与未准备路径会发布不同的分数。
+        """
+        prepare = method_body(self.runtime, "prepareVadEndpointSpeakerScoreAsync")
+        dispatch = method_body(self.runtime, "dispatchFinal")
+        selector = method_body(self.runtime, "finalSpeakerScoreSamples")
+        trailing = method_body(self.runtime, "finalSpeakerTrailingSamples")
+        advance = method_body(self.runtime, "advanceVadGateAsync")
+        take = method_body(self.runtime, "takeOrComputeFinalSpeakerScoreAsync")
+        speculate = method_body(self.runtime, "maybeSpeculateFinalSpeakerScore")
+        reset = method_body(self.runtime, "resetVadGateState")
+        release = method_body(self.runtime, "releaseStreamIfClosed")
+
+        # 两条发布路径共用同一个样本选择器，且都不再直接拿整段 fallbackSamples()。
+        self.assertIn("this.finalSpeakerScoreSamples()", prepare)
+        self.assertIn("this.finalSpeakerScoreSamples()", dispatch)
+        self.assertNotIn("speakerPcmBuffers.fallbackSamples()", prepare)
+        self.assertNotIn("speakerPcmBuffers.fallbackSamples()", dispatch)
+
+        # 选择器：按 VAD 语音结束截断；无 VAD 证据或截后为空时退回整段，不省略分数。
+        self.assertIn("fallbackSpeechSamples(trailing)", selector)
+        self.assertIn("bounded.length > 0 ? bounded : this.speakerPcmBuffers.fallbackSamples()", selector)
+        self.assertIn("this.vadProcessedSamples - this.vadLastSpeechEndSample", trailing)
+        self.assertIn("+ this.vadCarry.length", trailing)
+
+        # 投机在异步 VAD 推进的静音分支里起，端点时只在四个键全部一致时消费。
+        self.assertIn("this.maybeSpeculateFinalSpeakerScore()", advance)
+        self.assertIn("this.vadLastSpeechEndSample === this.svSpeculativeSpeechEndSample", speculate)
+        self.assertIn("this.svSpeculativeScoreEpoch === this.speakerPcmBuffers.fallbackEpoch()", take)
+        self.assertIn("this.svSpeculativeSpeechEndSample === this.vadLastSpeechEndSample", take)
+        self.assertIn("this.svSpeculativeScoreLength === samples.length", take)
+        self.assertIn("this.svSpeculativeScoreGeneration === generation", take)
+        # final 现算带 forFinal=true（整文件 + 2 s 分段模板，缺陷 #97 第二轮）。
+        self.assertIn("hit ? await task : await this.scoreSamplesAsync(samples, true)", take)
+        self.assertNotIn("this.scoreSamples(", take)
+
+        # 句边界换代后旧投机不可见；Runtime 释放要等在途投机结束。
+        self.assertIn("this.svSpeculativeScoreTask = undefined", reset)
+        self.assertIn("this.svSpeculativeScorePending > 0", release)
 
 
 if __name__ == "__main__":

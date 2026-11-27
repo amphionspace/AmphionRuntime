@@ -41,6 +41,8 @@ Android JNI 会从这个目录编译 `liblits_tn.so`，Gradle 也会从这里同
 ```bash
 export JAVA_HOME=/path/to/jdk-17
 export ANDROID_HOME=/path/to/android-sdk
+# ONNX Runtime jniLibs 与 TTS 运行时资源不在 Git 里，先恢复（凭据见 tools/assets/README.md）：
+#   python3 tools/assets/sync.py fetch tts-onnxruntime-android-v1 tts-runtime-zhen-v1
 export ANDROID_SDK_ROOT=/path/to/android-sdk
 export ANDROID_NDK=$ANDROID_HOME/ndk/27.2.12479018
 ```

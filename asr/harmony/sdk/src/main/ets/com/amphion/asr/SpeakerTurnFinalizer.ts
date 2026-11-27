@@ -90,6 +90,7 @@ export class SpeakerTurnFinalizer {
   private firstBelowEndSample: number = -1;
   private lastObservedEndSample: number = -1;
   private departureSeen: boolean = false;
+  private speechBearingLowScore: boolean = false;
   private rejectBeforeTarget: boolean = false;
   private latestScore?: number;
   private lastTargetScore?: number;
@@ -120,7 +121,19 @@ export class SpeakerTurnFinalizer {
     }
   }
 
-  observeScore(endSample: number, score: number, threshold: number): SpeakerTurnScoreState {
+  /**
+   * `speechWasActive` 是这一跳窗口有没有 VAD 确认的语音。
+   *
+   * 窗口是固定 winSec 的尾部音频，机主停口后它会被静音逐步稀释，嵌入随之失真：同一段
+   * 机主语音，窗口满时打 0.545，尾部 0.93 s 静音时打 -0.072（手机 80 实测）。把这种分数
+   * 当成"机主离场"的证据，就会在机主自己的句子里凑出 departure 并切一刀，把句尾切掉
+   * （缺陷 #98：「那我们按顺序逐项过一遍」只发布到「逐」，且拆开了「逐项」）。
+   *
+   * 分数本身照常记录和上报——不省略任何窗口的评分；只有"离场"这个结论要求至少一跳低分
+   * 窗口带真实语音。判据是有无语音，不是语音时长占比，短插话仍然算证据。
+   */
+  observeScore(endSample: number, score: number, threshold: number,
+    speechWasActive: boolean = true): SpeakerTurnScoreState {
     const end = Math.max(0, Math.round(endSample));
     this.lastObservedEndSample = end;
     this.latestScore = score;
@@ -132,10 +145,12 @@ export class SpeakerTurnFinalizer {
       this.lastTargetScore = score;
       this.firstBelowEndSample = -1;
       this.departureSeen = false;
+      this.speechBearingLowScore = false;
       this.rejectBeforeTarget = false;
       return firstTarget ? 'target-confirmed' : 'target-active';
     }
 
+    if (speechWasActive) this.speechBearingLowScore = true;
     this.belowCount += 1;
     if (!this.targetSeen) {
       if (this.belowCount >= this.consecutiveBelow) {
@@ -174,11 +189,15 @@ export class SpeakerTurnFinalizer {
       (this.resolutionReason.startsWith('sequential-boundary-ambiguous:') &&
         this.resolutionReason.endsWith(':insufficient-refine-context'));
   }
-  hasPendingDeparture(): boolean { return this.departureSeen; }
+  /** 至少一跳低分窗口带 VAD 语音，离场才有声学依据（见 observeScore）。 */
+  hasSpeechBearingLowScore(): boolean { return this.speechBearingLowScore; }
+  hasPendingDeparture(): boolean {
+    return this.departureSeen && this.speechBearingLowScore;
+  }
   hasPendingFinishDeparture(): boolean {
     const minimumTrailingSamples = Math.max(1, Math.round(this.sampleRate * 0.4));
     return !this.departureSeen && !this.capped && this.targetSeen && this.belowCount > 0 &&
-      this.lastTargetEndSample >= 0 &&
+      this.speechBearingLowScore && this.lastTargetEndSample >= 0 &&
       this.retainedSamples - this.lastTargetEndSample >= minimumTrailingSamples;
   }
   hasFinishDiarizationCandidate(): boolean {
@@ -211,7 +230,8 @@ export class SpeakerTurnFinalizer {
   }
 
   resolve(tokenTimestampsSec: number[], threshold: number,
-    scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = []): SpeakerTurnSplit | undefined {
+    scoreRange: SpeakerRangeScorer, boundaryHintsSamples: number[] = [],
+    atFinish: boolean = false): SpeakerTurnSplit | undefined {
     this.resolutionReason = 'not-ready';
     this.pendingCandidatePrefixEndSample = -1;
     if (!this.departureSeen || this.firstBelowEndSample < 0 ||
@@ -258,8 +278,11 @@ export class SpeakerTurnFinalizer {
         quietRun[0], quietRun[1], tokenTimestampsSec, frameSamples, all.length));
     }
     const preferredCandidateCount = candidates.length;
+    const tokenCandidates: number[] = [];
     for (let index = 0; index < tokenTimestampsSec.length; index++) {
+      const beforeTokens = candidates.length;
       addCandidate(tokenTimestampsSec[index] * this.sampleRate, true);
+      if (candidates.length > beforeTokens) tokenCandidates.push(candidates[candidates.length - 1]);
     }
     addCandidate(this.firstBelowEndSample - Math.round(this.windowSamples / 2));
     const coarseStep = Math.max(frameSamples, Math.round(this.hopSamples / 2));
@@ -270,7 +293,9 @@ export class SpeakerTurnFinalizer {
     // A diarization/token hint is stronger than the coarse acoustic grid. If its right verification
     // window is still being recorded, wait for that evidence rather than committing an earlier weak
     // candidate that can truncate the target speaker's last phone.
-    if (strongCandidateLackedRightContext) {
+    // 流式时右侧上下文可能还在路上，值得等；收尾时不会再有音频，继续等只会退回保守切点，
+    // 把机主整句截短，所以这里跳过等待，用已有候选继续定位。
+    if (strongCandidateLackedRightContext && !atFinish) {
       this.resolutionReason = 'insufficient-refine-context';
       return undefined;
     }
@@ -294,8 +319,15 @@ export class SpeakerTurnFinalizer {
     acoustic.sort((left: number, right: number): number =>
       this.transitionContrast(all, right, refineSamples) -
       this.transitionContrast(all, left, refineSamples));
-    const ranked = hinted.slice(0, 1).concat(preferred.slice(0, 1)).concat(acoustic);
-    const maximumScoredCandidates = 2;
+    // 词边界比能量对比更接近真实换人点：先按"离搜索区间中心最近"排两个 token 候选，
+    // 再补保守前缀与能量对比候选；校验上限 4 个（每次两次 embedding，仍有界）。
+    const center = (searchStart + searchEnd) / 2;
+    const tokenRanked = Array.from(new Set<number>(tokenCandidates))
+      .sort((left: number, right: number): number =>
+        Math.abs(left - center) - Math.abs(right - center));
+    const ranked = tokenRanked.slice(0, 2)
+      .concat(hinted.slice(0, 1), preferred.slice(0, 1), acoustic);
+    const maximumScoredCandidates = 4;
 
     let bestCandidate = -1;
     let bestLeft = -Infinity;
@@ -509,6 +541,7 @@ export class SpeakerTurnFinalizer {
     this.firstBelowEndSample = -1;
     this.lastObservedEndSample = -1;
     this.departureSeen = false;
+    this.speechBearingLowScore = false;
     this.rejectBeforeTarget = false;
     this.latestScore = undefined;
     this.lastTargetScore = undefined;

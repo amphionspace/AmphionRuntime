@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "delivery_version": "0.3.29",
+  "source_commit": "c6d01d2215afc0e8b428cdde875e836fe9f4e86c",
+  "summary_sha256": "20ae6439931bb9f1d372be9a7fa4681d231bc26b0c616a75b62ee187e34f6039",
+  "reports": [
+    {
+      "mode": "customer-ptt",
+      "path": "reports/customer-ptt-report.json",
+      "sha256": "bd0535545aaf17fe9df0197efe1ba72b7ce911ac8a349cc29e3a0042fa26d593"
+    },
+    {
+      "mode": "speaker-vad-turn",
+      "path": "reports/speaker-vad-turn-report.json",
+      "sha256": "2f3014199358cde478aa2c99cfc3d669da786d2c6a67ca2c681dc409f218f5ad"
+    }
+  ]
+}

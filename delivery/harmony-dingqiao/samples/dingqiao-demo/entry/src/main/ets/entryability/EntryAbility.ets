@@ -147,6 +147,14 @@ export default class EntryAbility extends UIAbility {
       options.speechEndMs = this.numberParameter(want, 'stressSpeechEndMs', 0);
       options.diarizationVadEndMs = this.numberParameter(want, 'stressDiarizationVadEndMs', 0);
       options.enableDiarization = this.stringParameter(want, 'stressEnableDiarization', 'false') === 'true';
+      options.speakerIdentityMode = this.stringParameter(want, 'stressSpeakerIdentityMode', '');
+      // 场景参数交叉验证（customer-* 模式）：0 / 'none' 表示跟随 profile。
+      options.vadEndMs = this.numberParameter(want, 'stressVadEndMs', 0);
+      const recognizerMode = this.stringParameter(want, 'stressRecognizerMode', 'none');
+      options.recognizerMode = recognizerMode === 'none' ? '' : recognizerMode;
+      options.maxSpeakers = this.numberParameter(want, 'stressMaxSpeakers', 0);
+      const hotwordsPath = this.stringParameter(want, 'stressHotwordsFile', 'none');
+      options.hotwordsPath = hotwordsPath === 'none' ? '' : hotwordsPath;
       options.captureDiagnostics = this.stringParameter(want, 'stressCaptureDiagnostics', 'false') === 'true';
       options.asrQos = this.stringParameter(want, 'stressAsrQos', 'default');
       options.samplePower = params !== undefined && params['samplePower'] === 'true';
@@ -169,6 +177,11 @@ export default class EntryAbility extends UIAbility {
       // [-2, 1] test value shifted by +2, then restore it inside the carrier.
       options.speakerVadThreshold =
         this.floatParameter(want, 'stressSpeakerVadThreshold', 0) - 2;
+      options.speakerVadVadEndMs = this.numberParameter(want, 'stressSpeakerVadVadEndMs', 0);
+      const speakerVadMode = this.stringParameter(want, 'stressSpeakerVadRecognizerMode', 'none');
+      options.speakerVadRecognizerMode = speakerVadMode === 'none' ? '' : speakerVadMode;
+      options.speakerVadVerification =
+        this.stringParameter(want, 'stressSpeakerVadVerification', 'false') === 'true';
       // Screen-off reproduction: a customer recording app runs as a background continuous
       // task instead of holding a keep-screen-on lock.
       this.allowScreenOff = this.stringParameter(want, 'stressAllowScreenOff', 'false') === 'true';

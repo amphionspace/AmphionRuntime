@@ -1,0 +1,24 @@
+{
+ "schema_version": 1,
+ "delivery_version": "0.3.27",
+ "source_commit": "1ac8d93f95473a8b8c0b16e71151c57e1647fab9",
+ "summary_sha256": "73526f76ca4d81b970a8c27d27afad7eec15261b5c7999b0e900695e7c49072a",
+ "reports": [
+  {
+   "mode": "customer-ptt",
+   "path": "reports/customer-ptt-report.json",
+   "sha256": "ec92316a3957e6666d0cf77e167aa6640bb03b774103f17ceadf072f58216bcb"
+  },
+  {
+   "mode": "diarization-windows",
+   "path": "reports/diarization-windows-dq4-report.json",
+   "sha256": "5e482bf02b3fd710cce300eed93e727df813324e9b81aa644c36e12752433cdf"
+  }
+ ],
+ "waived_modes": [
+  {
+   "mode": "speaker-vad-turn",
+   "reason": "目标说话人夹具在本机不可重建：生成文本断言所需的主机 sherpa-onnx 二进制不可用。0.3.26 曾实跑该模式，6 例归属断言全部通过（机主的话在、非机主的话不在），仅载体自设的 1200 ms 收尾预算未达成，该预算此后已按实测放宽到 2000 ms。本版未改动机主识别相关代码。因受检报告只收 PASS 的模式，本模式按豁免处理，理由在验收摘要中披露。"
+  }
+ ]
+}

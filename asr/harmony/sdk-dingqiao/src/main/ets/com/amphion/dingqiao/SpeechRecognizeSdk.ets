@@ -57,7 +57,8 @@ import {
   VoiceprintRegisterParams,
   VoiceprintRegisterResult
 } from './DingqiaoModels';
-import { validateSpeakerDiarizationConfig } from './diarization/SpeakerDiarizationConfigPolicy';
+import { validateSpeakerDiarizationConfig, validateSpeakerIdentityMode } from './diarization/SpeakerDiarizationConfigPolicy';
+import { SpeakerEmbedFn } from './diarization/SpeakerIdentityResolver';
 import { SortformerLocalClientOptions } from './diarization/SortformerLocalClient';
 import { SpeakerDiarizationFinishBarrier, SpeakerDiarizationFinishOutput } from
   './diarization/SpeakerDiarizationFinishBarrier';
@@ -71,6 +72,7 @@ import {
 } from './diarization/SpeakerDiarizationSession';
 import { LatestRequestGate } from './LatestRequestGate';
 import {
+  SPEAKER_EXTRACTOR_THREADS,
   buildAsrConfig,
   buildSessionConfig,
   isSupportedAudioFrameBytes,
@@ -370,6 +372,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
   private audioBytesWritten: number = 0;
   private audioFramesWritten: number = 0;
   private voiceprintIds: string[] = [];
+  private voiceprintTemplates: Float32Array[] = [];
+  // final 打分用的多尺度模板：整文件模板 + 2 s 分段模板（缺陷 #97 第二轮）。
+  private voiceprintFinalTemplates: Float32Array[] = [];
   private speechActive: boolean = false;
   private startingSession: boolean = false;
   private sessionStartGate: SessionStartGate = new SessionStartGate();
@@ -529,7 +534,27 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       // Every path uses the same bundled rawfile identity, so registration, final verification,
       // preload, and Speaker VAD share one extractor pool entry without copying 40 MB on ArkTS.
       speakerModelPath = DingqiaoSpeakerModelAssets.bundledPath();
-      embedding = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath()).loadMergedEmbedding(voiceprintIds);
+      const store = new VoiceprintStore(SpeechRecognizeSdk.getWorkPath());
+      embedding = store.loadMergedEmbedding(voiceprintIds);
+      this.voiceprintTemplates = [];
+      this.voiceprintFinalTemplates = [];
+      for (let i = 0; i < voiceprintIds.length; i++) {
+        const templates = store.loadTemplates(voiceprintIds[i]);
+        if (templates.length > 0) {
+          for (let t = 0; t < templates.length; t++) {
+            this.voiceprintTemplates.push(templates[t]);
+            this.voiceprintFinalTemplates.push(templates[t]);
+          }
+        } else {
+          const single = store.loadEmbedding(voiceprintIds[i]);
+          if (single !== undefined) {
+            this.voiceprintTemplates.push(single);
+            this.voiceprintFinalTemplates.push(single);
+          }
+        }
+        const segments = store.loadSegmentTemplates(voiceprintIds[i]);
+        for (let t = 0; t < segments.length; t++) this.voiceprintFinalTemplates.push(segments[t]);
+      }
       if (embedding === undefined) {
         this.listener?.onError?.(params.sessionId, DingqiaoErrorCode.VOICEPRINT_NOT_FOUND, `voiceprint not found for ids: ${voiceprintIds.join(',')}`);
         return;
@@ -600,6 +625,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
       this.session = createdSession;
       if (useTarget && embedding !== undefined) {
         this.session.setTargetSpeaker(embedding);
+        if (this.voiceprintFinalTemplates.length > 1) {
+          this.session.setTargetSpeakerFinalTemplates(this.voiceprintFinalTemplates);
+        }
+        if (this.voiceprintTemplates.length > 1) {
+          this.session.setTargetSpeakerTemplates(this.voiceprintTemplates);
+        }
         this.session.setTargetSpeakerEnabled(verify);
         if (speakerVad) {
           this.session.setSpeakerVadEnabled(true);
@@ -672,6 +703,8 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         const diarizationGeneration = startGeneration;
         const diarizationSessionId = params.sessionId;
         const maxSpeakers = validateSpeakerDiarizationConfig(params.speakerDiarization);
+        const speakerIdentityMode =
+          validateSpeakerIdentityMode(params.speakerDiarization?.speakerIdentityMode);
         const diarizationObserver = new SpeakerDiarizationSessionCallback(
           (update: SpeakerDiarizationUpdate): void => {
             if (!this.sessionStartGate.isCurrent(diarizationGeneration) ||
@@ -716,6 +749,33 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
         if (diarizationQos !== 'inherit') {
           diarizationOptions.roleQos = diarizationQos;
         }
+        // 声纹身份用 campplus：阈值与全部评测都在它上面做的（留一标定 34/34，对照 28/34），
+        // 换成共享的 eres2net 会掉到 30/34 —— 不同嵌入模型之间阈值不可迁移。它也更小
+        // （28.3 MB vs 39.6 MB），且客户不用声纹时 eres2net 本来不会加载，所以"复用省内存"
+        // 在那种情况下不成立。campplus 已随 0.3.26 交付，开开关不需要新发资产。
+        let speakerEmbed: SpeakerEmbedFn | undefined = undefined;
+        if (speakerIdentityMode === 'voiceprint') {
+          try {
+            const identityModelPath = DingqiaoSpeakerModelAssets.complementaryDiarizationPath();
+            const identityExtractor =
+              AmphionRuntime.getOrCreateSpeakerExtractor(this.context, identityModelPath, 1);
+            const identityEnroller =
+              new SpeakerEnroller(identityModelPath, 1, this.context, identityExtractor);
+            speakerEmbed = (samples: Float32Array): Float32Array | undefined => {
+              try {
+                return identityEnroller.enroll([samples], 16000);
+              } catch (e) {
+                return undefined;      // 单段失败只让该段留"未赋身份"，不拖垮会话
+              }
+            };
+          } catch (e) {
+            // 拿不到嵌入能力就回落到模型槽位，不让会话失败；调用方从 modelSpeakerIndex
+            // 与 speakerIndex 相同可看出未生效。
+            this.diagnostic(diarizationSessionId, 'DIARIZATION_IDENTITY_UNAVAILABLE',
+              { 'error': `${e}` } as Record<string, Object>);
+            speakerEmbed = undefined;
+          }
+        }
         try {
           this.speakerDiarizationSession = new SpeakerDiarizationSession(
             this.context,
@@ -725,7 +785,9 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
             DiagnosticsModule.isEnabled() ? (event: string, fields: Record<string, Object>): void => {
               this.diagnostic(diarizationSessionId, event, fields);
             } : undefined,
-            diarizationOptions);
+            diarizationOptions,
+            120000,
+            speakerEmbed);
         } catch (e) {
           this.speakerDiarizationSession = new DegradedSpeakerDiarizationSession(
             diarizationObserver, SpeakerDiarizationDegradedReason.STORAGE_UNAVAILABLE,
@@ -859,6 +921,12 @@ class DingqiaoRecognitionEngineImpl implements SpeechRecognitionEngine {
           return;
         }
         session.setTargetSpeaker(embedding);
+        if (this.voiceprintFinalTemplates.length > 1) {
+          session.setTargetSpeakerFinalTemplates(this.voiceprintFinalTemplates);
+        }
+        if (this.voiceprintTemplates.length > 1) {
+          session.setTargetSpeakerTemplates(this.voiceprintTemplates);
+        }
       }
       session.setSpeakerVadEnabled(enabled);
       this.listener?.onEvent?.(sessionId, DingqiaoEventCode.SPEAKER_VAD_CHANGED, `speaker vad ${enabled ? 'enabled' : 'disabled'}.`);
@@ -1831,14 +1899,19 @@ export class SpeechRecognizeSdk {
       // Reuse the shared, pooled extractor so registration warms the SAME instance the recognition
       // path uses — the ~38 MB eres2net load is paid here (where a wait is expected) and start
       // recognition stays instant.
-      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
-      const enroller = new SpeakerEnroller(modelPath, 1, context, extractor);
+      const extractor = AmphionRuntime.getOrCreateSpeakerExtractor(
+        context, modelPath, SPEAKER_EXTRACTOR_THREADS);
+      const enroller = new SpeakerEnroller(modelPath, SPEAKER_EXTRACTOR_THREADS, context, extractor);
       const embedding = enroller.enrollFiles(params.samplePaths);
+      // 每份样本的独立模板：短指令的判别力靠它（合并质心会稀释，见缺陷 #97）。
+      const templates = enroller.enrollFileTemplates(params.samplePaths);
+      // 2 s 分段模板只供 final 打分：短指令对短模板的匹配尺度一致（缺陷 #97 第二轮）。
+      const segmentTemplates = enroller.enrollFileSegmentTemplates(params.samplePaths);
       enroller.close();
       // Persist to {workPath}/voiceprints/{id}; auto-generated id is returned to the caller and
       // later passed back via StartParams.extraParams.voiceprintIds for the recognition session.
       const store = new VoiceprintStore(SpeechRecognizeSdk.workPath);
-      const id = store.saveVoiceprint(params.samplePaths, embedding);
+      const id = store.saveVoiceprint(params.samplePaths, embedding, templates, segmentTemplates);
       result.voiceprintId = {};
       result.voiceprintId[id] = baseName(params.samplePaths[0]);
       result.status = 0;
@@ -1886,7 +1959,7 @@ export class SpeechRecognizeSdk {
       const context = SpeechRecognizeSdk.context;
       if (context === undefined) return false;
       const modelPath = DingqiaoSpeakerModelAssets.bundledPath();
-      AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, 1);
+      AmphionRuntime.getOrCreateSpeakerExtractor(context, modelPath, SPEAKER_EXTRACTOR_THREADS);
       return true;
     } catch (e) {
       return false;

@@ -93,6 +93,7 @@ internal class SpeakerTurnFinalizer(
     private var firstBelowEndSample = -1
     private var lastObservedEndSample = -1
     private var departureSeen = false
+    private var speechBearingLowScore = false
     private var rejectBeforeTarget = false
     private var latestScore: Float? = null
     private var lastTargetScore: Float? = null
@@ -114,7 +115,20 @@ internal class SpeakerTurnFinalizer(
         }
     }
 
-    fun observeScore(endSample: Int, score: Float, threshold: Float): SpeakerTurnScoreState {
+    /**
+     * `speechWasActive` 是这一跳窗口有没有 VAD 确认的语音（与鸿蒙 `SpeakerTurnFinalizer.observeScore` 同义）。
+     *
+     * 窗口是固定 winSec 的尾部音频，机主停口后它会被静音逐步稀释，嵌入随之失真：同一段机主语音，
+     * 窗口满时打 0.545，尾部 0.93 s 静音时打 -0.072（鸿蒙 #98 真机实测）。把这种分数当成"机主离场"，
+     * 就会在机主自己的句子里凑出 departure 并切一刀，把句尾切掉。分数照常记录和上报；只有"离场"
+     * 这个结论要求至少一跳低分窗口带真实语音。判据是有无语音，不是语音时长占比，短插话仍然算证据。
+     */
+    fun observeScore(
+        endSample: Int,
+        score: Float,
+        threshold: Float,
+        speechWasActive: Boolean = true,
+    ): SpeakerTurnScoreState {
         val end = max(0, endSample)
         lastObservedEndSample = end
         latestScore = score
@@ -126,9 +140,11 @@ internal class SpeakerTurnFinalizer(
             lastTargetScore = score
             firstBelowEndSample = -1
             departureSeen = false
+            speechBearingLowScore = false
             rejectBeforeTarget = false
             return if (firstTarget) SpeakerTurnScoreState.TARGET_CONFIRMED else SpeakerTurnScoreState.TARGET_ACTIVE
         }
+        if (speechWasActive) speechBearingLowScore = true
         belowCount += 1
         if (!targetSeen) {
             if (belowCount >= consecutiveBelow) {
@@ -170,7 +186,9 @@ internal class SpeakerTurnFinalizer(
             (resolutionReason.startsWith("sequential-boundary-ambiguous:") &&
                 resolutionReason.endsWith(":insufficient-refine-context"))
 
-    fun hasPendingDeparture(): Boolean = departureSeen
+    /** 至少一跳低分窗口带 VAD 语音，离场才有声学依据（见 [observeScore]）。 */
+    fun hasSpeechBearingLowScore(): Boolean = speechBearingLowScore
+    fun hasPendingDeparture(): Boolean = departureSeen && speechBearingLowScore
 
     /**
      * Finish-time departure test.
@@ -188,6 +206,8 @@ internal class SpeakerTurnFinalizer(
         latestScore = score
         if (belowCount < 1) belowCount = 1
         if (firstBelowEndSample < 0) firstBelowEndSample = retainedSamples
+        // 收尾切片由调用方对齐到最后一段语音，本身就是带语音的低分证据。
+        speechBearingLowScore = true
         departureSeen = true
         resolutionReason = "finish-slice-departure"
         return true
@@ -196,7 +216,7 @@ internal class SpeakerTurnFinalizer(
     fun hasPendingFinishDeparture(): Boolean {
         val minimumTrailingSamples = max(1, (sampleRate * 0.4).roundToInt())
         return !departureSeen && !capped && targetSeen && belowCount > 0 &&
-            lastTargetEndSample >= 0 &&
+            speechBearingLowScore && lastTargetEndSample >= 0 &&
             retainedSamples - lastTargetEndSample >= minimumTrailingSamples
     }
 
@@ -232,6 +252,7 @@ internal class SpeakerTurnFinalizer(
         threshold: Float,
         scoreRange: SpeakerRangeScorer,
         boundaryHintsSamples: List<Int> = emptyList(),
+        atFinish: Boolean = false,
     ): SpeakerTurnSplit? {
         resolutionReason = "not-ready"
         pendingCandidatePrefixEndSample = -1
@@ -279,7 +300,12 @@ internal class SpeakerTurnFinalizer(
             )
         }
         val preferredCandidateCount = candidates.size
-        for (timestamp in tokenTimestampsSec) addCandidate(timestamp.toDouble() * sampleRate, strong = true)
+        val tokenCandidates = mutableListOf<Int>()
+        for (timestamp in tokenTimestampsSec) {
+            val before = candidates.size
+            addCandidate(timestamp.toDouble() * sampleRate, strong = true)
+            if (candidates.size > before) tokenCandidates += candidates.last()
+        }
         addCandidate((firstBelowEndSample - (windowSamples / 2.0).roundToInt()).toDouble())
         val coarseStep = max(frameSamples, (hopSamples / 2.0).roundToInt())
         var candidate = searchStart
@@ -291,7 +317,9 @@ internal class SpeakerTurnFinalizer(
         // A token hint is stronger than the coarse acoustic grid. If its right verification window
         // is still being recorded, wait for that evidence rather than committing an earlier weak
         // candidate that can truncate the target speaker's last phone.
-        if (strongCandidateLackedRightContext) {
+        // 流式时右侧上下文可能还在路上，值得等；收尾时不会再有音频，继续等只会退回保守切点，
+        // 把机主整句截短，所以这里跳过等待，用已有候选继续定位。
+        if (strongCandidateLackedRightContext && !atFinish) {
             resolutionReason = "insufficient-refine-context"
             return null
         }
@@ -307,8 +335,12 @@ internal class SpeakerTurnFinalizer(
         val preferred = candidates.subList(hintedCandidateCount, preferredCandidateCount).toList()
         val acoustic = candidates.subList(preferredCandidateCount, candidates.size).toMutableList()
         acoustic.sortByDescending { transitionContrast(all, it, refineSamples) }
-        val ranked = hinted.take(1) + preferred.take(1) + acoustic
-        val maximumScoredCandidates = 2
+        // 词边界比能量对比更接近真实换人点：先按"离搜索区间中心最近"排两个 token 候选，
+        // 再补保守前缀与能量对比候选，最多校验四个（每个两次 embedding，仍有界）。
+        val center = (searchStart + searchEnd) / 2
+        val tokenRanked = tokenCandidates.distinct().sortedBy { kotlin.math.abs(it - center) }
+        val ranked = (tokenRanked.take(2) + hinted.take(1) + preferred.take(1) + acoustic).distinct()
+        val maximumScoredCandidates = 4
 
         var bestCandidate = -1
         var bestLeft = Float.NEGATIVE_INFINITY
@@ -361,6 +393,7 @@ internal class SpeakerTurnFinalizer(
         firstBelowEndSample = -1
         lastObservedEndSample = -1
         departureSeen = false
+        speechBearingLowScore = false
         rejectBeforeTarget = false
         latestScore = null
         lastTargetScore = null

@@ -8,6 +8,98 @@
 
 ## [Unreleased]
 
+## [0.3.11] - 2026-11-19
+
+- 基于 0.3.10（客户已收到的版本）。识别模型、热词、公共接口与回调顺序不变。
+
+- **角色分离公开 `speakerCount` 改为跟随声纹身份（客户 #35）。** 单人连续朗读被 Sortformer 放进两个槽位时，全部文字已归角色 1，
+  `speakerCount` 却报 2。开启声纹身份时现在数已开出的声纹身份数，关闭时仍数模型槽位。客户 #35 录音两端复测 speakerCount 1，
+  文字全部归角色 1；弱尾音末句（−31～−34 dBFS，模型无说话段）仍为「其他角色」，按契约不跨句补全。
+  详见 `docs/speaker/DIARIZATION_SINGLE_SPEAKER_ISSUE35_20261118.md`。
+
+- **机主 PTT 短指令 final 声纹分改用"整文件 + 2 s 分段模板"取最大（客户 #97，补齐鸿蒙 0.3.29 的修法）。** 安卓此前只有整文件
+  多模板，客户附件"OKOK"（有效语音 0.95 s）在 BRA-AL00 上 final 只有 0.370，对 0.35 门限余量 0.02，与客户"安卓同样的问题"一致。
+  现在注册时每份样本按 2 s 窗 / 1 s 步切出分段模板（跳过 −35 dBFS 以下静音块）存 `segment-templates.bin`，final 对整文件 +
+  分段模板取最大；流式确认、离场检测与收尾切片仍只用整文件模板，旧档案没有分段模板时退回原行为，**需重新注册一次才生效**。
+  同录音 final 0.370 → 0.444，"OK O。"发布；#100 录音回归机主两句仍发布、非机主 14 句仍拒绝，但非机主 final 最高分由 0.282
+  升到 0.432（未确认门限 0.45），余量变窄是同尺度比对的固有代价。单测 272/272。
+  详见 `docs/speaker/SHORT_COMMAND_FINAL_TEMPLATES_ANDROID_20261118.md`。
+
+- **角色分离：三人依次说话被编成「角色2 / 3 / 4」，带号码的句子落成「其他角色」（客户 #29，两端同修）。** 真机复现两处
+  根因：录音开头 1.3 s 的按键/环境声被 Sortformer 报成发言，没有 VAD 语音也没有 ASR token，却第一个到达领走身份 0；
+  经 ITN 改写、对不回 token 的句子（数字、电话、证件号）不论声学上只有一个人，一律判 UNKNOWN。现在：分割轨道开身份前
+  要有语音证据（区间内有 ASR token，含 600 ms 发射滞后），没有证据的轨道算好嵌入后挂起，证据到了按到达顺序补分配，
+  始终没有的保持 -1；文本对不回 token 时整句只有一个已知角色就归属该角色，多人同句、重叠、未知仍为 UNKNOWN。
+  BRA-AL00 复测：客户录音 A/B/C = 角色 1/2/3，噪声段 -1 无文字；客户会议录音 816 DER 5.66% 不变、混淆 0.9% → 0.0%、
+  漏检 3.9% → 4.8%（无文字的短轨道不再拿身份）。详见 `docs/speaker/DIARIZATION_ROLE_NUMBERING_ISSUE29_20261118.md`。
+
+- **静音/底噪里反复转写出"嗯"（客户 #92 第二轮，两端同修）。** 11-02 加的"非空文本须有独立于识别器的
+  语音证据"门禁，只在开机主识别或 Speaker VAD 时才被喂音频（`effectiveSpeechBuffer.observe` 带条件），
+  普通转写场景 `processedWindows` 恒为 0 直接放行，等于没修；而普通电平底噪本来就能过 −74 dBFS 的声学
+  分支。鸿蒙 Mate 80 用客户真人声 + 四档粉噪（−40～−70 dBFS）复现：57 s 内多出 1～4 个"嗯。/呃。"，全部
+  是 VAD 无语音、rule2 端点吐出的单字。现在：`observe` 无条件调用；只由填充词构成（`嗯呃额啊哦噢喔唔诶欸
+  哎唉呀哼嘶`，≤4 字，或 um/uh/hmm 等）且本句原生 VAD 从未判出语音的 final 不发布
+  （`RESULT_SUPPRESSED reason=filler-without-vad`）；被拦下的非空 final 清空本句保留的 run。真人说的"嗯"
+  有 VAD 语音照常发布，有实词的文本不受影响，不设统一字数/时长门槛。安卓 BRA-AL00 复测：同一组文件 7 s 后
+  0 条填充词（修前 −70 dB 收尾漏 1 条），真人"喂/嗯"保留，#100 回放不变，单测 134/134。
+  详见 `docs/speaker/SILENCE_FILLER_PUBLISH_GATE_20261118.md`。
+
+- **机主识别：机主 → 非机主 → 机主时机主第二次发言丢失（客户 #100）。** 鼎桥安卓机（BRA-AL00）
+  按客户参数（`recognizerMode=long`、`vadEnd=1600`、实时喂入）回放客户附件（机主 19 s → 非机主 23 s →
+  机主 14 s，非机主与机主之间仅 0.7 s 停顿）复现：仅开机主识别时，非机主与机主并成一句，整句分数
+  被稀释到 0.427 后整句被拒；开 Speaker VAD 时机主第二句打 0.754 仍被拒。根因两处，均为鸿蒙 0.3.28
+  / 0.3.29 已修、安卓未同步的同名逻辑：
+  1. 换人切分后为后缀置上的"离场后待确认"标志只在"发布机主 final 之后"清除，而该标志本身又让
+     `svRejectCurrentUtterance` 恒为 true，形成死锁——后缀被拒一次后，机主再说话无论分数多高都被拒。
+     现在 stream 重建 / reset（一句话结束）时清除该标志（对应鸿蒙 `restartRejectedSpeakerTurn`）；
+     重放的后缀仍按新证据重新打分，非机主 0.1~0.3 仍被拒。
+  2. 仅开机主识别时 pre-target 低分窗口不强制端点（11-12 为 #97 短指令引入），非机主连续说话时
+     不切句。现在 pre-target 端点在两种模式下一致，但只在该跳窗口带 VAD 语音时触发：静音里的
+     pre-target 不端点（短指令说完后的静音不再把这句切掉，#97 不回退），静音里的两跳低分也不构成
+     离场（`SpeakerTurnFinalizer.observeScore` 新增 `speechWasActive`，`hasPendingDeparture` /
+     `hasPendingFinishDeparture` 要求至少一跳低分窗口带语音；鸿蒙 #98 同一修复）。
+  同录音复测：两种模式机主两句均发布（0.722 / 0.754），非机主 23 s 被切成 11 句全部拒绝（最高
+  0.282），生命周期无错误；SDK 单测 129/129。**已知限制**：机主紧接非机主开口时，机主这句句首会
+  带上非机主最后约 1.5 s（本例 5 个字），这是流式打分延迟的固有泄露；机主第一句被切分后前缀重解码
+  耗时 12.4 s（19 s 前缀），两句 final 分别在讲完后约 20 s / 17 s 才回调，该时延问题另立跟踪项，
+  本项不处理。客户三份注册样本均长于 8 s（8.26 / 8.44 / 8.90 s），安卓 `registerVoiceprint` 会以
+  `VOICEPRINT_SAMPLE_DURATION` 拒绝，复测时裁到 7.9 s；客户 App 如何完成注册待与鼎桥确认。
+  复现用例 `DingqiaoCustomerBugEvidenceInstrumentedTest#bug100OwnerReturn_secondOwnerUtteranceIsPublished`
+  （录音经 instrumentation 参数外挂），详见 `docs/speaker/OWNER_RETURN_ANDROID_DEVICE_20261117.md`。
+
+## [0.3.9 – 0.3.10] - 2026-10-30 / 2026-11-12
+
+- **鼎桥 Android 实时识别降功耗：停止 ORT 空转，识别线程 4 → 2。** 客户在 EC521S（MT6853）上
+  报告识别时机身持续升温。simpleperf 显示 SDK 一半以上的 CPU 时间在 ORT worker 的 `Run` 间空转。
+  sherpa 补丁 `0038` 让 Android 端所有 ORT session 设置 `session.force_spinning_stop=1`（与鸿蒙
+  `0029` 相同，`Run` 期间的自旋不变）；鼎桥默认 `numThreads` 从 4 改为 2（鸿蒙默认仍为 4）。
+  EC521S 插线亮屏、USB 输入功率 2×2 对照，每格 3 段：整机 1.47 W → 1.24 W，SDK 增量功耗降 18%，
+  进程 CPU 约 2.7 核 → 1.3 核；12 段识别句数相同，首个 partial 与 endpoint→final 时延不变。
+  demo 熄屏后被放进 `/background` cpuset，此时 2 线程与 4 线程吞吐相同（都约 0.35× 实时，这是测试
+  载体的既有限制；客户 App 熄屏后仍满核运行，对应亮屏对照）。主要发热仍来自真实推理（约 1.0 W），本项不能消除温升。详见
+  `docs/speaker/DIARIZATION_EC521S_LOCK_HEAT_RUN_20261104.md` §17。
+
+- **角色归属：`speakerIndex` 改由声纹身份决定，默认开启；与鸿蒙 0.3.27 对齐。** 客户现场"三个角色
+  依次讲话"时 Sortformer 会把不同的人并进同一槽位，且是高置信度误并（第 2 人在本该属于它的槽位上
+  最大概率仅 0.030），调阈值、延长发言、全上下文重跑均无效（主机 10 组仅 4 组正确，鸿蒙真机同口径
+  10/10 复现）。本版让 Sortformer 只管"何时有人说话"，身份改由 CAM++ 声纹嵌入 + 按到达顺序的增量
+  质心决定：同一说话人缓存整个会话，新发言段并入最相似身份（余弦 ≥ 0.50）或新开身份（≤ `maxSpeakers`）。
+  嵌入只取每段前 3 s。新增 `SpeakerDiarizationConfig.speakerIdentityMode`（`"voiceprint"` 默认 |
+  `"model"` 回退到槽位行为）与 `SpeakerTurn.modelSpeakerIndex`（模型原始槽位，便于现场对比；`"model"`
+  模式下与 `speakerIndex` 相同；句级 `DiarizedUtterance` 暂不带）。拼错的 `speakerIdentityMode` 使
+  `startListening` 失败，不静默回落。声纹模型 `campplus.onnx`（28.3 MB）随包新增，此前安卓包只带了
+  它的 LICENSE；并入阈值 0.50 与全部评测均在 CAM++ 上标定（客户 4 条留一 34/34，换 eres2net 掉到
+  30/34），所以不复用机主识别的 eres2net。嵌入能力拿不到时回落到模型槽位、不让会话失败，诊断流记
+  `DIARIZATION_IDENTITY_UNAVAILABLE`，调用方从 `modelSpeakerIndex == speakerIndex` 可看出未生效。
+  分配器 `SpeakerIdentityAssigner` 与鸿蒙逐条等价（主机参考对拍 `SpeakerIdentityParityTest`），
+  时间线 / 环形缓冲 / 身份解析三层与鸿蒙同一组单测期望。**安卓真机（一加 PHK110）客户 4 条录音实时
+  对比**：声纹身份 DER 时长加权 **5.63%**（混淆 0.0 / 0.0 / 0.9 / 0.0%），同一次运行的模型槽位 12.02%，
+  独立 `model` 臂 12.11%（与 0.3.26 两端真机记录的 12.10% 一致）；工单录音 `111223-816` 混淆 23.5% → 0.9%；
+  RTF 0.087~0.099 未抬高。代价：短于 0.5 s 的段不赋身份报 `-1`，漏检略增（最多 +1.6pp）。
+  `modelSpeakerIndex` 与 `speakerIndex` 只在重叠区间可能不同（模型侧取排序首个槽位，不套用延续规则）。
+  详见 `docs/speaker/ANDROID_VOICEPRINT_IDENTITY_DEVICE_20261105.md`。留一标定 34/34、工单 4/6 仍是
+  鸿蒙链路数字；发热对照臂（`DqThermalLongRunTest -e identityMode model`）与 release 构建待下一轮。
+
 - **静音时被转写出"嗯"：非空文本现在必须有独立于识别器的证据才发布。** 客户报在没有人声
   输入时反复转写出"嗯"。机制已定位：识别器在真人声之后的长静音里会吐出零散短 token，
   **与输入电平无关**（同一段近似数字静音，前面放 3 秒真人声就出、放数字零则九个电平全不出，

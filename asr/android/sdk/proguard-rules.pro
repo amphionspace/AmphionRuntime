@@ -23,11 +23,21 @@
 -keep class com.amphion.asr.internal.SpeakerTurnFinalizerKt { *; }
 -keep class com.amphion.asr.internal.SpeakerTurnSplit { *; }
 -keep class com.amphion.asr.internal.SpeakerTurnScoreState { *; }
+# 声纹身份分配：release 单测直接实例化，并对照主机参考做逐条等价性校验。
+-keep class com.amphion.asr.internal.EncoderIdleGate { *; }
+-keep class com.amphion.asr.internal.IdleEnergyProbe { *; }
+-keep class com.amphion.asr.internal.SpeakerTailWindowKt { *; }
+-keep class com.amphion.asr.internal.SpeakerIdentityAssigner { *; }
+-keep class com.amphion.asr.internal.SpeakerIdentityAssigner$Companion { *; }
+-keep class com.amphion.asr.internal.SpeakerIdentityDecision { *; }
 -keep class com.amphion.asr.internal.RecognizerResetGeneration { *; }
 -keep class com.amphion.asr.internal.NativeEndpointTransition { *; }
 -keep class com.amphion.asr.internal.NativeEndpointTransitionPolicy { *; }
 -keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason { *; }
 -keep class com.k2fsa.sherpa.onnx.OnlineEndpointReason$Companion { *; }
+# 分段模板切窗规则由 release 单测直接调用；companion 类名被混淆会让测试引用的
+# 字段描述符对不上（NoSuchFieldError），与上面同类规则的处理一致。
+-keep class com.amphion.asr.SpeakerEnroller$Companion { *; }
 -keep class com.amphion.asr.internal.SpeakerPcmBuffers { *; }
 -keep class com.amphion.asr.internal.SpeakerVadScoreScheduler { *; }
 -keep class com.amphion.asr.internal.SpeakerVadFinalGateKt { *; }

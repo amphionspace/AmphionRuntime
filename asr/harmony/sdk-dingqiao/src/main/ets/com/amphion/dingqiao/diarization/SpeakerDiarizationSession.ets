@@ -4,6 +4,7 @@ import {
   DiarizedUtterance, SpeakerDiarizationDegradedReason, SpeakerDiarizationResult,
   SpeakerDiarizationUpdate, SpeakerTurn, SpeakerTextSpan, SpeechRecognitionResult
 } from '../DingqiaoModels';
+import { SpeakerIdentityResolver, SpeakerEmbedFn, SpeechEvidenceFn } from './SpeakerIdentityResolver';
 import { SortformerLocalClient, SortformerLocalObserver, SortformerLocalClientOptions,
   SortformerLocalFeedResult } from './SortformerLocalClient';
 import { SortformerSpeakerIdentity } from './SortformerSpeakerIdentity';
@@ -98,17 +99,38 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
   // Final chunks the engine returned; windowIndex counts published results.
   private inferredWindowCount: number = 0;
   private runtimeLease?: SpeakerDiarizationRuntimeLease;
+  /** 仅在 speakerIdentityMode='voiceprint' 时存在；缺少嵌入能力时保持 undefined（回落到槽位）。 */
+  private identityResolver?: SpeakerIdentityResolver;
+
+  /**
+   * 公开 speakerCount 跟随公开 speakerIndex 的来源：开启声纹身份时数已开出的声纹身份数，
+   * 否则数模型槽位。此前一律数模型槽位，单人录音被 Sortformer 放进两个槽位时就报 2 位
+   * （客户 #35：全部文字都是角色 1，speakerCount 却是 2）。
+   */
+  private publicSpeakerCount(slotCount: number): number {
+    return this.identityResolver !== undefined ? this.identityResolver.identityCount() : slotCount;
+  }
+
+  /** 轨道区间内有没有 ASR token：声纹身份只给有语音证据的分割轨道（客户 #29）。 */
+  private readonly speechEvidence: SpeechEvidenceFn = (beginMs: number, endMs: number): boolean =>
+    this.transcript.hasTokenEvidence(beginMs, endMs);
 
   constructor(context: Context, workPath: string, maxSpeakers: number,
     observer: SpeakerDiarizationSessionObserver,
     diagnostic?: (event: string, fields: Record<string, Object>) => void,
-    clientOptions?: SortformerLocalClientOptions, commitPeriodMs: number = 120000) {
+    clientOptions?: SortformerLocalClientOptions, commitPeriodMs: number = 120000,
+    speakerEmbed?: SpeakerEmbedFn) {
     this.observer = observer;
     this.diagnostic = diagnostic;
     this.maxSpeakers = maxSpeakers;
     this.commitClock = new DiarizationCommitClock(commitPeriodMs);
     this.identities = new SortformerSpeakerIdentity(maxSpeakers);
     this.runtimeLease = SpeakerDiarizationRuntimeLeaseRegistry.acquire();
+    // 嵌入函数由调用方注入（复用共享 extractor 池，模型只加载一次）。拿不到就保持
+    // undefined：身份回落到 Sortformer 槽位，等于 'model' 模式，不因此让会话失败。
+    if (speakerEmbed !== undefined) {
+      this.identityResolver = new SpeakerIdentityResolver(SAMPLE_RATE, maxSpeakers, speakerEmbed);
+    }
     // workPath stays in the signature for the SDK entry point; the engine keeps
     // its state natively and spools nothing.
     try {
@@ -129,6 +151,8 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       fields['audioEndSample'] = this.totalSamples;
       this.recordDecision('DIARIZATION_AUDIO_APPENDED', fields);
     }
+    // 先分流再转发：身份判定要按轨道时间回取这同一批字节。
+    this.identityResolver?.appendAudio(audio);
     try {
       this.client.append(audio);
     } catch (e) {
@@ -176,6 +200,8 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       audioEndTime: (ResultAudioTimeline.endSample(result) ?? this.totalSamples) * 1000 / SAMPLE_RATE,
     });
     payload.utteranceId = utteranceId;
+    // 新到的 token 可能正是某条待定轨道缺的语音证据。
+    this.identityResolver?.retryPending(this.speechEvidence);
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['utteranceId'] = utteranceId;
@@ -332,14 +358,27 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
         this.inferredWindowCount += 1;
         this.lastCommitClusterMs = Math.round(event.inferenceMs);
         const firstSpeech: number[] = [-1, -1, -1, -1];
+        const newTracks: SortformerTrack[] = [];
         for (let slot = 0; slot < event.runs.length && slot < 4; slot++) {
           for (const run of event.runs[slot]) {
-            this.finalTracks.push([run[0], run[1], slot]);
+            const track: SortformerTrack = [run[0], run[1], slot];
+            newTracks.push(track);
+            this.finalTracks.push(track);
             if (firstSpeech[slot] < 0) firstSpeech[slot] = run[0];
           }
         }
+        // 声纹身份写回 track[3]，timelineTurns 会优先用它；未赋身份时留 -1 落到 UNKNOWN。
+        // 这里算嵌入，是会话期间、不在提交或收尾路径上——后者只剩约 300 ms 余量。
+        // 先补分配更早的待定轨道，再分配本批：分配器是增量的，到达顺序决定编号。
+        if (this.identityResolver !== undefined && newTracks.length > 0) {
+          this.identityResolver.retryPending(this.speechEvidence);
+          const identities = this.identityResolver.resolve(newTracks, this.speechEvidence);
+          for (let index = 0; index < newTracks.length; index++) {
+            newTracks[index][3] = identities[index];
+          }
+        }
         const identity = this.identities.commit(firstSpeech);
-        this.finalSpeakerCount = identity.after;
+        this.finalSpeakerCount = this.publicSpeakerCount(identity.after);
         // A final chunk supersedes any preview of the same audio.
         this.previewTracks = this.previewTracks.filter((track: SortformerTrack): boolean =>
           track[0] >= event.endTime);
@@ -485,7 +524,7 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       this.observer.onSpeakerDiarizationUpdate(this.toPublicUpdate(update));
       if (this.finished) return;
     }
-    this.finalSpeakerCount = this.identities.publishedCount();
+    this.finalSpeakerCount = this.publicSpeakerCount(this.identities.publishedCount());
     if (this.diagnostic !== undefined) {
       const fields: Record<string, Object> = {};
       fields['publicWindowIndex'] = this.windowIndex;
@@ -565,6 +604,11 @@ export class SpeakerDiarizationSession implements SortformerLocalObserver,
       turn.beginTime = Math.max(beginTime, turns[i].beginTime);
       turn.endTime = Math.min(endTime, turns[i].endTime);
       turn.speakerIndex = speakerIndexFromInternalId(turns[i].speakerId, this.maxSpeakers);
+      // 不回落到 speakerId：那会让字段看起来有值却毫无信息（实测踩过——两者在所有
+      // turn 上都相同，掩盖了 allTurns() 丢字段的 bug）。拿不到就报 -1，调用方能看出来。
+      const modelId = turns[i].modelSpeakerId;
+      turn.modelSpeakerIndex = modelId === undefined ? -1 :
+        speakerIndexFromInternalId(modelId, this.maxSpeakers);
       turn.secondarySpeakerIndexes = speakerIndexesFromInternalIds(
         turns[i].secondarySpeakerIds, this.maxSpeakers, true);
       turn.confidence = turns[i].confidence ?? 0;

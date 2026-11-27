@@ -33,6 +33,53 @@ class HarmonyPersonNameMatcherTest(unittest.TestCase):
             text=True,
         )
 
+    def test_fuzzy_channel_needs_a_person_span_and_a_unique_name(self) -> None:
+        """声母 n↔l + 忽略声调的有界模糊通道（缺陷：倪凯 被识别成 李凯）。
+
+        「倪」在模型 bbpe 词表里没有整字单元，解码期永远纠不回来（实测把热词分数抬到
+        30.0 只会吐乱码），所以只能在文本层纠。但模糊证据弱于精确签名：必须压在 LAC
+        人名区间上，且同一模糊签名命中多个配置名时整体忽略——名单里同时有「李凯」和
+        「倪凯」时两者都不改写，退回模型原始输出。
+        """
+        self.run_node(
+            """
+            const pinyin = new Map([['倪', 'ni2'], ['李', 'li3'], ['凯', 'kai3'],
+              ['军', 'jun1'], ['明', 'ming2'], ['黎', 'li2']]);
+            const span = [{ start: 0, end: 2 }];
+
+            const only = new PersonNameMatcher(pinyin, ['倪凯']);
+            assert.equal(only.normalize('李凯', span), '倪凯',
+              'n/l + tone confusion inside a person span must reach the configured name');
+            assert.equal(only.normalize('李凯', []), '李凯',
+              'without a person span the fuzzy channel must not fire');
+            assert.equal(only.normalize('倪凯', span), '倪凯');
+
+            const both = new PersonNameMatcher(pinyin, ['倪凯', '李凯']);
+            assert.equal(both.normalize('李凯', span), '李凯',
+              'two configured names share a fuzzy signature: neither may rewrite');
+            assert.equal(both.normalize('倪凯', span), '倪凯');
+
+            // 三字名的纯拼音兜底只属于精确通道；模糊通道所有长度都要人名区间。
+            const three = new PersonNameMatcher(pinyin, ['倪凯军']);
+            assert.equal(three.normalize('李凯军', []), '李凯军',
+              'the fuzzy channel must not inherit the three-character exact fallback');
+            assert.equal(three.normalize('李凯军', [{ start: 0, end: 3 }]), '倪凯军');
+            """
+        )
+
+    def test_exact_channel_keeps_tone_and_initial_sensitivity(self) -> None:
+        """精确通道必须逐字不变：声调不同的词不能被精确通道改写。"""
+        self.run_node(
+            """
+            const pinyin = new Map([['李', 'li3'], ['明', 'ming2'], ['黎', 'li2'],
+              ['理', 'li3'], ['鸣', 'ming2']]);
+            const span = [{ start: 0, end: 2 }];
+            const matcher = new PersonNameMatcher(pinyin, ['李明']);
+            assert.equal(matcher.normalize('理鸣', span), '李明',
+              'identical tone-exact signature still rewrites through the exact channel');
+            """
+        )
+
     def test_replacements_are_traced_as_indivisible_name_records(self) -> None:
         self.run_node(
             f"""

@@ -9,6 +9,9 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
         include(
             // 声纹（机主识别）与换人分割：Community 角色分离链路移除后这两项仍在用。
             "eres2net.onnx",
+            // 角色分离的声纹身份（speakerIdentityMode=voiceprint）用 CAM++：并入阈值 0.50 与全部
+            // 评测都在它上面标定（留一 34/34），换 eres2net 会掉到 30/34——嵌入模型间阈值不可迁移。
+            "campplus.onnx",
             "campplus.LICENSE",
             "pyannote-segmentation-3.0.onnx",
             "pyannote-segmentation-3.0.LICENSE",
@@ -26,6 +29,18 @@ val syncSharedDingqiaoModels by tasks.registering(Sync::class) {
     // 落地目录名保持 sortformer-66M-4spk：原生侧与安装器都按这个路径找。
     eachFile { path = path.replace("sortformer-66M-4spk-onnx/", "sortformer-66M-4spk/") }
     into(generatedDingqiaoModelAssets.map { it.dir("amphion-dingqiao") })
+    // shared/models 已不在 Git 里（tools/assets 的 asr-shared-models-v1）。Sync 对缺失文件静默跳过，
+    // 会打出没有声纹模型的 AAR，所以这里必须硬失败。
+    doFirst {
+        val sharedModelDir = file("../../../shared/models/asr/dingqiao")
+        val missing = listOf("eres2net.onnx", "campplus.onnx", "campplus.LICENSE",
+            "pyannote-segmentation-3.0.onnx", "pyannote-segmentation-3.0.LICENSE")
+            .filterNot { sharedModelDir.resolve(it).isFile }
+        require(missing.isEmpty()) {
+            "shared Dingqiao models missing: ${missing.joinToString()} — run " +
+                "`python3 tools/assets/sync.py fetch asr-shared-models-v1` (see tools/assets/README.md)"
+        }
+    }
 }
 
 android {

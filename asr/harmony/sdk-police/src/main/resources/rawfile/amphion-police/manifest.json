@@ -27,7 +27,7 @@
     "police_terms/term_gazetteer.txt": "7537a2df69468007cf3f2756b0aa830c634cd653acf1878fc114c103261ea22d",
     "police_terms/term_homophones.csv": "7688277f8f62f9cb42e977b573eff772ec13076414c5ce08477d9a5041fae39b",
     "police_terms/terms_global.fst": "9ca73a0417713e7940a82d32a77eab161d1b8f05e5aefaa04281365af686c81b",
-    "police_terms/terms_global_meta.json": "abc6c4566e451fd6152e9b00c0ed14c412d73033c9a320a5fd00035f7cba21f4"
+    "police_terms/terms_global_meta.json": "a6575c4ee1d4779b0ffba6e56cfce5c99925c4b9b7deb79c63365bd98c8f1948"
   },
   "hotword_counts": {
     "plate": 6,

@@ -18,6 +18,8 @@ internal data class SpeakerTimelineTurn(
     val secondaryEvidenceKeys: List<String> = emptyList(),
     // Keep one ID per acoustic channel, independently of deduplicated display IDs.
     var secondaryEvidenceSpeakerIds: List<String> = secondarySpeakerIds,
+    /** 只按 Sortformer 槽位得到的主身份；开启声纹身份后 speakerId 被覆盖，这里保留模型判断。 */
+    val modelSpeakerId: String? = null,
 )
 
 internal data class DiarizationTranscriptUpdate(
@@ -188,33 +190,44 @@ internal class DiarizationTranscriptState {
         }
     }
 
+    /**
+     * [beginMs, endMs] 内有没有 ASR 语音证据：任一 token 的发射时间落在区间内（允许
+     * [MAX_TOKEN_EMISSION_LAG_MS] 的发射滞后）；没有 token 时间的 final 按整句区间相交算。
+     * 供声纹身份分配把关：没有证据的分割轨道不开新身份（客户 #29）。
+     */
+    fun hasTokenEvidence(beginMs: Int, endMs: Int): Boolean = utterances.any { utterance ->
+        if (utterance.tokenTimesMs.isNotEmpty()) {
+            utterance.tokenTimesMs.any { it >= beginMs && it <= endMs + MAX_TOKEN_EMISSION_LAG_MS }
+        } else {
+            overlapMs(beginMs, endMs, utterance.beginTime, utterance.endTime) > 0
+        }
+    }
+
+    /** 本次会话到目前为止解析出的已知身份；单人会话判定用它。 */
+    private fun knownSpeakerIds(): Set<String> = turns.mapNotNull { turn ->
+        turn.speakerId.takeIf { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
+    }.toSet()
+
     fun sentenceUtterances(throughTime: Int = Int.MAX_VALUE): List<DiarizedTranscriptUtterance> {
         val aligned = finalUtterances(throughTime)
         return utterances.filter { it.audioEndTime <= throughTime }.map { utterance ->
             val parts = aligned.filter { it.sourceUtteranceId == utterance.utteranceId }
-            val covered = turns.filter { overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 }
-            val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
+            val resolution = resolveTurns(utterance.beginTime, utterance.endTime)
+            val participants = resolution.participants.toSortedSet()
             // Secondary voices only, kept apart from primaries: a retained primary
             // still has to publish the other voice this sentence observed.
-            val observedSecondaries = covered.flatMap { it.secondarySpeakerIds }.toSortedSet()
-            val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
-            val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
-            val unknown = covered.filter { it.speakerId == "UNKNOWN" }.sortedBy { it.beginTime }
-            var unknownBegin = -1
-            var unknownEnd = -1
-            var bounded = true
-            for (turn in unknown) {
-                val begin = maxOf(utterance.beginTime, turn.beginTime)
-                val end = minOf(utterance.endTime, turn.endTime)
-                if (begin > unknownEnd) unknownBegin = begin
-                unknownEnd = maxOf(unknownEnd, end)
-                if (unknownEnd - unknownBegin > 2_500) bounded = false
-            }
+            val observedSecondaries = resolution.secondaries.toSortedSet()
+            val known = resolution.known
+            val overlap = resolution.overlap
+            val unknown = resolution.unknown
+            val bounded = resolution.bounded
             // An unidentified secondary voice does not establish a different primary,
             // so it must not strip a display sentence whose own acoustic turns and
             // tokens already name one speaker. A known secondary or an overlap with
             // no named source still blocks, and the marker itself stays in `overlap`.
-            val blocked = covered.any { blocksBackfill(it.secondarySpeakerIds, it.overlap) }
+            // 同一个人被 Sortformer 同时放进两个槽位时，次说话人会标成与主说话人同一个身份；
+            // 那不是"这句还有别人"，不能因此阻断整句归属（缺陷 #77：单人听写落到"其他角色"）。
+            val blocked = resolution.blocked
             val single = known.size == 1 && !blocked && bounded && parts.isNotEmpty() &&
                 parts.all { it.speakerId == known.single() }
             val inferred = parts.any { it.speakerInferred } || (single && unknown.isNotEmpty())
@@ -257,19 +270,70 @@ internal class DiarizationTranscriptState {
         val confidence: Float,
     )
 
+    /** 按声学轨道算一句的归属；句子归属与角色更新共用这一套规则，避免两处结论不一致。 */
+    private class TurnResolution(
+        val participants: List<String>,
+        val known: List<String>,
+        val secondaries: List<String>,
+        val overlap: Boolean,
+        val blocked: Boolean,
+        val bounded: Boolean,
+        val unknown: List<SpeakerTimelineTurn>,
+        val confidence: Float,
+    )
+
+    private fun resolveTurns(beginTime: Int, endTime: Int): TurnResolution {
+        val covered = turns.filter { overlapMs(beginTime, endTime, it.beginTime, it.endTime) > 0 }
+        val participants = covered.flatMap { listOf(it.speakerId) + it.secondarySpeakerIds }.toSortedSet()
+        val known = participants.filter { it != "UNKNOWN" && it != "UNKNOWN_SECONDARY" }
+        val overlap = covered.any { it.overlap || it.secondarySpeakerIds.isNotEmpty() }
+        val unknown = covered.filter { it.speakerId == "UNKNOWN" }.sortedBy { it.beginTime }
+        var unknownBegin = -1
+        var unknownEnd = -1
+        var bounded = true
+        for (turn in unknown) {
+            val begin = maxOf(beginTime, turn.beginTime)
+            val end = minOf(endTime, turn.endTime)
+            if (begin > unknownEnd) unknownBegin = begin
+            unknownEnd = maxOf(unknownEnd, end)
+            if (unknownEnd - unknownBegin > 2_500) bounded = false
+        }
+        val sessionSpeakers = knownSpeakerIds()
+        val singleSpeakerSession = sessionSpeakers.size <= 1
+        val blocked = !singleSpeakerSession && covered.any { turn ->
+            val others = turn.secondarySpeakerIds.filter { id -> id != turn.speakerId }
+            val sameSpeakerOverlap = turn.secondarySpeakerIds.isNotEmpty() && others.isEmpty()
+            blocksBackfill(others, turn.overlap && !sameSpeakerOverlap)
+        }
+        val confidence = covered.minOfOrNull { it.confidence } ?: 0f
+        return TurnResolution(
+            participants.toList(), known, covered.flatMap { it.secondarySpeakerIds }.toSortedSet().toList(),
+            overlap, blocked, bounded, unknown, confidence,
+        )
+    }
+
     private fun assignmentFor(beginTime: Int, endTime: Int): Assignment {
+        // 更新通道比"句子显示"更保守：只要还看到未定的次说话人，就不给出确定身份，
+        // 这与契约测试 unidentifiedSecondaryKeepsTheUnanimousPrimary 一致。
+        // 只放开两条：#77 需要的"同人次说话人不算冲突"与"单人会话的重叠标记是误报"。
         val participants = sortedSetOf<String>()
         var overlap = false
+        var unidentified = false
         var confidence = 1f
         turns.forEach { turn ->
-            val duration = overlapMs(beginTime, endTime, turn.beginTime, turn.endTime)
-            if (duration <= 0) return@forEach
+            if (overlapMs(beginTime, endTime, turn.beginTime, turn.endTime) <= 0) return@forEach
             participants += turn.speakerId
             participants += turn.secondarySpeakerIds
-            overlap = overlap || turn.overlap || turn.secondarySpeakerIds.isNotEmpty()
+            val others = turn.secondarySpeakerIds.filter { it != turn.speakerId }
+            if (others.any { it == "UNKNOWN" || it == "UNKNOWN_SECONDARY" }) unidentified = true
+            val sameSpeakerOverlap = turn.secondarySpeakerIds.isNotEmpty() && others.isEmpty()
+            overlap = overlap || (turn.overlap && !sameSpeakerOverlap) || others.isNotEmpty()
             confidence = minOf(confidence, turn.confidence)
         }
-        val single = participants.size == 1 && "UNKNOWN" !in participants && "UNKNOWN_SECONDARY" !in participants && !overlap
+        val singleSpeakerSession = knownSpeakerIds().size <= 1
+        val effectiveOverlap = overlap && !singleSpeakerSession
+        val single = participants.size == 1 && "UNKNOWN" !in participants &&
+            "UNKNOWN_SECONDARY" !in participants && !effectiveOverlap && !unidentified
         val speakerId = if (single) participants.single() else "UNKNOWN"
         return Assignment(
             speakerId,
@@ -488,17 +552,20 @@ internal class DiarizationTranscriptState {
 
     private fun unsplit(utterance: StoredUtterance): DiarizedTranscriptUtterance {
         val assignment = assignmentFor(utterance.beginTime, utterance.endTime)
-        // Text-only ITN has no exact source provenance for lexical rewrites.
-        val exactText = tokenTextBoundaries(listOf(utterance.rawText), utterance.text) != null
+        // 文本对不回 token（ITN / 词法改写没有来源记录）时，整句的归属只看声学：这句区间内
+        // 只有一个已知角色、无重叠无未知，归属就是它，不需要逐字对齐——对齐只在要**切分**
+        // 文字时才有意义。此前这里一律给 UNKNOWN，让填单场景里凡带数字、电话、证件号（必经
+        // ITN 改写）的句子全部落成「其他角色」（客户 #29）。多人同句、重叠或未知仍按 assignmentFor 给 UNKNOWN。
+        val owned = assignment.speakerId != "UNKNOWN"
         return DiarizedTranscriptUtterance(
             utterance.utteranceId,
             utterance.rawText,
             utterance.text,
             utterance.beginTime,
             utterance.endTime,
-            if (exactText) utterance.speakerId else "UNKNOWN",
-            utterance.secondarySpeakerIds.toList(),
-            if (exactText) assignment.confidence else 0f,
+            if (owned) assignment.speakerId else "UNKNOWN",
+            assignment.secondarySpeakerIds.toList(),
+            if (owned) assignment.confidence else 0f,
             turns.any { it.overlap && overlapMs(utterance.beginTime, utterance.endTime, it.beginTime, it.endTime) > 0 },
         )
     }

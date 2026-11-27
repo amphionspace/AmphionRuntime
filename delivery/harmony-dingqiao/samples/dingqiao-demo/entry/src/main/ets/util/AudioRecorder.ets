@@ -2,7 +2,13 @@ import worker, { ErrorEvent, MessageEvents } from '@ohos.worker';
 
 export type PcmListener = (samples: Int16Array) => void;
 export type RecorderErrorListener = (message: string) => void;
-export type DemoAudioSource = 'mic' | 'voiceRecognition' | 'voiceCommunication';
+/**
+ * Demo 可选的 AudioCapturer SourceType。对应《语音识别场景划分方案》的采集源对照表：
+ * mic=SOURCE_TYPE_MIC（原始）、voiceRecognition=VOICE_RECOGNITION（系统 NS+AGC）、
+ * voiceCommunication=VOICE_COMMUNICATION（AEC 主开）、live=SOURCE_TYPE_LIVE（自带风噪抑制，API 20）、
+ * unprocessed=SOURCE_TYPE_UNPROCESSED（无任何前处理，API 14）。
+ */
+export type DemoAudioSource = 'mic' | 'voiceRecognition' | 'voiceCommunication' | 'live' | 'unprocessed';
 
 const CAPTURE_WORKER_URL = 'amphion_asr_demo/ets/workers/AudioCaptureWorker.ets';
 

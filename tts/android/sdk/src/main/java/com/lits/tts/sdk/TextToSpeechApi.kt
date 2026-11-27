@@ -229,13 +229,7 @@ object TextToSpeechSdk {
                 return@execute
             }
             runCatching {
-                init(
-                    ctx,
-                    TtsLicenseOptions(
-                        license = licenseText,
-                        licenseAssetName = null,
-                    ),
-                )
+                LicenseGuard.activateFile(ctx, licenseText)
                 val info = getLicenseInfo()
                 LicenseActivationResult(
                     errorCode = TtsErrorCode.OK,

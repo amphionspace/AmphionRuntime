@@ -14,6 +14,11 @@ import com.amphion.dingqiao.diarization.SpeakerDiarizationController
 import com.amphion.dingqiao.diarization.SpeakerDiarizationFinishBarrier
 import com.amphion.dingqiao.diarization.SpeakerDiarizationSession
 import com.amphion.dingqiao.diarization.SpeakerDiarizationSessionObserver
+import com.amphion.dingqiao.diarization.SpeakerEmbedFn
+import com.amphion.dingqiao.diarization.SpeakerIdentityModes
+import com.amphion.dingqiao.diarization.validateSpeakerDiarizationConfig as validateDiarizationConfigPolicy
+import com.amphion.dingqiao.diarization.validateSpeakerIdentityMode
+import com.amphion.asr.SpeakerEnroller
 import com.amphion.police.PoliceEnhancePipeline
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.ExecutorService
@@ -218,6 +223,7 @@ internal class DingqiaoRecognitionEngine(
                         voiceprintStore.sdkWorkPath(),
                         diarizationConfig.maxSpeakers,
                         diarizationObserver,
+                        identityEmbedFn(diarizationSessionId, diarizationConfig),
                     )
                 } catch (t: Throwable) {
                     DegradedSpeakerDiarizationSession(
@@ -251,6 +257,9 @@ internal class DingqiaoRecognitionEngine(
                         "enablePoliceEnhancement" to policeEnhancementEnabled,
                         "enableVoiceprintVerification" to voiceprintEnabled,
                         "enableSpeakerVad" to speakerVadEnabled,
+                        "speakerIdentityMode" to params.speakerDiarization?.let {
+                            validateSpeakerIdentityMode(it.speakerIdentityMode)
+                        },
                         "voiceprintIdCount" to voiceprintIds.size,
                         "vadBeginMs" to DingqiaoEngineConfig.vadBeginMs(params),
                         "vadEndMs" to DingqiaoEngineConfig.vadEndMs(params),
@@ -387,6 +396,8 @@ internal class DingqiaoRecognitionEngine(
                         "voiceprint not found for speaker VAD",
                     )
                 currentSession.setTargetSpeaker(embedding)
+                loadTargetTemplates(voiceprintIds)?.let { currentSession.setTargetSpeakerTemplates(it) }
+                loadTargetFinalTemplates(voiceprintIds)?.let { currentSession.setTargetSpeakerFinalTemplates(it) }
             }
             currentSession.setTargetSpeakerEnabled(voiceprintEnabled || enabled)
             currentSession.setSpeakerVadEnabled(enabled)
@@ -469,6 +480,8 @@ internal class DingqiaoRecognitionEngine(
             } catch (_: Throwable) {
             }
             engine = null
+            // 声纹身份的 extractor 只在会话的块提交回调里被调用，diarizationQuiescent 之后再释放。
+            releaseIdentityExtractor()
             try {
                 enhancePipeline?.close()
             } catch (_: Throwable) {
@@ -949,8 +962,34 @@ internal class DingqiaoRecognitionEngine(
         val embedding = voiceprintStore.loadMergedEmbedding(voiceprintIds)
             ?: throw IllegalStateException("voiceprint not found")
         session.setTargetSpeaker(embedding)
+        loadTargetTemplates(voiceprintIds)?.let { session.setTargetSpeakerTemplates(it) }
+        loadTargetFinalTemplates(voiceprintIds)?.let { session.setTargetSpeakerFinalTemplates(it) }
         session.setTargetSpeakerEnabled(needsVoiceprint)
         session.setSpeakerVadEnabled(speakerVadEnabled)
+    }
+
+    /** 汇总所有声纹档案的注册模板；只有单模板时返回 null，调用方走原单嵌入路径。 */
+    private fun loadTargetTemplates(voiceprintIds: List<String>): List<FloatArray>? {
+        val templates = voiceprintIds.flatMap { id ->
+            val perProfile = voiceprintStore.loadTemplates(id)
+            if (perProfile.isNotEmpty()) perProfile else listOfNotNull(voiceprintStore.loadEmbedding(id))
+        }
+        return if (templates.size > 1) templates else null
+    }
+
+    /**
+     * final 打分专用的多尺度模板：整文件模板 + 2 s 分段模板（缺陷 #97 第二轮，与鸿蒙同口径）。
+     * 没有任何分段模板（旧档案）时返回 null，final 退回整文件模板。
+     */
+    private fun loadTargetFinalTemplates(voiceprintIds: List<String>): List<FloatArray>? {
+        val segments = voiceprintIds.flatMap { voiceprintStore.loadSegmentTemplates(it) }
+        if (segments.isEmpty()) return null
+        val whole = voiceprintIds.flatMap { id ->
+            val perProfile = voiceprintStore.loadTemplates(id)
+            if (perProfile.isNotEmpty()) perProfile else listOfNotNull(voiceprintStore.loadEmbedding(id))
+        }
+        val all = whole + segments
+        return if (all.size > 1) all else null
     }
 
     private fun validateVoiceprintParams(params: StartParams) {
@@ -972,10 +1011,56 @@ internal class DingqiaoRecognitionEngine(
         }
     }
 
+    /** 校验 maxSpeakers 与 speakerIdentityMode；拼错的身份来源在这里让 startListening 失败。 */
     private fun validateSpeakerDiarizationConfig(config: SpeakerDiarizationConfig?) {
         if (config == null) return
-        require(config.maxSpeakers in 1..4) {
-            "SpeakerDiarizationConfig.maxSpeakers must be in [1, 4]"
+        validateDiarizationConfigPolicy(config)
+    }
+
+    /**
+     * 声纹身份的嵌入函数；只在 speakerIdentityMode=voiceprint 时非空。
+     *
+     * 用 CAM++（campplus）而不是复用机主识别的 eres2net：并入阈值 0.50 与全部评测都在 CAM++ 上标定
+     * （客户 4 条留一 34/34，换 eres2net 掉到 30/34），不同嵌入模型之间阈值不可迁移。extractor 引擎级
+     * 共享、首次开启时加载一次，shutdown 时释放。拿不到嵌入能力就回落到模型槽位，不让会话失败；
+     * 调用方从 modelSpeakerIndex 与 speakerIndex 相同可看出未生效。
+     */
+    private fun identityEmbedFn(sessionId: String, config: SpeakerDiarizationConfig): SpeakerEmbedFn? {
+        if (validateSpeakerIdentityMode(config.speakerIdentityMode) != SpeakerIdentityModes.VOICEPRINT) return null
+        val enroller = try {
+            obtainIdentityEnroller()
+        } catch (t: Throwable) {
+            if (DiagnosticsModule.isBuildEnabled()) {
+                DiagnosticsModule.record(sessionId, "DIARIZATION_IDENTITY_UNAVAILABLE",
+                    mapOf("error" to (t.message ?: t.javaClass.simpleName)))
+            }
+            return null
+        }
+        return { samples ->
+            try {
+                // enroll([段]) = 该段 raw 嵌入 L2 归一，与鸿蒙 SpeakerEnroller.enroll([samples]) 同一口径。
+                enroller.enroll(listOf(samples), 16_000)
+            } catch (_: Throwable) {
+                null                            // 单段失败只让该段留"未赋身份"，不拖垮会话
+            }
+        }
+    }
+
+    /** 持有 CAM++ extractor 的注册器（公开 API），引擎级共享、首次开启时加载一次。 */
+    private var identityEnroller: SpeakerEnroller? = null
+
+    @Synchronized
+    private fun obtainIdentityEnroller(): SpeakerEnroller {
+        identityEnroller?.let { return it }
+        val model = DingqiaoSpeakerModelAssets.ensureComplementaryDiarizationInstalled(appContext, voiceprintStore.sdkWorkPath())
+        return SpeakerEnroller(model.absolutePath, numThreads = 1).also { identityEnroller = it }
+    }
+
+    private fun releaseIdentityExtractor() {
+        val enroller = synchronized(this) { identityEnroller.also { identityEnroller = null } } ?: return
+        try {
+            enroller.close()
+        } catch (_: Throwable) {
         }
     }
 

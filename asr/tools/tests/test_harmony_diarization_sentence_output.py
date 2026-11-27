@@ -34,6 +34,49 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           }}
         """)
 
+    def test_rewritten_text_without_provenance_keeps_the_only_acoustic_owner(self):
+        """客户 #29：填单里带数字/电话的句子经 ITN 改写、拿不到来源记录时，整句区间内只有
+        一个已知角色，归属不需要逐字对齐；多人同句仍是 UNKNOWN。"""
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const raw='我是角色一一二三四五六七八九十', text='我是角色112345678910。';
+          const single=new State();
+          single.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>3300+200*i),
+            beginTime:3320,endTime:6920}});
+          single.applySpeakerTurns([{{beginTime:2400,endTime:11250,speakerId:'S2',secondarySpeakerIds:[],confidence:.9,overlap:false}}]);
+          const out=single.sentenceUtterances();
+          assert.equal(out.length,1);
+          assert.equal(out[0].speakerId,'S2','the only acoustic participant owns the rewritten sentence');
+          assert.deepEqual(out[0].secondarySpeakerIds,[]);
+          assert.equal(out[0].text,text);
+          const mixed=new State();
+          mixed.addUtterance({{rawText:raw,text,tokens:[...raw],tokenTimesMs:[...raw].map((_,i)=>3300+200*i),
+            beginTime:3320,endTime:6920}});
+          mixed.applySpeakerTurns([
+            {{beginTime:2400,endTime:5000,speakerId:'S1',secondarySpeakerIds:[],confidence:.9,overlap:false}},
+            {{beginTime:5000,endTime:11250,speakerId:'S2',secondarySpeakerIds:[],confidence:.9,overlap:false}}]);
+          const two=mixed.sentenceUtterances();
+          assert.equal(two.length,1);
+          assert.equal(two[0].speakerId,'UNKNOWN','two speakers inside an unalignable sentence stay unowned');
+          assert.deepEqual(two[0].secondarySpeakerIds,['S1','S2']);
+        """)
+
+    def test_token_evidence_covers_emission_lag_and_untimed_finals(self):
+        run_node(f"""
+          import assert from 'node:assert/strict';
+          import {{ SpeakerDiarizationTranscriptState as State }} from {TIMELINE.as_uri()!r};
+          const s=new State();
+          s.addUtterance({{rawText:'你好',text:'你好。',tokens:['你','好'],tokenTimesMs:[3300,3900],beginTime:3100,endTime:3900}});
+          assert.equal(s.hasTokenEvidence(0,1330),false,'a track that ended before the first token has no evidence');
+          assert.equal(s.hasTokenEvidence(2400,3000),true,'emission lag: a token 300 ms after the track still counts');
+          assert.equal(s.hasTokenEvidence(2400,2600),false,'beyond the 600 ms emission lag it does not');
+          assert.equal(s.hasTokenEvidence(3500,8000),true);
+          s.addUtterance({{rawText:'嗯',text:'嗯。',tokens:[],tokenTimesMs:[],beginTime:9000,endTime:9500}});
+          assert.equal(s.hasTokenEvidence(9200,12000),true,'an untimed final counts by interval overlap');
+          assert.equal(s.hasTokenEvidence(9600,12000),false);
+        """)
+
     def test_itn_source_records_preserve_original_owner_and_inference(self):
         run_node(f"""
           import assert from 'node:assert/strict';
@@ -174,10 +217,12 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
           assert.equal(quietOut[0].speakerId,'S1');assert.equal(quietOut[0].overlap,true);
           assert.equal(quietOut[0].speakerTextSpans[0].speakerId,'S1');
           assert.equal(quietOut[0].speakerTextSpans[0].overlap,true);
+          // 残缺的来源记录拿不到逐字对齐（没有 speakerTextSpans），但整句只有 S1 一个已知角色，
+          // 归属由声学给出，不是由记录"猜"出来的（客户 #29）。
           for(const spans of [[],[{{sourceBegin:0,sourceEnd:3,textBegin:0,textEnd:2}}],
             [{{sourceBegin:0,sourceEnd:4,textBegin:1,textEnd:2}}]]) {{
             const out=sample([turn(0,400,'S1')],spans).sentenceUtterances()[0];
-            assert.equal(out.speakerId,'UNKNOWN');assert.deepEqual(out.speakerTextSpans,[]);
+            assert.equal(out.speakerId,'S1');assert.deepEqual(out.speakerTextSpans,[]);
           }}
           const unicode=new State();unicode.addUtterance({{rawText:'𠮷三',text:'𠮷3。',tokens:['𠮷','三'],
             tokenTimesMs:[0,100],beginTime:0,endTime:200,textNormalization:{{text:'𠮷3',spans:[
@@ -461,8 +506,11 @@ class HarmonyDiarizationSentenceOutputTest(unittest.TestCase):
               if(original)assert.deepEqual(source,original,'ITN cannot change source evidence');else original=source;
               const out=s.sentenceUtterances();assert.equal(out.map(x=>x.text).join(''),text);
               assert.equal(out.map(x=>x.rawText).join(''),raw);
-              if(text===rewritten){{assert.equal(out.length,1);assert.equal(out[0].speakerId,'UNKNOWN');
-                assert.equal(out[0].confidence,0);assert.equal(out[0].speakerInferred,false);}}
+              // 对不回 token 的改写只是不能**切分**文字；整句区间内只有 S1 一个已知角色，
+              // 归属仍由声学决定（客户 #29：填单里带数字的句子不能因 ITN 落成"其他角色"）。
+              if(text===rewritten){{assert.equal(out.length,1);assert.equal(out[0].speakerId,'S1');
+                assert.ok(out[0].confidence>0);assert.equal(out[0].speakerInferred,false);
+                assert.deepEqual(out[0].speakerTextSpans,[]);}}
             }}
           }}
         """)
