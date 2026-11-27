@@ -3,12 +3,12 @@
 | 项 | 值 |
 |---|---|
 | 版本 / 版本日期 | 0.3.27 / 2026-11-04 |
-| 源码提交 | `1ac8d93f95473a8b8c0b16e71151c57e1647fab9`（分支 `release/harmony-0.3.27`，未合入 main） |
+| 源码提交 | `1ac8d93f95473a8b8c0b16e71151c57e1647fab9`（分支 `release/harmony-0.3.27`，已经 #287 合入 main） |
 | 完整 ZIP | `Amphion-Harmony-ASR-Complete-0.3.27.zip`，1939583071 字节，SHA-256 `0408b5577ebe4a8d94fbb3c76b8a3c1f092207b9fd24b0d0c5f8a399b59efd0c` |
 | Release 子包 | `amphion-harmony-asr-sdk-v0.3.27-20261104.zip`，390468432 字节，`9a136daa…` |
 | Diagnostics 子包 | `Amphion-ASR-Diagnostics-SDK.zip`，773934394 字节，`7496f8ed…` |
 | 基线 | 客户实际收到的 0.3.26（源码 `927bda6e`，ZIP `860d731f…`，带 speaker-vad-turn 豁免） |
-| 状态 | **未发布候选**（`published: false`）：`speaker-vad-turn` 按豁免处理；按用户授权可带披露豁免交付 |
+| 状态 | **未发布候选**（`published: false`）：`speaker-vad-turn` 按豁免处理；按用户授权可带披露豁免交付；分支已合入 main（#287） |
 | 真机 | HUAWEI VYG-AL30，HarmonyOS 7.0.0.109，arm64-v8a（序列号见外置最终报告） |
 
 ## 本版改动（相对客户已收到的 0.3.26）

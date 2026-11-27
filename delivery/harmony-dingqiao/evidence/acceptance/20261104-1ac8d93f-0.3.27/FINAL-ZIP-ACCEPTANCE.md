@@ -91,5 +91,5 @@
 ## 发布资格
 
 本包为**未发布候选**（`published: false`）：`speaker-vad-turn` 受检报告按豁免处理，按交付流程不具备正式发布资格；
-交付分支 `release/harmony-0.3.27` 尚未合入 main。与 0.3.26 相同，按用户明确授权可带披露豁免交付与归档。
+交付分支 `release/harmony-0.3.27` 已于组包后经 #287 合入 main（合并提交 `8762cc55`），产物仍绑定 `1ac8d93f`。与 0.3.26 相同，按用户明确授权可带披露豁免交付与归档。
 状态记录见 `delivery/candidate-reports/harmony-0.3.27-20261104/`。
