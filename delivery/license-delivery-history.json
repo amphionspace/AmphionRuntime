@@ -403,6 +403,51 @@
       "status": "delivered"
     },
     {
+      "requestId": "REQ-CHONGQING-OFFLINE-20261112-001",
+      "licenseId": "LIC-CHONGQING-OFFLINE-20261112-001",
+      "deliveryId": "DEL-CHONGQING-OFFLINE-20261112-001",
+      "customerId": "chongqing",
+      "projectId": "commercial-offline-speech",
+      "previousLicenseId": "LIC-CHONGQING-OFFLINE-20260924-001",
+      "snSetId": "SNSET-486B9F6BBEC942C6B1330E71E00700A7",
+      "uniqueSnCount": 3,
+      "policy": {
+        "features": [
+          "ASR",
+          "TTS"
+        ],
+        "sdkMajor": 1,
+        "installTier": "",
+        "applicationRecord": {
+          "mode": "none"
+        },
+        "certificateBinding": {
+          "mode": "none"
+        },
+        "runtimeExpiry": {
+          "mode": "perpetual"
+        },
+        "maintenance": {
+          "mode": "unlimited"
+        },
+        "deviceBinding": "required"
+      },
+      "artifact": "DEL-CHONGQING-OFFLINE-20261112-001.zip",
+      "artifactSha256": "19adefbfda200c34849040fbee7b4d76732fcf1f2baa13456ef2b5c8053ea6d4",
+      "artifactSizeBytes": 3439,
+      "licenseSha256": "321b5d6af0c0bf98906bbece5423eb2e4b642d38a949e477f2d766ca267335a1",
+      "planSha256": "d4c37c0f376c5fd9b1ba088f9f6695adcff21a9299730f1eb374edceffeabebf",
+      "planReceiptSha256": "0cc6a8b8db5d6a04154efe0e69c4a41304431ea7d33bcbc177c0e40185ecf4c1",
+      "issuanceReceiptSha256": "5b2bfa0d4f559787a7bc92e9e77d6de3f97cfbb7878d8a7ff5e37b1e4663ca70",
+      "verificationReceiptSha256": "9fa8d40a8b73c55c013059a29a6cc049bd2dabee228454cc18275b12528ef632",
+      "toolCommit": "8cdaf4a3b73bdcb864a68169fe58a8be2a82b6f3",
+      "issueOperator": "momo",
+      "verifyOperator": "momo",
+      "operator": "momo",
+      "deliveredAt": "2026-11-12",
+      "status": "delivered"
+    },
+    {
       "requestId": "REQ-BJ-OFFLINE-20261116-001",
       "licenseId": "LIC-BJ-OFFLINE-20261116-001",
       "deliveryId": "DEL-BJ-OFFLINE-20261116-001",
