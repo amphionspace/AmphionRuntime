@@ -4,6 +4,9 @@ import { util } from '@kit.ArkTS';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import { evaluateLicenseIdentity, LicenseIdentityFailure } from './RuntimeIdentity';
 import { applicationMatches } from './RuntimePackagePolicy';
+import { effectiveToday, isQuotaChain, QuotaChainError, QuotaContext, QuotaDeviceKey, quotaErrorName,
+  verifyQuotaChain } from './QuotaChain';
+import { HarmonyQuotaCrypto, HuksQuotaDeviceKey } from './QuotaDeviceKey';
 
 // Offline-license trust set (comma-separated X.509 SubjectPublicKeyInfo DER base64 values).
 // The original delivery key remains trusted while the AWS KMS Enterprise key signs newly issued licenses.
@@ -34,6 +37,9 @@ export class AmphionLicenseStatus {
   expiresAt?: string;
   installTier: string = '';
   features: string[] = [];
+  /** 额度证书链授权：本机序号与额度总数；白名单授权为 0。 */
+  quotaSeq: number = 0;
+  quotaMaxDevices: number = 0;
 
   hasFeature(feature: string): boolean {
     return this.features.includes(feature);
@@ -42,6 +48,12 @@ export class AmphionLicenseStatus {
   static notInitialized(): AmphionLicenseStatus {
     return new AmphionLicenseStatus();
   }
+}
+
+/** 授权时钟水位：记录已见过的最大日期，离线设备把时钟调回也不能让过期授权复活。 */
+export interface LicenseClockWatermark {
+  read(): string;
+  write(day: string): void;
 }
 
 export class HarmonyLicenseVerifier {
@@ -175,7 +187,9 @@ export class HarmonyLicenseVerifier {
     deviceSerial: string | undefined,
     publicKeyB64: string = '',
     sdkMajor: number = 0,
-    sdkReleaseDate: string = ''
+    sdkReleaseDate: string = '',
+    deviceKey?: QuotaDeviceKey,
+    clock?: LicenseClockWatermark
   ): Promise<AmphionLicenseStatus> {
     const status = new AmphionLicenseStatus();
     status.bundleName = bundleName;
@@ -192,6 +206,11 @@ export class HarmonyLicenseVerifier {
     }
     if (!hasLicense) {
       return HarmonyLicenseVerifier.fail(status, AsrErrorCode.LICENSE_MISSING, 'license missing');
+    }
+    // 按数量离线授权（额度证书链）：格式由顶层 format 字段区分，与 SN 白名单格式互斥。
+    if (isQuotaChain(licenseText)) {
+      return await HarmonyLicenseVerifier.evaluateQuotaChain(status, licenseText as string, bundleName, deviceSerial,
+        publicKeyB64, sdkMajor, sdkReleaseDate, deviceKey ?? new HuksQuotaDeviceKey(), clock);
     }
 
     // ---- 单次解析:envelope 一次 → native base64 解 payload 一次(bytes 同时喂 ECDSA)→ native UTF-8 → claims 一次 ----
@@ -307,6 +326,70 @@ export class HarmonyLicenseVerifier {
       ? 'license accepted; signature and SN whitelist verified'
       : 'license parsed without signature verification; public key is not injected';
     return status;
+  }
+
+  private static async evaluateQuotaChain(status: AmphionLicenseStatus, licenseText: string,
+    bundleName: string | undefined, deviceSerial: string | undefined, publicKeyB64: string, sdkMajor: number,
+    sdkReleaseDate: string, deviceKey: QuotaDeviceKey, clock?: LicenseClockWatermark): Promise<AmphionLicenseStatus> {
+    status.installTier = 'quota';
+    // 链格式只有武装构建才能放行：未注入根公钥时没有信任起点（NOT_ARMED → LICENSE_MALFORMED）。
+    const watermark = clock === undefined ? '' : clock.read();
+    const today = effectiveToday(HarmonyLicenseVerifier.today(), watermark);
+    const ctx: QuotaContext = {
+      serial: deviceSerial ?? '',
+      bundleName: bundleName ?? '',
+      sdkMajor: sdkMajor,
+      sdkReleaseDate: sdkReleaseDate,
+      requiredFeature: 'ASR',
+      today: today,
+      deviceKey: deviceKey
+    };
+    try {
+      const r = await verifyQuotaChain(licenseText, publicKeyB64, ctx, new HarmonyQuotaCrypto());
+      if (clock !== undefined && today !== watermark) {
+        clock.write(today);
+      }
+      status.licenseId = `${r.quotaId}#${r.seq}`;
+      status.customer = r.customer;
+      status.features = r.features;
+      status.expiresAt = r.licenseExpiresAt;
+      status.maintenanceUntil = r.maintenanceUntil;
+      status.deviceIdSaltId = r.deviceIdSaltId;
+      status.deviceIdHashAlg = 'SHA-256';
+      status.quotaSeq = r.seq;
+      status.quotaMaxDevices = r.maxDevices;
+      status.authorizedDeviceCount = r.maxDevices;
+      status.state = AmphionLicenseState.LICENSED;
+      status.valid = true;
+      status.errorCode = AsrErrorCode.OK;
+      status.message = `quota license accepted; seq ${r.seq}/${r.maxDevices}`;
+      return status;
+    } catch (e) {
+      const code = e instanceof QuotaChainError ? (e as QuotaChainError).code : 'MALFORMED';
+      return HarmonyLicenseVerifier.fail(status, HarmonyLicenseVerifier.quotaErrorCode(code),
+        `quota license rejected: ${code}`);
+    }
+  }
+
+  private static quotaErrorCode(code: string): number {
+    switch (quotaErrorName(code)) {
+      case 'LICENSE_SIGNATURE_INVALID':
+        return AsrErrorCode.LICENSE_SIGNATURE_INVALID;
+      case 'LICENSE_FEATURE_MISSING':
+        return AsrErrorCode.LICENSE_FEATURE_MISSING;
+      case 'LICENSE_EXPIRED':
+        return AsrErrorCode.LICENSE_EXPIRED;
+      case 'LICENSE_SDK_MAJOR_MISMATCH':
+        return AsrErrorCode.LICENSE_SDK_MAJOR_MISMATCH;
+      case 'LICENSE_MAINTENANCE_EXPIRED':
+        return AsrErrorCode.LICENSE_MAINTENANCE_EXPIRED;
+      case 'LICENSE_APP_MISMATCH':
+        return AsrErrorCode.LICENSE_APP_MISMATCH;
+      case 'LICENSE_DEVICE_MISMATCH':
+        return AsrErrorCode.LICENSE_DEVICE_MISMATCH;
+      default:
+        return AsrErrorCode.LICENSE_MALFORMED;
+    }
   }
 
   private static fail(status: AmphionLicenseStatus, code: number, message: string): AmphionLicenseStatus {

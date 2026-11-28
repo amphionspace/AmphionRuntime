@@ -57,6 +57,7 @@ import { NativeAgcBackend } from './NativeAgcBackend';
 import { ProcessedAudioFrame, StreamingAgcProcessor } from './StreamingAgcProcessor';
 import { StreamingAgcIngress } from './StreamingAgcIngress';
 import { AmphionLicenseStatus, HarmonyLicenseVerifier } from './License';
+import { PreferencesClockWatermark } from './QuotaLicense';
 import { InitialSilenceTracker } from './InitialSilenceTracker';
 import { EffectiveSpeechBuffer } from './EffectiveSpeechBuffer';
 import { SpeakerPcmBuffers } from './SpeakerPcmBuffers';
@@ -1105,7 +1106,9 @@ export class AmphionRuntime {
       serial,
       HarmonyLicenseVerifier.publicKey(),
       AmphionRuntime.SDK_MAJOR,
-      AmphionRuntime.SDK_RELEASE_DATE
+      AmphionRuntime.SDK_RELEASE_DATE,
+      undefined,
+      new PreferencesClockWatermark(context)
     );
   }
 

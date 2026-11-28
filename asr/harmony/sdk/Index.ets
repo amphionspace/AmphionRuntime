@@ -4,6 +4,7 @@ export * from './src/main/ets/com/amphion/asr/AssetRegistry';
 export * from './src/main/ets/com/amphion/asr/Runtime';
 export * from './src/main/ets/com/amphion/asr/AssetInstaller';
 export * from './src/main/ets/com/amphion/asr/License';
+export { AmphionQuotaLicense } from './src/main/ets/com/amphion/asr/QuotaLicense';
 export * from './src/main/ets/com/amphion/asr/SpeakerEnroller';
 export * from './src/main/ets/com/amphion/asr/SpeakerIdentityAssigner';
 export * from './src/main/ets/com/amphion/asr/LacPersonNer';

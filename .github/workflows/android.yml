@@ -472,6 +472,10 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install license tooling dependencies
+        # test_harmony_quota_chain round-trips through the Python quota issuer (cryptography, pytest fixtures).
+        run: python3 -m pip install -r tools/license/requirements.txt "pytest>=8,<9"
+
       - name: Run cross-platform ASR lifecycle contracts
         run: |
           python3 -m unittest discover -s asr/tools/tests -p 'test_harmony_*.py' -v
