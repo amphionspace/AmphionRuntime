@@ -5,7 +5,9 @@ import com.amphion.asr.internal.AssetInstaller
 import com.amphion.asr.internal.AssetRegistry
 import com.amphion.asr.internal.DeviceLicenseFingerprint
 import com.amphion.asr.internal.EngineImpl
+import com.amphion.asr.internal.KeystoreDeviceKey
 import com.amphion.asr.internal.LicenseVerifier
+import com.amphion.asr.internal.QuotaChainVerifier
 import com.amphion.asr.internal.Logger
 import com.amphion.asr.internal.SharedPostProcessor
 import com.k2fsa.sherpa.onnx.OnlineRecognizer
@@ -275,6 +277,40 @@ public object AmphionRuntime {
     @JvmStatic
     public fun deviceLicenseFingerprint(deviceSerial: String, deviceIdSaltId: String): String =
         DeviceLicenseFingerprint.computeFromSerial(deviceSerial, deviceIdSaltId)
+
+    /**
+     * 按数量离线授权：生成激活请求（JSON 文本），交给客户内网签发点换取本机授权文件。
+     *
+     * 首次调用会在 AndroidKeyStore 生成设备密钥（私钥不可导出）；请求里只有 SN 盐哈希和设备公钥，没有明文 SN。
+     * [deviceIdSaltId] 取自客户的额度证书。授权文件拿回后按普通 license 传给 [AmphionOptions.license]。
+     */
+    @JvmStatic
+    public fun quotaActivationRequest(context: Context, deviceIdProvider: AmphionDeviceIdProvider,
+                                      deviceIdSaltId: String): String {
+        val serial = deviceIdProvider.getDeviceSerial(context)
+            ?: throw IllegalStateException("code=${AsrErrorCode.LICENSE_DEVICE_MISMATCH}: device SN unavailable")
+        val key = KeystoreDeviceKey().also { it.ensure() }
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+            .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())
+        return QuotaChainVerifier.activationRequest(serial, deviceIdSaltId, "android_arm64", context.packageName ?: "",
+            today, key) { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) }
+    }
+
+    /**
+     * 按数量离线授权：注销本机（额度证书允许回收时）。返回交给签发点的回执；返回前已销毁设备密钥，
+     * 本机授权随之失效，宿主应删除本地授权文件。
+     */
+    @JvmStatic
+    public fun quotaDeactivationReceipt(licenseText: String): String {
+        val key = KeystoreDeviceKey()
+        val today = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.ROOT)
+            .apply { timeZone = java.util.TimeZone.getTimeZone("UTC") }.format(java.util.Date())
+        val receipt = QuotaChainVerifier.deactivationReceipt(licenseText, today, key,
+            { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) },
+            { android.util.Base64.encodeToString(it, android.util.Base64.NO_WRAP) })
+        key.destroy()
+        return receipt
+    }
 
     /**
      * 释放 SDK 全局资源：清空 ASR 池 + 释放共享后处理 + 重置 initialized 标记。
