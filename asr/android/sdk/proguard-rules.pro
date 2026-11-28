@@ -44,6 +44,14 @@
 -keep class com.amphion.asr.internal.AssetRegistry { *; }
 -keep class com.amphion.asr.internal.AssetRegistry$Bundle { *; }
 -keep class com.amphion.asr.internal.LicenseVerifier { *; }
+# Release unit tests drive the quota-chain verifier and its dispatch directly (QuotaChainVerifierTest).
+# Security relies on signature checks, not on obfuscating these names.
+-keep class com.amphion.asr.internal.LicenseVerifier$Result { *; }
+-keep class com.amphion.asr.internal.LicenseClock { *; }
+-keep class com.amphion.asr.internal.QuotaChainVerifier { *; }
+-keep class com.amphion.asr.internal.QuotaChainVerifier$* { *; }
+-keep class com.amphion.asr.internal.StrictJson { *; }
+-keep class com.amphion.asr.internal.StrictJson$* { *; }
 -keep class com.amphion.asr.internal.FinalCallbackOrderGate { *; }
 -keep class com.amphion.asr.AsrConfig { *; }
 -keep class com.amphion.asr.internal.StreamingAgcProcessor { *; }
